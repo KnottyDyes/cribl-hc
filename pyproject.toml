@@ -1,0 +1,125 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cribl-health-check"
+version = "1.0.0"
+description = "Comprehensive health checking tool for Cribl Stream deployments"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Cribl Health Check Project", email = "noreply@example.com"}
+]
+keywords = ["cribl", "stream", "health-check", "monitoring", "analytics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Monitoring",
+]
+
+dependencies = [
+    "httpx>=0.25.0",
+    "pydantic>=2.5.0",
+    "typer>=0.9.0",
+    "rich>=13.7.0",
+    "structlog>=23.2.0",
+    "cryptography>=41.0.0",
+    "python-dateutil>=2.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "respx>=0.20.0",
+    "black>=23.12.0",
+    "ruff>=0.1.9",
+    "mypy>=1.7.0",
+]
+
+[project.scripts]
+cribl-hc = "cribl_hc.cli.main:app"
+
+[project.urls]
+Homepage = "https://github.com/cribl/health-check"
+Documentation = "https://github.com/cribl/health-check#readme"
+Repository = "https://github.com/cribl/health-check"
+Issues = "https://github.com/cribl/health-check/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+cribl_hc = ["py.typed", "rules/*.yaml"]
+
+[tool.pytest.ini_options]
+minversion = "7.4"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--verbose",
+    "--cov=cribl_hc",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--cov-fail-under=80",
+    "--asyncio-mode=auto",
+]
+asyncio_mode = "auto"
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "contract: Contract tests for external APIs",
+    "slow: Slow tests that take more than 1 second",
+]
+
+[tool.coverage.run]
+source = ["src/cribl_hc"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py311", "py312"]
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["B011"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false

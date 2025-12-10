@@ -1,0 +1,23 @@
+# Cribl Health Check - Runtime Dependencies
+# Install with: pip install -r requirements.txt
+
+# HTTP client with async support
+httpx>=0.25.0
+
+# Data validation and parsing
+pydantic>=2.5.0
+
+# CLI framework
+typer>=0.9.0
+
+# Terminal formatting and output
+rich>=13.7.0
+
+# Structured logging for audit trails
+structlog>=23.2.0
+
+# Credential encryption
+cryptography>=41.0.0
+
+# Date/time utilities
+python-dateutil>=2.8.0
