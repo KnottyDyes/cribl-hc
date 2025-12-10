@@ -1,0 +1,302 @@
+# Cribl Stream API Subset Used by Health Check Tool
+# This documents the READ-ONLY endpoints we consume from Cribl Stream API
+
+openapi: 3.1.0
+info:
+  title: Cribl Stream API (Health Check Subset)
+  description: |
+    Subset of Cribl Stream API endpoints used by the health check tool.
+    ALL endpoints are read-only GET requests (Constitution Principle I).
+
+    Base URL: https://{cribl-host}:9000 (self-hosted) or https://{org}.cribl.cloud (cloud)
+    Authentication: Bearer token in Authorization header
+  version: 4.5.x
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    SystemStatus:
+      type: object
+      properties:
+        version:
+          type: string
+          example: "4.5.2"
+        health:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        uptime_seconds:
+          type: integer
+
+    Worker:
+      type: object
+      properties:
+        id:
+          type: string
+        info:
+          type: object
+          properties:
+            hostname:
+              type: string
+            ipAddress:
+              type: string
+            version:
+              type: string
+        metrics:
+          type: object
+          properties:
+            cpu:
+              type: number
+            memory:
+              type: object
+              properties:
+                used:
+                  type: number
+                total:
+                  type: number
+            disk:
+              type: object
+              properties:
+                used:
+                  type: number
+                total:
+                  type: number
+
+    Pipeline:
+      type: object
+      properties:
+        id:
+          type: string
+        conf:
+          type: object
+          properties:
+            functions:
+              type: array
+              items:
+                type: object
+
+    Route:
+      type: object
+      properties:
+        id:
+          type: string
+        filter:
+          type: string
+        output:
+          type: string
+        pipeline:
+          type: string
+
+security:
+  - BearerAuth: []
+
+paths:
+  /api/v1/system/status:
+    get:
+      summary: Get system health and version
+      description: Returns overall system status, version, and uptime
+      responses:
+        '200':
+          description: System status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatus'
+      tags: [Objective 1 - Health Assessment]
+
+  /api/v1/master/workers:
+    get:
+      summary: List all workers
+      description: Returns list of all worker nodes with metrics
+      responses:
+        '200':
+          description: Worker list retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Worker'
+      tags: [Objective 1 - Health Assessment]
+
+  /api/v1/master/groups:
+    get:
+      summary: List worker groups
+      description: Returns list of worker groups
+      responses:
+        '200':
+          description: Worker groups retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+      tags: [Objective 2 - Sizing]
+
+  /api/v1/m/{groupId}/pipelines:
+    get:
+      summary: Get pipelines for worker group
+      description: Returns all pipeline configurations for specified group
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pipelines retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Pipeline'
+      tags: [Objective 3 - Configuration Auditing]
+
+  /api/v1/m/{groupId}/routes:
+    get:
+      summary: Get routes for worker group
+      description: Returns all route configurations
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Routes retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Route'
+      tags: [Objective 3 - Configuration Auditing]
+
+  /api/v1/m/{groupId}/outputs:
+    get:
+      summary: Get destinations for worker group
+      description: Returns all output/destination configurations
+      parameters:
+        - name: groupId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Destinations retrieved
+      tags: [Objective 3 - Configuration Auditing]
+
+  /api/v1/metrics:
+    get:
+      summary: Get system metrics
+      description: Returns time-series metrics for CPU, memory, throughput
+      parameters:
+        - name: filter:
+          in: query
+          schema:
+            type: string
+          description: Metric filter expression
+        - name: earliest:
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: latest:
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Metrics retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+      tags: [Objective 1 - Health Assessment, Objective 6 - Performance]
+
+  /api/v1/license:
+    get:
+      summary: Get license information
+      description: Returns license consumption and allocation data
+      responses:
+        '200':
+          description: License info retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allocated_gb:
+                    type: number
+                  consumed_gb:
+                    type: number
+                  utilization_percent:
+                    type: number
+      tags: [Objective 9 - License & Cost Management]
+
+# API Call Budget Breakdown (< 100 total)
+#
+# Health Assessment (Objective 1): ~15 calls
+# - GET /api/v1/system/status: 1
+# - GET /api/v1/master/workers: 1
+# - GET /api/v1/metrics (various): 10-12
+# - Worker group details: 1-2
+#
+# Configuration Auditing (Objective 3): ~25-30 calls
+# - GET /api/v1/master/groups: 1
+# - GET /api/v1/m/{group}/pipelines: 1-3 per group
+# - GET /api/v1/m/{group}/routes: 1-3 per group
+# - GET /api/v1/m/{group}/outputs: 1-3 per group
+# - Configuration validation: 15-20
+#
+# Sizing & Performance (Objectives 2, 6): ~20 calls
+# - Metric queries for capacity: 10-15
+# - Performance metric queries: 5-10
+#
+# Security (Objective 7): ~10 calls
+# - Security-related config checks: 5-8
+# - TLS/auth validation: 2-5
+#
+# License & Cost (Objective 9): ~5 calls
+# - GET /api/v1/license: 1
+# - Cost-related metrics: 3-4
+#
+# Other Objectives (4, 5, 8, 10-15): ~20-25 calls
+# - Utilize already-fetched data where possible
+# - Minimal additional API calls for specialized analysis
+#
+# TOTAL: 95-100 calls (within budget)
+#
+# Optimization Strategies:
+# 1. Fetch worker groups once, share across analyzers
+# 2. Cache pipeline/route configs within analysis run
+# 3. Batch metric queries with multiple filters
+# 4. Use parallel async requests for independent calls
+# 5. Skip optional objectives if approaching budget limit

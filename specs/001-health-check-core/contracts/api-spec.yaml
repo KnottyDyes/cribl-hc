@@ -1,0 +1,271 @@
+# OpenAPI 3.1 Specification: Cribl Health Check Core Library API
+# This is a PYTHON LIBRARY API (not HTTP REST), documented in OpenAPI for clarity
+
+openapi: 3.1.0
+info:
+  title: Cribl Health Check Core Library API
+  description: |
+    Python library API for analyzing Cribl Stream deployments.
+    This is a **Python package import API**, not an HTTP REST API.
+
+    Usage:
+    ```python
+    from cribl_hc import analyze_deployment, Deployment, AnalysisRun
+
+    deployment = Deployment(id="prod", url="https://...", auth_token="...")
+    result: AnalysisRun = await analyze_deployment(deployment, objectives=["health"])
+    print(f"Health Score: {result.health_score.overall_score}")
+    ```
+  version: 1.0.0
+  contact:
+    name: Cribl Health Check Project
+    url: https://github.com/cribl/health-check
+
+components:
+  schemas:
+    Deployment:
+      type: object
+      required: [id, name, url, environment_type, auth_token]
+      properties:
+        id:
+          type: string
+          pattern: '^[a-z0-9-]+$'
+          description: Unique identifier (lowercase, alphanumeric, hyphens)
+        name:
+          type: string
+          description: Human-readable name
+        url:
+          type: string
+          format: uri
+          description: Base URL for Cribl API
+        environment_type:
+          type: string
+          enum: [cloud, self-hosted]
+        auth_token:
+          type: string
+          format: password
+          description: API authentication token (encrypted in storage)
+        cribl_version:
+          type: string
+          nullable: true
+          description: Detected Cribl version
+
+    AnalysisRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        deployment_id:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        duration_seconds:
+          type: number
+          nullable: true
+        status:
+          type: string
+          enum: [running, completed, partial, failed]
+        objectives_analyzed:
+          type: array
+          items:
+            type: string
+        api_calls_used:
+          type: integer
+          maximum: 100
+        health_score:
+          $ref: '#/components/schemas/HealthScore'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Finding'
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recommendation'
+
+    HealthScore:
+      type: object
+      properties:
+        overall_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        components:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ComponentScore'
+        timestamp:
+          type: string
+          format: date-time
+        trend_direction:
+          type: string
+          enum: [improving, stable, declining]
+          nullable: true
+
+    ComponentScore:
+      type: object
+      properties:
+        name:
+          type: string
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        weight:
+          type: number
+          minimum: 0
+          maximum: 1
+        details:
+          type: string
+
+    Finding:
+      type: object
+      properties:
+        id:
+          type: string
+        category:
+          type: string
+        severity:
+          type: string
+          enum: [critical, high, medium, low, info]
+        title:
+          type: string
+        description:
+          type: string
+        affected_components:
+          type: array
+          items:
+            type: string
+        remediation_steps:
+          type: array
+          items:
+            type: string
+        documentation_links:
+          type: array
+          items:
+            type: string
+            format: uri
+        estimated_impact:
+          type: string
+        confidence_level:
+          type: string
+          enum: [high, medium, low]
+
+    Recommendation:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        priority:
+          type: string
+          enum: [p0, p1, p2, p3]
+        title:
+          type: string
+        description:
+          type: string
+        implementation_steps:
+          type: array
+          items:
+            type: string
+        impact_estimate:
+          $ref: '#/components/schemas/ImpactEstimate'
+
+    ImpactEstimate:
+      type: object
+      properties:
+        cost_savings_annual:
+          type: number
+          nullable: true
+        performance_improvement:
+          type: string
+          nullable: true
+        storage_reduction_gb:
+          type: number
+          nullable: true
+
+paths:
+  /analyze_deployment:
+    post:
+      summary: Analyze a Cribl Stream deployment
+      description: |
+        Python function: `async def analyze_deployment(deployment: Deployment, objectives: List[str] = None) -> AnalysisRun`
+
+        Performs comprehensive health check analysis on specified deployment.
+        Returns AnalysisRun with findings, recommendations, and health score.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deployment:
+                  $ref: '#/components/schemas/Deployment'
+                objectives:
+                  type: array
+                  items:
+                    type: string
+                  default: ["health"]
+      responses:
+        '200':
+          description: Analysis completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisRun'
+
+  /calculate_health_score:
+    post:
+      summary: Calculate health score from deployment data
+      description: |
+        Python function: `def calculate_health_score(deployment_data: Dict) -> HealthScore`
+
+        Calculates weighted health score from component metrics.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deployment_data:
+                  type: object
+      responses:
+        '200':
+          description: Health score calculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthScore'
+
+  /generate_report:
+    post:
+      summary: Generate formatted report
+      description: |
+        Python function: `def generate_report(analysis_run: AnalysisRun, format: str) -> str`
+
+        Generates report in specified format (json, yaml, markdown, html).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                analysis_run:
+                  $ref: '#/components/schemas/AnalysisRun'
+                format:
+                  type: string
+                  enum: [json, yaml, markdown, html]
+      responses:
+        '200':
+          description: Report generated
+          content:
+            text/plain:
+              schema:
+                type: string
