@@ -4,11 +4,17 @@ Cribl API client with rate limiting, error handling, and connection testing.
 
 import asyncio
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
 import httpx
 from pydantic import BaseModel, Field
+
+from cribl_hc.utils.logger import get_logger
+from cribl_hc.utils.rate_limiter import RateLimiter
+
+
+log = get_logger(__name__)
 
 
 class ConnectionTestResult(BaseModel):
@@ -60,6 +66,7 @@ class CriblAPIClient:
         auth_token: str,
         timeout: float = 30.0,
         max_retries: int = 3,
+        rate_limiter: Optional[RateLimiter] = None,
     ):
         """
         Initialize Cribl API client.
@@ -69,6 +76,7 @@ class CriblAPIClient:
             auth_token: Bearer token for authentication
             timeout: Request timeout in seconds (default: 30.0)
             max_retries: Maximum retry attempts (default: 3)
+            rate_limiter: Optional rate limiter (creates default if not provided)
         """
         self.base_url = base_url.rstrip("/")
         self.auth_token = auth_token
@@ -78,9 +86,12 @@ class CriblAPIClient:
         # HTTP client will be initialized in __aenter__
         self._client: Optional[httpx.AsyncClient] = None
 
-        # API call tracking for budget monitoring
-        self.api_calls_made = 0
-        self.api_call_budget = 100
+        # Rate limiter for API call budget enforcement
+        self.rate_limiter = rate_limiter or RateLimiter(
+            max_calls=100,
+            time_window_seconds=3600.0,  # 1 hour window
+            enable_backoff=True,
+        )
 
     async def __aenter__(self):
         """Async context manager entry - initialize HTTP client."""
@@ -140,11 +151,11 @@ class CriblAPIClient:
         start_time = datetime.utcnow()
 
         try:
-            response = await self._client.get(endpoint)
-            elapsed_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            # Use rate limiter context manager for automatic tracking
+            async with self.rate_limiter:
+                response = await self._client.get(endpoint)
 
-            # Track API call
-            self.api_calls_made += 1
+            elapsed_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
 
             # Check response status
             if response.status_code == 200:
@@ -227,7 +238,7 @@ class CriblAPIClient:
 
     async def get(self, endpoint: str, **kwargs) -> httpx.Response:
         """
-        Make GET request to Cribl API.
+        Make GET request to Cribl API with rate limiting.
 
         Args:
             endpoint: API endpoint path (e.g., "/api/v1/master/workers")
@@ -237,23 +248,25 @@ class CriblAPIClient:
             httpx.Response object
 
         Raises:
-            RuntimeError: If API call budget exceeded
+            RuntimeError: If API call budget exceeded or client not initialized
         """
-        if self.api_calls_made >= self.api_call_budget:
-            raise RuntimeError(
-                f"API call budget exceeded ({self.api_calls_made}/{self.api_call_budget})"
-            )
-
         if not self._client:
             raise RuntimeError("Client not initialized - use async context manager")
 
-        response = await self._client.get(endpoint, **kwargs)
-        self.api_calls_made += 1
-        return response
+        async with self.rate_limiter:
+            log.debug("api_request", method="GET", endpoint=endpoint)
+            response = await self._client.get(endpoint, **kwargs)
+            log.info(
+                "api_response",
+                method="GET",
+                endpoint=endpoint,
+                status_code=response.status_code,
+            )
+            return response
 
     async def post(self, endpoint: str, **kwargs) -> httpx.Response:
         """
-        Make POST request to Cribl API.
+        Make POST request to Cribl API with rate limiting.
 
         Args:
             endpoint: API endpoint path
@@ -263,16 +276,165 @@ class CriblAPIClient:
             httpx.Response object
 
         Raises:
-            RuntimeError: If API call budget exceeded
+            RuntimeError: If API call budget exceeded or client not initialized
         """
-        if self.api_calls_made >= self.api_call_budget:
-            raise RuntimeError(
-                f"API call budget exceeded ({self.api_calls_made}/{self.api_call_budget})"
-            )
-
         if not self._client:
             raise RuntimeError("Client not initialized - use async context manager")
 
-        response = await self._client.post(endpoint, **kwargs)
-        self.api_calls_made += 1
-        return response
+        async with self.rate_limiter:
+            log.debug("api_request", method="POST", endpoint=endpoint)
+            response = await self._client.post(endpoint, **kwargs)
+            log.info(
+                "api_response",
+                method="POST",
+                endpoint=endpoint,
+                status_code=response.status_code,
+            )
+            return response
+
+    # High-level endpoint methods for common operations
+
+    async def get_system_status(self) -> Dict[str, Any]:
+        """
+        Get system status from /api/v1/system/status.
+
+        Returns:
+            System status data including health and component status
+
+        Example:
+            >>> status = await client.get_system_status()
+            >>> print(status["health"])
+        """
+        response = await self.get("/api/v1/system/status")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_workers(self) -> List[Dict[str, Any]]:
+        """
+        Get worker nodes from /api/v1/master/workers.
+
+        Returns:
+            List of worker node data with status and metrics
+
+        Example:
+            >>> workers = await client.get_workers()
+            >>> for worker in workers:
+            ...     print(f"{worker['id']}: {worker['status']}")
+        """
+        response = await self.get("/api/v1/master/workers")
+        response.raise_for_status()
+        data = response.json()
+        return data.get("items", [])
+
+    async def get_metrics(self, time_range: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get metrics from /api/v1/metrics.
+
+        Args:
+            time_range: Optional time range (e.g., "1h", "24h")
+
+        Returns:
+            Metrics data including throughput, CPU, memory, etc.
+
+        Example:
+            >>> metrics = await client.get_metrics(time_range="1h")
+            >>> print(metrics["throughput"]["bytes_in"])
+        """
+        params = {"timeRange": time_range} if time_range else {}
+        response = await self.get("/api/v1/metrics", params=params)
+        response.raise_for_status()
+        return response.json()
+
+    async def get_pipelines(self) -> List[Dict[str, Any]]:
+        """
+        Get pipeline configurations from /api/v1/master/pipelines.
+
+        Returns:
+            List of pipeline configurations
+
+        Example:
+            >>> pipelines = await client.get_pipelines()
+            >>> for pipeline in pipelines:
+            ...     print(f"{pipeline['id']}: {len(pipeline['functions'])} functions")
+        """
+        response = await self.get("/api/v1/master/pipelines")
+        response.raise_for_status()
+        data = response.json()
+        return data.get("items", [])
+
+    async def get_routes(self) -> List[Dict[str, Any]]:
+        """
+        Get route configurations from /api/v1/master/routes.
+
+        Returns:
+            List of route configurations
+
+        Example:
+            >>> routes = await client.get_routes()
+            >>> for route in routes:
+            ...     print(f"{route['id']}: {route['output']}")
+        """
+        response = await self.get("/api/v1/master/routes")
+        response.raise_for_status()
+        data = response.json()
+        return data.get("items", [])
+
+    async def get_inputs(self) -> List[Dict[str, Any]]:
+        """
+        Get input configurations from /api/v1/master/inputs.
+
+        Returns:
+            List of input configurations
+
+        Example:
+            >>> inputs = await client.get_inputs()
+            >>> for input_cfg in inputs:
+            ...     print(f"{input_cfg['id']}: {input_cfg['type']}")
+        """
+        response = await self.get("/api/v1/master/inputs")
+        response.raise_for_status()
+        data = response.json()
+        return data.get("items", [])
+
+    async def get_outputs(self) -> List[Dict[str, Any]]:
+        """
+        Get output/destination configurations from /api/v1/master/outputs.
+
+        Returns:
+            List of output configurations
+
+        Example:
+            >>> outputs = await client.get_outputs()
+            >>> for output in outputs:
+            ...     print(f"{output['id']}: {output['type']}")
+        """
+        response = await self.get("/api/v1/master/outputs")
+        response.raise_for_status()
+        data = response.json()
+        return data.get("items", [])
+
+    def get_api_calls_remaining(self) -> int:
+        """
+        Get number of API calls remaining in budget.
+
+        Returns:
+            Number of remaining API calls
+
+        Example:
+            >>> remaining = client.get_api_calls_remaining()
+            >>> print(f"{remaining} API calls remaining")
+        """
+        return self.rate_limiter.get_remaining_calls()
+
+    def get_api_calls_used(self) -> int:
+        """
+        Get number of API calls used.
+
+        Returns:
+            Number of API calls made
+
+        Example:
+            >>> used = client.get_api_calls_used()
+            >>> print(f"Used {used}/100 API calls")
+        """
+        return self.rate_limiter.total_calls_made
