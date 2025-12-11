@@ -47,7 +47,7 @@ dev = [
 ]
 
 [project.scripts]
-cribl-hc = "cribl_hc.cli.main:app"
+cribl-hc = "cribl_hc.cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/cribl/health-check"
