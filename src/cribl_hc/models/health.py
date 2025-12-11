@@ -5,7 +5,7 @@ Health score models for tracking deployment health metrics.
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ComponentScore(BaseModel):
@@ -107,15 +107,12 @@ class HealthScore(BaseModel):
 
         return v
 
-    @field_validator("trend_direction")
-    @classmethod
-    def validate_trend_requires_previous(
-        cls, v: Optional[str], info
-    ) -> Optional[Literal["improving", "stable", "declining"]]:
+    @model_validator(mode="after")
+    def validate_trend_requires_previous(self) -> "HealthScore":
         """Validate that trend_direction requires previous_score."""
-        if v is not None and info.data.get("previous_score") is None:
+        if self.trend_direction is not None and self.previous_score is None:
             raise ValueError("trend_direction requires previous_score to be set")
-        return v  # type: ignore
+        return self
 
     class Config:
         """Pydantic model configuration."""

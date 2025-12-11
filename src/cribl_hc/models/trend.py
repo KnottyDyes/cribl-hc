@@ -91,20 +91,30 @@ class HistoricalTrend(BaseModel):
         # Use last 5 values or all if fewer
         recent = values[-5:] if len(values) >= 5 else values
 
-        # Simple slope calculation (first to last)
-        slope = (recent[-1] - recent[0]) / len(recent)
-
-        # Simple variance estimation
+        # Calculate mean and standard deviation
         mean_val = sum(recent) / len(recent)
         variance = sum((x - mean_val) ** 2 for x in recent) / len(recent)
-        relative_variance = variance / (mean_val + 0.001)  # Avoid division by zero
+        std_dev = variance ** 0.5
+
+        # Calculate coefficient of variation (CV) for volatility detection
+        # CV = std_dev / mean (as percentage of mean)
+        cv = std_dev / abs(mean_val) if mean_val != 0 else 0
+
+        # Simple slope calculation (first to last, normalized by range)
+        value_range = max(recent) - min(recent)
+        slope = (recent[-1] - recent[0]) / len(recent)
+
+        # Normalize slope by mean to make it scale-independent
+        normalized_slope = slope / abs(mean_val) if mean_val != 0 else 0
 
         # Classification
-        if relative_variance > 0.2:
+        # Check for volatility first - high CV indicates large fluctuations
+        if cv > 0.3:  # CV > 30% indicates high volatility
             return "volatile"
-        elif slope > 0.1:
+        # Check for directional trends using normalized slope
+        elif normalized_slope > 0.02:  # 2% improvement per point
             return "improving"
-        elif slope < -0.1:
+        elif normalized_slope < -0.02:  # 2% decline per point
             return "declining"
         return "stable"
 

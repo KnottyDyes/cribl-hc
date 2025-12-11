@@ -5,7 +5,7 @@ Finding model for identified problems and improvement opportunities.
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
 
 class Finding(BaseModel):
@@ -69,27 +69,22 @@ class Finding(BaseModel):
     detected_at: datetime = Field(default_factory=datetime.utcnow)
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional context")
 
-    @field_validator("remediation_steps")
-    @classmethod
-    def validate_remediation_steps(cls, v: list[str], info) -> list[str]:
-        """Validate remediation steps are present for critical/high/medium severity."""
-        severity = info.data.get("severity")
-        if severity in ["critical", "high", "medium"] and len(v) == 0:
+    @model_validator(mode="after")
+    def validate_severity_requirements(self) -> "Finding":
+        """Validate remediation steps and impact based on severity."""
+        # Validate remediation steps for critical/high/medium
+        if self.severity in ["critical", "high", "medium"] and len(self.remediation_steps) == 0:
             raise ValueError(
-                f"Remediation steps required for {severity} severity findings"
+                f"Remediation steps required for {self.severity} severity findings"
             )
-        return v
 
-    @field_validator("estimated_impact")
-    @classmethod
-    def validate_estimated_impact(cls, v: str, info) -> str:
-        """Validate estimated impact is present for critical/high severity."""
-        severity = info.data.get("severity")
-        if severity in ["critical", "high"] and not v:
+        # Validate estimated impact for critical/high
+        if self.severity in ["critical", "high"] and not self.estimated_impact:
             raise ValueError(
-                f"Estimated impact required for {severity} severity findings"
+                f"Estimated impact required for {self.severity} severity findings"
             )
-        return v
+
+        return self
 
     @field_validator("documentation_links")
     @classmethod
