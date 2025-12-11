@@ -6,6 +6,7 @@ import typer
 from rich.console import Console
 
 from cribl_hc.cli import test_connection
+from cribl_hc.cli.commands import analyze, config
 
 
 console = Console()
@@ -15,7 +16,19 @@ app = typer.Typer(
     add_completion=False,
 )
 
-# Register test-connection command
+# Register commands
+app.add_typer(
+    analyze.app,
+    name="analyze",
+    help="Run health check analysis",
+)
+
+app.add_typer(
+    config.app,
+    name="config",
+    help="Manage credentials and configuration",
+)
+
 app.add_typer(
     test_connection.app,
     name="test-connection",

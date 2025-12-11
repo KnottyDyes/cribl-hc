@@ -33,7 +33,8 @@ def configure_logging(
     # Define processors for log formatting
     processors: list[Processor] = [
         structlog.stdlib.add_log_level,
-        structlog.stdlib.add_logger_name,
+        # Note: add_logger_name removed - incompatible with PrintLoggerFactory
+        # PrintLogger doesn't have a .name attribute
     ]
 
     if include_timestamp:
