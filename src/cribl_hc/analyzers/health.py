@@ -78,12 +78,21 @@ class HealthAnalyzer(BaseAnalyzer):
             # Fetch system status (may not be available on Cribl Cloud)
             system_status = await self._fetch_system_status(client)
 
+            # Fetch leader health
+            leader_health = await self._fetch_leader_health(client)
+
             # Get Cribl version from workers if system status not available
             if workers:
                 cribl_version = workers[0].get("info", {}).get("cribl", {}).get("version", "unknown")
                 result.metadata["cribl_version"] = cribl_version
             else:
                 result.metadata["cribl_version"] = system_status.get("version", "unknown")
+
+            # Check leader health
+            self._check_leader_health(leader_health, result)
+
+            # Check deployment architecture
+            self._check_deployment_architecture(workers, result)
 
             # Analyze worker health
             unhealthy_workers = self._analyze_worker_health(workers, result)
@@ -156,6 +165,122 @@ class HealthAnalyzer(BaseAnalyzer):
             self.log.error("system_status_fetch_failed", error=str(e))
             return {}
 
+    async def _fetch_leader_health(self, client: CriblAPIClient) -> Dict[str, Any]:
+        """Fetch leader health from API."""
+        try:
+            response = await client.get("/api/v1/health")
+            data = response.json()
+            self.log.debug("leader_health_fetched", status=data.get("status"))
+            return data
+        except Exception as e:
+            self.log.error("leader_health_fetch_failed", error=str(e))
+            return {}
+
+    def _check_leader_health(self, leader_health: Dict[str, Any], result: AnalyzerResult) -> None:
+        """Check leader health status."""
+        if not leader_health:
+            return
+
+        status = leader_health.get("status", "unknown")
+        role = leader_health.get("role", "unknown")
+
+        result.metadata["leader_status"] = status
+        result.metadata["leader_role"] = role
+
+        if status != "healthy":
+            result.add_finding(
+                Finding(
+                    id="health-leader-unhealthy",
+                    title="Leader Node Unhealthy",
+                    description=f"Leader node reports status '{status}' (role: {role})",
+                    severity="critical",
+                    category="health",
+                    confidence_level="high",
+                    affected_components=["leader"],
+                    estimated_impact="Leader issues can impact entire deployment coordination",
+                    remediation_steps=[
+                        "Check leader node resources (CPU, memory, disk)",
+                        "Review leader logs for errors",
+                        "Verify leader connectivity to workers",
+                        "Consider restarting leader if issues persist",
+                    ],
+                    metadata={"status": status, "role": role},
+                )
+            )
+
+    def _check_deployment_architecture(self, workers: List[Dict[str, Any]], result: AnalyzerResult) -> None:
+        """Check deployment architecture for best practices."""
+        worker_count = len(workers)
+
+        # Check for single worker deployments (lack of redundancy)
+        if worker_count == 1:
+            result.add_finding(
+                Finding(
+                    id="health-single-worker",
+                    title="Single Worker Deployment",
+                    description="Deployment has only 1 worker node, providing no redundancy or high availability",
+                    severity="medium",
+                    category="health",
+                    confidence_level="high",
+                    affected_components=["architecture"],
+                    estimated_impact="Single point of failure - if worker fails, all data processing stops",
+                    remediation_steps=[
+                        "Add at least one additional worker for redundancy",
+                        "Configure worker group with minimum 2 workers",
+                        "Implement load balancing across multiple workers",
+                        "Document disaster recovery procedures",
+                    ],
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/deploy-distributed/",
+                        "https://docs.cribl.io/stream/high-availability/",
+                    ],
+                    metadata={"worker_count": worker_count},
+                )
+            )
+
+        # Check for workers with low process counts
+        for worker in workers:
+            worker_id = worker.get("id", "unknown")
+            worker_processes = worker.get("workerProcesses", 0)
+            info = worker.get("info", {})
+            hostname = info.get("hostname", "unknown")
+            total_cpus = info.get("cpus", 0)
+
+            if worker_processes > 0 and total_cpus > 0:
+                # Typical recommendation is workerProcesses = CPUs - 1 (but at least 1)
+                recommended_processes = max(1, total_cpus - 1)
+
+                # Only flag if worker is healthy (don't add noise to already-unhealthy workers)
+                if worker_processes < recommended_processes and worker.get("status") == "healthy":
+                    result.add_finding(
+                        Finding(
+                            id=f"health-worker-processes-{worker_id}",
+                            title=f"Suboptimal Worker Process Count: {hostname}",
+                            description=f"Worker {hostname} has {worker_processes} process(es) but has {total_cpus} CPUs available. "
+                                      f"Recommended: {recommended_processes} processes",
+                            severity="low",
+                            category="health",
+                            confidence_level="medium",
+                            affected_components=[worker_id],
+                            estimated_impact=f"Underutilizing available CPU resources - could process {recommended_processes}x workload",
+                            remediation_steps=[
+                                f"Increase worker processes to {recommended_processes} in worker group settings",
+                                "Monitor CPU utilization after change",
+                                "Adjust based on actual workload patterns",
+                            ],
+                            documentation_links=[
+                                "https://docs.cribl.io/stream/performance-tuning/",
+                            ],
+                            metadata={
+                                "worker_id": worker_id,
+                                "hostname": hostname,
+                                "current_processes": worker_processes,
+                                "recommended_processes": recommended_processes,
+                                "total_cpus": total_cpus,
+                            },
+                        )
+                    )
+
     def _analyze_worker_health(
         self,
         workers: List[Dict[str, Any]],
@@ -168,15 +293,21 @@ class HealthAnalyzer(BaseAnalyzer):
         - Status is not "healthy"
         - Disk usage > 90%
         - Worker is disconnected
+        - Memory appears constrained (< 2GB total)
+        - Worker recently restarted (< 5 minutes uptime)
 
         Returns:
             List of unhealthy workers
         """
         unhealthy_workers = []
+        import time
+
+        current_time = int(time.time() * 1000)  # Current time in milliseconds
 
         for worker in workers:
             worker_id = worker.get("id", "unknown")
             issues = []
+            warnings = []
 
             # Check worker status
             status = worker.get("status", "unknown")
@@ -187,10 +318,14 @@ class HealthAnalyzer(BaseAnalyzer):
             if worker.get("disconnected", False):
                 issues.append("Disconnected")
 
-            # Calculate disk usage from available data
+            # Get worker info
             info = worker.get("info", {})
+            hostname = info.get("hostname", "unknown")
+
+            # Calculate disk usage from available data
             total_disk = info.get("totalDiskSpace", 0)
             free_disk = info.get("freeDiskSpace", 0)
+            disk_usage_percent = 0
 
             if total_disk > 0:
                 used_disk = total_disk - free_disk
@@ -198,34 +333,56 @@ class HealthAnalyzer(BaseAnalyzer):
 
                 if disk_usage_percent > 90:
                     issues.append(f"Disk: {disk_usage_percent:.1f}%")
-            else:
-                # No disk data available
-                disk_usage_percent = 0
 
-            # If worker has issues, create finding
-            if issues:
+            # Check memory availability
+            total_mem = info.get("totalmem", 0)
+            total_mem_gb = total_mem / (1024**3) if total_mem > 0 else 0
+
+            if total_mem_gb > 0 and total_mem_gb < 2:
+                warnings.append(f"Low memory: {total_mem_gb:.1f}GB")
+
+            # Check worker uptime (time since firstMsgTime)
+            first_msg_time = worker.get("firstMsgTime", 0)
+            if first_msg_time > 0:
+                uptime_ms = current_time - first_msg_time
+                uptime_minutes = uptime_ms / (1000 * 60)
+
+                # Flag workers that recently restarted (< 5 minutes)
+                if uptime_minutes < 5:
+                    warnings.append(f"Recently restarted: {uptime_minutes:.1f} min uptime")
+
+            # If worker has issues or warnings, create finding
+            if issues or warnings:
                 unhealthy_workers.append(worker)
 
-                severity = "critical" if len(issues) >= 2 else "high"
+                # Determine severity based on issues vs warnings
+                if len(issues) >= 2:
+                    severity = "critical"
+                elif len(issues) >= 1:
+                    severity = "high"
+                else:
+                    severity = "medium"  # Only warnings
 
-                # Get worker info for metadata
-                hostname = info.get("hostname", "unknown")
                 worker_group = worker.get("group", "default")
+
+                all_concerns = issues + warnings
+                description = f"Worker {hostname} (group: {worker_group}) has {len(all_concerns)} health concern(s): {', '.join(all_concerns)}"
 
                 result.add_finding(
                     Finding(
                         id=f"health-worker-{worker_id}",
                         title=f"Unhealthy Worker: {hostname}",
-                        description=f"Worker {hostname} (group: {worker_group}) has {len(issues)} health issue(s): {', '.join(issues)}",
+                        description=description,
                         severity=severity,
                         category="health",
                         confidence_level="high",
                         affected_components=[worker_id],
-                        estimated_impact=f"Worker performance degraded - {', '.join(issues)}",
+                        estimated_impact=f"Worker performance degraded - {', '.join(all_concerns)}",
                         remediation_steps=[
                             "Review worker status and logs",
                             "Check worker connectivity to leader",
-                            "Monitor disk space usage",
+                            "Monitor resource usage (disk, memory)",
+                            "Investigate recent restarts if applicable",
                         ],
                         metadata={
                             "worker_id": worker_id,
@@ -236,7 +393,10 @@ class HealthAnalyzer(BaseAnalyzer):
                             "disk_usage_percent": disk_usage_percent if total_disk > 0 else None,
                             "disk_total_gb": total_disk / (1024**3) if total_disk > 0 else None,
                             "disk_free_gb": free_disk / (1024**3) if free_disk > 0 else None,
+                            "memory_total_gb": total_mem_gb if total_mem_gb > 0 else None,
+                            "uptime_minutes": uptime_minutes if first_msg_time > 0 else None,
                             "issues": issues,
+                            "warnings": warnings,
                         },
                     )
                 )
@@ -282,7 +442,8 @@ class HealthAnalyzer(BaseAnalyzer):
         return round(base_score, 2)
 
     def _count_worker_issues(self, worker: Dict[str, Any]) -> int:
-        """Count number of issues for a worker."""
+        """Count number of issues for a worker (not warnings)."""
+        import time
         issues = 0
 
         # Check status
@@ -303,6 +464,9 @@ class HealthAnalyzer(BaseAnalyzer):
             disk_usage_percent = (used_disk / total_disk) * 100
             if disk_usage_percent > 90:
                 issues += 1
+
+        # Note: Memory and uptime are warnings, not issues
+        # They don't count toward critical severity calculation
 
         return issues
 

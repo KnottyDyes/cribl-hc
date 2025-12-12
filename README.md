@@ -40,19 +40,28 @@ pip install -e .
 
 ```bash
 # Configure credentials for your Cribl Stream deployment
-cribl-hc config set-credentials \
-  --id prod \
-  --name "Production Cribl Cluster" \
+cribl-hc config set prod \
   --url https://cribl.example.com \
-  --token YOUR_API_TOKEN \
-  --environment self-hosted
+  --token YOUR_API_TOKEN
+
+# Short form:
+cribl-hc config set prod -u https://cribl.example.com -t YOUR_API_TOKEN
+```
+
+**Alternative**: Use environment variables:
+```bash
+export CRIBL_URL=https://cribl.example.com
+export CRIBL_TOKEN=YOUR_API_TOKEN
 ```
 
 ### 2. Run Health Check (MVP)
 
 ```bash
 # Quick health assessment
-cribl-hc analyze --deployment prod
+cribl-hc analyze run --deployment prod
+
+# Short form:
+cribl-hc analyze run -p prod
 
 # Output: Health score and critical findings
 ```
@@ -60,11 +69,15 @@ cribl-hc analyze --deployment prod
 ### 3. Generate Report
 
 ```bash
-# Generate markdown report
-cribl-hc report --format markdown --output health-report.md
+# Generate JSON and markdown reports
+cribl-hc analyze run -p prod --output health-report.json --markdown
 
-# Generate JSON report for automation
-cribl-hc report --format json --output health-report.json
+# Short form:
+cribl-hc analyze run -p prod -o health-report.json -m
+
+# This creates:
+# - health-report.json (machine-readable)
+# - health-report.md (human-readable)
 ```
 
 ## Usage
@@ -73,18 +86,32 @@ cribl-hc report --format json --output health-report.json
 
 ```bash
 # Analyze with default objectives (health only for MVP)
-cribl-hc analyze --deployment prod
+cribl-hc analyze run --deployment prod
+# or short form:
+cribl-hc analyze run -p prod
+
+# Add verbose output
+cribl-hc analyze run -p prod --verbose
+# or short form:
+cribl-hc analyze run -p prod -v
+
+# Add debug mode for troubleshooting
+cribl-hc analyze run -p prod --debug
+# or short form:
+cribl-hc analyze run -p prod -d
 
 # Analyze specific objectives (requires P2+ implementation)
-cribl-hc analyze --deployment prod --objectives health,config,security
-
-# Analyze all objectives
-cribl-hc analyze --deployment prod --objectives all
+cribl-hc analyze run -p prod --objectives health,config,security
+# or short form:
+cribl-hc analyze run -p prod -o health,config,security
 ```
 
 ### Configuration Management
 
 ```bash
+# Store credentials for a deployment
+cribl-hc config set prod --url https://cribl.example.com --token YOUR_TOKEN
+
 # List configured deployments
 cribl-hc config list
 
@@ -93,22 +120,26 @@ cribl-hc config show prod
 
 # Remove deployment
 cribl-hc config remove staging
+
+# Test connection
+cribl-hc test-connection test --deployment prod
+# or short form:
+cribl-hc test-connection test -p prod
 ```
 
 ### Report Generation
 
+Reports are generated during analysis using the `--output` and `--markdown` flags:
+
 ```bash
-# JSON format (default)
-cribl-hc report --format json
+# Generate JSON report
+cribl-hc analyze run -p prod --output report.json
 
-# Markdown format (human-readable)
-cribl-hc report --format markdown
+# Generate both JSON and Markdown reports
+cribl-hc analyze run -p prod --output report.json --markdown
 
-# HTML format (browser viewing)
-cribl-hc report --format html
-
-# YAML format
-cribl-hc report --format yaml
+# Short form:
+cribl-hc analyze run -p prod -o report.json -m
 ```
 
 ## Python Library API

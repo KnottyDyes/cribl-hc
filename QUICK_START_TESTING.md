@@ -50,9 +50,17 @@ cribl-hc config set prod \
   --token YOUR_API_TOKEN
 ```
 
-This encrypts and stores your credentials. Now you can use `--deployment prod` instead of typing credentials!
+This encrypts and stores your credentials. Now you can use `--deployment prod` (or `-p prod`) instead of typing credentials!
 
-**Alternative**: You can also use environment variables or provide credentials each time. See [CREDENTIAL_MANAGEMENT.md](CREDENTIAL_MANAGEMENT.md) for all options.
+**Alternative**: You can also use environment variables:
+```bash
+export CRIBL_URL=https://your-cribl-instance.com
+export CRIBL_TOKEN=YOUR_API_TOKEN
+```
+
+Or provide credentials with each command using `--url` and `--token` flags.
+
+See [CREDENTIAL_MANAGEMENT.md](CREDENTIAL_MANAGEMENT.md) for all options.
 
 ## Step 5: Test Connection (CRITICAL FIRST STEP!)
 
@@ -64,34 +72,42 @@ This encrypts and stores your credentials. Now you can use `--deployment prod` i
 
 **Using stored credentials** (recommended):
 ```bash
-cribl-hc test-connection test --deployment prod --verbose
+cribl-hc test-connection test --deployment prod
+# or use the short form:
+cribl-hc test-connection test -p prod
+```
+
+**Using environment variables**:
+```bash
+export CRIBL_URL=https://your-cribl-instance.com
+export CRIBL_TOKEN=YOUR_API_TOKEN
+cribl-hc test-connection test
 ```
 
 **Or provide credentials directly**:
 ```bash
 cribl-hc test-connection test \
   --url https://your-cribl-instance.com \
-  --token YOUR_API_TOKEN \
-  --verbose
+  --token YOUR_API_TOKEN
+# short form: -u and -t
+cribl-hc test-connection test -u https://your-cribl-instance.com -t YOUR_API_TOKEN
 ```
 
 **Expected output if successful**:
 ```
-🐛 Debug mode enabled - detailed logging active
+Using stored credentials for: prod
+URL: https://your-cribl-instance.com
 
-Testing Connection to Cribl Stream
-Target: https://your-cribl-instance.com
+Testing connection to Cribl API...
 
-[DEBUG] testing_connection url=https://your-cribl-instance.com
-[DEBUG] api_request method=GET endpoint=/api/v1/health
-[DEBUG] api_response status_code=200 response_time_ms=152.3
+✓ Connection Test Results
 
-✓ Connection successful
-   Response time: 152ms
-   Cribl version: 4.0.0
-   API endpoint: https://your-cribl-instance.com/api/v1/health
+Status: SUCCESS
+Response Time: 152ms
+Cribl Version: 4.15.0
+API Endpoint: https://your-cribl-instance.com/api/v1/health
 
-[DEBUG] connection_details response_time_ms=152.3 cribl_version=4.0.0
+Connection test passed successfully
 ```
 
 **If connection fails**, you'll see detailed error messages:
@@ -122,58 +138,86 @@ Target: https://your-cribl-instance.com
 ```
 **Solution**: Check the URL spelling and ensure the domain is reachable
 
-## Step 6: Run Your First Analysis (Verbose Mode)
+## Step 6: Run Your First Analysis
 
-Once connection test passes, run a full analysis with verbose output:
+Once connection test passes, run a full analysis:
 
 **Using stored credentials** (recommended):
 ```bash
-cribl-hc analyze run --deployment prod --verbose
+cribl-hc analyze run --deployment prod
+# or use the short form:
+cribl-hc analyze run -p prod
+```
+
+**Using environment variables**:
+```bash
+export CRIBL_URL=https://your-cribl-instance.com
+export CRIBL_TOKEN=YOUR_API_TOKEN
+cribl-hc analyze run
 ```
 
 **Or provide credentials directly**:
 ```bash
 cribl-hc analyze run \
   --url https://your-cribl-instance.com \
-  --token YOUR_API_TOKEN \
-  --verbose
+  --token YOUR_API_TOKEN
+# short form:
+cribl-hc analyze run -u https://your-cribl-instance.com -t YOUR_API_TOKEN
+```
+
+**Add verbose mode to see more details**:
+```bash
+cribl-hc analyze run -p prod --verbose
+# or use short form:
+cribl-hc analyze run -p prod -v
 ```
 
 **Expected output**:
 ```
-ℹ️  Verbose mode enabled
+Using stored credentials for: prod
+URL: https://your-cribl-instance.com
+
 
 Cribl Stream Health Check
 Target: https://your-cribl-instance.com
 Deployment: default
 
 Testing connection...
-[INFO] testing_connection url=https://your-cribl-instance.com
 ✓ Connected successfully (152ms)
-Cribl version: 4.0.0
+Cribl version: 4.15.0
 
-[INFO] initializing_orchestrator max_api_calls=100 continue_on_error=True
 Running analysis...
-[Progress bar showing completion]
-████████████████████ 100%
+  Analysis complete ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100%
 
-[INFO] displaying_results findings_count=3 recommendations_count=2
+         Analysis Summary
+ Status                 COMPLETED
+ Objectives Analyzed    health
+ Total Findings         3
+   Critical             0
+   High                 1
+   Medium               2
+ Total Recommendations  2
+ API Calls Used         4/100
+ Duration               0.15s
 
-Analysis Summary
-Status: COMPLETED
-Objectives Analyzed: health
-Total Findings: 3
-  Critical: 0
-  High: 1
-  Medium: 2
-Total Recommendations: 2
-API Calls Used: 23/100
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ HEALTH Findings                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
 
-HEALTH Findings
-...
+● HIGH
+System Health: Healthy
+├── All 3 workers are operating normally with a health score of 100.0/100
+├── Components: overall_health
+└── Impact: Overall system health: 100.0/100
 
-Recommendations
-...
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Recommendations                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+▶ P2 PRIORITY
+
+1. Optimize Worker Configuration
+   [... details ...]
 
 Analysis completed successfully
 ```
@@ -184,12 +228,18 @@ If you encounter any issues or want to see exactly what's happening:
 
 ```bash
 cribl-hc analyze run --deployment prod --debug 2>&1 | tee debug.log
+# or short form:
+cribl-hc analyze run -p prod -d 2>&1 | tee debug.log
 ```
 
 This will:
-- Show extremely detailed output
+- Show extremely detailed output (including all API calls and responses)
 - Save everything to `debug.log` file
 - Help diagnose any issues
+
+**Debug mode vs Verbose mode**:
+- `--verbose` / `-v`: Shows informational messages (recommended for normal use)
+- `--debug` / `-d`: Shows everything including detailed traces (for troubleshooting)
 
 ## Step 8: Generate Reports
 
@@ -198,11 +248,18 @@ cribl-hc analyze run \
   --deployment prod \
   --output my_first_report.json \
   --markdown
+
+# or short form:
+cribl-hc analyze run -p prod -o my_first_report.json -m
 ```
 
 This creates:
 - `my_first_report.json` - Machine-readable JSON
-- `my_first_report.md` - Human-readable Markdown
+- `my_first_report.md` - Human-readable Markdown (when using `--markdown`)
+
+**Report options**:
+- `--output FILE` / `-o FILE`: Save JSON report to file
+- `--markdown` / `-m`: Also generate Markdown report (FILE.md)
 
 ## Step 9: Validate Performance
 
@@ -239,12 +296,17 @@ When providing feedback, please run this command and send me the output:
 
 ```bash
 cribl-hc analyze run \
-  --url YOUR_URL \
-  --token YOUR_TOKEN \
+  --deployment prod \
   --debug \
   --output feedback_report.json \
   --markdown \
   2>&1 | tee feedback_debug.log
+
+# or short form:
+cribl-hc analyze run -p prod -d -o feedback_report.json -m 2>&1 | tee feedback_debug.log
+
+# or if using URL/token directly:
+cribl-hc analyze run -u YOUR_URL -t YOUR_TOKEN -d -o feedback_report.json -m 2>&1 | tee feedback_debug.log
 ```
 
 Then share:
@@ -284,19 +346,20 @@ python3 -m cribl_hc.cli.main --help
 ### Analysis hangs or is very slow
 ```bash
 # Try with debug mode to see where it's stuck
-cribl-hc analyze run -u URL -t TOKEN --debug
+cribl-hc analyze run -p prod --debug
+# or: cribl-hc analyze run -u URL -t TOKEN --debug
 
-# Look for slow API responses:
-# grep "response_time_ms" in debug output
+# Look for slow API responses in debug output:
+# grep "api_response" debug.log
 ```
 
 ### Unexpected results
 ```bash
 # Run with debug to see what data is being analyzed
-cribl-hc analyze run -u URL -t TOKEN --debug
+cribl-hc analyze run -p prod --debug -o report.json
 
 # Check the JSON report for raw data
-cat my_first_report.json | jq .
+cat report.json | jq .
 ```
 
 ## Managing Multiple Environments
@@ -317,9 +380,9 @@ cribl-hc config set local --url http://localhost:9000 --token LOCAL_TOKEN
 cribl-hc config list
 
 # Now easily switch between them
-cribl-hc analyze run --deployment prod --output prod-report.json
-cribl-hc analyze run --deployment dev --output dev-report.json
-cribl-hc analyze run --deployment local --verbose
+cribl-hc analyze run -p prod -o prod-report.json
+cribl-hc analyze run -p dev -o dev-report.json
+cribl-hc analyze run -p local --verbose
 ```
 
 For more details, see [CREDENTIAL_MANAGEMENT.md](CREDENTIAL_MANAGEMENT.md)
