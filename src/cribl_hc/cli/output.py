@@ -134,12 +134,12 @@ def display_recommendations(recommendations, console: Console):
     ))
 
     # Group by priority
-    priority_order = ["critical", "high", "medium", "low"]
+    priority_order = ["p0", "p1", "p2", "p3"]
     priority_colors = {
-        "critical": "red",
-        "high": "orange1",
-        "medium": "yellow",
-        "low": "blue",
+        "p0": "red",
+        "p1": "orange1",
+        "p2": "yellow",
+        "p3": "blue",
     }
 
     for priority in priority_order:
@@ -155,16 +155,21 @@ def display_recommendations(recommendations, console: Console):
             console.print(f"\n{i}. [bold]{rec.title}[/bold]")
             console.print(f"   [dim]{rec.description}[/dim]")
 
-            if rec.remediation_steps:
+            if rec.implementation_steps:
                 console.print("   [cyan]Steps:[/cyan]")
-                for step_num, step in enumerate(rec.remediation_steps, 1):
+                for step_num, step in enumerate(rec.implementation_steps, 1):
                     console.print(f"     {step_num}. {step}")
 
-            if rec.estimated_effort_minutes:
-                console.print(f"   [dim]Estimated effort: ~{rec.estimated_effort_minutes} minutes[/dim]")
+            # Display implementation effort
+            if rec.implementation_effort:
+                console.print(f"   [dim]Effort: {rec.implementation_effort}[/dim]")
 
-            if rec.references:
-                console.print(f"   [dim]References: {', '.join(rec.references)}[/dim]")
+            # Display impact estimate time
+            if rec.impact_estimate and rec.impact_estimate.time_to_implement:
+                console.print(f"   [dim]Estimated time: {rec.impact_estimate.time_to_implement}[/dim]")
+
+            if rec.documentation_links:
+                console.print(f"   [dim]References: {', '.join(rec.documentation_links)}[/dim]")
 
     console.print()
 

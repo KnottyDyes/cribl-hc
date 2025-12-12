@@ -13,7 +13,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskPr
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.core.orchestrator import AnalyzerOrchestrator, AnalysisProgress
 from cribl_hc.cli.output import display_analysis_results
-from cribl_hc.utils.logger import get_logger
+from cribl_hc.utils.logger import get_logger, configure_logging
 
 
 console = Console()
@@ -68,6 +68,17 @@ def run(
         "--max-api-calls",
         help="Maximum API calls allowed (default: 100)",
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Enable verbose output (INFO level logging)",
+    ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Enable debug mode (DEBUG level logging with detailed traces)",
+    ),
 ):
     """
     Run health check analysis on a Cribl Stream deployment.
@@ -86,6 +97,14 @@ def run(
         # Generate Markdown report
         cribl-hc analyze run -u URL -t TOKEN --markdown
     """
+    # Configure logging based on verbosity flags
+    if debug:
+        configure_logging(level="DEBUG", json_output=False)
+        console.print("[yellow]🐛 Debug mode enabled - detailed logging active[/yellow]")
+    elif verbose:
+        configure_logging(level="INFO", json_output=False)
+        console.print("[cyan]ℹ️  Verbose mode enabled[/cyan]")
+
     # Run async analysis
     asyncio.run(
         run_analysis_async(
@@ -96,6 +115,8 @@ def run(
             markdown=markdown,
             deployment_id=deployment_id,
             max_api_calls=max_api_calls,
+            verbose=verbose,
+            debug=debug,
         )
     )
 
@@ -108,6 +129,8 @@ async def run_analysis_async(
     markdown: bool,
     deployment_id: str,
     max_api_calls: int,
+    verbose: bool = False,
+    debug: bool = False,
 ):
     """
     Run analysis asynchronously.
@@ -125,13 +148,22 @@ async def run_analysis_async(
     console.print(f"[dim]Target:[/dim] {url}")
     console.print(f"[dim]Deployment:[/dim] {deployment_id}\n")
 
+    if debug:
+        log.debug("analysis_starting", url=url, deployment_id=deployment_id,
+                  max_api_calls=max_api_calls, objectives=objectives)
+        console.print(f"[dim]Debug: Max API calls: {max_api_calls}[/dim]")
+        console.print(f"[dim]Debug: Objectives: {objectives or 'all registered'}[/dim]")
+
     # Test connection first
     console.print("[yellow]Testing connection...[/yellow]")
+    if verbose or debug:
+        log.info("testing_connection", url=url)
     async with CriblAPIClient(url, token) as client:
         connection_result = await client.test_connection()
 
         if not connection_result.success:
             console.print(f"[red]✗ Connection failed:[/red] {connection_result.error}")
+            log.error("connection_failed", error=connection_result.error, url=url)
             raise typer.Exit(code=1)
 
         console.print(
@@ -140,7 +172,17 @@ async def run_analysis_async(
         )
         console.print(f"[dim]Cribl version:[/dim] {connection_result.cribl_version}\n")
 
+        if debug:
+            log.debug("connection_successful",
+                     response_time_ms=connection_result.response_time_ms,
+                     cribl_version=connection_result.cribl_version)
+
         # Initialize orchestrator
+        if verbose or debug:
+            log.info("initializing_orchestrator",
+                    max_api_calls=max_api_calls,
+                    continue_on_error=True)
+
         orchestrator = AnalyzerOrchestrator(
             client=client,
             max_api_calls=max_api_calls,
@@ -168,6 +210,13 @@ async def run_analysis_async(
                     description=f"Analyzing: {analysis_progress.current_objective or 'complete'}",
                 )
 
+                if debug:
+                    log.debug("analysis_progress",
+                             current_objective=analysis_progress.current_objective,
+                             completed_objectives=analysis_progress.completed_objectives,
+                             total_objectives=analysis_progress.total_objectives,
+                             percentage=percentage)
+
             # Run the analysis
             results = await orchestrator.run_analysis(
                 objectives=objectives,
@@ -179,12 +228,31 @@ async def run_analysis_async(
         # Create analysis run model
         analysis_run = orchestrator.create_analysis_run(results, deployment_id)
 
+        if debug:
+            log.debug("analysis_complete",
+                     deployment_id=deployment_id,
+                     status=analysis_run.status,
+                     findings_count=len(analysis_run.findings),
+                     recommendations_count=len(analysis_run.recommendations),
+                     api_calls_used=analysis_run.api_calls_used,
+                     duration_seconds=analysis_run.duration_seconds)
+
+        # Validate performance targets
+        _check_performance_targets(analysis_run, console, verbose or debug)
+
         # Display results in terminal
         console.print()
+        if verbose:
+            log.info("displaying_results",
+                    findings_count=len(analysis_run.findings),
+                    recommendations_count=len(analysis_run.recommendations))
+
         display_analysis_results(results, analysis_run, console)
 
         # Save to JSON file if requested
         if output_file:
+            if debug:
+                log.debug("saving_json_report", output_file=str(output_file))
             save_json_report(analysis_run, output_file)
             console.print(f"\n[green]✓ JSON report saved to:[/green] {output_file}")
 
@@ -194,6 +262,8 @@ async def run_analysis_async(
             if markdown_path.suffix != ".md":
                 markdown_path = markdown_path.with_suffix(".md")
 
+            if debug:
+                log.debug("saving_markdown_report", output_file=str(markdown_path))
             save_markdown_report(analysis_run, results, markdown_path)
             console.print(f"[green]✓ Markdown report saved to:[/green] {markdown_path}")
 
@@ -228,3 +298,67 @@ def save_markdown_report(analysis_run, results, output_path: Path):
     markdown_content = generator.generate(analysis_run, results)
 
     output_path.write_text(markdown_content)
+
+
+def _check_performance_targets(analysis_run, console: Console, verbose: bool = False):
+    """
+    Check and display performance target validation.
+
+    Args:
+        analysis_run: Completed analysis run
+        console: Rich console for output
+        verbose: Whether to display detailed performance info
+    """
+    # Performance targets
+    DURATION_TARGET = 300.0  # 5 minutes in seconds
+    API_CALL_TARGET = 100
+
+    duration = analysis_run.duration_seconds or 0.0
+    api_calls = analysis_run.api_calls_used
+
+    # Check duration target
+    duration_ok = duration < DURATION_TARGET
+    duration_percentage = (duration / DURATION_TARGET) * 100
+
+    # Check API call budget
+    api_calls_ok = api_calls < API_CALL_TARGET
+    api_call_percentage = (api_calls / API_CALL_TARGET) * 100
+
+    # Display warnings if targets are at risk or exceeded
+    if not duration_ok:
+        log.warning("performance_duration_exceeded",
+                   duration_seconds=duration,
+                   target_seconds=DURATION_TARGET)
+        console.print(
+            f"\n[red]⚠ Performance Warning:[/red] "
+            f"Analysis took {duration:.1f}s (target: <{DURATION_TARGET}s)"
+        )
+    elif duration_percentage > 80 and verbose:
+        console.print(
+            f"[yellow]ℹ Performance:[/yellow] "
+            f"Analysis took {duration:.1f}s ({duration_percentage:.0f}% of 5-minute target)"
+        )
+
+    if not api_calls_ok:
+        log.warning("performance_api_budget_exceeded",
+                   api_calls_used=api_calls,
+                   api_call_target=API_CALL_TARGET)
+        console.print(
+            f"[red]⚠ Performance Warning:[/red] "
+            f"Used {api_calls} API calls (budget: {API_CALL_TARGET})"
+        )
+    elif api_call_percentage > 80 and verbose:
+        console.print(
+            f"[yellow]ℹ Performance:[/yellow] "
+            f"Used {api_calls}/{API_CALL_TARGET} API calls ({api_call_percentage:.0f}% of budget)"
+        )
+
+    # Log performance metrics for analysis
+    if verbose:
+        log.info("performance_metrics",
+                duration_seconds=duration,
+                duration_target=DURATION_TARGET,
+                duration_ok=duration_ok,
+                api_calls_used=api_calls,
+                api_call_target=API_CALL_TARGET,
+                api_calls_ok=api_calls_ok)
