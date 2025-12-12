@@ -294,14 +294,15 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- **Documentation**: [GitHub README](https://github.com/cribl/health-check#readme)
-- **Issues**: [GitHub Issues](https://github.com/cribl/health-check/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/cribl/health-check/discussions)
+- **Documentation**: [GitHub README](https://github.com/KnottyDyes/cribl-hc#readme)
+- **Issues**: [GitHub Issues](https://github.com/KnottyDyes/cribl-hc/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/KnottyDyes/cribl-hc/discussions)
 
 ## Authors
 
 Cribl Health Check Project
-
+Sean Armstrong
+Claude
 ---
 
 **Status**: Beta - MVP in development
