@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation
+from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
 from cribl_hc.utils.logger import get_logger
 
 
@@ -75,9 +75,15 @@ class HealthAnalyzer(BaseAnalyzer):
             workers = await self._fetch_workers(client)
             result.metadata["worker_count"] = len(workers)
 
-            # Fetch system status
+            # Fetch system status (may not be available on Cribl Cloud)
             system_status = await self._fetch_system_status(client)
-            result.metadata["cribl_version"] = system_status.get("version", "unknown")
+
+            # Get Cribl version from workers if system status not available
+            if workers:
+                cribl_version = workers[0].get("info", {}).get("cribl", {}).get("version", "unknown")
+                result.metadata["cribl_version"] = cribl_version
+            else:
+                result.metadata["cribl_version"] = system_status.get("version", "unknown")
 
             # Analyze worker health
             unhealthy_workers = self._analyze_worker_health(workers, result)
@@ -111,12 +117,20 @@ class HealthAnalyzer(BaseAnalyzer):
             # Add error finding
             result.add_finding(
                 Finding(
+                    id="health-analysis-error",
                     title="Health Analysis Failed",
                     description=f"Unable to complete health analysis: {str(e)}",
                     severity="high",
-                    category="system",
-                    affected_component="health_analyzer",
-                    evidence={"error": str(e)},
+                    category="health",
+                    confidence_level="high",
+                    affected_components=["health_analyzer"],
+                    estimated_impact="Unable to assess system health",
+                    remediation_steps=[
+                        "Check API connectivity",
+                        "Verify authentication token is valid",
+                        "Review error logs for details",
+                    ],
+                    metadata={"error": str(e)},
                 )
             )
 
@@ -151,9 +165,9 @@ class HealthAnalyzer(BaseAnalyzer):
         Analyze worker health and generate findings.
 
         A worker is considered unhealthy if:
-        - CPU usage > 90%
-        - Memory usage > 90%
+        - Status is not "healthy"
         - Disk usage > 90%
+        - Worker is disconnected
 
         Returns:
             List of unhealthy workers
@@ -164,20 +178,29 @@ class HealthAnalyzer(BaseAnalyzer):
             worker_id = worker.get("id", "unknown")
             issues = []
 
-            # Check CPU usage
-            cpu_usage = worker.get("metrics", {}).get("cpu_usage", 0)
-            if cpu_usage > 90:
-                issues.append(f"CPU: {cpu_usage:.1f}%")
+            # Check worker status
+            status = worker.get("status", "unknown")
+            if status != "healthy":
+                issues.append(f"Status: {status}")
 
-            # Check memory usage
-            memory_usage = worker.get("metrics", {}).get("memory_usage", 0)
-            if memory_usage > 90:
-                issues.append(f"Memory: {memory_usage:.1f}%")
+            # Check if disconnected
+            if worker.get("disconnected", False):
+                issues.append("Disconnected")
 
-            # Check disk usage
-            disk_usage = worker.get("metrics", {}).get("disk_usage", 0)
-            if disk_usage > 90:
-                issues.append(f"Disk: {disk_usage:.1f}%")
+            # Calculate disk usage from available data
+            info = worker.get("info", {})
+            total_disk = info.get("totalDiskSpace", 0)
+            free_disk = info.get("freeDiskSpace", 0)
+
+            if total_disk > 0:
+                used_disk = total_disk - free_disk
+                disk_usage_percent = (used_disk / total_disk) * 100
+
+                if disk_usage_percent > 90:
+                    issues.append(f"Disk: {disk_usage_percent:.1f}%")
+            else:
+                # No disk data available
+                disk_usage_percent = 0
 
             # If worker has issues, create finding
             if issues:
@@ -185,21 +208,36 @@ class HealthAnalyzer(BaseAnalyzer):
 
                 severity = "critical" if len(issues) >= 2 else "high"
 
+                # Get worker info for metadata
+                hostname = info.get("hostname", "unknown")
+                worker_group = worker.get("group", "default")
+
                 result.add_finding(
                     Finding(
-                        title=f"Unhealthy Worker: {worker_id}",
-                        description=f"Worker {worker_id} has {len(issues)} health issue(s): {', '.join(issues)}",
+                        id=f"health-worker-{worker_id}",
+                        title=f"Unhealthy Worker: {hostname}",
+                        description=f"Worker {hostname} (group: {worker_group}) has {len(issues)} health issue(s): {', '.join(issues)}",
                         severity=severity,
-                        category="worker_health",
-                        affected_component=worker_id,
-                        evidence={
+                        category="health",
+                        confidence_level="high",
+                        affected_components=[worker_id],
+                        estimated_impact=f"Worker performance degraded - {', '.join(issues)}",
+                        remediation_steps=[
+                            "Review worker status and logs",
+                            "Check worker connectivity to leader",
+                            "Monitor disk space usage",
+                        ],
+                        metadata={
                             "worker_id": worker_id,
-                            "cpu_usage": cpu_usage,
-                            "memory_usage": memory_usage,
-                            "disk_usage": disk_usage,
+                            "hostname": hostname,
+                            "group": worker_group,
+                            "status": status,
+                            "disconnected": worker.get("disconnected", False),
+                            "disk_usage_percent": disk_usage_percent if total_disk > 0 else None,
+                            "disk_total_gb": total_disk / (1024**3) if total_disk > 0 else None,
+                            "disk_free_gb": free_disk / (1024**3) if free_disk > 0 else None,
                             "issues": issues,
                         },
-                        impact_summary=f"Worker performance degraded - {', '.join(issues)}",
                     )
                 )
 
@@ -246,14 +284,25 @@ class HealthAnalyzer(BaseAnalyzer):
     def _count_worker_issues(self, worker: Dict[str, Any]) -> int:
         """Count number of issues for a worker."""
         issues = 0
-        metrics = worker.get("metrics", {})
 
-        if metrics.get("cpu_usage", 0) > 90:
+        # Check status
+        if worker.get("status") != "healthy":
             issues += 1
-        if metrics.get("memory_usage", 0) > 90:
+
+        # Check if disconnected
+        if worker.get("disconnected", False):
             issues += 1
-        if metrics.get("disk_usage", 0) > 90:
-            issues += 1
+
+        # Check disk usage
+        info = worker.get("info", {})
+        total_disk = info.get("totalDiskSpace", 0)
+        free_disk = info.get("freeDiskSpace", 0)
+
+        if total_disk > 0:
+            used_disk = total_disk - free_disk
+            disk_usage_percent = (used_disk / total_disk) * 100
+            if disk_usage_percent > 90:
+                issues += 1
 
         return issues
 
@@ -281,34 +330,53 @@ class HealthAnalyzer(BaseAnalyzer):
         if status == "healthy":
             severity = "info"
             title = "System Health: Good"
-            description = f"All {total_workers} workers are operating normally"
+            description = f"All {total_workers} workers are operating normally with a health score of {health_score}/100"
+            remediation_steps = []
         elif status == "degraded":
             severity = "medium"
             title = "System Health: Degraded"
-            description = f"{unhealthy_count}/{total_workers} workers have health issues"
+            description = f"{unhealthy_count}/{total_workers} workers have health issues (health score: {health_score}/100)"
+            remediation_steps = [
+                "Review worker health findings below",
+                "Address resource constraints on affected workers",
+                "Monitor system performance trends",
+            ]
         elif status == "unhealthy":
             severity = "high"
             title = "System Health: Unhealthy"
-            description = f"{unhealthy_count}/{total_workers} workers require attention"
+            description = f"{unhealthy_count}/{total_workers} workers require attention (health score: {health_score}/100)"
+            remediation_steps = [
+                "Immediately review worker health findings",
+                "Scale worker resources or add capacity",
+                "Investigate root cause of resource pressure",
+            ]
         else:  # critical
             severity = "critical"
             title = "System Health: Critical"
-            description = f"{unhealthy_count}/{total_workers} workers in critical state"
+            description = f"{unhealthy_count}/{total_workers} workers in critical state (health score: {health_score}/100)"
+            remediation_steps = [
+                "Urgent: Review all worker health findings",
+                "Immediate action required to prevent service degradation",
+                "Consider emergency scaling or traffic reduction",
+            ]
 
         result.add_finding(
             Finding(
+                id=f"health-overall-{status}",
                 title=title,
                 description=description,
                 severity=severity,
-                category="system",
-                affected_component="overall_health",
-                evidence={
+                category="health",
+                confidence_level="high",
+                affected_components=["overall_health"],
+                estimated_impact=f"Overall system health: {health_score}/100",
+                remediation_steps=remediation_steps,
+                metadata={
                     "health_score": health_score,
                     "total_workers": total_workers,
                     "unhealthy_workers": unhealthy_count,
                     "status": status,
                 },
-                impact_summary=f"Overall system health: {health_score}/100",
             )
         )
 
@@ -320,38 +388,59 @@ class HealthAnalyzer(BaseAnalyzer):
         """Generate recommendations for unhealthy workers."""
         for worker in unhealthy_workers:
             worker_id = worker.get("id", "unknown")
-            metrics = worker.get("metrics", {})
+            info = worker.get("info", {})
+            hostname = info.get("hostname", "unknown")
+            status = worker.get("status", "unknown")
+            disconnected = worker.get("disconnected", False)
 
             steps = []
 
-            # CPU recommendations
-            if metrics.get("cpu_usage", 0) > 90:
-                steps.append("Review pipeline complexity and reduce CPU-intensive functions")
-                steps.append("Consider scaling horizontally by adding more workers")
-                steps.append("Check for inefficient regex patterns or complex expressions")
+            # Status recommendations
+            if status != "healthy":
+                steps.append(f"Investigate why worker status is '{status}'")
+                steps.append("Review worker logs for errors or warnings")
+                steps.append("Check worker connectivity to leader")
 
-            # Memory recommendations
-            if metrics.get("memory_usage", 0) > 90:
-                steps.append("Review memory-intensive functions (aggregation, lookups)")
-                steps.append("Reduce lookup table sizes or use Redis for large lookups")
-                steps.append("Consider increasing worker memory allocation")
+            # Disconnection recommendations
+            if disconnected:
+                steps.append("Verify network connectivity between worker and leader")
+                steps.append("Check worker process health")
+                steps.append("Review firewall rules and network configuration")
 
             # Disk recommendations
-            if metrics.get("disk_usage", 0) > 90:
-                steps.append("Clean up old persistent queues and logs")
-                steps.append("Review disk space allocation for worker node")
-                steps.append("Configure log rotation and retention policies")
+            total_disk = info.get("totalDiskSpace", 0)
+            free_disk = info.get("freeDiskSpace", 0)
+
+            if total_disk > 0:
+                used_disk = total_disk - free_disk
+                disk_usage_percent = (used_disk / total_disk) * 100
+
+                if disk_usage_percent > 90:
+                    steps.append("Clean up old persistent queues and logs")
+                    steps.append("Review disk space allocation for worker node")
+                    steps.append("Configure log rotation and retention policies")
+                    steps.append(f"Current disk usage: {disk_usage_percent:.1f}%")
+
+            # Convert priority to p0/p1/p2/p3 format
+            priority_level = "p1" if self._count_worker_issues(worker) >= 2 else "p2"
 
             result.add_recommendation(
                 Recommendation(
+                    id=f"rec-health-worker-{worker_id}",
+                    type="worker_health",
+                    priority=priority_level,
                     title=f"Remediate Worker Health: {worker_id}",
                     description=f"Address health issues on worker {worker_id}",
-                    priority="high" if self._count_worker_issues(worker) >= 2 else "medium",
-                    category="worker_health",
-                    affected_component=worker_id,
-                    remediation_steps=steps,
-                    estimated_effort_minutes=30,
-                    references=[
+                    rationale=f"Worker has resource constraints that may impact performance",
+                    implementation_steps=steps,
+                    before_state=f"Worker experiencing resource constraints",
+                    after_state="Worker operating within normal resource limits",
+                    impact_estimate=ImpactEstimate(
+                        performance_improvement="Improved worker stability and throughput"
+                    ),
+                    implementation_effort="medium",
+                    related_findings=[f"health-worker-{worker_id}"],
+                    documentation_links=[
                         "https://docs.cribl.io/stream/scaling/",
                         "https://docs.cribl.io/stream/monitoring/",
                     ],

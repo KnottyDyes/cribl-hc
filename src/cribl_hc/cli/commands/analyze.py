@@ -24,15 +24,21 @@ app = typer.Typer(help="Run health check analysis")
 
 @app.command()
 def run(
-    url: str = typer.Option(
-        ...,
+    deployment: Optional[str] = typer.Option(
+        None,
+        "--deployment",
+        "-p",
+        help="Use stored credentials for this deployment (from 'cribl-hc config set')",
+    ),
+    url: Optional[str] = typer.Option(
+        None,
         "--url",
         "-u",
         help="Cribl Stream leader URL (e.g., https://cribl.example.com)",
         envvar="CRIBL_URL",
     ),
-    token: str = typer.Option(
-        ...,
+    token: Optional[str] = typer.Option(
+        None,
         "--token",
         "-t",
         help="Bearer token for authentication",
@@ -85,18 +91,63 @@ def run(
 
     Examples:
 
-        # Analyze all objectives
+        # Using stored credentials
+        cribl-hc analyze run --deployment prod
+
+        # Using explicit URL and token
         cribl-hc analyze run --url https://cribl.example.com --token YOUR_TOKEN
 
+        # Using environment variables
+        export CRIBL_URL=https://cribl.example.com
+        export CRIBL_TOKEN=your_token
+        cribl-hc analyze run
+
         # Analyze specific objectives
-        cribl-hc analyze run -u https://cribl.example.com -t TOKEN -o health -o config
+        cribl-hc analyze run -p prod -o health -o config
 
         # Save results to file
-        cribl-hc analyze run -u URL -t TOKEN --output report.json
-
-        # Generate Markdown report
-        cribl-hc analyze run -u URL -t TOKEN --markdown
+        cribl-hc analyze run -p prod --output report.json --markdown
     """
+    # Load credentials from stored profile if deployment specified
+    if deployment:
+        from cribl_hc.cli.commands.config import load_credentials
+
+        try:
+            credentials = load_credentials()
+            if deployment not in credentials:
+                console.print(f"[red]✗ No credentials found for deployment:[/red] {deployment}")
+                console.print(f"[dim]Use 'cribl-hc config set {deployment}' to add credentials[/dim]")
+                console.print(f"[dim]Or use 'cribl-hc config list' to see available deployments[/dim]")
+                raise typer.Exit(code=1)
+
+            cred = credentials[deployment]
+            url = cred.get("url")
+            token = cred.get("token")
+
+            console.print(f"[cyan]Using stored credentials for:[/cyan] {deployment}")
+            console.print(f"[dim]URL:[/dim] {url}\n")
+
+        except typer.Exit:
+            raise
+        except Exception as e:
+            console.print(f"[red]✗ Failed to load credentials:[/red] {str(e)}")
+            raise typer.Exit(code=1)
+
+    # Validate that we have URL and token from some source
+    if not url or not token:
+        console.print("[red]✗ Missing required credentials[/red]")
+        console.print("\n[yellow]You must provide credentials in one of three ways:[/yellow]\n")
+        console.print("1. [cyan]Stored credentials:[/cyan]")
+        console.print("   cribl-hc config set prod --url URL --token TOKEN")
+        console.print("   cribl-hc analyze run --deployment prod\n")
+        console.print("2. [cyan]Command-line options:[/cyan]")
+        console.print("   cribl-hc analyze run --url URL --token TOKEN\n")
+        console.print("3. [cyan]Environment variables:[/cyan]")
+        console.print("   export CRIBL_URL=https://cribl.example.com")
+        console.print("   export CRIBL_TOKEN=your_token")
+        console.print("   cribl-hc analyze run\n")
+        raise typer.Exit(code=1)
+
     # Configure logging based on verbosity flags
     if debug:
         configure_logging(level="DEBUG", json_output=False)

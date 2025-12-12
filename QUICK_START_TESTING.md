@@ -40,7 +40,21 @@ cribl-hc version 0.1.0
 3. Create a new token or copy an existing one
 4. Save it securely (you'll need it for testing)
 
-## Step 4: Test Connection (CRITICAL FIRST STEP!)
+## Step 4: Store Your Credentials (RECOMMENDED!)
+
+Instead of typing your URL and token every time, save them securely:
+
+```bash
+cribl-hc config set prod \
+  --url https://your-cribl-instance.com \
+  --token YOUR_API_TOKEN
+```
+
+This encrypts and stores your credentials. Now you can use `--deployment prod` instead of typing credentials!
+
+**Alternative**: You can also use environment variables or provide credentials each time. See [CREDENTIAL_MANAGEMENT.md](CREDENTIAL_MANAGEMENT.md) for all options.
+
+## Step 5: Test Connection (CRITICAL FIRST STEP!)
 
 **Important**: This is the most important test. It validates that:
 - Your URL is correct
@@ -48,11 +62,17 @@ cribl-hc version 0.1.0
 - The Cribl API is reachable
 - Network connectivity is good
 
+**Using stored credentials** (recommended):
 ```bash
-cribl-hc test-connection run \
+cribl-hc test-connection test --deployment prod --verbose
+```
+
+**Or provide credentials directly**:
+```bash
+cribl-hc test-connection test \
   --url https://your-cribl-instance.com \
   --token YOUR_API_TOKEN \
-  --debug
+  --verbose
 ```
 
 **Expected output if successful**:
@@ -102,10 +122,16 @@ Target: https://your-cribl-instance.com
 ```
 **Solution**: Check the URL spelling and ensure the domain is reachable
 
-## Step 5: Run Your First Analysis (Verbose Mode)
+## Step 6: Run Your First Analysis (Verbose Mode)
 
 Once connection test passes, run a full analysis with verbose output:
 
+**Using stored credentials** (recommended):
+```bash
+cribl-hc analyze run --deployment prod --verbose
+```
+
+**Or provide credentials directly**:
 ```bash
 cribl-hc analyze run \
   --url https://your-cribl-instance.com \
@@ -152,16 +178,12 @@ Recommendations
 Analysis completed successfully
 ```
 
-## Step 6: Run with Debug Mode (If You See Issues)
+## Step 7: Run with Debug Mode (If You See Issues)
 
 If you encounter any issues or want to see exactly what's happening:
 
 ```bash
-cribl-hc analyze run \
-  --url https://your-cribl-instance.com \
-  --token YOUR_API_TOKEN \
-  --debug \
-  2>&1 | tee debug.log
+cribl-hc analyze run --deployment prod --debug 2>&1 | tee debug.log
 ```
 
 This will:
@@ -169,12 +191,11 @@ This will:
 - Save everything to `debug.log` file
 - Help diagnose any issues
 
-## Step 7: Generate Reports
+## Step 8: Generate Reports
 
 ```bash
 cribl-hc analyze run \
-  --url https://your-cribl-instance.com \
-  --token YOUR_API_TOKEN \
+  --deployment prod \
   --output my_first_report.json \
   --markdown
 ```
@@ -183,7 +204,7 @@ This creates:
 - `my_first_report.json` - Machine-readable JSON
 - `my_first_report.md` - Human-readable Markdown
 
-## Step 8: Validate Performance
+## Step 9: Validate Performance
 
 ```bash
 python3 scripts/validate_performance.py my_first_report.json
@@ -278,23 +299,30 @@ cribl-hc analyze run -u URL -t TOKEN --debug
 cat my_first_report.json | jq .
 ```
 
-## Advanced: Using Environment Variables
+## Managing Multiple Environments
 
-To avoid typing URL and token every time:
+You can store credentials for multiple Cribl instances:
 
 ```bash
-# Set environment variables
-export CRIBL_URL="https://your-cribl-instance.com"
-export CRIBL_TOKEN="your-api-token-here"
+# Store production credentials
+cribl-hc config set prod --url https://prod.cribl.com --token PROD_TOKEN
 
-# Now you can run without flags
-cribl-hc analyze run --verbose
+# Store development credentials
+cribl-hc config set dev --url https://dev.cribl.com --token DEV_TOKEN
 
-# Or store credentials
-cribl-hc config set prod --url $CRIBL_URL --token $CRIBL_TOKEN
+# Store local credentials
+cribl-hc config set local --url http://localhost:9000 --token LOCAL_TOKEN
 
-# Then use stored credentials (not yet implemented)
+# List all stored deployments
+cribl-hc config list
+
+# Now easily switch between them
+cribl-hc analyze run --deployment prod --output prod-report.json
+cribl-hc analyze run --deployment dev --output dev-report.json
+cribl-hc analyze run --deployment local --verbose
 ```
+
+For more details, see [CREDENTIAL_MANAGEMENT.md](CREDENTIAL_MANAGEMENT.md)
 
 ## Expected Timeline
 

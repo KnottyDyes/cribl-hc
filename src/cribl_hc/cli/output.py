@@ -115,11 +115,12 @@ def display_findings(objective: str, result: AnalyzerResult, console: Console):
             tree = Tree(f"[bold]{finding.title}[/bold]")
             tree.add(f"[dim]{finding.description}[/dim]")
 
-            if finding.affected_component:
-                tree.add(f"Component: {finding.affected_component}")
+            if finding.affected_components:
+                components_str = ", ".join(finding.affected_components)
+                tree.add(f"Components: {components_str}")
 
-            if finding.impact_summary:
-                tree.add(f"Impact: {finding.impact_summary}")
+            if finding.estimated_impact:
+                tree.add(f"Impact: {finding.estimated_impact}")
 
             console.print(tree)
 

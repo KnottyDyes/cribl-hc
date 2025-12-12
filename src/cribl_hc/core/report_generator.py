@@ -127,16 +127,17 @@ class MarkdownReportGenerator:
                 lines.append(f"#### {finding.title}\n")
                 lines.append(f"{finding.description}\n")
 
-                if finding.affected_component:
-                    lines.append(f"**Component:** `{finding.affected_component}`\n")
+                if finding.affected_components:
+                    components_str = ", ".join(f"`{c}`" for c in finding.affected_components)
+                    lines.append(f"**Components:** {components_str}\n")
 
-                if finding.impact_summary:
-                    lines.append(f"**Impact:** {finding.impact_summary}\n")
+                if finding.estimated_impact:
+                    lines.append(f"**Impact:** {finding.estimated_impact}\n")
 
-                if finding.evidence:
-                    lines.append("**Evidence:**\n```json")
+                if finding.metadata:
+                    lines.append("**Details:**\n```json")
                     import json
-                    lines.append(json.dumps(finding.evidence, indent=2))
+                    lines.append(json.dumps(finding.metadata, indent=2))
                     lines.append("```\n")
 
         return "\n".join(lines)
