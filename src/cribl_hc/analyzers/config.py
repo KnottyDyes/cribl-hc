@@ -4,12 +4,14 @@ Configuration Analyzer for Cribl Stream Health Check.
 Validates pipelines, routes, and configurations to detect errors and best practice violations.
 """
 
+import re
 import structlog
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set
 
 from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
+from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
 
 
 class ConfigAnalyzer(BaseAnalyzer):
@@ -37,6 +39,15 @@ class ConfigAnalyzer(BaseAnalyzer):
             "docs": "https://docs.cribl.io/stream/eval-function/"
         }
     }
+
+    # Patterns for detecting hardcoded credentials (JSON format)
+    CREDENTIAL_PATTERNS = [
+        r'"password"\s*:\s*"([^"$][^"]{2,})"',  # Excludes ${env:...}
+        r'"token"\s*:\s*"([^"$][^"]{2,})"',
+        r'"secret"\s*:\s*"([^"$][^"]{2,})"',
+        r'"api[_-]?key"\s*:\s*"([^"$][^"]{2,})"',
+        r'"auth"\s*:\s*"([^"$][^"]{2,})"'
+    ]
 
     def __init__(self):
         """Initialize the configuration analyzer."""
@@ -102,6 +113,18 @@ class ConfigAnalyzer(BaseAnalyzer):
             # Check for deprecated functions (Phase 3)
             self._check_deprecated_functions(pipelines, result)
 
+            # Find unused components (Phase 4)
+            self._find_unused_components(pipelines, routes, inputs, outputs, result)
+
+            # Check security misconfigurations (Phase 5)
+            self._check_security_misconfigurations(outputs, result)
+
+            # Calculate compliance score
+            compliance_score = self._calculate_compliance_score(result)
+
+            # Generate recommendations
+            self._generate_recommendations(result)
+
             # Store metadata
             result.metadata["pipelines_analyzed"] = len(pipelines)
             result.metadata["routes_analyzed"] = len(routes)
@@ -109,6 +132,28 @@ class ConfigAnalyzer(BaseAnalyzer):
             result.metadata["outputs_analyzed"] = len(outputs)
             result.metadata["syntax_errors"] = len([
                 f for f in result.findings if "syntax" in f.id.lower()
+            ])
+            result.metadata["deprecated_functions"] = len([
+                f for f in result.findings if "deprecated" in f.id.lower()
+            ])
+            result.metadata["unused_components"] = len([
+                f for f in result.findings if "unused" in f.id.lower()
+            ])
+            result.metadata["security_issues"] = len([
+                f for f in result.findings if "security" in f.id.lower()
+            ])
+            result.metadata["compliance_score"] = compliance_score
+            result.metadata["critical_findings"] = len([
+                f for f in result.findings if f.severity == "critical"
+            ])
+            result.metadata["high_findings"] = len([
+                f for f in result.findings if f.severity == "high"
+            ])
+            result.metadata["medium_findings"] = len([
+                f for f in result.findings if f.severity == "medium"
+            ])
+            result.metadata["low_findings"] = len([
+                f for f in result.findings if f.severity == "low"
             ])
 
             self.log.info(
@@ -532,3 +577,388 @@ class ConfigAnalyzer(BaseAnalyzer):
                             }
                         )
                     )
+
+    def _find_unused_components(
+        self,
+        pipelines: List[Dict[str, Any]],
+        routes: List[Dict[str, Any]],
+        inputs: List[Dict[str, Any]],
+        outputs: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Find unused pipelines, inputs, and outputs.
+
+        Builds a usage graph to identify components that are defined
+        but not referenced by any routes or other configurations.
+
+        Args:
+            pipelines: List of pipeline configurations
+            routes: List of route configurations
+            inputs: List of input configurations
+            outputs: List of output configurations
+            result: AnalyzerResult to add findings to
+        """
+        # Build sets of all components
+        all_pipeline_ids = {p.get("id") for p in pipelines if p.get("id")}
+        all_output_ids = {o.get("id") for o in outputs if o.get("id")}
+
+        # Build sets of used components
+        used_pipeline_ids: Set[str] = set()
+        used_output_ids: Set[str] = set()
+
+        # Track which pipelines and outputs are referenced by routes
+        for route in routes:
+            pipeline_ref = route.get("pipeline")
+            if pipeline_ref:
+                used_pipeline_ids.add(pipeline_ref)
+
+            output_ref = route.get("output")
+            if output_ref:
+                used_output_ids.add(output_ref)
+
+        # Find unused pipelines
+        unused_pipelines = all_pipeline_ids - used_pipeline_ids
+        for pipeline_id in sorted(unused_pipelines):
+            result.add_finding(
+                Finding(
+                    id=f"config-unused-pipeline-{pipeline_id}",
+                    category="config",
+                    severity="low",
+                    title=f"Unused Pipeline: {pipeline_id}",
+                    description=f"Pipeline '{pipeline_id}' is not referenced by any route",
+                    affected_components=[f"pipeline-{pipeline_id}"],
+                    remediation_steps=[
+                        f"Review if pipeline '{pipeline_id}' is still needed",
+                        "Remove unused pipeline to reduce configuration complexity",
+                        "Or add route that uses this pipeline if it's intended for future use",
+                        "Document unused pipelines if kept for reference"
+                    ],
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/pipelines/",
+                        "https://docs.cribl.io/stream/routes/"
+                    ],
+                    estimated_impact="Minimal - increases configuration complexity and maintenance burden",
+                    confidence_level="high",
+                    metadata={
+                        "pipeline_id": pipeline_id,
+                        "used_by_routes": False
+                    }
+                )
+            )
+
+        # Find unused outputs
+        unused_outputs = all_output_ids - used_output_ids
+        for output_id in sorted(unused_outputs):
+            result.add_finding(
+                Finding(
+                    id=f"config-unused-output-{output_id}",
+                    category="config",
+                    severity="low",
+                    title=f"Unused Output: {output_id}",
+                    description=f"Output '{output_id}' is not referenced by any route",
+                    affected_components=[f"output-{output_id}"],
+                    remediation_steps=[
+                        f"Review if output '{output_id}' is still needed",
+                        "Remove unused output to reduce configuration complexity",
+                        "Or add route that uses this output if it's intended for future use",
+                        "Check if output is used by other non-route mechanisms"
+                    ],
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/destinations/",
+                        "https://docs.cribl.io/stream/routes/"
+                    ],
+                    estimated_impact="Minimal - may have idle connections consuming resources",
+                    confidence_level="medium",
+                    metadata={
+                        "output_id": output_id,
+                        "used_by_routes": False
+                    }
+                )
+            )
+
+    def _check_security_misconfigurations(
+        self,
+        outputs: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Check for security misconfigurations in outputs.
+
+        Detects:
+        - Hardcoded credentials in output configurations
+        - Missing TLS/encryption settings
+        - Plaintext authentication tokens
+
+        Args:
+            outputs: List of output configurations
+            result: AnalyzerResult to add findings to
+        """
+        import json
+
+        for output in outputs:
+            output_id = output.get("id", "unknown")
+            output_type = output.get("type", "unknown")
+
+            # Convert output to JSON string for pattern matching
+            try:
+                output_json = json.dumps(output)
+            except Exception:
+                continue
+
+            # Check for hardcoded credentials
+            for pattern in self.CREDENTIAL_PATTERNS:
+                matches = re.finditer(pattern, output_json, re.IGNORECASE)
+                for match in matches:
+                    # Extract the matched credential key (but don't include value in finding!)
+                    # Pattern matches: "fieldname": "value"
+                    credential_key = match.group(0).split('"')[1]  # Get fieldname from "fieldname"
+
+                    result.add_finding(
+                        Finding(
+                            id=f"config-security-hardcoded-{output_id}-{hash(match.group(0))}",
+                            category="config",
+                            severity="high",
+                            title=f"Hardcoded Credential in Output: {output_id}",
+                            description=f"Output '{output_id}' contains hardcoded credential field '{credential_key}'",
+                            affected_components=[f"output-{output_id}"],
+                            remediation_steps=[
+                                f"Remove hardcoded credential from output '{output_id}'",
+                                "Use environment variable substitution: ${env:VARIABLE_NAME}",
+                                "Store credentials in Cribl secrets management",
+                                "Update output configuration and test connectivity",
+                                "Review security audit logs for potential exposure"
+                            ],
+                            documentation_links=[
+                                "https://docs.cribl.io/stream/environment-variables/",
+                                "https://docs.cribl.io/stream/securing-cribl-stream/"
+                            ],
+                            estimated_impact="Security risk: credentials exposed in configuration backups and logs",
+                            confidence_level="high",
+                            metadata={
+                                "output_id": output_id,
+                                "output_type": output_type,
+                                "credential_field": credential_key
+                            }
+                        )
+                    )
+
+            # Check for missing TLS in certain output types
+            if output_type in ["splunk", "elasticsearch", "http", "s3", "webhook"]:
+                # Check URLs for http:// instead of https://
+                url_field = output.get("url", "") or output.get("host", "")
+                if isinstance(url_field, str) and url_field.startswith("http://"):
+                    result.add_finding(
+                        Finding(
+                            id=f"config-security-no-tls-{output_id}",
+                            category="config",
+                            severity="medium",
+                            title=f"Output Using Unencrypted Connection: {output_id}",
+                            description=f"Output '{output_id}' is configured to use HTTP instead of HTTPS",
+                            affected_components=[f"output-{output_id}"],
+                            remediation_steps=[
+                                f"Update output '{output_id}' URL to use HTTPS",
+                                "Enable TLS/SSL encryption for this output",
+                                "Verify destination server supports HTTPS",
+                                "Test connectivity after enabling encryption"
+                            ],
+                            documentation_links=[
+                                "https://docs.cribl.io/stream/destinations/",
+                                "https://docs.cribl.io/stream/securing-cribl-stream/"
+                            ],
+                            estimated_impact="Data transmitted in plaintext - potential data exposure",
+                            confidence_level="high",
+                            metadata={
+                                "output_id": output_id,
+                                "output_type": output_type,
+                                "protocol": "http"
+                            }
+                        )
+                    )
+
+    def _calculate_compliance_score(self, result: AnalyzerResult) -> float:
+        """
+        Calculate configuration compliance score (0-100).
+
+        Deducts points based on finding severity:
+        - Critical: -20 points each
+        - High: -10 points each
+        - Medium: -5 points each
+        - Low: -2 points each
+
+        Args:
+            result: AnalyzerResult with findings
+
+        Returns:
+            Compliance score from 0.0 to 100.0
+        """
+        base_score = 100.0
+
+        for finding in result.findings:
+            if finding.severity == "critical":
+                base_score -= 20
+            elif finding.severity == "high":
+                base_score -= 10
+            elif finding.severity == "medium":
+                base_score -= 5
+            elif finding.severity == "low":
+                base_score -= 2
+
+        # Ensure score stays within 0-100 range
+        return max(0.0, min(100.0, round(base_score, 2)))
+
+    def _generate_recommendations(self, result: AnalyzerResult) -> None:
+        """
+        Generate actionable recommendations based on findings.
+
+        Groups related findings and creates recommendations for:
+        - Cleaning up unused components
+        - Migrating deprecated functions
+        - Securing credentials
+        - Fixing syntax errors
+
+        Args:
+            result: AnalyzerResult to add recommendations to
+        """
+        # Recommendation 1: Clean up unused components
+        unused_findings = [f for f in result.findings if "unused" in f.id.lower()]
+        if unused_findings:
+            unused_pipelines = [f for f in unused_findings if "pipeline" in f.id.lower()]
+            unused_outputs = [f for f in unused_findings if "output" in f.id.lower()]
+
+            result.add_recommendation(
+                Recommendation(
+                    id="rec-config-cleanup-unused",
+                    type="optimization",
+                    priority="p3",
+                    title="Remove Unused Configuration Components",
+                    description=f"Remove {len(unused_pipelines)} unused pipelines and {len(unused_outputs)} unused outputs to reduce configuration complexity",
+                    rationale="Unused components increase configuration maintenance burden and can cause confusion during troubleshooting",
+                    implementation_steps=[
+                        "Review list of unused components and verify they are truly not needed",
+                        "Document any components being kept for future use",
+                        "Remove unused pipelines from configuration",
+                        "Remove unused outputs from configuration",
+                        "Commit configuration changes with clear documentation",
+                        "Monitor for any unexpected issues after cleanup"
+                    ],
+                    before_state=f"Configuration contains {len(unused_pipelines)} unused pipelines and {len(unused_outputs)} unused outputs",
+                    after_state="Configuration contains only actively-used components",
+                    impact_estimate=ImpactEstimate(
+                        performance_improvement="Faster configuration load and validation",
+                        cost_savings=f"Reduced idle connections from {len(unused_outputs)} unused outputs",
+                        time_to_implement="30-60 minutes"
+                    ),
+                    implementation_effort="low",
+                    related_findings=[f.id for f in unused_findings],
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/pipelines/",
+                        "https://docs.cribl.io/stream/destinations/"
+                    ]
+                )
+            )
+
+        # Recommendation 2: Migrate deprecated functions
+        deprecated_findings = [f for f in result.findings if "deprecated" in f.id.lower()]
+        if deprecated_findings:
+            result.add_recommendation(
+                Recommendation(
+                    id="rec-config-migrate-deprecated",
+                    type="best_practice",
+                    priority="p2",
+                    title="Migrate Deprecated Functions to Modern Replacements",
+                    description=f"Update {len(deprecated_findings)} deprecated function(s) to their modern replacements",
+                    rationale="Deprecated functions may have degraded performance and will eventually be removed in future Cribl versions",
+                    implementation_steps=[
+                        "Review each deprecated function and its replacement",
+                        "Test replacement functions in non-production environment",
+                        "Update pipeline configurations with new function types",
+                        "Verify behavior matches expectations with sample data",
+                        "Deploy updated pipelines to production",
+                        "Monitor for any processing differences"
+                    ],
+                    before_state=f"{len(deprecated_findings)} pipelines use deprecated functions",
+                    after_state="All pipelines use current, supported function types",
+                    impact_estimate=ImpactEstimate(
+                        performance_improvement="5-10% improvement in pipeline processing speed",
+                        risk_reduction="Eliminates future compatibility issues",
+                        time_to_implement="1-2 hours per deprecated function"
+                    ),
+                    implementation_effort="medium",
+                    related_findings=[f.id for f in deprecated_findings],
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/functions/",
+                        "https://docs.cribl.io/stream/pipelines/"
+                    ]
+                )
+            )
+
+        # Recommendation 3: Fix security issues
+        security_findings = [f for f in result.findings if "security" in f.id.lower()]
+        if security_findings:
+            hardcoded_creds = [f for f in security_findings if "hardcoded" in f.id.lower()]
+            tls_issues = [f for f in security_findings if "tls" in f.id.lower()]
+
+            result.add_recommendation(
+                Recommendation(
+                    id="rec-config-fix-security",
+                    type="security",
+                    priority="p0" if hardcoded_creds else "p1",
+                    title="Address Security Misconfigurations",
+                    description=f"Fix {len(security_findings)} security issue(s) including {len(hardcoded_creds)} hardcoded credentials and {len(tls_issues)} unencrypted connections",
+                    rationale="Security misconfigurations expose sensitive data and credentials, increasing risk of data breaches",
+                    implementation_steps=[
+                        "IMMEDIATE: Remove all hardcoded credentials from configurations",
+                        "Migrate credentials to environment variables or secrets management",
+                        "Enable TLS/HTTPS for all external connections",
+                        "Review and update authentication mechanisms",
+                        "Conduct security audit of all output configurations",
+                        "Implement credential rotation policy"
+                    ],
+                    before_state=f"{len(security_findings)} security misconfigurations detected",
+                    after_state="All credentials secured, all connections encrypted",
+                    impact_estimate=ImpactEstimate(
+                        performance_improvement="Eliminates credential exposure risk, meets SOC2/PCI-DSS requirements",
+                        time_to_implement="2-4 hours"
+                    ),
+                    implementation_effort="medium",
+                    related_findings=[f.id for f in security_findings],
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/securing-cribl-stream/",
+                        "https://docs.cribl.io/stream/environment-variables/"
+                    ]
+                )
+            )
+
+        # Recommendation 4: Fix critical syntax errors
+        critical_findings = [f for f in result.findings if f.severity == "critical"]
+        if critical_findings:
+            result.add_recommendation(
+                Recommendation(
+                    id="rec-config-fix-critical",
+                    type="bug_fix",
+                    priority="p0",
+                    title="Fix Critical Configuration Errors",
+                    description=f"Address {len(critical_findings)} critical configuration error(s) that prevent deployment",
+                    rationale="Critical errors prevent configurations from being deployed and can cause data processing failures",
+                    implementation_steps=[
+                        "Review each critical error and its impact",
+                        "Fix syntax errors in pipeline configurations",
+                        "Validate configuration in Cribl UI",
+                        "Test configurations with sample data",
+                        "Deploy fixes immediately to prevent data loss"
+                    ],
+                    before_state=f"{len(critical_findings)} critical errors blocking deployment",
+                    after_state="All configurations valid and deployable",
+                    impact_estimate=ImpactEstimate(
+                        performance_improvement="Prevents data processing failures",
+                        time_to_implement="Immediate (< 1 hour)"
+                    ),
+                    implementation_effort="high",
+                    related_findings=[f.id for f in critical_findings],
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/pipelines/",
+                        "https://docs.cribl.io/stream/routes/"
+                    ]
+                )
+            )
