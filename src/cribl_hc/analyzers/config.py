@@ -24,6 +24,20 @@ class ConfigAnalyzer(BaseAnalyzer):
     - Route conflicts
     """
 
+    # Map of deprecated functions to their replacements
+    DEPRECATED_FUNCTIONS = {
+        "regex": {
+            "replacement": "regex_extract",
+            "reason": "regex_extract provides better performance and clearer syntax",
+            "docs": "https://docs.cribl.io/stream/regex-extract-function/"
+        },
+        "code": {
+            "replacement": "eval",
+            "reason": "eval function is the modern replacement with better performance",
+            "docs": "https://docs.cribl.io/stream/eval-function/"
+        }
+    }
+
     def __init__(self):
         """Initialize the configuration analyzer."""
         super().__init__()
@@ -84,6 +98,9 @@ class ConfigAnalyzer(BaseAnalyzer):
 
             # Run route validation (Phase 2)
             self._validate_route_configuration(routes, pipelines, result)
+
+            # Check for deprecated functions (Phase 3)
+            self._check_deprecated_functions(pipelines, result)
 
             # Store metadata
             result.metadata["pipelines_analyzed"] = len(pipelines)
@@ -448,3 +465,70 @@ class ConfigAnalyzer(BaseAnalyzer):
                         }
                     )
                 )
+
+    def _check_deprecated_functions(
+        self,
+        pipelines: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Check for deprecated function usage in pipelines.
+
+        Scans pipeline functions for deprecated types and generates
+        findings with migration guidance.
+
+        Args:
+            pipelines: List of pipeline configurations
+            result: AnalyzerResult to add findings to
+        """
+        for pipeline in pipelines:
+            pipeline_id = pipeline.get("id", "unknown")
+            functions = pipeline.get("functions", [])
+
+            if not isinstance(functions, list):
+                continue
+
+            for func_idx, function in enumerate(functions):
+                if not isinstance(function, dict):
+                    continue
+
+                func_id = function.get("id", "unknown")
+
+                # Check if function type is deprecated
+                if func_id in self.DEPRECATED_FUNCTIONS:
+                    deprecation_info = self.DEPRECATED_FUNCTIONS[func_id]
+                    replacement = deprecation_info["replacement"]
+                    reason = deprecation_info["reason"]
+                    docs_link = deprecation_info["docs"]
+
+                    result.add_finding(
+                        Finding(
+                            id=f"config-deprecated-{pipeline_id}-{func_idx}",
+                            category="config",
+                            severity="medium",
+                            title=f"Deprecated Function '{func_id}' in Pipeline: {pipeline_id}",
+                            description=f"Pipeline '{pipeline_id}' uses deprecated function '{func_id}' (should use '{replacement}')",
+                            affected_components=[f"pipeline-{pipeline_id}", f"function-{func_id}"],
+                            remediation_steps=[
+                                f"Replace '{func_id}' function with '{replacement}' in pipeline '{pipeline_id}'",
+                                f"Review function configuration and update syntax for '{replacement}'",
+                                "Test pipeline with sample data to verify behavior",
+                                "Deploy updated pipeline to production",
+                                f"Reason for migration: {reason}"
+                            ],
+                            documentation_links=[
+                                docs_link,
+                                "https://docs.cribl.io/stream/pipelines/",
+                                "https://docs.cribl.io/stream/functions/"
+                            ],
+                            estimated_impact=f"Function will continue to work but may have degraded performance. Migration to '{replacement}' recommended.",
+                            confidence_level="high",
+                            metadata={
+                                "pipeline_id": pipeline_id,
+                                "function_index": func_idx,
+                                "deprecated_function": func_id,
+                                "replacement_function": replacement,
+                                "migration_reason": reason
+                            }
+                        )
+                    )

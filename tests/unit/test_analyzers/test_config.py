@@ -461,3 +461,72 @@ class TestConfigAnalyzer:
         for finding in missing_output_findings:
             assert finding.severity == "medium"
             assert "Missing Output" in finding.title
+
+    @pytest.mark.asyncio
+    async def test_detect_deprecated_functions(self):
+        """Test detection of deprecated function usage."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+
+        # Create pipelines with deprecated functions
+        pipelines = [
+            create_pipeline("pipeline-01", functions=[
+                {"id": "eval", "filter": "true"}  # Not deprecated
+            ]),
+            create_pipeline("pipeline-02", functions=[
+                {"id": "regex", "filter": "true"},  # Deprecated
+                {"id": "mask", "filter": "true"}    # Not deprecated
+            ]),
+            create_pipeline("pipeline-03", functions=[
+                {"id": "code", "filter": "true"}  # Deprecated
+            ])
+        ]
+
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect deprecated functions
+        deprecated_findings = [
+            f for f in result.findings if "deprecated" in f.id.lower()
+        ]
+        assert len(deprecated_findings) == 2  # regex and code
+
+        # Verify finding details
+        for finding in deprecated_findings:
+            assert finding.severity == "medium"
+            assert "Deprecated Function" in finding.title
+            assert finding.confidence_level == "high"
+            assert "replacement_function" in finding.metadata
+            assert "migration_reason" in finding.metadata
+
+    @pytest.mark.asyncio
+    async def test_no_deprecated_functions(self):
+        """Test that modern functions don't trigger deprecated warnings."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+
+        # Create pipelines with only modern functions
+        pipelines = [
+            create_pipeline("pipeline-01", functions=[
+                {"id": "eval", "filter": "true"},
+                {"id": "mask", "filter": "true"},
+                {"id": "drop", "filter": "true"}
+            ])
+        ]
+
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should not detect any deprecated functions
+        deprecated_findings = [
+            f for f in result.findings if "deprecated" in f.id.lower()
+        ]
+        assert len(deprecated_findings) == 0
