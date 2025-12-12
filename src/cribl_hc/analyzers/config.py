@@ -315,8 +315,23 @@ class ConfigAnalyzer(BaseAnalyzer):
                 )
                 continue
 
-            # Check for 'functions' field
-            if "functions" not in pipeline:
+            # Skip pack reference pipelines (they don't have functions, just {"conf": {"pack": true}})
+            if "conf" in pipeline and isinstance(pipeline["conf"], dict):
+                if pipeline["conf"].get("pack") is True and "functions" not in pipeline["conf"]:
+                    # This is a pack reference, not an actual pipeline - skip validation
+                    continue
+
+            # Get functions - handle both API response formats
+            # Cribl Cloud: {"id": "x", "conf": {"functions": [...]}}
+            # Self-hosted: {"id": "x", "functions": [...]}
+            functions = None
+            if "functions" in pipeline:
+                functions = pipeline.get("functions")
+            elif "conf" in pipeline and isinstance(pipeline["conf"], dict):
+                functions = pipeline["conf"].get("functions")
+
+            # Check if functions field exists
+            if functions is None:
                 result.add_finding(
                     Finding(
                         id=f"config-syntax-{pipeline_id}-missing-functions",
@@ -343,7 +358,6 @@ class ConfigAnalyzer(BaseAnalyzer):
                 continue
 
             # Validate functions array
-            functions = pipeline.get("functions", [])
             if not isinstance(functions, list):
                 result.add_finding(
                     Finding(

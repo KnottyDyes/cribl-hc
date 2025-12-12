@@ -67,6 +67,7 @@ class CriblAPIClient:
         timeout: float = 30.0,
         max_retries: int = 3,
         rate_limiter: Optional[RateLimiter] = None,
+        worker_group: Optional[str] = None,
     ):
         """
         Initialize Cribl API client.
@@ -77,6 +78,7 @@ class CriblAPIClient:
             timeout: Request timeout in seconds (default: 30.0)
             max_retries: Maximum retry attempts (default: 3)
             rate_limiter: Optional rate limiter (creates default if not provided)
+            worker_group: Worker group name for Cribl Cloud (auto-detected if not provided)
         """
         self.base_url = base_url.rstrip("/")
         self.auth_token = auth_token
@@ -85,6 +87,11 @@ class CriblAPIClient:
 
         # HTTP client will be initialized in __aenter__
         self._client: Optional[httpx.AsyncClient] = None
+
+        # Deployment type detection
+        self._is_cloud = "cribl.cloud" in base_url.lower()
+        self._worker_group = worker_group  # Will be auto-detected if None
+        self._deployment_detected = False
 
         # Rate limiter for API call budget enforcement
         self.rate_limiter = rate_limiter or RateLimiter(
@@ -107,7 +114,67 @@ class CriblAPIClient:
             timeout=self.timeout,
             follow_redirects=True,
         )
+
+        # Auto-detect worker group for Cribl Cloud deployments
+        if self._is_cloud and not self._worker_group:
+            await self._detect_worker_group()
+
         return self
+
+    async def _detect_worker_group(self) -> None:
+        """
+        Auto-detect worker group for Cribl Cloud deployments.
+
+        Tries common worker group names ("default", "defaultGroup", "workers")
+        and detects which one works by testing the pipelines endpoint.
+        """
+        if not self._client:
+            return
+
+        # Try common worker group names
+        candidates = ["default", "defaultGroup", "workers", "main"]
+
+        log.debug("detecting_worker_group", candidates=candidates)
+
+        for group_name in candidates:
+            try:
+                # Test if this group exists by checking pipelines endpoint
+                test_endpoint = f"/api/v1/m/{group_name}/pipelines"
+                response = await self._client.get(test_endpoint)
+
+                if response.status_code == 200:
+                    self._worker_group = group_name
+                    self._deployment_detected = True
+                    log.info("worker_group_detected", group=group_name)
+                    return
+
+            except Exception:
+                continue
+
+        # If no group found, default to "default"
+        log.warning("worker_group_not_detected", using_default="default")
+        self._worker_group = "default"
+        self._deployment_detected = True
+
+    def _build_config_endpoint(self, resource: str) -> str:
+        """
+        Build the correct API endpoint based on deployment type.
+
+        Args:
+            resource: Resource type (pipelines, routes, inputs, outputs)
+
+        Returns:
+            Full endpoint path for the resource
+
+        Example:
+            Self-hosted: /api/v1/master/pipelines
+            Cloud: /api/v1/m/default/pipelines
+        """
+        if self._is_cloud:
+            group = self._worker_group or "default"
+            return f"/api/v1/m/{group}/{resource}"
+        else:
+            return f"/api/v1/master/{resource}"
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit - cleanup HTTP client."""
@@ -347,7 +414,11 @@ class CriblAPIClient:
 
     async def get_pipelines(self) -> List[Dict[str, Any]]:
         """
-        Get pipeline configurations from /api/v1/master/pipelines.
+        Get pipeline configurations.
+
+        Automatically uses the correct endpoint for Cloud or self-hosted deployments:
+        - Cloud: /api/v1/m/{group}/pipelines
+        - Self-hosted: /api/v1/master/pipelines
 
         Returns:
             List of pipeline configurations
@@ -357,14 +428,19 @@ class CriblAPIClient:
             >>> for pipeline in pipelines:
             ...     print(f"{pipeline['id']}: {len(pipeline['functions'])} functions")
         """
-        response = await self.get("/api/v1/master/pipelines")
+        endpoint = self._build_config_endpoint("pipelines")
+        response = await self.get(endpoint)
         response.raise_for_status()
         data = response.json()
         return data.get("items", [])
 
     async def get_routes(self) -> List[Dict[str, Any]]:
         """
-        Get route configurations from /api/v1/master/routes.
+        Get route configurations.
+
+        Automatically uses the correct endpoint for Cloud or self-hosted deployments:
+        - Cloud: /api/v1/m/{group}/routes
+        - Self-hosted: /api/v1/master/routes
 
         Returns:
             List of route configurations
@@ -374,14 +450,19 @@ class CriblAPIClient:
             >>> for route in routes:
             ...     print(f"{route['id']}: {route['output']}")
         """
-        response = await self.get("/api/v1/master/routes")
+        endpoint = self._build_config_endpoint("routes")
+        response = await self.get(endpoint)
         response.raise_for_status()
         data = response.json()
         return data.get("items", [])
 
     async def get_inputs(self) -> List[Dict[str, Any]]:
         """
-        Get input configurations from /api/v1/master/inputs.
+        Get input configurations.
+
+        Automatically uses the correct endpoint for Cloud or self-hosted deployments:
+        - Cloud: /api/v1/m/{group}/inputs
+        - Self-hosted: /api/v1/master/inputs
 
         Returns:
             List of input configurations
@@ -391,14 +472,19 @@ class CriblAPIClient:
             >>> for input_cfg in inputs:
             ...     print(f"{input_cfg['id']}: {input_cfg['type']}")
         """
-        response = await self.get("/api/v1/master/inputs")
+        endpoint = self._build_config_endpoint("inputs")
+        response = await self.get(endpoint)
         response.raise_for_status()
         data = response.json()
         return data.get("items", [])
 
     async def get_outputs(self) -> List[Dict[str, Any]]:
         """
-        Get output/destination configurations from /api/v1/master/outputs.
+        Get output/destination configurations.
+
+        Automatically uses the correct endpoint for Cloud or self-hosted deployments:
+        - Cloud: /api/v1/m/{group}/outputs
+        - Self-hosted: /api/v1/master/outputs
 
         Returns:
             List of output configurations
@@ -408,7 +494,8 @@ class CriblAPIClient:
             >>> for output in outputs:
             ...     print(f"{output['id']}: {output['type']}")
         """
-        response = await self.get("/api/v1/master/outputs")
+        endpoint = self._build_config_endpoint("outputs")
+        response = await self.get(endpoint)
         response.raise_for_status()
         data = response.json()
         return data.get("items", [])
