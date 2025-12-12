@@ -73,7 +73,7 @@ cribl-hc analyze run -p prod
 cribl-hc analyze run -p prod --output health-report.json --markdown
 
 # Short form:
-cribl-hc analyze run -p prod -o health-report.json -m
+cribl-hc analyze run -p prod -f health-report.json -m
 
 # This creates:
 # - health-report.json (machine-readable)
@@ -97,13 +97,11 @@ cribl-hc analyze run -p prod -v
 
 # Add debug mode for troubleshooting
 cribl-hc analyze run -p prod --debug
-# or short form:
-cribl-hc analyze run -p prod -d
 
 # Analyze specific objectives (requires P2+ implementation)
-cribl-hc analyze run -p prod --objectives health,config,security
+cribl-hc analyze run -p prod --objective health --objective config --objective security
 # or short form:
-cribl-hc analyze run -p prod -o health,config,security
+cribl-hc analyze run -p prod -o health -o config -o security
 ```
 
 ### Configuration Management
@@ -139,7 +137,7 @@ cribl-hc analyze run -p prod --output report.json
 cribl-hc analyze run -p prod --output report.json --markdown
 
 # Short form:
-cribl-hc analyze run -p prod -o report.json -m
+cribl-hc analyze run -p prod -f report.json -m
 ```
 
 ## Python Library API

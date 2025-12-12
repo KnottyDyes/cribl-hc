@@ -1,0 +1,115 @@
+{
+  "id": "c828d382-d606-425c-a40e-632c1c1ceaba",
+  "deployment_id": "default",
+  "started_at": "2025-12-12T13:48:19.389276",
+  "completed_at": null,
+  "duration_seconds": 0.142525,
+  "status": "completed",
+  "objectives_analyzed": [
+    "health"
+  ],
+  "api_calls_used": 4,
+  "health_score": null,
+  "findings": [
+    {
+      "id": "health-worker-fd344075-b3d2-45bb-8bf1-14cf542d8e4d",
+      "category": "health",
+      "severity": "critical",
+      "title": "Unhealthy Worker: 0a3963e0eda2",
+      "description": "Worker 0a3963e0eda2 (group: hday_macbook_docker_worker) has 2 health concern(s): Status: shutting down, Disconnected",
+      "affected_components": [
+        "fd344075-b3d2-45bb-8bf1-14cf542d8e4d"
+      ],
+      "remediation_steps": [
+        "Review worker status and logs",
+        "Check worker connectivity to leader",
+        "Monitor resource usage (disk, memory)",
+        "Investigate recent restarts if applicable"
+      ],
+      "documentation_links": [],
+      "estimated_impact": "Worker performance degraded - Status: shutting down, Disconnected",
+      "confidence_level": "high",
+      "detected_at": "2025-12-12T13:48:19.387859",
+      "metadata": {
+        "worker_id": "fd344075-b3d2-45bb-8bf1-14cf542d8e4d",
+        "hostname": "0a3963e0eda2",
+        "group": "hday_macbook_docker_worker",
+        "status": "shutting down",
+        "disconnected": true,
+        "disk_usage_percent": 7.977413377195777,
+        "disk_total_gb": 58.367008209228516,
+        "disk_free_gb": 53.71083068847656,
+        "memory_total_gb": 9.703544616699219,
+        "uptime_minutes": 40303.88215,
+        "issues": [
+          "Status: shutting down",
+          "Disconnected"
+        ],
+        "warnings": []
+      }
+    },
+    {
+      "id": "health-overall-unhealthy",
+      "category": "health",
+      "severity": "high",
+      "title": "System Health: Unhealthy",
+      "description": "1/3 workers require attention (health score: 56.67/100)",
+      "affected_components": [
+        "overall_health"
+      ],
+      "remediation_steps": [
+        "Immediately review worker health findings",
+        "Scale worker resources or add capacity",
+        "Investigate root cause of resource pressure"
+      ],
+      "documentation_links": [],
+      "estimated_impact": "Overall system health: 56.67/100",
+      "confidence_level": "high",
+      "detected_at": "2025-12-12T13:48:19.387898",
+      "metadata": {
+        "health_score": 56.67,
+        "total_workers": 3,
+        "unhealthy_workers": 1,
+        "status": "unhealthy"
+      }
+    }
+  ],
+  "recommendations": [
+    {
+      "id": "rec-health-worker-fd344075-b3d2-45bb-8bf1-14cf542d8e4d",
+      "type": "worker_health",
+      "priority": "p1",
+      "title": "Remediate Worker Health: fd344075-b3d2-45bb-8bf1-14cf542d8e4d",
+      "description": "Address health issues on worker fd344075-b3d2-45bb-8bf1-14cf542d8e4d",
+      "rationale": "Worker has resource constraints that may impact performance",
+      "implementation_steps": [
+        "Investigate why worker status is 'shutting down'",
+        "Review worker logs for errors or warnings",
+        "Check worker connectivity to leader",
+        "Verify network connectivity between worker and leader",
+        "Check worker process health",
+        "Review firewall rules and network configuration"
+      ],
+      "before_state": "Worker experiencing resource constraints",
+      "after_state": "Worker operating within normal resource limits",
+      "impact_estimate": {
+        "cost_savings_annual": null,
+        "performance_improvement": "Improved worker stability and throughput",
+        "storage_reduction_gb": null,
+        "time_to_implement": null
+      },
+      "implementation_effort": "medium",
+      "related_findings": [
+        "health-worker-fd344075-b3d2-45bb-8bf1-14cf542d8e4d"
+      ],
+      "documentation_links": [
+        "https://docs.cribl.io/stream/scaling/",
+        "https://docs.cribl.io/stream/monitoring/"
+      ],
+      "created_at": "2025-12-12T13:48:19.387948"
+    }
+  ],
+  "worker_nodes": [],
+  "errors": [],
+  "partial_completion": false
+}

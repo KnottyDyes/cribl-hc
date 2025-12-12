@@ -228,8 +228,6 @@ If you encounter any issues or want to see exactly what's happening:
 
 ```bash
 cribl-hc analyze run --deployment prod --debug 2>&1 | tee debug.log
-# or short form:
-cribl-hc analyze run -p prod -d 2>&1 | tee debug.log
 ```
 
 This will:
@@ -239,7 +237,7 @@ This will:
 
 **Debug mode vs Verbose mode**:
 - `--verbose` / `-v`: Shows informational messages (recommended for normal use)
-- `--debug` / `-d`: Shows everything including detailed traces (for troubleshooting)
+- `--debug`: Shows everything including detailed traces (for troubleshooting) - no short form
 
 ## Step 8: Generate Reports
 
@@ -250,7 +248,7 @@ cribl-hc analyze run \
   --markdown
 
 # or short form:
-cribl-hc analyze run -p prod -o my_first_report.json -m
+cribl-hc analyze run -p prod -f my_first_report.json -m
 ```
 
 This creates:
@@ -258,7 +256,7 @@ This creates:
 - `my_first_report.md` - Human-readable Markdown (when using `--markdown`)
 
 **Report options**:
-- `--output FILE` / `-o FILE`: Save JSON report to file
+- `--output FILE` / `-f FILE`: Save JSON report to file
 - `--markdown` / `-m`: Also generate Markdown report (FILE.md)
 
 ## Step 9: Validate Performance
@@ -303,10 +301,10 @@ cribl-hc analyze run \
   2>&1 | tee feedback_debug.log
 
 # or short form:
-cribl-hc analyze run -p prod -d -o feedback_report.json -m 2>&1 | tee feedback_debug.log
+cribl-hc analyze run -p prod --debug -f feedback_report.json -m 2>&1 | tee feedback_debug.log
 
 # or if using URL/token directly:
-cribl-hc analyze run -u YOUR_URL -t YOUR_TOKEN -d -o feedback_report.json -m 2>&1 | tee feedback_debug.log
+cribl-hc analyze run -u YOUR_URL -t YOUR_TOKEN --debug -f feedback_report.json -m 2>&1 | tee feedback_debug.log
 ```
 
 Then share:
@@ -356,7 +354,7 @@ cribl-hc analyze run -p prod --debug
 ### Unexpected results
 ```bash
 # Run with debug to see what data is being analyzed
-cribl-hc analyze run -p prod --debug -o report.json
+cribl-hc analyze run -p prod --debug -f report.json
 
 # Check the JSON report for raw data
 cat report.json | jq .
@@ -380,8 +378,8 @@ cribl-hc config set local --url http://localhost:9000 --token LOCAL_TOKEN
 cribl-hc config list
 
 # Now easily switch between them
-cribl-hc analyze run -p prod -o prod-report.json
-cribl-hc analyze run -p dev -o dev-report.json
+cribl-hc analyze run -p prod -f prod-report.json
+cribl-hc analyze run -p dev -f dev-report.json
 cribl-hc analyze run -p local --verbose
 ```
 
