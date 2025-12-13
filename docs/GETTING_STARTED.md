@@ -1,5 +1,17 @@
 # Getting Started with cribl-hc
 
+## What is cribl-hc?
+
+cribl-hc is a health check tool for **Cribl Stream** deployments (both self-hosted and Cribl Cloud). It analyzes worker health, configuration quality, and resource utilization to help you maintain a healthy Cribl environment.
+
+**Supported Products:**
+- ✅ Cribl Stream (Self-Hosted) - Full support
+- ✅ Cribl Stream (Cribl Cloud) - Full support*
+- 🔮 Cribl Edge - Planned (Phase 5)
+- 🔮 Cribl Lake - Planned (Phase 6)
+
+_*Disk metrics not available in Cribl Cloud (API limitation)_
+
 ## Installation
 
 ```bash

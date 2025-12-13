@@ -91,6 +91,12 @@ def display_findings(objective: str, result: AnalyzerResult, console: Console):
         style="cyan"
     ))
 
+    # Check if disk metrics were skipped (Cribl Cloud)
+    if result.metadata.get("disk_metrics_skipped"):
+        console.print(
+            f"[dim]ℹ️  {result.metadata.get('disk_metrics_skip_reason', 'Disk metrics skipped')}[/dim]\n"
+        )
+
     # Group findings by severity
     severity_order = ["critical", "high", "medium", "low", "info"]
     severity_colors = {

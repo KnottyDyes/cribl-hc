@@ -13,6 +13,21 @@ from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.core.api_client import CriblAPIClient
 
 
+def create_mock_client(is_cloud: bool = False) -> AsyncMock:
+    """
+    Create a mock Cribl API client.
+
+    Args:
+        is_cloud: Whether to simulate Cribl Cloud (True) or self-hosted (False)
+
+    Returns:
+        Mocked CriblAPIClient with is_cloud property set
+    """
+    mock_client = AsyncMock(spec=CriblAPIClient)
+    mock_client.is_cloud = is_cloud
+    return mock_client
+
+
 class TestResourceAnalyzer:
     """Test suite for ResourceAnalyzer."""
 
@@ -39,8 +54,8 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_analyze_healthy_resources(self):
         """Test analyzer with healthy resource utilization."""
-        # Mock API client
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        # Mock API client (self-hosted, so disk metrics will be checked)
+        mock_client = create_mock_client(is_cloud=False)
 
         # Healthy worker data
         mock_client.get_workers.return_value = [
@@ -114,7 +129,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_detect_high_cpu_warning(self):
         """Test detection of high CPU utilization (warning threshold)."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         # Worker with 85% CPU (above 80% warning threshold)
         mock_client.get_workers.return_value = [
@@ -141,7 +156,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_detect_critical_cpu(self):
         """Test detection of critical CPU utilization."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         # Worker with 95% CPU (above 90% critical threshold)
         mock_client.get_workers.return_value = [
@@ -173,7 +188,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_detect_high_load_average(self):
         """Test detection of high load average."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         # Worker with load average >2x CPU count
         mock_client.get_workers.return_value = [
@@ -203,7 +218,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_detect_high_memory_warning(self):
         """Test detection of high memory utilization (warning)."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         # Worker with 90% memory usage (above 85% warning)
         total_memory = 34359738368  # 32GB
@@ -241,7 +256,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_detect_critical_memory(self):
         """Test detection of critical memory pressure."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         # Worker with 96% memory usage (above 95% critical)
         total_memory = 34359738368  # 32GB
@@ -275,7 +290,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_detect_high_disk_utilization(self):
         """Test detection of high disk utilization."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         mock_client.get_workers.return_value = [
             {
@@ -312,7 +327,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_detect_critical_disk_space(self):
         """Test detection of critical low disk space (<10GB free)."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         mock_client.get_workers.return_value = [
             {
@@ -358,7 +373,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_detect_resource_imbalance(self):
         """Test detection of imbalanced resource distribution."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         # Workers with significantly different CPU utilization
         mock_client.get_workers.return_value = [
@@ -394,7 +409,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_no_imbalance_detection_single_worker(self):
         """Test that imbalance is not detected with only one worker."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         # Single worker
         mock_client.get_workers.return_value = [
@@ -418,7 +433,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_calculate_resource_health_score(self):
         """Test resource health score calculation."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         # Worker with multiple issues
         total_memory = 34359738368  # 32GB
@@ -457,7 +472,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_metadata_summary(self):
         """Test that metadata summary is populated correctly."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         mock_client.get_workers.return_value = [
             {
@@ -494,7 +509,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_api_error_handling(self):
         """Test graceful degradation when API calls fail."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         # Simulate API errors - workers fetch will return empty list
         # But we'll make the analyze method itself fail
@@ -517,7 +532,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_capacity_recommendation_generation(self):
         """Test that capacity recommendations are generated for high findings."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         # Workers with critical issues
         total_memory = 34359738368  # 32GB
@@ -573,7 +588,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_skip_zero_memory_workers(self):
         """Test that workers with totalMemory=0 are skipped."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         mock_client.get_workers.return_value = [
             {
@@ -600,7 +615,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_skip_zero_disk_workers(self):
         """Test that workers with total disk=0 are skipped."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         mock_client.get_workers.return_value = [
             {
@@ -631,7 +646,7 @@ class TestResourceAnalyzer:
     @pytest.mark.asyncio
     async def test_end_to_end_workflow(self):
         """Test complete end-to-end resource analysis workflow."""
-        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client = create_mock_client(is_cloud=False)
 
         # Realistic mixed scenario
         mock_client.get_workers.return_value = [
@@ -713,3 +728,47 @@ class TestResourceAnalyzer:
         assert "worker-worker-02" in affected or any(
             "worker-02" in comp for comp in affected
         )
+
+    @pytest.mark.asyncio
+    async def test_cribl_cloud_skips_disk_metrics(self):
+        """Test that disk metrics are skipped for Cribl Cloud deployments."""
+        # Mock Cribl Cloud client
+        mock_client = create_mock_client(is_cloud=True)
+
+        mock_client.get_workers.return_value = [
+            {
+                "id": "worker-01",
+                "info": {"cpus": 8, "totalMemory": 34359738368, "freeMemory": 17179869184},
+                "metrics": {"cpu": {"perc": 0.50}},
+            }
+        ]
+
+        # Include disk metrics in response (but they should be ignored)
+        mock_client.get_metrics.return_value = {
+            "workers": {
+                "worker-01": {
+                    "disk": {
+                        "total": 536870912000,
+                        "used": 483183820800,  # 90% - would trigger finding if not Cloud
+                        "free": 53687091200,
+                    }
+                }
+            }
+        }
+
+        mock_client.get_system_status.return_value = {}
+
+        analyzer = ResourceAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should NOT have disk findings (skipped for Cloud)
+        disk_findings = [f for f in result.findings if "disk" in f.id.lower()]
+        assert len(disk_findings) == 0
+
+        # Should have metadata indicating disk metrics were skipped
+        assert result.metadata.get("disk_metrics_skipped") is True
+        assert "Cribl Cloud" in result.metadata.get("disk_metrics_skip_reason", "")
+
+        # Should still analyze CPU and memory
+        assert result.success is True
+        assert result.metadata.get("worker_count") == 1

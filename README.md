@@ -12,6 +12,26 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 - **Read-Only by Design**: All operations use read-only API access, zero risk to production
 - **Fast Analysis**: Complete analysis in under 5 minutes using fewer than 100 API calls
 
+## Supported Products
+
+**✅ Currently Supported:**
+- **Cribl Stream (Self-Hosted)** - Full feature support including disk metrics
+- **Cribl Stream (Cribl Cloud)** - Full feature support (disk metrics unavailable via API)
+
+**🔮 Planned Support:**
+- **Cribl Edge** - Edge Fleet health monitoring and configuration validation (Phase 5)
+- **Cribl Lake** - Storage utilization and performance monitoring (Phase 6)
+- **Cribl Search** - Query performance and resource optimization (evaluating applicability)
+
+This tool is specifically designed for **Cribl Stream** deployments and analyzes:
+- Worker/node health and capacity
+- Pipeline and route configurations
+- Resource utilization (CPU, memory, disk*)
+- Configuration best practices
+- Security and compliance posture
+
+_*Disk metrics available on self-hosted deployments only. Cribl Cloud does not expose disk metrics via API._
+
 ## Installation
 
 ### Prerequisites
@@ -292,13 +312,17 @@ mypy src/
 
 ### Phase 1: MVP (Current)
 - ✅ Project setup
-- 🚧 P1: Quick Health Assessment
+- ✅ P1: Quick Health Assessment
   - Overall health score (0-100)
   - Worker health monitoring
   - Critical issue identification
+- ✅ Resource utilization monitoring
+  - CPU and memory capacity planning
+  - Disk metrics (self-hosted only)
+  - Cloud vs self-hosted detection
 
 ### Phase 2: Configuration & Optimization
-- P2: Configuration Validation & Best Practices
+- 🚧 P2: Configuration Validation & Best Practices
 - P3: Sizing & Performance Optimization
 
 ### Phase 3: Security & Cost
@@ -309,6 +333,26 @@ mypy src/
 - P6: Disaster Recovery Assessment
 - P7: Fleet-Wide Analytics
 
+### Phase 5: Cribl Edge Support
+- Edge Fleet health monitoring
+- Edge Node resource utilization
+- Edge-specific configuration validation
+- Edge route and pipeline analysis
+- API compatibility layer for Edge endpoints
+
+### Phase 6: Cribl Lake Support
+- Storage bucket utilization monitoring
+- Data retention and lifecycle analysis
+- Query performance metrics
+- Cost optimization for storage
+- Lake-specific health indicators
+
+### Phase 7: Multi-Product Fleet Analytics
+- Unified health dashboard across Stream/Edge/Lake
+- Cross-product data flow visualization
+- Holistic capacity planning
+- Fleet-wide configuration compliance
+
 ## Contributing
 
 Contributions are welcome! Please open an issue or pull request on [GitHub](https://github.com/KnottyDyes/cribl-hc).
@@ -316,6 +360,14 @@ Contributions are welcome! Please open an issue or pull request on [GitHub](http
 ## License
 
 This project is provided as-is for use with Cribl Stream deployments.
+
+## Documentation
+
+- **[Getting Started Guide](docs/GETTING_STARTED.md)** - Quick start guide
+- **[CLI Guide](docs/CLI_GUIDE.md)** - Complete CLI reference
+- **[CLI Quick Reference](docs/CLI_QUICK_REFERENCE.md)** - Command cheat sheet
+- **[Product Compatibility](docs/PRODUCT_COMPATIBILITY.md)** - Supported products and features
+- **[Cribl Cloud API Notes](docs/cribl_cloud_api_notes.md)** - Cloud vs self-hosted differences
 
 ## Support
 

@@ -1,5 +1,7 @@
 # cribl-hc CLI Quick Reference
 
+**Supported:** Cribl Stream (Self-Hosted & Cribl Cloud) | **Planned:** Cribl Edge, Cribl Lake
+
 ## Installation
 
 ```bash

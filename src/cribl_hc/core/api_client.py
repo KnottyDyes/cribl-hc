@@ -156,6 +156,16 @@ class CriblAPIClient:
         self._worker_group = "default"
         self._deployment_detected = True
 
+    @property
+    def is_cloud(self) -> bool:
+        """
+        Check if this is a Cribl Cloud deployment.
+
+        Returns:
+            True if deployment is Cribl Cloud, False if self-hosted
+        """
+        return self._is_cloud
+
     def _build_config_endpoint(self, resource: str) -> str:
         """
         Build the correct API endpoint based on deployment type.

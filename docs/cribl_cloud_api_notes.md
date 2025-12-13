@@ -1,5 +1,7 @@
 # Cribl Cloud API Limitations
 
+> **See Also:** [Product Compatibility Guide](./PRODUCT_COMPATIBILITY.md) for information about support for Cribl Edge, Lake, and Search.
+
 ## Summary
 
 Cribl Cloud has a **different API surface** compared to self-hosted Cribl Stream deployments. Many endpoints that work on self-hosted installations return 404 on Cribl Cloud.

@@ -26,9 +26,13 @@ class ResourceAnalyzer(BaseAnalyzer):
     Monitors CPU, memory, and disk usage across worker nodes to detect:
     - High CPU utilization (>80% avg, >90% peak)
     - Memory pressure (>85% usage, potential OOM)
-    - Disk space constraints (<20% free, <10GB available)
+    - Disk space constraints (<20% free, <10GB available) - Self-hosted only
     - Imbalanced resource distribution
     - Capacity planning needs
+
+    Note: Disk metrics are only available for self-hosted deployments.
+    Cribl Cloud deployments skip disk analysis as these metrics are not
+    exposed via the API.
 
     Priority: P1 (Critical for preventing outages)
 
@@ -87,7 +91,14 @@ class ResourceAnalyzer(BaseAnalyzer):
             # 2. Analyze resource utilization
             self._analyze_cpu_utilization(workers, metrics, result)
             self._analyze_memory_utilization(workers, metrics, result)
-            self._analyze_disk_utilization(workers, metrics, result)
+
+            # Disk metrics are not available in Cribl Cloud
+            if not client.is_cloud:
+                self._analyze_disk_utilization(workers, metrics, result)
+            else:
+                self.log.debug("skipping_disk_metrics", reason="not_available_in_cribl_cloud")
+                result.metadata["disk_metrics_skipped"] = True
+                result.metadata["disk_metrics_skip_reason"] = "Disk metrics not available in Cribl Cloud"
 
             # 3. Detect imbalances and bottlenecks
             self._detect_resource_imbalances(workers, result)
@@ -335,7 +346,10 @@ class ResourceAnalyzer(BaseAnalyzer):
         result: AnalyzerResult,
     ) -> None:
         """
-        Analyze disk utilization from metrics.
+        Analyze disk utilization from metrics (self-hosted only).
+
+        Note: This method is only called for self-hosted deployments.
+        Cribl Cloud deployments do not expose disk metrics via the API.
 
         Detects:
         - High disk usage (>80%)

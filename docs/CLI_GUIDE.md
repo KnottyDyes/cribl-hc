@@ -2,6 +2,18 @@
 
 Complete guide to using the Cribl Health Check command-line interface.
 
+## Overview
+
+cribl-hc is designed specifically for **Cribl Stream** deployments and provides comprehensive health checking, configuration validation, and resource monitoring.
+
+**Supported Deployments:**
+- ✅ Cribl Stream Self-Hosted (all features)
+- ✅ Cribl Stream Cribl Cloud (all features except disk metrics*)
+- 🔮 Cribl Edge (planned - Phase 5)
+- 🔮 Cribl Lake (planned - Phase 6)
+
+_*Cribl Cloud does not expose disk metrics via API. CPU and memory monitoring fully supported._
+
 ## Installation
 
 ```bash
