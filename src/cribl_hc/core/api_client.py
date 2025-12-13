@@ -93,6 +93,10 @@ class CriblAPIClient:
         self._worker_group = worker_group  # Will be auto-detected if None
         self._deployment_detected = False
 
+        # Product type detection (stream, edge, lake)
+        self._product_type: Optional[str] = None  # Will be detected on first API call
+        self._product_version: Optional[str] = None
+
         # Rate limiter for API call budget enforcement
         self.rate_limiter = rate_limiter or RateLimiter(
             max_calls=100,
@@ -165,6 +169,98 @@ class CriblAPIClient:
             True if deployment is Cribl Cloud, False if self-hosted
         """
         return self._is_cloud
+
+    @property
+    def product_type(self) -> Optional[str]:
+        """
+        Get the detected Cribl product type.
+
+        Returns:
+            Product type: "stream", "edge", "lake", or None if not yet detected
+
+        Note:
+            Product detection happens automatically on first API call to /api/v1/version
+        """
+        return self._product_type
+
+    @property
+    def is_stream(self) -> bool:
+        """Check if this is a Cribl Stream deployment."""
+        return self._product_type == "stream"
+
+    @property
+    def is_edge(self) -> bool:
+        """Check if this is a Cribl Edge deployment."""
+        return self._product_type == "edge"
+
+    @property
+    def is_lake(self) -> bool:
+        """Check if this is a Cribl Lake deployment."""
+        return self._product_type == "lake"
+
+    @property
+    def product_version(self) -> Optional[str]:
+        """
+        Get the detected Cribl product version.
+
+        Returns:
+            Product version string (e.g., "4.5.0") or None if not yet detected
+        """
+        return self._product_version
+
+    async def _detect_product_type(self, version_info: Dict[str, Any]) -> None:
+        """
+        Detect Cribl product type from version endpoint response.
+
+        Args:
+            version_info: Response from /api/v1/version endpoint
+
+        The version endpoint returns different structures for different products:
+        - Stream: {"version": "4.5.0", "product": "stream"} or no product field
+        - Edge: {"version": "4.8.0", "product": "edge"}
+        - Lake: {"version": "1.2.0", "product": "lake"}
+        """
+        if not version_info:
+            self._product_type = "stream"  # Default to stream
+            return
+
+        # Try to detect from explicit product field
+        product = version_info.get("product", "").lower()
+        if product in ["stream", "edge", "lake"]:
+            self._product_type = product
+            self._product_version = version_info.get("version")
+            log.info("product_detected", product=product, version=self._product_version)
+            return
+
+        # Fallback: Try to infer from endpoint availability
+        # Edge and Lake have different endpoint structures
+        if self._client:
+            # Check for Edge-specific endpoint
+            try:
+                response = await self._client.get("/api/v1/edge/fleets")
+                if response.status_code in [200, 401, 403]:  # Exists but may need auth
+                    self._product_type = "edge"
+                    self._product_version = version_info.get("version")
+                    log.info("product_inferred", product="edge", method="endpoint_probe")
+                    return
+            except Exception:
+                pass
+
+            # Check for Lake-specific endpoint
+            try:
+                response = await self._client.get("/api/v1/datasets")
+                if response.status_code in [200, 401, 403]:
+                    self._product_type = "lake"
+                    self._product_version = version_info.get("version")
+                    log.info("product_inferred", product="lake", method="endpoint_probe")
+                    return
+            except Exception:
+                pass
+
+        # Default to Stream if nothing else matches
+        self._product_type = "stream"
+        self._product_version = version_info.get("version")
+        log.info("product_defaulted", product="stream", version=self._product_version)
 
     def _build_config_endpoint(self, resource: str) -> str:
         """
@@ -239,9 +335,20 @@ class CriblAPIClient:
                 data = response.json()
                 version = data.get("version", "unknown")
 
+                # Detect product type on first successful connection
+                if not self._product_type:
+                    await self._detect_product_type(data)
+
+                # Build product-aware success message
+                product_name = {
+                    "stream": "Cribl Stream",
+                    "edge": "Cribl Edge",
+                    "lake": "Cribl Lake"
+                }.get(self._product_type or "stream", "Cribl")
+
                 return ConnectionTestResult(
                     success=True,
-                    message=f"Successfully connected to Cribl Stream {version}",
+                    message=f"Successfully connected to {product_name} {version}",
                     response_time_ms=round(elapsed_ms, 2),
                     cribl_version=version,
                     api_url=test_url,

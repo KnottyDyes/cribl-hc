@@ -88,9 +88,17 @@ Where:
 
 ### 🔮 Cribl Edge (Phase 5)
 
-**Status:** Planned
+**Status:** Phase 5A Complete ✅ (Foundation) | Phase 5B In Progress (Edge Analyzers)
 
-**Target Features:**
+**Completed (Phase 5A):**
+- ✅ Product type detection (Stream vs Edge vs Lake)
+- ✅ Automatic product detection via `/api/v1/version`
+- ✅ Endpoint probing fallback detection
+- ✅ Edge API endpoint mapping documented
+- ✅ Unit tests for product detection (14/14 passing)
+- ✅ No breaking changes to existing Stream functionality
+
+**Target Features (Phase 5B):**
 - Edge Fleet health monitoring
 - Edge Node resource utilization
 - Edge-specific configuration validation
