@@ -346,9 +346,32 @@ class CriblAPIClient:
                     "lake": "Cribl Lake"
                 }.get(self._product_type or "stream", "Cribl")
 
+                # Check version compatibility and build message
+                base_message = f"Successfully connected to {product_name} {version}"
+
+                # Add version compatibility warning if needed
+                try:
+                    from cribl_hc.utils.version import parse_version, is_version_supported
+                    parsed_version = parse_version(version)
+                    if parsed_version and not is_version_supported(parsed_version):
+                        # Version is older than N-2, add warning
+                        base_message += (
+                            f" (⚠️  Version {version} is older than officially supported. "
+                            f"Analysis will proceed with best-effort compatibility.)"
+                        )
+                        log.warning(
+                            "unsupported_version_detected",
+                            version=version,
+                            product=self._product_type,
+                            message="Proceeding with best-effort analysis"
+                        )
+                except Exception:
+                    # Don't fail connection test if version parsing fails
+                    pass
+
                 return ConnectionTestResult(
                     success=True,
-                    message=f"Successfully connected to {product_name} {version}",
+                    message=base_message,
                     response_time_ms=round(elapsed_ms, 2),
                     cribl_version=version,
                     api_url=test_url,

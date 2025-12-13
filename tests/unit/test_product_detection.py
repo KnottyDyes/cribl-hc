@@ -383,3 +383,72 @@ class TestProductDetection:
         assert client.is_cloud is True  # Cloud deployment
         assert client.is_edge is True   # Edge product
         assert client.product_type == "edge"
+
+    @pytest.mark.asyncio
+    async def test_version_compatibility_warning_for_old_version(self, mock_httpx_client):
+        """Test that old versions trigger a best-effort compatibility warning."""
+        # Arrange - Very old version (4.2.0 is N-5, way before N-2)
+        version_response_mock = MagicMock()
+        version_response_mock.status_code = 200
+        version_response_mock.json = MagicMock(return_value={
+            "version": "4.2.0",
+            "product": "stream"
+        })
+
+        mock_httpx_client.get = AsyncMock(return_value=version_response_mock)
+
+        client = CriblAPIClient(
+            base_url="https://cribl.example.com",
+            auth_token="test-token"
+        )
+        client._client = mock_httpx_client
+
+        # Mock rate limiter
+        rate_limiter_mock = AsyncMock()
+        rate_limiter_mock.__aenter__ = AsyncMock(return_value=None)
+        rate_limiter_mock.__aexit__ = AsyncMock(return_value=None)
+        client.rate_limiter = rate_limiter_mock
+
+        # Act
+        result = await client.test_connection()
+
+        # Assert
+        assert result.success is True
+        assert "4.2.0" in result.message
+        assert "⚠️" in result.message  # Warning emoji present
+        assert "older than officially supported" in result.message
+        assert "best-effort compatibility" in result.message
+
+    @pytest.mark.asyncio
+    async def test_no_warning_for_supported_version(self, mock_httpx_client):
+        """Test that supported versions don't trigger warnings."""
+        # Arrange - Current version (N)
+        version_response_mock = MagicMock()
+        version_response_mock.status_code = 200
+        version_response_mock.json = MagicMock(return_value={
+            "version": "4.7.0",  # Current version
+            "product": "stream"
+        })
+
+        mock_httpx_client.get = AsyncMock(return_value=version_response_mock)
+
+        client = CriblAPIClient(
+            base_url="https://cribl.example.com",
+            auth_token="test-token"
+        )
+        client._client = mock_httpx_client
+
+        # Mock rate limiter
+        rate_limiter_mock = AsyncMock()
+        rate_limiter_mock.__aenter__ = AsyncMock(return_value=None)
+        rate_limiter_mock.__aexit__ = AsyncMock(return_value=None)
+        client.rate_limiter = rate_limiter_mock
+
+        # Act
+        result = await client.test_connection()
+
+        # Assert
+        assert result.success is True
+        assert "4.7.0" in result.message
+        assert "⚠️" not in result.message  # No warning
+        assert "older than officially supported" not in result.message
