@@ -42,6 +42,49 @@ cribl-hc version
 # Output: cribl-hc version 1.0.0
 ```
 
+### `cribl-hc list`
+
+List all available analyzers with their API call estimates and descriptions.
+
+**Basic Usage:**
+
+```bash
+cribl-hc list
+```
+
+**Options:**
+
+| Option | Short | Description | Example |
+|--------|-------|-------------|---------|
+| `--verbose` | `-v` | Show detailed information including permissions | `cribl-hc list -v` |
+
+**Example Output:**
+
+```
+Available Analyzers (3 total)
+┏━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Analyzer ┃ API Calls ┃ Description                               ┃
+┡━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ config   │         5 │ Configuration validation & best practices │
+│ health   │         3 │ Worker health & system status monitoring  │
+│ resource │         3 │ CPU/memory/disk capacity planning         │
+└──────────┴───────────┴───────────────────────────────────────────┘
+
+Total API calls if all analyzers run: 11/100
+
+Usage examples:
+  cribl-hc analyze run                    # Run all analyzers
+  cribl-hc analyze run -o health          # Run specific analyzer
+```
+
+**Verbose Mode:**
+
+```bash
+cribl-hc list --verbose
+```
+
+Shows additional permissions column listing the API permissions required by each analyzer.
+
 ### `cribl-hc analyze run`
 
 Run health check analysis on a Cribl Stream deployment.

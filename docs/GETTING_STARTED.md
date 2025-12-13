@@ -73,6 +73,10 @@ API calls used: 11/100
 # Show version
 cribl-hc version
 
+# List available analyzers
+cribl-hc list
+cribl-hc list --verbose
+
 # Get help
 cribl-hc --help
 cribl-hc analyze --help

@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from cribl_hc.cli import test_connection
-from cribl_hc.cli.commands import analyze, config
+from cribl_hc.cli.commands import analyze, config, list_analyzers
 
 
 console = Console()
@@ -33,6 +33,12 @@ app.add_typer(
     test_connection.app,
     name="test-connection",
     help="Test connection to Cribl Stream API",
+)
+
+app.add_typer(
+    list_analyzers.app,
+    name="list",
+    help="List available analyzers",
 )
 
 

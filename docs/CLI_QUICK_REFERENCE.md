@@ -12,6 +12,10 @@ pip install -e .
 # Show version
 cribl-hc version
 
+# List available analyzers
+cribl-hc list
+cribl-hc list --verbose
+
 # Run all analyzers
 cribl-hc analyze run
 
@@ -106,6 +110,8 @@ cribl-hc analyze run -v --output ci-report.json || exit 1
 
 ```bash
 cribl-hc --help
+cribl-hc list                      # See available analyzers
+cribl-hc list --verbose            # With permissions details
 cribl-hc analyze --help
 cribl-hc analyze run --help
 ```

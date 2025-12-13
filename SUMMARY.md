@@ -33,6 +33,7 @@ The Cribl Health Check tool is **fully functional** and ready for production use
 ```bash
 # Installed command
 cribl-hc version
+cribl-hc list                           # List available analyzers
 cribl-hc analyze run
 cribl-hc analyze run --objective health
 cribl-hc analyze run --output report.json
