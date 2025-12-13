@@ -29,8 +29,8 @@ pip install cribl-health-check
 ### Install from Source
 
 ```bash
-git clone https://github.com/cribl/health-check.git
-cd health-check
+git clone https://github.com/KnottyDyes/cribl-hc.git
+cd cribl-hc
 pip install -e .
 ```
 
@@ -40,16 +40,29 @@ pip install -e .
 
 ```bash
 # Configure credentials for your Cribl Stream deployment
+
+# For Cribl Cloud (format: https://<workspace>-<org-name>.cribl.cloud)
+# Where <workspace> is your workspace ID (e.g., "main", "dev", "prod")
+cribl-hc config set prod \
+  --url https://main-myorg.cribl.cloud \
+  --token YOUR_API_TOKEN
+
+# For self-hosted Cribl Stream
 cribl-hc config set prod \
   --url https://cribl.example.com \
   --token YOUR_API_TOKEN
 
 # Short form:
-cribl-hc config set prod -u https://cribl.example.com -t YOUR_API_TOKEN
+cribl-hc config set prod -u https://main-myorg.cribl.cloud -t YOUR_API_TOKEN
 ```
 
 **Alternative**: Use environment variables:
 ```bash
+# Cribl Cloud (workspace can be "main", "dev", "prod", etc.)
+export CRIBL_URL=https://main-myorg.cribl.cloud
+export CRIBL_TOKEN=YOUR_API_TOKEN
+
+# Self-hosted
 export CRIBL_URL=https://cribl.example.com
 export CRIBL_TOKEN=YOUR_API_TOKEN
 ```
@@ -107,8 +120,11 @@ cribl-hc analyze run -p prod -o health -o config -o security
 ### Configuration Management
 
 ```bash
-# Store credentials for a deployment
-cribl-hc config set prod --url https://cribl.example.com --token YOUR_TOKEN
+# Store credentials for Cribl Cloud deployment
+cribl-hc config set prod --url https://main-myorg.cribl.cloud --token YOUR_TOKEN
+
+# Store credentials for self-hosted deployment
+cribl-hc config set onprem --url https://cribl.example.com --token YOUR_TOKEN
 
 # List configured deployments
 cribl-hc config list
@@ -145,10 +161,19 @@ cribl-hc analyze run -p prod -f report.json -m
 ```python
 from cribl_hc import analyze_deployment, Deployment, AnalysisRun
 
-# Create deployment configuration
+# Create deployment configuration for Cribl Cloud
 deployment = Deployment(
     id="prod",
-    name="Production Cribl Cluster",
+    name="Production Cribl Cloud",
+    url="https://main-myorg.cribl.cloud",
+    environment_type="cloud",
+    auth_token="your-api-token"
+)
+
+# Or for self-hosted Cribl Stream
+deployment = Deployment(
+    id="onprem",
+    name="On-Premises Cribl Cluster",
     url="https://cribl.example.com",
     environment_type="self-hosted",
     auth_token="your-api-token"
@@ -203,8 +228,8 @@ See [.specify/memory/constitution.md](.specify/memory/constitution.md) for compl
 
 ```bash
 # Clone repository
-git clone https://github.com/cribl/health-check.git
-cd health-check
+git clone https://github.com/KnottyDyes/cribl-hc.git
+cd cribl-hc
 
 # Create virtual environment
 python -m venv .venv
@@ -286,11 +311,11 @@ mypy src/
 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome! Please open an issue or pull request on [GitHub](https://github.com/KnottyDyes/cribl-hc).
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+This project is provided as-is for use with Cribl Stream deployments.
 
 ## Support
 

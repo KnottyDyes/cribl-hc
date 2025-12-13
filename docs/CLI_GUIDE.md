@@ -20,7 +20,9 @@ pip install cribl-hc
 cribl-hc version
 
 # Run all analyzers
-export CRIBL_URL=https://your-cribl.cloud
+# For Cribl Cloud (format: https://<workspace>-<org-name>.cribl.cloud)
+# Where <workspace> is your workspace ID (e.g., "main", "dev", "prod")
+export CRIBL_URL=https://main-myorg.cribl.cloud
 export CRIBL_TOKEN=your_bearer_token
 cribl-hc analyze run
 
@@ -99,7 +101,7 @@ cribl-hc analyze run --url <URL> --token <TOKEN>
 
 | Option | Short | Description | Example |
 |--------|-------|-------------|---------|
-| `--url` | `-u` | Cribl API URL | `https://cribl.example.com` |
+| `--url` | `-u` | Cribl API URL | `https://main-myorg.cribl.cloud` or `https://cribl.example.com` |
 | `--token` | `-t` | Bearer token | `eyJhbGc...` |
 | `--objective` | `-o` | Analyzer to run (repeatable) | `-o health -o config` |
 | `--output` | `-f` | Save JSON report to file | `--output report.json` |
@@ -192,11 +194,13 @@ cribl-hc analyze run --objective resource
 
 ## Usage Examples
 
-### Example 1: Basic Analysis
+### Example 1: Basic Analysis (Cribl Cloud)
 
 Run all analyzers against a Cribl Cloud deployment:
 
 ```bash
+# Cribl Cloud URL format: https://<workspace>-<org-name>.cribl.cloud
+# "main" is the default workspace, but you can use "dev", "prod", etc.
 export CRIBL_URL=https://main-myorg.cribl.cloud
 export CRIBL_TOKEN=eyJhbGc...your-token-here
 
@@ -236,9 +240,9 @@ API calls used: 11/100
 ✓ Health Score: 100/100
 ```
 
-### Example 2: Single Analyzer
+### Example 2: Single Analyzer (Self-Hosted)
 
-Run only the health analyzer:
+Run only the health analyzer on self-hosted Cribl Stream:
 
 ```bash
 cribl-hc analyze run \
@@ -247,13 +251,14 @@ cribl-hc analyze run \
     --objective health
 ```
 
-### Example 3: Multiple Specific Analyzers
+### Example 3: Multiple Specific Analyzers (Cribl Cloud)
 
-Run health and config analyzers:
+Run health and config analyzers on Cribl Cloud:
 
 ```bash
+# Example with "dev" workspace
 cribl-hc analyze run \
-    -u https://cribl.example.com \
+    -u https://dev-acme-corp.cribl.cloud \
     -t YOUR_TOKEN \
     -o health \
     -o config
@@ -380,11 +385,16 @@ cribl-hc analyze run \
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `CRIBL_URL` | Default Cribl API URL | `https://cribl.example.com` |
+| `CRIBL_URL` | Default Cribl API URL | `https://main-myorg.cribl.cloud` or `https://cribl.example.com` |
 | `CRIBL_TOKEN` | Default bearer token | `eyJhbGc...` |
 
 **Usage:**
 ```bash
+# Cribl Cloud
+export CRIBL_URL=https://main-myorg.cribl.cloud
+export CRIBL_TOKEN=your_token_here
+
+# Or self-hosted
 export CRIBL_URL=https://cribl.example.com
 export CRIBL_TOKEN=your_token_here
 

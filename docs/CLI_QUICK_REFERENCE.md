@@ -38,14 +38,20 @@ cribl-hc test-connection
 
 ```bash
 # Environment variables
-export CRIBL_URL=https://your-cribl.cloud
+# Cribl Cloud (format: https://<workspace>-<org-name>.cribl.cloud)
+# Workspace can be "main" (default), "dev", "prod", etc.
+export CRIBL_URL=https://main-myorg.cribl.cloud
+export CRIBL_TOKEN=your_bearer_token
+
+# Self-hosted
+export CRIBL_URL=https://cribl.example.com
 export CRIBL_TOKEN=your_bearer_token
 
 # Command line
-cribl-hc analyze run --url https://cribl.cloud --token TOKEN
+cribl-hc analyze run --url https://main-myorg.cribl.cloud --token TOKEN
 
 # Stored credentials
-cribl-hc config set prod --url URL --token TOKEN
+cribl-hc config set prod --url https://main-myorg.cribl.cloud --token TOKEN
 cribl-hc analyze run --deployment prod
 ```
 
@@ -86,8 +92,11 @@ cribl-hc analyze run --markdown
 ## Examples
 
 ```bash
-# Basic
-cribl-hc analyze run -u https://cribl.cloud -t TOKEN
+# Basic (Cribl Cloud)
+cribl-hc analyze run -u https://main-myorg.cribl.cloud -t TOKEN
+
+# Basic (self-hosted)
+cribl-hc analyze run -u https://cribl.example.com -t TOKEN
 
 # Specific analyzers
 cribl-hc analyze run -o health -o config

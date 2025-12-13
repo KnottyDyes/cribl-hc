@@ -19,7 +19,13 @@ cribl-hc version
 ### 1. Set Your Credentials
 
 ```bash
-export CRIBL_URL=https://your-cribl.cloud
+# For Cribl Cloud (format: https://<workspace>-<org-name>.cribl.cloud)
+# Where <workspace> is your workspace ID (e.g., "main", "dev", "prod")
+export CRIBL_URL=https://main-myorg.cribl.cloud
+export CRIBL_TOKEN=your_bearer_token
+
+# Or for self-hosted Cribl Stream
+export CRIBL_URL=https://cribl.example.com
 export CRIBL_TOKEN=your_bearer_token
 ```
 
@@ -37,7 +43,7 @@ cribl-hc analyze run --objective health
 
 ```
 Cribl Stream Health Check
-Target: https://your-cribl.cloud
+Target: https://main-myorg.cribl.cloud
 Deployment: default
 
 Testing connection...
