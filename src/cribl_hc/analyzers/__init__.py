@@ -266,6 +266,8 @@ __all__ = [
 # Auto-register built-in analyzers
 from cribl_hc.analyzers.health import HealthAnalyzer
 from cribl_hc.analyzers.config import ConfigAnalyzer
+from cribl_hc.analyzers.resource import ResourceAnalyzer
 
 register_analyzer(HealthAnalyzer)
 register_analyzer(ConfigAnalyzer)
+register_analyzer(ResourceAnalyzer)
