@@ -60,8 +60,8 @@ class TestCriblAPIClient:
         assert client.auth_token == "test-token-123"
         assert client.timeout == 30.0  # default
         assert client.max_retries == 3  # default
-        assert client.api_calls_made == 0
-        assert client.api_call_budget == 100
+        # API call tracking is delegated to rate_limiter
+        assert client.get_api_calls_used() == 0
 
     def test_client_strips_trailing_slash(self):
         """Test that trailing slash is removed from base URL."""
@@ -111,7 +111,7 @@ class TestConnectionTesting:
             assert result.response_time_ms is not None
             assert result.response_time_ms > 0
             assert result.error is None
-            assert client.api_calls_made == 1
+            assert client.get_api_calls_used() == 1
 
     @pytest.mark.asyncio
     @respx.mock
@@ -132,7 +132,7 @@ class TestConnectionTesting:
             assert result.cribl_version is None
             assert result.error is not None
             assert "HTTP 401" in result.error
-            assert client.api_calls_made == 1
+            assert client.get_api_calls_used() == 1
 
     @pytest.mark.asyncio
     @respx.mock
@@ -255,13 +255,13 @@ class TestAPICallBudget:
         async with CriblAPIClient(
             "https://cribl.example.com", "token"
         ) as client:
-            assert client.api_calls_made == 0
+            assert client.get_api_calls_used() == 0
 
             await client.test_connection()
-            assert client.api_calls_made == 1
+            assert client.get_api_calls_used() == 1
 
             await client.test_connection()
-            assert client.api_calls_made == 2
+            assert client.get_api_calls_used() == 2
 
     @pytest.mark.asyncio
     @respx.mock
@@ -274,13 +274,13 @@ class TestAPICallBudget:
         async with CriblAPIClient(
             "https://cribl.example.com", "token"
         ) as client:
-            # Manually set calls to budget limit
-            client.api_calls_made = 100
+            # Manually set calls to budget limit via rate_limiter
+            client.rate_limiter.total_calls_made = 100
 
             with pytest.raises(RuntimeError) as exc_info:
                 await client.get("/api/v1/test")
 
-            assert "API call budget exceeded" in str(exc_info.value)
+            assert "API call budget exhausted" in str(exc_info.value)
             assert "(100/100)" in str(exc_info.value)
 
     @pytest.mark.asyncio
@@ -294,12 +294,13 @@ class TestAPICallBudget:
         async with CriblAPIClient(
             "https://cribl.example.com", "token"
         ) as client:
-            client.api_calls_made = 100
+            # Manually set calls to budget limit via rate_limiter
+            client.rate_limiter.total_calls_made = 100
 
             with pytest.raises(RuntimeError) as exc_info:
                 await client.post("/api/v1/test")
 
-            assert "API call budget exceeded" in str(exc_info.value)
+            assert "API call budget exhausted" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_get_without_context_manager(self):
@@ -339,7 +340,7 @@ class TestHTTPMethods:
             response = await client.get("/api/v1/workers")
 
             assert response.status_code == 200
-            assert client.api_calls_made == 1
+            assert client.get_api_calls_used() == 1
 
     @pytest.mark.asyncio
     @respx.mock
@@ -355,7 +356,7 @@ class TestHTTPMethods:
             response = await client.post("/api/v1/test", json={"data": "test"})
 
             assert response.status_code == 201
-            assert client.api_calls_made == 1
+            assert client.get_api_calls_used() == 1
 
 
 class TestEdgeAPIMethods:

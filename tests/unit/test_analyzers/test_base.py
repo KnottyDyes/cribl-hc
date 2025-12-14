@@ -14,7 +14,7 @@ from cribl_hc.analyzers import (
 )
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation
+from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
 
 
 class TestAnalyzerResult:
@@ -34,17 +34,26 @@ class TestAnalyzerResult:
     def test_result_with_data(self):
         """Test result with findings and recommendations."""
         finding = Finding(
+            id="test-finding-1",
             title="Test finding",
             description="Test description",
             severity="high",
             category="health",
+            confidence_level="high",
+            remediation_steps=["Step 1: Fix the issue"],
+            estimated_impact="High impact on system",
         )
 
         recommendation = Recommendation(
+            id="test-rec-1",
+            type="optimization",
             title="Test recommendation",
             description="Fix the issue",
-            priority="high",
-            category="health",
+            priority="p1",
+            rationale="Because it needs fixing",
+            implementation_steps=["Step 1: Implement fix"],
+            impact_estimate=ImpactEstimate(cost_savings_annual=1000.0),
+            implementation_effort="low",
         )
 
         result = AnalyzerResult(
@@ -63,10 +72,14 @@ class TestAnalyzerResult:
         result = AnalyzerResult(objective="health")
 
         finding = Finding(
+            id="test-finding-2",
             title="Test finding",
             description="Test description",
             severity="high",
             category="health",
+            confidence_level="high",
+            remediation_steps=["Step 1: Fix the issue"],
+            estimated_impact="High impact on system",
         )
 
         result.add_finding(finding)
@@ -79,10 +92,15 @@ class TestAnalyzerResult:
         result = AnalyzerResult(objective="health")
 
         recommendation = Recommendation(
+            id="test-rec-2",
+            type="optimization",
             title="Test recommendation",
             description="Fix the issue",
-            priority="high",
-            category="health",
+            priority="p1",
+            rationale="Because it needs fixing",
+            implementation_steps=["Step 1: Implement fix"],
+            impact_estimate=ImpactEstimate(cost_savings_annual=1000.0),
+            implementation_effort="low",
         )
 
         result.add_recommendation(recommendation)
@@ -96,20 +114,37 @@ class TestAnalyzerResult:
 
         result.add_finding(
             Finding(
+                id="test-critical-1",
                 title="Critical issue",
                 description="Bad",
                 severity="critical",
                 category="health",
+                confidence_level="high",
+                remediation_steps=["Fix critical issue immediately"],
+                estimated_impact="System may fail",
             )
         )
         result.add_finding(
             Finding(
-                title="High issue", description="Not good", severity="high", category="health"
+                id="test-high-1",
+                title="High issue",
+                description="Not good",
+                severity="high",
+                category="health",
+                confidence_level="high",
+                remediation_steps=["Fix high issue soon"],
+                estimated_impact="Performance degradation",
             )
         )
         result.add_finding(
             Finding(
-                title="Medium issue", description="OK", severity="medium", category="health"
+                id="test-medium-1",
+                title="Medium issue",
+                description="OK",
+                severity="medium",
+                category="health",
+                confidence_level="medium",
+                remediation_steps=["Fix medium issue when convenient"],
             )
         )
 
@@ -124,15 +159,26 @@ class TestAnalyzerResult:
 
         result.add_finding(
             Finding(
+                id="test-critical-2",
                 title="Critical issue",
                 description="Bad",
                 severity="critical",
                 category="health",
+                confidence_level="high",
+                remediation_steps=["Fix critical issue immediately"],
+                estimated_impact="System may fail",
             )
         )
         result.add_finding(
             Finding(
-                title="High issue", description="Not good", severity="high", category="health"
+                id="test-high-2",
+                title="High issue",
+                description="Not good",
+                severity="high",
+                category="health",
+                confidence_level="high",
+                remediation_steps=["Fix high issue soon"],
+                estimated_impact="Performance degradation",
             )
         )
 
@@ -146,7 +192,12 @@ class TestAnalyzerResult:
         result = AnalyzerResult(objective="health")
         result.add_finding(
             Finding(
-                title="Test", description="Test", severity="low", category="health"
+                id="test-low-1",
+                title="Test",
+                description="Test",
+                severity="low",
+                category="health",
+                confidence_level="medium",
             )
         )
 
@@ -168,10 +219,12 @@ class MockAnalyzer(BaseAnalyzer):
         result = AnalyzerResult(objective=self.objective_name)
         result.add_finding(
             Finding(
+                id="mock-finding-1",
                 title="Mock finding",
                 description="From mock analyzer",
                 severity="low",
                 category="mock",
+                confidence_level="high",
             )
         )
         return result
