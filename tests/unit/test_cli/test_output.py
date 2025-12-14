@@ -17,6 +17,7 @@ from cribl_hc.cli.output import (
     format_api_usage,
 )
 from cribl_hc.models.analysis import AnalysisRun, Finding, Recommendation
+from tests.helpers import create_test_finding, create_test_recommendation, create_test_analysis_run
 
 
 @pytest.fixture
@@ -125,14 +126,11 @@ class TestDisplaySummary:
 
     def test_displays_failed_status(self, console):
         """Test summary display for failed analysis."""
-        analysis_run = AnalysisRun(
+        analysis_run = create_test_analysis_run(
             deployment_id="test",
             status="failed",
-            objectives_analyzed=[],
+            objectives_analyzed=["health"],  # Must have at least one
             api_calls_used=5,
-            duration_seconds=1.0,
-            findings=[],
-            recommendations=[],
         )
 
         display_summary(analysis_run, console)

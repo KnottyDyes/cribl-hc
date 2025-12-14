@@ -263,14 +263,12 @@ class TestAnalyzeCommand:
         mock_client_class.return_value.__aenter__.return_value = mock_api_client
 
         # Override analysis run to return failed status
-        failed_run = AnalysisRun(
+        from tests.helpers import create_test_analysis_run
+        failed_run = create_test_analysis_run(
             deployment_id="test-deployment",
             status="failed",
-            objectives_analyzed=[],
+            objectives_analyzed=["health"],  # Must have at least one
             api_calls_used=10,
-            duration_seconds=1.0,
-            findings=[],
-            recommendations=[],
         )
         mock_orchestrator.create_analysis_run = MagicMock(return_value=failed_run)
         mock_orch_class.return_value = mock_orchestrator
