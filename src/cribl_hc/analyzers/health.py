@@ -45,8 +45,15 @@ class HealthAnalyzer(BaseAnalyzer):
         return "Overall health assessment, worker monitoring, and critical issue identification"
 
     def get_estimated_api_calls(self) -> int:
-        """Estimate API calls needed."""
-        return 3  # workers, system status, metrics
+        """
+        Estimate API calls needed.
+
+        - Stream: 3 (workers, system_status, health)
+        - Edge: 3 (nodes, health)
+
+        Note: Actual count may vary based on product detection.
+        """
+        return 3
 
     def get_required_permissions(self) -> List[str]:
         """List required API permissions."""
@@ -58,7 +65,9 @@ class HealthAnalyzer(BaseAnalyzer):
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         """
-        Perform health analysis on Cribl Stream deployment.
+        Perform health analysis on Cribl Stream or Edge deployment.
+
+        Automatically adapts based on detected product type.
 
         Args:
             client: Authenticated Cribl API client
@@ -95,7 +104,7 @@ class HealthAnalyzer(BaseAnalyzer):
             self._check_deployment_architecture(workers, result)
 
             # Analyze worker health
-            unhealthy_workers = self._analyze_worker_health(workers, result)
+            unhealthy_workers = self._analyze_worker_health(workers, result, client)
             result.metadata["unhealthy_workers"] = len(unhealthy_workers)
 
             # Calculate overall health score
@@ -146,13 +155,30 @@ class HealthAnalyzer(BaseAnalyzer):
         return result
 
     async def _fetch_workers(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
-        """Fetch worker data from API."""
+        """
+        Fetch worker/node data from API (works for both Stream and Edge).
+
+        Note: Uses unified get_nodes() which automatically detects product type.
+        """
         try:
-            workers = await client.get_workers()
-            self.log.debug("workers_fetched", count=len(workers))
-            return workers
+            # Use unified method - works for both Stream and Edge
+            nodes = await client.get_nodes()
+
+            # Normalize Edge data if needed
+            normalized_nodes = [
+                client._normalize_node_data(node) for node in nodes
+            ]
+
+            # Log with product-aware message
+            product = client.product_type or "stream"
+            self.log.debug(
+                "nodes_fetched",
+                product=product,
+                count=len(normalized_nodes)
+            )
+            return normalized_nodes
         except Exception as e:
-            self.log.error("workers_fetch_failed", error=str(e))
+            self.log.error("nodes_fetch_failed", error=str(e))
             return []
 
     async def _fetch_system_status(self, client: CriblAPIClient) -> Dict[str, Any]:
@@ -284,15 +310,16 @@ class HealthAnalyzer(BaseAnalyzer):
     def _analyze_worker_health(
         self,
         workers: List[Dict[str, Any]],
-        result: AnalyzerResult
+        result: AnalyzerResult,
+        client: CriblAPIClient
     ) -> List[Dict[str, Any]]:
         """
-        Analyze worker health and generate findings.
+        Analyze worker/node health and generate findings (Stream and Edge).
 
-        A worker is considered unhealthy if:
+        A worker/node is considered unhealthy if:
         - Status is not "healthy"
         - Disk usage > 90%
-        - Worker is disconnected
+        - Worker/node is disconnected
         - Memory appears constrained (< 2GB total)
         - Worker recently restarted (< 5 minutes uptime)
 
@@ -365,19 +392,22 @@ class HealthAnalyzer(BaseAnalyzer):
 
                 worker_group = worker.get("group", "default")
 
+                # Product-aware naming
+                product_name = "Edge Node" if client.is_edge else "Worker"
+
                 all_concerns = issues + warnings
-                description = f"Worker {hostname} (group: {worker_group}) has {len(all_concerns)} health concern(s): {', '.join(all_concerns)}"
+                description = f"{product_name} {hostname} (group: {worker_group}) has {len(all_concerns)} health concern(s): {', '.join(all_concerns)}"
 
                 result.add_finding(
                     Finding(
                         id=f"health-worker-{worker_id}",
-                        title=f"Unhealthy Worker: {hostname}",
+                        title=f"Unhealthy {product_name}: {hostname}",
                         description=description,
                         severity=severity,
                         category="health",
                         confidence_level="high",
                         affected_components=[worker_id],
-                        estimated_impact=f"Worker performance degraded - {', '.join(all_concerns)}",
+                        estimated_impact=f"{product_name} performance degraded - {', '.join(all_concerns)}",
                         remediation_steps=[
                             "Review worker status and logs",
                             "Check worker connectivity to leader",

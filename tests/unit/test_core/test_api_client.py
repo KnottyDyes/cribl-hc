@@ -356,3 +356,230 @@ class TestHTTPMethods:
 
             assert response.status_code == 201
             assert client.api_calls_made == 1
+
+
+class TestEdgeAPIMethods:
+    """Test Edge-specific API methods."""
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_edge_nodes(self):
+        """Test get_edge_nodes() method."""
+        # Mock Edge nodes endpoint
+        respx.get("https://edge.example.com/api/v1/edge/nodes").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "items": [
+                        {"id": "node-1", "status": "connected", "fleet": "production"},
+                        {"id": "node-2", "status": "connected", "fleet": "production"},
+                    ]
+                },
+            )
+        )
+
+        async with CriblAPIClient(
+            base_url="https://edge.example.com", auth_token="test-token"
+        ) as client:
+            nodes = await client.get_edge_nodes()
+
+            assert len(nodes) == 2
+            assert nodes[0]["id"] == "node-1"
+            assert nodes[0]["status"] == "connected"
+            assert nodes[1]["id"] == "node-2"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_edge_nodes_with_fleet_filter(self):
+        """Test get_edge_nodes() with fleet parameter."""
+        # Mock fleet-specific endpoint
+        respx.get("https://edge.example.com/api/v1/e/production/nodes").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "items": [
+                        {"id": "node-1", "status": "connected", "fleet": "production"},
+                    ]
+                },
+            )
+        )
+
+        async with CriblAPIClient(
+            base_url="https://edge.example.com", auth_token="test-token"
+        ) as client:
+            nodes = await client.get_edge_nodes(fleet="production")
+
+            assert len(nodes) == 1
+            assert nodes[0]["fleet"] == "production"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_edge_fleets(self):
+        """Test get_edge_fleets() method."""
+        # Mock Edge fleets endpoint
+        respx.get("https://edge.example.com/api/v1/edge/fleets").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "items": [
+                        {"id": "production", "name": "Production Fleet"},
+                        {"id": "staging", "name": "Staging Fleet"},
+                    ]
+                },
+            )
+        )
+
+        async with CriblAPIClient(
+            base_url="https://edge.example.com", auth_token="test-token"
+        ) as client:
+            fleets = await client.get_edge_fleets()
+
+            assert len(fleets) == 2
+            assert fleets[0]["id"] == "production"
+            assert fleets[1]["id"] == "staging"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_nodes_routes_to_edge(self):
+        """Test that get_nodes() calls Edge endpoint when is_edge=True."""
+        # Mock version endpoint to detect Edge
+        respx.get("https://edge.example.com/api/v1/version").mock(
+            return_value=httpx.Response(
+                200, json={"version": "4.15.0", "product": "edge"}
+            )
+        )
+
+        # Mock Edge nodes endpoint
+        respx.get("https://edge.example.com/api/v1/edge/nodes").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "items": [
+                        {"id": "node-1", "status": "connected"},
+                    ]
+                },
+            )
+        )
+
+        async with CriblAPIClient(
+            base_url="https://edge.example.com", auth_token="test-token"
+        ) as client:
+            # Detect product type
+            await client.test_connection()
+
+            # Verify Edge detection
+            assert client.is_edge is True
+            assert client.product_type == "edge"
+
+            # get_nodes() should route to Edge endpoint
+            nodes = await client.get_nodes()
+
+            assert len(nodes) == 1
+            assert nodes[0]["id"] == "node-1"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_nodes_routes_to_stream(self):
+        """Test that get_nodes() calls Stream endpoint when is_stream=True."""
+        # Mock version endpoint to detect Stream
+        respx.get("https://stream.example.com/api/v1/version").mock(
+            return_value=httpx.Response(
+                200, json={"version": "4.7.0", "product": "stream"}
+            )
+        )
+
+        # Mock Stream workers endpoint
+        respx.get("https://stream.example.com/api/v1/master/workers").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "items": [
+                        {"id": "worker-1", "status": "healthy"},
+                    ]
+                },
+            )
+        )
+
+        async with CriblAPIClient(
+            base_url="https://stream.example.com", auth_token="test-token"
+        ) as client:
+            # Detect product type
+            await client.test_connection()
+
+            # Verify Stream detection
+            assert client.is_stream is True
+            assert client.product_type == "stream"
+
+            # get_nodes() should route to Stream endpoint
+            nodes = await client.get_nodes()
+
+            assert len(nodes) == 1
+            assert nodes[0]["id"] == "worker-1"
+
+    @pytest.mark.asyncio
+    async def test_normalize_edge_node_data(self):
+        """Test Edge node normalization."""
+        client = CriblAPIClient(
+            base_url="https://edge.example.com", auth_token="test-token"
+        )
+        client._product_type = "edge"
+
+        edge_node = {
+            "id": "node-1",
+            "status": "connected",
+            "fleet": "production",
+            "lastSeen": "2024-12-13T12:00:00Z",
+        }
+
+        normalized = client._normalize_node_data(edge_node)
+
+        # Status should be normalized
+        assert normalized["status"] == "healthy"  # connected → healthy
+
+        # Fleet should be mapped to group
+        assert normalized["group"] == "production"
+
+        # lastSeen should be converted to lastMsgTime
+        assert "lastMsgTime" in normalized
+        assert isinstance(normalized["lastMsgTime"], int)
+
+    @pytest.mark.asyncio
+    async def test_normalize_edge_node_disconnected(self):
+        """Test normalization of disconnected Edge node."""
+        client = CriblAPIClient(
+            base_url="https://edge.example.com", auth_token="test-token"
+        )
+        client._product_type = "edge"
+
+        edge_node = {
+            "id": "node-1",
+            "status": "disconnected",
+            "fleet": "staging",
+        }
+
+        normalized = client._normalize_node_data(edge_node)
+
+        # disconnected → unhealthy
+        assert normalized["status"] == "unhealthy"
+        assert normalized["group"] == "staging"
+
+    @pytest.mark.asyncio
+    async def test_normalize_stream_node_is_noop(self):
+        """Test that normalization is no-op for Stream workers."""
+        client = CriblAPIClient(
+            base_url="https://stream.example.com", auth_token="test-token"
+        )
+        client._product_type = "stream"
+
+        stream_worker = {
+            "id": "worker-1",
+            "status": "healthy",
+            "group": "default",
+        }
+
+        normalized = client._normalize_node_data(stream_worker)
+
+        # Should return unchanged for Stream
+        assert normalized == stream_worker
+        assert normalized["status"] == "healthy"
+        assert normalized["group"] == "default"

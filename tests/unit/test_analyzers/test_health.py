@@ -42,6 +42,14 @@ def create_worker(worker_id: str, status: str = "healthy", disconnected: bool = 
     }
 
 
+def setup_mock_client_for_stream(mock_client: AsyncMock) -> None:
+    """Configure mock client for Stream product."""
+    mock_client.is_edge = False
+    mock_client.is_stream = True
+    mock_client.product_type = "stream"
+    mock_client._normalize_node_data.side_effect = lambda n: n  # No-op for Stream
+
+
 class TestHealthAnalyzer:
     """Test suite for HealthAnalyzer."""
 
@@ -75,12 +83,20 @@ class TestHealthAnalyzer:
         """Test analysis with all healthy workers."""
         # Create mock client
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
+
+        # Mock product detection (Stream)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
 
         # Mock healthy workers with realistic data
-        mock_client.get_workers.return_value = [
+        workers = [
             create_worker("worker-1"),
             create_worker("worker-2"),
         ]
+        mock_client.get_nodes.return_value = workers
+        mock_client._normalize_node_data.side_effect = lambda n: n  # No-op for Stream
 
         mock_client.get_system_status.return_value = {}
 
@@ -112,9 +128,10 @@ class TestHealthAnalyzer:
     async def test_analyze_unhealthy_worker_disconnected(self):
         """Test analysis with disconnected worker."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
         # Mock workers with one disconnected
-        mock_client.get_workers.return_value = [
+        mock_client.get_nodes.return_value = [
             create_worker("worker-1", status="shutting down", disconnected=True),
         ]
 
@@ -152,11 +169,12 @@ class TestHealthAnalyzer:
     async def test_analyze_critical_worker_high_disk(self):
         """Test analysis with worker having high disk usage."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
         # Mock worker with high disk usage (>90%)
         total_disk = 100 * 1024**3
         free_disk = 5 * 1024**3  # 95% used
-        mock_client.get_workers.return_value = [
+        mock_client.get_nodes.return_value = [
             create_worker("worker-1", total_disk=total_disk, free_disk=free_disk),
         ]
 
@@ -188,8 +206,9 @@ class TestHealthAnalyzer:
     async def test_analyze_mixed_worker_health(self):
         """Test analysis with mix of healthy and unhealthy workers."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
-        mock_client.get_workers.return_value = [
+        mock_client.get_nodes.return_value = [
             create_worker("worker-1"),  # Healthy
             create_worker("worker-2", status="unhealthy"),  # Unhealthy
             create_worker("worker-3"),  # Healthy
@@ -222,8 +241,9 @@ class TestHealthAnalyzer:
     async def test_analyze_no_workers(self):
         """Test analysis with no workers."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
-        mock_client.get_workers.return_value = []
+        mock_client.get_nodes.return_value = []
         mock_client.get_system_status.return_value = {"version": "4.5.0"}
 
         # Mock leader health
@@ -244,9 +264,10 @@ class TestHealthAnalyzer:
     async def test_analyze_api_error(self):
         """Test analysis when API call fails."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
         # Simulate API error
-        mock_client.get_workers.side_effect = Exception("API connection failed")
+        mock_client.get_nodes.side_effect = Exception("API connection failed")
         mock_client.get_system_status.return_value = {}
 
         # Mock leader health with proper async behavior
@@ -270,6 +291,7 @@ class TestHealthAnalyzer:
     async def test_health_score_calculation(self):
         """Test health score calculation algorithm."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
         # 10 workers: 8 healthy, 2 unhealthy (1 with multiple issues)
         workers = []
@@ -284,7 +306,7 @@ class TestHealthAnalyzer:
         # 1 critical worker (multiple issues: status + disconnected)
         workers.append(create_worker("worker-9", status="unhealthy", disconnected=True))
 
-        mock_client.get_workers.return_value = workers
+        mock_client.get_nodes.return_value = workers
         mock_client.get_system_status.return_value = {}
 
         # Mock leader health
@@ -342,8 +364,9 @@ class TestHealthAnalyzer:
     async def test_remediation_steps_status(self):
         """Test status-specific remediation steps."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
-        mock_client.get_workers.return_value = [
+        mock_client.get_nodes.return_value = [
             create_worker("worker-1", status="unhealthy"),
         ]
 
@@ -370,8 +393,9 @@ class TestHealthAnalyzer:
     async def test_remediation_steps_disconnected(self):
         """Test disconnection-specific remediation steps."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
-        mock_client.get_workers.return_value = [
+        mock_client.get_nodes.return_value = [
             create_worker("worker-1", disconnected=True),
         ]
 
@@ -396,11 +420,12 @@ class TestHealthAnalyzer:
     async def test_remediation_steps_disk(self):
         """Test disk-specific remediation steps."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
         # Create worker with high disk usage
         total_disk = 100 * 1024**3
         free_disk = 5 * 1024**3  # 95% used
-        mock_client.get_workers.return_value = [
+        mock_client.get_nodes.return_value = [
             create_worker("worker-1", total_disk=total_disk, free_disk=free_disk),
         ]
 
@@ -425,9 +450,10 @@ class TestHealthAnalyzer:
     async def test_overall_health_finding_severity(self):
         """Test overall health finding has correct severity."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
         # Test healthy status
-        mock_client.get_workers.return_value = [create_worker("w1")]
+        mock_client.get_nodes.return_value = [create_worker("w1")]
         mock_client.get_system_status.return_value = {}
 
         # Mock leader health
@@ -450,8 +476,9 @@ class TestHealthAnalyzer:
     async def test_metadata_includes_version(self):
         """Test that Cribl version is captured in metadata."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
-        mock_client.get_workers.return_value = [create_worker("w1")]
+        mock_client.get_nodes.return_value = [create_worker("w1")]
         mock_client.get_system_status.return_value = {}
 
         # Mock leader health
@@ -470,8 +497,9 @@ class TestHealthAnalyzer:
     async def test_leader_health_check(self):
         """Test leader health monitoring."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
-        mock_client.get_workers.return_value = [create_worker("w1")]
+        mock_client.get_nodes.return_value = [create_worker("w1")]
         mock_client.get_system_status.return_value = {}
 
         # Mock unhealthy leader
@@ -497,8 +525,9 @@ class TestHealthAnalyzer:
     async def test_single_worker_detection(self):
         """Test detection of single worker deployments."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
-        mock_client.get_workers.return_value = [create_worker("w1")]
+        mock_client.get_nodes.return_value = [create_worker("w1")]
         mock_client.get_system_status.return_value = {}
 
         # Mock leader health
@@ -524,9 +553,10 @@ class TestHealthAnalyzer:
     async def test_worker_process_count_check(self):
         """Test worker process count validation."""
         mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_stream(mock_client)
 
         # Worker with suboptimal process count (3 processes but 8 CPUs)
-        mock_client.get_workers.return_value = [
+        mock_client.get_nodes.return_value = [
             create_worker("w1", worker_processes=3, cpus=8)
         ]
         mock_client.get_system_status.return_value = {}
@@ -549,3 +579,282 @@ class TestHealthAnalyzer:
         assert process_finding is not None
         assert process_finding.severity == "low"
         assert "7 processes" in process_finding.description  # Recommended: CPUs - 1
+
+
+def create_edge_node(
+    node_id: str,
+    status: str = "connected",
+    cpu_usage: float = 45.0,
+    memory_usage: float = 60.0,
+    disk_usage: float = 40.0,
+    fleet: str = "default",
+) -> dict:
+    """Create realistic Edge node data structure."""
+    # Calculate disk space based on usage percentage
+    total_disk_bytes = 100 * 1024**3  # 100GB total
+    used_disk_bytes = int(total_disk_bytes * (disk_usage / 100.0))
+    free_disk_bytes = total_disk_bytes - used_disk_bytes
+
+    return {
+        "id": node_id,
+        "guid": f"guid-{node_id}",
+        "status": status,  # "connected", "disconnected", "unreachable"
+        "fleet": fleet,
+        "hostname": f"edge-{node_id}",
+        "lastSeen": "2024-12-13T12:00:00Z",
+        "info": {
+            "hostname": f"edge-{node_id}",
+            "platform": "linux",
+            "architecture": "x64",
+            "cpus": 4,
+            "totalmem": 8 * 1024**3,
+            "totalDiskSpace": total_disk_bytes,
+            "freeDiskSpace": free_disk_bytes,
+            "cribl": {"version": "4.15.0"},
+        },
+        "metrics": {
+            "cpu": {"perc": cpu_usage / 100.0},
+            "memory": {"used_percent": memory_usage},
+            "disk": {"used_percent": disk_usage},
+        },
+    }
+
+
+def setup_mock_client_for_edge(mock_client: AsyncMock) -> None:
+    """Configure mock client for Edge product."""
+    mock_client.is_edge = True
+    mock_client.is_stream = False
+    mock_client.product_type = "edge"
+
+    # Mock normalization: Edge "connected" → Stream "healthy"
+    def normalize_edge_data(node: dict) -> dict:
+        normalized = node.copy()
+        if node.get("status") == "connected":
+            normalized["status"] = "healthy"
+        elif node.get("status") == "disconnected":
+            normalized["status"] = "unhealthy"
+
+        # Map fleet to group
+        if "fleet" in node:
+            normalized["group"] = node["fleet"]
+
+        # Convert lastSeen to lastMsgTime
+        if "lastSeen" in node:
+            from datetime import datetime
+
+            try:
+                dt = datetime.fromisoformat(node["lastSeen"].replace("Z", "+00:00"))
+                normalized["lastMsgTime"] = int(dt.timestamp() * 1000)
+            except Exception:
+                pass
+
+        return normalized
+
+    mock_client._normalize_node_data.side_effect = normalize_edge_data
+
+
+class TestHealthAnalyzerEdgeSupport:
+    """Test HealthAnalyzer with Cribl Edge."""
+
+    @pytest.mark.asyncio
+    async def test_analyze_edge_all_healthy_nodes(self):
+        """Test health analysis on healthy Edge nodes."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_edge(mock_client)
+
+        # Mock Edge node data
+        edge_nodes = [
+            create_edge_node("node-1", status="connected"),
+            create_edge_node("node-2", status="connected"),
+        ]
+        mock_client.get_nodes.return_value = edge_nodes
+
+        # Mock system status
+        mock_client.get_system_status.return_value = {}
+
+        # Mock leader health
+        mock_get = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "healthy", "role": "primary"}
+        mock_get.return_value = mock_response
+        mock_client.get = mock_get
+
+        # Run analysis
+        analyzer = HealthAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Verify Edge-specific behavior
+        assert result.success is True
+        assert result.metadata["worker_count"] == 2
+        assert result.metadata["health_score"] == 100.0
+        assert result.metadata["unhealthy_workers"] == 0
+
+        # Verify overall health finding exists
+        overall_finding = next(
+            (f for f in result.findings if "health-overall" in f.id), None
+        )
+        assert overall_finding is not None
+        assert "operating normally" in overall_finding.description.lower() or "healthy" in overall_finding.description.lower()
+
+    @pytest.mark.asyncio
+    async def test_analyze_edge_unhealthy_node_disconnected(self):
+        """Test Edge node with disconnected status."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_edge(mock_client)
+
+        # Disconnected Edge node
+        edge_nodes = [
+            create_edge_node("node-1", status="disconnected", cpu_usage=95.0),
+        ]
+        mock_client.get_nodes.return_value = edge_nodes
+        mock_client.get_system_status.return_value = {}
+
+        # Mock leader health
+        mock_get = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "healthy", "role": "primary"}
+        mock_get.return_value = mock_response
+        mock_client.get = mock_get
+
+        analyzer = HealthAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect unhealthy node
+        assert result.success is True
+        assert result.metadata.get("unhealthy_workers", 0) == 1
+        assert result.metadata["health_score"] < 100.0
+
+        # Finding should mention "Edge Node"
+        node_finding = next(
+            (f for f in result.findings if "health-worker-node-1" in f.id),
+            None,
+        )
+        assert node_finding is not None
+        assert node_finding.severity in ["high", "critical"]
+        assert "Edge Node" in node_finding.title
+
+    @pytest.mark.asyncio
+    async def test_analyze_edge_high_disk_usage(self):
+        """Test Edge node with high disk usage (>90% threshold)."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_edge(mock_client)
+
+        # Edge node with critical disk usage
+        # Note: HealthAnalyzer checks disk >90%, not CPU/memory percentages
+        # (CPU/memory usage would be checked by ResourceAnalyzer)
+        edge_nodes = [
+            create_edge_node(
+                "node-1",
+                status="connected",
+                cpu_usage=45.0,
+                memory_usage=60.0,
+                disk_usage=95.0,  # >90% = critical
+            ),
+        ]
+        mock_client.get_nodes.return_value = edge_nodes
+        mock_client.get_system_status.return_value = {}
+
+        # Mock leader health
+        mock_get = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "healthy", "role": "primary"}
+        mock_get.return_value = mock_response
+        mock_client.get = mock_get
+
+        analyzer = HealthAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect disk issue
+        assert result.success is True
+        assert result.metadata.get("unhealthy_workers", 0) == 1
+
+        # Check for disk-related finding
+        node_finding = next(
+            (f for f in result.findings if "health-worker-node-1" in f.id),
+            None,
+        )
+        assert node_finding is not None
+        assert "Edge Node" in node_finding.title
+        # Should mention disk issue
+        assert "disk" in node_finding.description.lower()
+
+    @pytest.mark.asyncio
+    async def test_analyze_edge_mixed_fleet_health(self):
+        """Test Edge nodes across different fleets with mixed health."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_edge(mock_client)
+
+        # Nodes in different fleets with different health
+        edge_nodes = [
+            create_edge_node("node-1", status="connected", fleet="production"),
+            create_edge_node("node-2", status="connected", fleet="production"),
+            create_edge_node(
+                "node-3",
+                status="disconnected",
+                cpu_usage=95.0,
+                fleet="staging",
+            ),
+        ]
+        mock_client.get_nodes.return_value = edge_nodes
+        mock_client.get_system_status.return_value = {}
+
+        # Mock leader health
+        mock_get = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "healthy", "role": "primary"}
+        mock_get.return_value = mock_response
+        mock_client.get = mock_get
+
+        analyzer = HealthAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect mixed health
+        assert result.success is True
+        assert result.metadata["worker_count"] == 3
+        assert result.metadata.get("unhealthy_workers", 0) == 1
+        assert result.metadata["health_score"] < 100.0
+
+        # Should have finding for unhealthy node
+        node_finding = next(
+            (f for f in result.findings if "node-3" in f.id),
+            None,
+        )
+        assert node_finding is not None
+        assert "staging" in node_finding.description  # Fleet name
+
+    @pytest.mark.asyncio
+    async def test_analyze_edge_product_aware_messaging(self):
+        """Test that Edge findings use product-aware terminology."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        setup_mock_client_for_edge(mock_client)
+
+        # Unhealthy Edge node to trigger finding
+        edge_nodes = [
+            create_edge_node("node-1", status="disconnected"),
+        ]
+        mock_client.get_nodes.return_value = edge_nodes
+        mock_client.get_system_status.return_value = {}
+
+        # Mock leader health
+        mock_get = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "healthy", "role": "primary"}
+        mock_get.return_value = mock_response
+        mock_client.get = mock_get
+
+        analyzer = HealthAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Verify Edge terminology in findings
+        node_finding = next(
+            (f for f in result.findings if "health-worker-node-1" in f.id),
+            None,
+        )
+        assert node_finding is not None
+
+        # Should use "Edge Node" not "Worker"
+        assert "Edge Node" in node_finding.title
+        assert "Edge Node" in node_finding.description
+
+        # Should NOT use Stream terminology
+        assert "Worker" not in node_finding.title or "Edge" in node_finding.title

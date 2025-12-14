@@ -18,8 +18,11 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 - **Cribl Stream (Self-Hosted)** - Full feature support including disk metrics
 - **Cribl Stream (Cribl Cloud)** - Full feature support (disk metrics unavailable via API)
 
+**✅ Edge Support (Partial - Phase 5B Complete):**
+- **Cribl Edge (Health Monitoring)** - Edge Node health, Fleet support, unified API ✅
+  - Phase 5C: Configuration validation and route analysis (planned)
+
 **🔮 Planned Support:**
-- **Cribl Edge** - Edge Fleet health monitoring and configuration validation (Phase 5)
 - **Cribl Lake** - Storage utilization and performance monitoring (Phase 6)
 - **Cribl Search** - Query performance and resource optimization (evaluating applicability)
 
@@ -334,11 +337,20 @@ mypy src/
 - P7: Fleet-Wide Analytics
 
 ### Phase 5: Cribl Edge Support
-- Edge Fleet health monitoring
-- Edge Node resource utilization
-- Edge-specific configuration validation
-- Edge route and pipeline analysis
-- API compatibility layer for Edge endpoints
+- ✅ **Phase 5A (Complete)**: Product detection foundation
+  - Automatic Stream vs Edge vs Lake detection
+  - Edge API endpoint mapping
+  - Product-aware API client
+- ✅ **Phase 5B (Complete)**: Edge Health Analyzer
+  - Edge Node health monitoring
+  - Edge Fleet support (nodes grouped by fleets)
+  - Unified analyzer works for both Stream and Edge
+  - Product-aware findings and messages
+  - Zero breaking changes to Stream functionality
+- 🔮 **Phase 5C (Planned)**: Edge Config & Resource Analyzers
+  - Edge-specific configuration validation
+  - Edge route and pipeline analysis
+  - Edge resource utilization monitoring
 
 ### Phase 6: Cribl Lake Support
 - Storage bucket utilization monitoring

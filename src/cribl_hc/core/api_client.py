@@ -499,6 +499,59 @@ class CriblAPIClient:
             )
             return response
 
+    def _normalize_node_data(self, node: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normalize Edge node data to match Stream worker structure.
+
+        This allows analyzers to work with unified data structure regardless of product.
+
+        Args:
+            node: Raw node data from API
+
+        Returns:
+            Normalized node data compatible with analyzer expectations
+
+        Key Transformations:
+            - Edge "connected" → Stream "healthy"
+            - Edge "disconnected" → Stream "unhealthy"
+            - Edge "fleet" → Stream "group"
+            - Edge "lastSeen" → Stream "lastMsgTime"
+        """
+        if not self.is_edge:
+            # Already Stream format, return as-is
+            return node
+
+        # Create normalized copy
+        normalized = node.copy()
+
+        # Map Edge status to Stream status
+        edge_status = node.get("status", "unknown")
+        if edge_status == "connected":
+            normalized["status"] = "healthy"
+        elif edge_status == "disconnected":
+            normalized["status"] = "unhealthy"
+        else:
+            normalized["status"] = edge_status
+
+        # Map fleet to group for consistency
+        if "fleet" in node:
+            normalized["group"] = node["fleet"]
+
+        # Edge nodes may have lastSeen instead of lastMsgTime
+        if "lastSeen" in node and "lastMsgTime" not in normalized:
+            # Convert ISO timestamp to milliseconds
+            # Edge: "2024-12-13T12:00:00Z"
+            # Stream: 1702468800000
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(node["lastSeen"].replace("Z", "+00:00"))
+                normalized["lastMsgTime"] = int(dt.timestamp() * 1000)
+            except Exception:
+                # If timestamp conversion fails, skip it
+                pass
+
+        return normalized
+
     # High-level endpoint methods for common operations
 
     async def get_system_status(self) -> Dict[str, Any]:
@@ -532,6 +585,69 @@ class CriblAPIClient:
         response.raise_for_status()
         data = response.json()
         return data.get("items", [])
+
+    async def get_edge_nodes(self, fleet: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get Edge node instances from /api/v1/edge/nodes.
+
+        Args:
+            fleet: Optional fleet name to filter nodes
+
+        Returns:
+            List of Edge node data with status and metrics
+
+        Example:
+            >>> nodes = await client.get_edge_nodes()
+            >>> for node in nodes:
+            ...     print(f"{node['id']}: {node['status']}")
+        """
+        if fleet:
+            endpoint = f"/api/v1/e/{fleet}/nodes"
+        else:
+            endpoint = "/api/v1/edge/nodes"
+
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("items", [])
+
+    async def get_edge_fleets(self) -> List[Dict[str, Any]]:
+        """
+        Get Edge fleet configurations from /api/v1/edge/fleets.
+
+        Returns:
+            List of Edge fleet data
+
+        Example:
+            >>> fleets = await client.get_edge_fleets()
+            >>> for fleet in fleets:
+            ...     print(f"{fleet['id']}: {fleet['name']}")
+        """
+        response = await self.get("/api/v1/edge/fleets")
+        response.raise_for_status()
+        data = response.json()
+        return data.get("items", [])
+
+    async def get_nodes(self) -> List[Dict[str, Any]]:
+        """
+        Get worker nodes (Stream) or Edge nodes (Edge) based on detected product.
+
+        This is a unified method that abstracts the difference between products.
+        Product type is automatically detected during connection test.
+
+        Returns:
+            List of node data (workers for Stream, nodes for Edge)
+
+        Example:
+            >>> nodes = await client.get_nodes()  # Works for both Stream and Edge
+            >>> for node in nodes:
+            ...     print(f"{node['id']}: {node['status']}")
+        """
+        if self.is_edge:
+            return await self.get_edge_nodes()
+        else:
+            # Default to Stream (includes is_stream and fallback)
+            return await self.get_workers()
 
     async def get_metrics(self, time_range: Optional[str] = None) -> Dict[str, Any]:
         """

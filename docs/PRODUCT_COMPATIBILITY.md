@@ -86,24 +86,34 @@ Where:
 
 ## Planned Products
 
-### 🔮 Cribl Edge (Phase 5)
+### ✅ Cribl Edge (Phase 5)
 
-**Status:** Phase 5A Complete ✅ (Foundation) | Phase 5B In Progress (Edge Analyzers)
+**Status:** Phase 5A Complete ✅ (Foundation) | Phase 5B Complete ✅ (Health Analyzer)
 
-**Completed (Phase 5A):**
+**Completed (Phase 5A - Foundation):**
 - ✅ Product type detection (Stream vs Edge vs Lake)
 - ✅ Automatic product detection via `/api/v1/version`
 - ✅ Endpoint probing fallback detection
 - ✅ Edge API endpoint mapping documented
-- ✅ Unit tests for product detection (14/14 passing)
+- ✅ Unit tests for product detection (16/16 passing)
 - ✅ No breaking changes to existing Stream functionality
 
-**Target Features (Phase 5B):**
-- Edge Fleet health monitoring
-- Edge Node resource utilization
-- Edge-specific configuration validation
+**Completed (Phase 5B - Health Analyzer):**
+- ✅ Edge Node health monitoring (via HealthAnalyzer)
+- ✅ Edge Fleet support (nodes grouped by fleet)
+- ✅ Unified `get_nodes()` API (works for both Stream and Edge)
+- ✅ Edge data normalization layer (Edge → Stream format)
+- ✅ Product-aware findings ("Edge Node" vs "Worker")
+- ✅ Edge-specific API methods (`get_edge_nodes`, `get_edge_fleets`)
+- ✅ Unit tests for Edge analyzer (5/5 passing)
+- ✅ Unit tests for Edge API client (8/8 passing)
+- ✅ Zero breaking changes to Stream functionality
+
+**Target Features (Phase 5C - Future):**
+- Edge-specific configuration validation (ConfigAnalyzer adaptation)
 - Edge route and pipeline analysis
 - Data source connectivity health
+- Edge-specific resource analyzer
 
 **Key Differences from Stream:**
 - Uses **Edge Fleets** instead of Worker Groups
