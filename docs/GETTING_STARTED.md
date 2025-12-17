@@ -14,17 +14,28 @@ _*Disk metrics not available in Cribl Cloud (API limitation)_
 
 ## Installation
 
+### Current Method (Install from Source)
+
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/cribl-hc.git
+git clone https://github.com/KnottyDyes/cribl-hc.git
 cd cribl-hc
 
 # Install with pip (creates cribl-hc command)
 pip install -e .
 
 # Verify installation
-cribl-hc version
+cribl-hc --help
 ```
+
+### Future Method (PyPI - Not Yet Available)
+
+```bash
+# This will be available once the package is published to PyPI
+pip install cribl-health-check
+```
+
+> **Note**: The package is not yet published to PyPI. Currently, you must install from source using the method above.
 
 ## Quick Start
 

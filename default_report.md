@@ -1,7 +1,7 @@
 # Cribl Stream Health Check Report
 
 **Deployment:** test-deployment
-**Generated:** 2025-12-17 20:31:38 UTC
+**Generated:** 2025-12-17 20:40:38 UTC
 **Status:** COMPLETED
 **Duration:** 5.50s
 
@@ -56,8 +56,8 @@ Fix the issue
 
 | Field | Value |
 |-------|-------|
-| Analysis ID | `eaa229e2-4473-4b57-b329-4af729699adb` |
-| Started At | 2025-12-17 20:31:38 UTC |
+| Analysis ID | `78b4cd26-85d0-471b-ae2a-e2511d4c3bbc` |
+| Started At | 2025-12-17 20:40:38 UTC |
 | Completed At | N/A |
 | Duration | 5.50 seconds |
 | API Calls | 25/100 |

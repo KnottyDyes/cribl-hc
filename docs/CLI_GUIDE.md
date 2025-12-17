@@ -16,14 +16,22 @@ _*Cribl Cloud does not expose disk metrics via API. CPU and memory monitoring fu
 
 ## Installation
 
+### Current Method (Install from Source)
+
 ```bash
-# Install from source
+git clone https://github.com/KnottyDyes/cribl-hc.git
 cd cribl-hc
 pip install -e .
-
-# Or install from PyPI (when published)
-pip install cribl-hc
 ```
+
+### Future Method (PyPI - Not Yet Available)
+
+```bash
+# Not yet available - package will be published to PyPI in the future
+pip install cribl-health-check
+```
+
+> **Note**: The package is not yet published to PyPI. Currently, you must install from source.
 
 ## Quick Start
 

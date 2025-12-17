@@ -329,10 +329,15 @@ class AnalyzerOrchestrator:
         """
         all_findings = []
         all_recommendations = []
+        all_errors = []
 
         for objective, result in results.items():
             all_findings.extend(result.findings)
             all_recommendations.extend(result.recommendations)
+
+            # Collect errors from failed analyzers
+            if not result.success and result.error:
+                all_errors.append(f"{objective}: {result.error}")
 
         # Calculate execution time
         duration_seconds = 0.0
@@ -356,6 +361,7 @@ class AnalyzerOrchestrator:
             duration_seconds=duration_seconds,
             findings=all_findings,
             recommendations=all_recommendations,
+            errors=all_errors,
             partial_completion=(failed_count > 0 and failed_count < len(results)),
         )
 

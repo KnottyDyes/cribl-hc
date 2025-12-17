@@ -43,19 +43,22 @@ _*Disk metrics available on self-hosted deployments only. Cribl Cloud does not e
 - Cribl Stream API access token
 - Network access to Cribl Stream API endpoints
 
-### Install from PyPI
-
-```bash
-pip install cribl-health-check
-```
-
-### Install from Source
+### Install from Source (Current)
 
 ```bash
 git clone https://github.com/KnottyDyes/cribl-hc.git
 cd cribl-hc
 pip install -e .
 ```
+
+### Install from PyPI (Coming Soon)
+
+```bash
+# Not yet available - package will be published to PyPI in the future
+pip install cribl-health-check
+```
+
+> **Note**: The package is not yet published to PyPI. Currently, you must install from source using the method above.
 
 ## Quick Start
 

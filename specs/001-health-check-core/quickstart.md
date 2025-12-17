@@ -12,32 +12,35 @@
 
 ## Installation
 
-### Option 1: Install from PyPI (Recommended)
+### Option 1: Install from Source (Current)
 
 ```bash
+git clone https://github.com/KnottyDyes/cribl-hc.git
+cd cribl-hc
+pip install -e .
+
+# Verify
+cribl-hc --help
+```
+
+### Option 2: Install from PyPI (Coming Soon)
+
+```bash
+# Not yet available - package will be published to PyPI in the future
 pip install cribl-health-check
 
 # Verify installation
 cribl-hc --version
-# Output: cribl-health-check version 1.0.0
 ```
 
-### Option 2: Install from Source
+> **Note**: The package is not yet published to PyPI. Currently, you must install from source using Option 1.
+
+### Option 3: Standalone Executable (Future)
 
 ```bash
-git clone https://github.com/cribl/health-check.git
-cd health-check
-pip install -e .
-
-# Verify
-cribl-hc --version
-```
-
-### Option 3: Standalone Executable (No Python Required)
-
-```bash
+# Not yet available - will be released in the future
 # Download for your platform
-curl -L https://github.com/cribl/health-check/releases/latest/download/cribl-hc-linux -o cribl-hc
+curl -L https://github.com/KnottyDyes/cribl-hc/releases/latest/download/cribl-hc-linux -o cribl-hc
 chmod +x cribl-hc
 
 # Run directly

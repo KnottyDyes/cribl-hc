@@ -83,6 +83,16 @@ def display_summary(analysis_run: AnalysisRun, console: Console):
     console.print(table)
     console.print()
 
+    # Display errors if any analyzers failed
+    if analysis_run.errors:
+        console.print(Panel(
+            "[bold red]Errors Encountered[/bold red]",
+            style="red"
+        ))
+        for error in analysis_run.errors:
+            console.print(f"  [red]✗[/red] {error}")
+        console.print()
+
 
 def display_findings(objective: str, result: AnalyzerResult, console: Console):
     """Display findings for a specific objective."""
