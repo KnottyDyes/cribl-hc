@@ -147,12 +147,18 @@ class MarkdownReportGenerator:
         lines = ["## Recommendations\n"]
 
         # Group by priority
-        priority_order = ["critical", "high", "medium", "low"]
+        priority_order = ["p0", "p1", "p2", "p3"]
+        priority_labels = {
+            "p0": "CRITICAL",
+            "p1": "HIGH",
+            "p2": "MEDIUM",
+            "p3": "LOW",
+        }
         priority_emoji = {
-            "critical": "🔴",
-            "high": "🟠",
-            "medium": "🟡",
-            "low": "🔵",
+            "p0": "🔴",
+            "p1": "🟠",
+            "p2": "🟡",
+            "p3": "🔵",
         }
 
         for priority in priority_order:
@@ -162,24 +168,25 @@ class MarkdownReportGenerator:
                 continue
 
             emoji = priority_emoji.get(priority, "•")
-            lines.append(f"### {emoji} {priority.upper()} Priority\n")
+            label = priority_labels.get(priority, priority.upper())
+            lines.append(f"### {emoji} {label} Priority\n")
 
             for i, rec in enumerate(priority_recs, 1):
                 lines.append(f"#### {i}. {rec.title}\n")
                 lines.append(f"{rec.description}\n")
 
-                if rec.remediation_steps:
-                    lines.append("**Remediation Steps:**\n")
-                    for step_num, step in enumerate(rec.remediation_steps, 1):
+                if rec.implementation_steps:
+                    lines.append("**Implementation Steps:**\n")
+                    for step_num, step in enumerate(rec.implementation_steps, 1):
                         lines.append(f"{step_num}. {step}")
                     lines.append("")
 
-                if rec.estimated_effort_minutes:
-                    lines.append(f"**Estimated Effort:** ~{rec.estimated_effort_minutes} minutes\n")
+                if rec.impact_estimate and rec.impact_estimate.time_to_implement:
+                    lines.append(f"**Estimated Time:** {rec.impact_estimate.time_to_implement}\n")
 
-                if rec.references:
+                if rec.documentation_links:
                     lines.append("**References:**")
-                    for ref in rec.references:
+                    for ref in rec.documentation_links:
                         lines.append(f"- {ref}")
                     lines.append("")
 

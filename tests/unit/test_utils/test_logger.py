@@ -26,7 +26,9 @@ class TestLoggingConfiguration:
 
         # Verify logger is configured
         assert log is not None
-        assert isinstance(log, structlog.stdlib.BoundLogger)
+        # structlog returns a BoundLoggerLazyProxy, not BoundLogger directly
+        assert hasattr(log, 'info')
+        assert hasattr(log, 'error')
 
     def test_configure_logging_console_output(self):
         """Test configuring logger with console output."""

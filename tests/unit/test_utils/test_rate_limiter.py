@@ -180,9 +180,9 @@ class TestRateLimiter:
     @pytest.mark.asyncio
     async def test_time_window_expiration(self):
         """Test that calls expire after time window."""
-        limiter = RateLimiter(max_calls=5, time_window_seconds=0.5)  # 500ms window
+        limiter = RateLimiter(max_calls=10, time_window_seconds=0.5)  # 500ms window, budget of 10
 
-        # Make 5 calls (at limit)
+        # Make 5 calls (within window)
         for _ in range(5):
             await limiter.acquire()
 
@@ -194,7 +194,7 @@ class TestRateLimiter:
         # Calls should have expired
         assert limiter.get_calls_in_window() == 0
 
-        # Should be able to make more calls
+        # Should be able to make more calls (budget allows 10 total)
         await limiter.acquire()
         assert limiter.get_calls_in_window() == 1
 
@@ -251,7 +251,8 @@ class TestSimpleSyncRateLimiter:
         with pytest.raises(RuntimeError) as exc_info:
             limiter.acquire()
 
-        assert "rate limit exceeded" in str(exc_info.value).lower()
+        # Should hit budget exhausted error
+        assert "budget exhausted" in str(exc_info.value).lower()
 
     def test_get_remaining_calls(self):
         """Test getting remaining calls."""

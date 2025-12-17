@@ -9,6 +9,7 @@ from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.core.orchestrator import AnalyzerOrchestrator, AnalysisProgress
 from cribl_hc.models.finding import Finding
+from tests.helpers import create_test_finding
 
 
 class TestAnalysisProgress:
@@ -86,12 +87,12 @@ class MockHealthAnalyzer(BaseAnalyzer):
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         result = AnalyzerResult(objective="health")
         result.add_finding(
-            Finding(
+            create_test_finding(
+                id="test-finding-1",
                 title="Test finding",
                 description="Test",
                 severity="medium",
                 category="test",
-                affected_component="test-component",
             )
         )
         result.metadata["health_score"] = 85.0

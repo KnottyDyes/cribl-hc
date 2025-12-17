@@ -100,7 +100,6 @@ class TestAnalyzeCommand:
         result = runner.invoke(
             app,
             [
-                "run",
                 "--url",
                 "https://cribl.example.com",
                 "--token",
@@ -124,7 +123,6 @@ class TestAnalyzeCommand:
         result = runner.invoke(
             app,
             [
-                "run",
                 "--url",
                 "https://cribl.example.com",
                 "--token",
@@ -153,7 +151,6 @@ class TestAnalyzeCommand:
         result = runner.invoke(
             app,
             [
-                "run",
                 "--url",
                 "https://cribl.example.com",
                 "--token",
@@ -179,7 +176,6 @@ class TestAnalyzeCommand:
         result = runner.invoke(
             app,
             [
-                "run",
                 "--url",
                 "https://cribl.example.com",
                 "--token",
@@ -205,7 +201,6 @@ class TestAnalyzeCommand:
         result = runner.invoke(
             app,
             [
-                "run",
                 "--url",
                 "https://cribl.example.com",
                 "--token",
@@ -242,7 +237,6 @@ class TestAnalyzeCommand:
         result = runner.invoke(
             app,
             [
-                "run",
                 "--url",
                 "https://cribl.example.com",
                 "--token",
@@ -276,7 +270,6 @@ class TestAnalyzeCommand:
         result = runner.invoke(
             app,
             [
-                "run",
                 "--url",
                 "https://cribl.example.com",
                 "--token",
@@ -300,7 +293,6 @@ class TestAnalyzeCommand:
         result = runner.invoke(
             app,
             [
-                "run",
                 "--url",
                 "https://cribl.example.com",
                 "--token",
@@ -327,7 +319,6 @@ class TestAnalyzeCommand:
         result = runner.invoke(
             app,
             [
-                "run",
                 "--url",
                 "https://cribl.example.com",
                 "--token",
@@ -347,7 +338,6 @@ class TestAnalyzeCommand:
         result = runner.invoke(
             app,
             [
-                "run",
                 "--token",
                 "test-token",
             ],
@@ -362,7 +352,6 @@ class TestAnalyzeCommand:
         result = runner.invoke(
             app,
             [
-                "run",
                 "--url",
                 "https://cribl.example.com",
             ],

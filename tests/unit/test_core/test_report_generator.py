@@ -197,10 +197,10 @@ class TestMarkdownReportGenerator:
         generator = MarkdownReportGenerator()
         markdown = generator.generate(sample_analysis_run, results)
 
-        # P0 should appear before P2
-        p0_pos = markdown.find("P0")
-        p2_pos = markdown.find("P2")
-        assert p0_pos < p2_pos
+        # P0 (CRITICAL) should appear before P2 (MEDIUM)
+        critical_pos = markdown.find("CRITICAL Priority")
+        medium_pos = markdown.find("MEDIUM Priority")
+        assert critical_pos < medium_pos
 
     def test_empty_findings(self, sample_analysis_run):
         """Test report with no findings."""

@@ -152,37 +152,36 @@ class TestDisplaySummary:
     def test_severity_counts(self, console):
         """Test display of severity counts."""
         findings = [
-            Finding(
+            create_test_finding(
+                id="critical-1",
                 title="Critical Issue",
                 description="Test",
                 severity="critical",
                 category="test",
-                affected_component="test",
             ),
-            Finding(
+            create_test_finding(
+                id="high-1",
                 title="High Issue",
                 description="Test",
                 severity="high",
                 category="test",
-                affected_component="test",
             ),
-            Finding(
+            create_test_finding(
+                id="medium-1",
                 title="Medium Issue",
                 description="Test",
                 severity="medium",
                 category="test",
-                affected_component="test",
             ),
         ]
 
-        analysis_run = AnalysisRun(
+        analysis_run = create_test_analysis_run(
             deployment_id="test",
             status="completed",
             objectives_analyzed=["health"],
             api_calls_used=10,
             duration_seconds=5.0,
             findings=findings,
-            recommendations=[],
         )
 
         display_summary(analysis_run, console)
@@ -216,21 +215,21 @@ class TestDisplayFindings:
         """Test that findings are grouped by severity."""
         result = AnalyzerResult(objective="health")
         result.add_finding(
-            Finding(
+            create_test_finding(
+                id="critical-1",
                 title="Critical",
                 description="Critical issue",
                 severity="critical",
                 category="test",
-                affected_component="test",
             )
         )
         result.add_finding(
-            Finding(
+            create_test_finding(
+                id="high-1",
                 title="High",
                 description="High issue",
                 severity="high",
                 category="test",
-                affected_component="test",
             )
         )
 
@@ -266,17 +265,23 @@ class TestDisplayRecommendations:
         display_recommendations([sample_recommendation], console)
 
         output = console.file.getvalue()
-        assert "Review current worker allocation" in output
-        assert "Add 2 additional workers" in output
-        assert "Monitor CPU usage after scaling" in output
+        # Strip ANSI codes for text matching
+        from rich.text import Text
+        plain_output = Text.from_ansi(output).plain
+        assert "Review current worker allocation" in plain_output
+        assert "Add 2 additional workers" in plain_output
+        assert "Monitor CPU usage after scaling" in plain_output
 
     def test_displays_estimated_effort(self, console, sample_recommendation):
         """Test that estimated effort is displayed."""
         display_recommendations([sample_recommendation], console)
 
         output = console.file.getvalue()
-        assert "Effort: low" in output
-        assert "30 minutes" in output  # From impact_estimate.time_to_implement
+        # Strip ANSI codes for text matching
+        from rich.text import Text
+        plain_output = Text.from_ansi(output).plain
+        assert "Effort: low" in plain_output
+        assert "30 minutes" in plain_output  # From impact_estimate.time_to_implement
 
     def test_displays_references(self, console, sample_recommendation):
         """Test that references are displayed."""
@@ -346,12 +351,12 @@ class TestDisplayAnalysisResults:
 
         result2 = AnalyzerResult(objective="config")
         result2.add_finding(
-            Finding(
+            create_test_finding(
+                id="config-001",
                 title="Config Issue",
                 description="Test",
                 severity="medium",
                 category="config",
-                affected_component="test",
             )
         )
 

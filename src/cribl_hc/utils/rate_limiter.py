@@ -67,8 +67,8 @@ class RateLimiter:
         self.current_backoff_seconds = initial_backoff_seconds
         self.consecutive_failures = 0
 
-        # Lock for thread-safe operations
-        self._lock = asyncio.Lock()
+        # Lock for thread-safe operations (lazily initialized to avoid event loop issues)
+        self._lock: Optional[asyncio.Lock] = None
 
     async def acquire(self) -> None:
         """
@@ -80,6 +80,10 @@ class RateLimiter:
         Raises:
             RuntimeError: If maximum calls budget is exhausted
         """
+        # Lazy initialization of lock to avoid event loop issues during __init__
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+
         async with self._lock:
             # Check if budget exhausted
             if self.total_calls_made >= self.max_calls:
