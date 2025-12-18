@@ -35,13 +35,33 @@ pip install cribl-health-check
 
 ## Quick Start
 
+### Option 1: Interactive TUI (Recommended for Getting Started)
+
+```bash
+# Launch the interactive Terminal User Interface
+cribl-hc tui
+
+# Follow the prompts to:
+# 1. Add your deployment credentials
+# 2. Run health checks interactively
+# 3. View formatted results
+```
+
+### Option 2: Command Line
+
 ```bash
 # Check version
 cribl-hc version
 
-# Run all analyzers
-# For Cribl Cloud (format: https://<workspace>-<org-name>.cribl.cloud)
-# Where <workspace> is your workspace ID (e.g., "main", "dev", "prod")
+# Configure credentials (one-time setup)
+cribl-hc config set prod \
+  --url https://main-myorg.cribl.cloud \
+  --token your_bearer_token
+
+# Run analysis
+cribl-hc analyze run --deployment prod
+
+# Or use environment variables
 export CRIBL_URL=https://main-myorg.cribl.cloud
 export CRIBL_TOKEN=your_bearer_token
 cribl-hc analyze run
@@ -54,6 +74,105 @@ cribl-hc analyze run --output report.json
 ```
 
 ## Commands
+
+### `cribl-hc tui`
+
+Launch the interactive Terminal User Interface for managing credentials and running health checks.
+
+**Usage:**
+
+```bash
+cribl-hc tui
+```
+
+**Features:**
+
+The unified TUI provides a menu-driven interface with the following capabilities:
+
+1. **Manage Deployments**
+   - Add new deployment credentials (with automatic Cloud/Self-hosted detection)
+   - Edit existing deployment credentials
+   - Delete deployments
+   - Test connections to verify credentials
+   - View all configured deployments
+   - View detailed deployment information
+
+2. **Run Health Check**
+   - Select from configured deployments
+   - Flexible selection: type deployment number (1, 2, 3), name (prod, dev), or press Enter for default
+   - Live progress tracking with status updates
+   - Immediate results display with color-coded health scores
+   - View findings and recommendations interactively
+
+3. **View Recent Results** *(Coming soon)*
+   - Browse previously saved analysis results
+   - Compare historical health scores
+
+4. **Settings** *(Coming soon)*
+   - Configure default API call limits
+   - Set default objectives to analyze
+   - Customize output format preferences
+
+**Navigation:**
+- Main menu: Type option number (1-4) or 'q' to quit
+- Deployment selection: Type number, deployment name, or press Enter for default
+- Invalid input shows helpful error messages and re-prompts
+
+**Example Session:**
+
+```
+╭─────────────────────────────────────────────────────╮
+│           Cribl Health Check                        │
+│         Interactive Terminal Interface              │
+│                                                      │
+│   Manage deployments, run analyses, and view results │
+╰─────────────────────────────────────────────────────╯
+
+╭─── Cribl Health Check ─────────────────────────────╮
+│ Main Menu                                           │
+│                                                      │
+│ 1. Manage Deployments - Add, edit, delete, or test │
+│ 2. Run Health Check - Analyze a Cribl deployment   │
+│ 3. View Recent Results - Browse previous analyses  │
+│ 4. Settings - Configure tool preferences            │
+│                                                      │
+│ Q. Quit                                             │
+╰─────────────────────────────────────────────────────╯
+
+Select an option [1]: 2
+
+Available Deployments:
+  1. dev - https://dev-myorg.cribl.cloud
+  2. prod - https://prod-myorg.cribl.cloud
+
+Select deployment (number or name) [dev]: 1
+
+Starting health check for: dev
+URL: https://dev-myorg.cribl.cloud
+
+Testing connection...
+✓ Connected successfully (145ms)
+Cribl version: 4.8.2
+
+Running analysis...
+  Analyzing: health                          [████████████████] 100%
+
+✓ Analysis completed
+Findings: 2
+Recommendations: 1
+Health Score: 92
+
+[Results displayed with color-coded findings and recommendations]
+
+Press Enter to continue
+```
+
+**Benefits:**
+- No need to remember command-line flags
+- Visual feedback and progress indicators
+- Error handling with helpful messages
+- Credential management without editing config files
+- Great for interactive use and getting started
 
 ### `cribl-hc version`
 
