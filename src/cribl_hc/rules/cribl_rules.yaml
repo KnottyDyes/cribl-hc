@@ -208,7 +208,89 @@ rules:
     description: "Pipeline contains too many functions (>10), consider splitting"
     rationale: "Complex pipelines are harder to maintain and troubleshoot. Consider breaking into smaller, focused pipelines"
     check_type: config_pattern
-    validation_logic: "functions.length <= 10"
+    validation_logic: "functions.length > 10"
     severity_if_violated: low
     documentation_link: "https://docs.cribl.io/stream/pipelines"
-    enabled: false  # Disabled until Phase 2D implementation
+    enabled: true
+
+  - id: rule-quality-too-many-routes
+    name: "Too many routes defined"
+    category: best_practice
+    description: "Route configuration has more than 20 routes"
+    rationale: "Large numbers of routes can be difficult to manage and may impact routing performance. Consider consolidating or organizing routes"
+    check_type: config_pattern
+    validation_logic: "routes_count > 20"
+    severity_if_violated: low
+    documentation_link: "https://docs.cribl.io/stream/routes"
+    enabled: false  # This needs collection-level evaluation
+
+  - id: rule-quality-pipeline-name-clarity
+    name: "Pipeline name lacks clarity"
+    category: best_practice
+    description: "Pipeline has a generic or unclear name"
+    rationale: "Clear, descriptive pipeline names improve maintainability and team collaboration"
+    check_type: config_pattern
+    validation_logic: "id not_matches: ^(pipeline|test|temp|new|default)"
+    severity_if_violated: low
+    documentation_link: "https://docs.cribl.io/stream/pipelines"
+    enabled: true
+
+  # ========================================
+  # Advanced Security Rules (New for Phase 2E)
+  # ========================================
+
+  - id: rule-sec-pii-field-masking
+    name: "PII field should be masked"
+    category: security
+    description: "Pipeline contains PII fields without masking"
+    rationale: "Sensitive PII data (SSN, credit card, phone numbers, email) should be masked or redacted to prevent data leakage and ensure compliance with privacy regulations"
+    check_type: config_pattern
+    validation_logic: "field_name not_matches: (ssn|social_security|credit_card|cc_number|phone|email|passport|driver_license|dob|date_of_birth)"
+    severity_if_violated: high
+    documentation_link: "https://docs.cribl.io/stream/mask-function"
+    cribl_version_min: "4.0.0"
+    enabled: true
+
+  - id: rule-sec-data-classification
+    name: "Sensitive data requires classification"
+    category: security
+    description: "Pipeline processes sensitive data without classification tags"
+    rationale: "Data classification helps enforce appropriate security controls and retention policies. Sensitive data should be tagged for tracking and compliance"
+    check_type: config_pattern
+    validation_logic: "classification exists: classification"
+    severity_if_violated: medium
+    documentation_link: "https://docs.cribl.io/stream/data-classification"
+    enabled: false  # Requires enterprise features
+
+  - id: rule-sec-encryption-at-rest
+    name: "Sensitive output should use encryption"
+    category: security
+    description: "Output destination for sensitive data lacks encryption configuration"
+    rationale: "Data at rest should be encrypted to protect against unauthorized access. Enable encryption for S3, Azure, or file-based outputs"
+    check_type: config_pattern
+    validation_logic: "encryption.enabled exists: true"
+    severity_if_violated: medium
+    documentation_link: "https://docs.cribl.io/stream/securing-and-monitoring/#encryption-at-rest"
+    enabled: false  # Needs output-specific evaluation
+
+  - id: rule-sec-tls-version
+    name: "Outdated TLS version detected"
+    category: security
+    description: "Output uses TLS 1.0 or 1.1 which are deprecated"
+    rationale: "TLS 1.0 and 1.1 have known security vulnerabilities. Use TLS 1.2 or higher for secure communications"
+    check_type: config_pattern
+    validation_logic: "tls.version not_matches: ^(1.0|1.1)"
+    severity_if_violated: high
+    documentation_link: "https://docs.cribl.io/stream/securing-and-monitoring/#tls-configuration"
+    enabled: false  # Requires TLS config inspection
+
+  - id: rule-sec-authentication-required
+    name: "Output missing authentication"
+    category: security
+    description: "Output destination does not require authentication"
+    rationale: "All outputs should require authentication to prevent unauthorized data access. Configure credentials, API keys, or certificates"
+    check_type: config_pattern
+    validation_logic: "auth exists: auth"
+    severity_if_violated: high
+    documentation_link: "https://docs.cribl.io/stream/destinations"
+    enabled: false  # Needs context-aware evaluation

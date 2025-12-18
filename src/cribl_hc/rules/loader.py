@@ -296,6 +296,20 @@ class RuleEvaluator:
                 actual_value = self._get_field(config, field_path)
                 return str(actual_value) != expected_value
 
+        # Check for negative regex patterns (Phase 2D)
+        # MUST check not_matches BEFORE matches to avoid substring matching
+        if "not_matches:" in validation_logic:
+            # Format: "field.path not_matches: regex_pattern"
+            # Violation if pattern DOES match
+            parts = validation_logic.split("not_matches:")
+            if len(parts) == 2:
+                field_path = parts[0].strip()
+                pattern = parts[1].strip().strip('"\'')
+                value = self._get_field(config, field_path)
+                if value:
+                    return bool(re.search(pattern, str(value)))
+                return False  # No value = no violation
+
         # Check for regex patterns
         if "matches:" in validation_logic:
             # Format: "field.path matches: regex_pattern"

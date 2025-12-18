@@ -603,3 +603,140 @@ class TestRuleEvaluator:
         }
         violated = evaluator.evaluate_rule(rule, config_no_filter)
         assert violated is True
+
+    # ========================================
+    # Phase 2D Tests: Complexity Metrics
+    # ========================================
+
+    def test_evaluate_pipeline_complexity(self):
+        """Test Phase 2D: Pipeline complexity check (>10 functions)."""
+        evaluator = RuleEvaluator()
+
+        rule = BestPracticeRule(
+            id="rule-quality-pipeline-complexity",
+            name="Pipeline complexity too high",
+            category="best_practice",
+            description="Pipeline contains too many functions (>10), consider splitting",
+            rationale="Complex pipelines are harder to maintain and troubleshoot",
+            check_type="config_pattern",
+            validation_logic="functions.length > 10",
+            severity_if_violated="low",
+            documentation_link="https://docs.cribl.io/stream/pipelines",
+            enabled=True
+        )
+
+        # Pipeline with 11 functions = violation
+        config_complex = {
+            "id": "complex-pipeline",
+            "functions": [{"id": f"func-{i}"} for i in range(11)]
+        }
+        violated = evaluator.evaluate_rule(rule, config_complex)
+        assert violated is True
+
+        # Pipeline with 10 functions = no violation
+        config_acceptable = {
+            "id": "acceptable-pipeline",
+            "functions": [{"id": f"func-{i}"} for i in range(10)]
+        }
+        violated = evaluator.evaluate_rule(rule, config_acceptable)
+        assert violated is False
+
+        # Pipeline with 5 functions = no violation
+        config_simple = {
+            "id": "simple-pipeline",
+            "functions": [{"id": f"func-{i}"} for i in range(5)]
+        }
+        violated = evaluator.evaluate_rule(rule, config_simple)
+        assert violated is False
+
+    def test_evaluate_pipeline_name_clarity(self):
+        """Test Phase 2D: Generic pipeline name detection."""
+        evaluator = RuleEvaluator()
+
+        rule = BestPracticeRule(
+            id="rule-quality-pipeline-name-clarity",
+            name="Pipeline name lacks clarity",
+            category="best_practice",
+            description="Pipeline has a generic or unclear name",
+            rationale="Clear, descriptive pipeline names improve maintainability and team collaboration",
+            check_type="config_pattern",
+            validation_logic="id not_matches: ^(pipeline|test|temp|new|default)",
+            severity_if_violated="low",
+            documentation_link="https://docs.cribl.io/stream/pipelines",
+            enabled=True
+        )
+
+        # Generic names = violation
+        generic_names = [
+            {"id": "pipeline"},
+            {"id": "test"},
+            {"id": "temp"},
+            {"id": "new"},
+            {"id": "default"},
+            {"id": "pipeline-1"},
+            {"id": "test_something"},
+        ]
+        for config in generic_names:
+            violated = evaluator.evaluate_rule(rule, config)
+            assert violated is True, f"Expected violation for generic name: {config['id']}"
+
+        # Descriptive names = no violation
+        descriptive_names = [
+            {"id": "parse-syslog-messages"},
+            {"id": "enrich-user-data"},
+            {"id": "filter-security-events"},
+            {"id": "splunk-hec-output"},
+        ]
+        for config in descriptive_names:
+            violated = evaluator.evaluate_rule(rule, config)
+            assert violated is False, f"Unexpected violation for descriptive name: {config['id']}"
+
+    # ========================================
+    # Phase 2E Tests: Advanced Security
+    # ========================================
+
+    def test_evaluate_pii_field_masking(self):
+        """Test Phase 2E: PII field masking check."""
+        evaluator = RuleEvaluator()
+
+        rule = BestPracticeRule(
+            id="rule-sec-pii-field-masking",
+            name="PII field should be masked",
+            category="security",
+            description="Pipeline contains PII fields without masking",
+            rationale="Sensitive PII data should be masked or redacted",
+            check_type="config_pattern",
+            validation_logic="field_name not_matches: (ssn|social_security|credit_card|cc_number|phone|email|passport|driver_license|dob|date_of_birth)",
+            severity_if_violated="high",
+            documentation_link="https://docs.cribl.io/stream/mask-function",
+            enabled=True
+        )
+
+        # PII field names = violation
+        pii_fields = [
+            {"field_name": "ssn"},
+            {"field_name": "social_security_number"},
+            {"field_name": "credit_card"},
+            {"field_name": "cc_number"},
+            {"field_name": "phone"},
+            {"field_name": "email"},
+            {"field_name": "passport"},
+            {"field_name": "driver_license"},
+            {"field_name": "dob"},
+            {"field_name": "date_of_birth"},
+        ]
+        for config in pii_fields:
+            violated = evaluator.evaluate_rule(rule, config)
+            assert violated is True, f"Expected violation for PII field: {config['field_name']}"
+
+        # Non-PII field names = no violation
+        safe_fields = [
+            {"field_name": "user_id"},
+            {"field_name": "transaction_id"},
+            {"field_name": "product_name"},
+            {"field_name": "timestamp"},
+            {"field_name": "status"},
+        ]
+        for config in safe_fields:
+            violated = evaluator.evaluate_rule(rule, config)
+            assert violated is False, f"Unexpected violation for safe field: {config['field_name']}"
