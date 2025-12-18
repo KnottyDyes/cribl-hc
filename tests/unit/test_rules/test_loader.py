@@ -431,3 +431,107 @@ class TestRuleEvaluator:
 
         # Test missing path
         assert evaluator._get_field(config, "missing.path") is None
+
+    def test_evaluate_pipeline_length(self):
+        """Test Phase 2B: Pipeline length check."""
+        evaluator = RuleEvaluator()
+
+        rule = BestPracticeRule(
+            id="rule-perf-pipeline-length",
+            name="Pipeline has too many functions",
+            category="performance",
+            description="Pipeline contains more than 15 functions",
+            rationale="Long pipelines impact performance",
+            check_type="config_pattern",
+            validation_logic="functions.length > 15",
+            severity_if_violated="low",
+            documentation_link="https://docs.cribl.io/stream/pipelines",
+            enabled=True
+        )
+
+        # Pipeline with 16 functions = violation
+        config_long = {"functions": [{"id": f"func-{i}"} for i in range(16)]}
+        violated = evaluator.evaluate_rule(rule, config_long)
+        assert violated is True
+
+        # Pipeline with 10 functions = no violation
+        config_short = {"functions": [{"id": f"func-{i}"} for i in range(10)]}
+        violated = evaluator.evaluate_rule(rule, config_short)
+        assert violated is False
+
+    def test_evaluate_regex_count(self):
+        """Test Phase 2B: Regex operation count check."""
+        evaluator = RuleEvaluator()
+
+        rule = BestPracticeRule(
+            id="rule-perf-limit-regex",
+            name="Excessive regex operations",
+            category="performance",
+            description="Pipeline contains more than 2 regex functions",
+            rationale="Regex operations are expensive",
+            check_type="config_pattern",
+            validation_logic="regex_count <= 2",
+            severity_if_violated="medium",
+            documentation_link="https://docs.cribl.io/stream/performance-tuning",
+            enabled=True
+        )
+
+        # Pipeline with 3 regex functions = violation
+        config_many_regex = {
+            "functions": [
+                {"id": "regex_extract-1"},
+                {"id": "regex-2"},
+                {"id": "regex_replace-3"},
+                {"id": "eval-4"}
+            ]
+        }
+        violated = evaluator.evaluate_rule(rule, config_many_regex)
+        assert violated is True
+
+        # Pipeline with 2 regex functions = no violation
+        config_few_regex = {
+            "functions": [
+                {"id": "regex_extract-1"},
+                {"id": "regex-2"},
+                {"id": "eval-3"}
+            ]
+        }
+        violated = evaluator.evaluate_rule(rule, config_few_regex)
+        assert violated is False
+
+    def test_evaluate_filter_early(self):
+        """Test Phase 2B: Early filtering check."""
+        evaluator = RuleEvaluator()
+
+        rule = BestPracticeRule(
+            id="rule-perf-filter-early",
+            name="Filtering should occur early",
+            category="performance",
+            description="Pipeline should start with filtering functions",
+            rationale="Early filtering improves throughput",
+            check_type="config_pattern",
+            validation_logic="functions.0.id matches: ^(drop|sampling|aggreg|eval)",
+            severity_if_violated="low",
+            documentation_link="https://docs.cribl.io/stream/pipelines-performance",
+            enabled=True
+        )
+
+        # Pipeline starting with eval = no violation
+        config_good = {
+            "functions": [
+                {"id": "eval-1", "filter": "true"},
+                {"id": "mask-2"}
+            ]
+        }
+        violated = evaluator.evaluate_rule(rule, config_good)
+        assert violated is False
+
+        # Pipeline starting with mask = violation
+        config_bad = {
+            "functions": [
+                {"id": "mask-1"},
+                {"id": "eval-2"}
+            ]
+        }
+        violated = evaluator.evaluate_rule(rule, config_bad)
+        assert violated is True

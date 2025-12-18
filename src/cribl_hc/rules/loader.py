@@ -308,6 +308,83 @@ class RuleEvaluator:
                     return not bool(re.search(pattern, str(value)))
                 return True  # No value = violation
 
+        # Check for length comparisons (Phase 2B)
+        # Format: "field.path.length > 10" or "field.path.length <= 5"
+        if ".length" in validation_logic:
+            # Check operators in order: multi-char first, then single-char
+            for operator in [">=", "<=", "==", "!=", ">", "<"]:
+                if operator in validation_logic:
+                    parts = validation_logic.split(operator)
+                    if len(parts) == 2:
+                        field_expr = parts[0].strip()
+                        threshold = float(parts[1].strip())
+
+                        # Extract field path (remove .length suffix)
+                        if field_expr.endswith(".length"):
+                            field_path = field_expr[:-7]  # Remove ".length"
+                            value = self._get_field(config, field_path)
+
+                            # Get length based on type
+                            if value is not None:
+                                if isinstance(value, (list, dict, str)):
+                                    length = len(value)
+                                else:
+                                    length = 0
+
+                                # Evaluate comparison
+                                if operator == ">":
+                                    return length > threshold  # Violation if exceeds
+                                elif operator == "<":
+                                    return length < threshold
+                                elif operator == ">=":
+                                    return length >= threshold
+                                elif operator == "<=":
+                                    return not (length <= threshold)  # Violation if exceeds
+                                elif operator == "==":
+                                    return length != threshold
+                                elif operator == "!=":
+                                    return length == threshold
+                    break
+
+        # Check for count patterns (Phase 2B)
+        # Format: "regex_count <= 2" - count functions matching a pattern
+        if "regex_count" in validation_logic or "function_count" in validation_logic:
+            # Check operators in order: multi-char first, then single-char
+            for operator in [">=", "<=", "==", "!=", ">", "<"]:
+                if operator in validation_logic:
+                    parts = validation_logic.split(operator)
+                    if len(parts) == 2:
+                        count_type = parts[0].strip()
+                        threshold = float(parts[1].strip())
+
+                        # Count regex-related functions
+                        if "regex_count" in count_type:
+                            functions = self._get_field(config, "functions") or []
+                            count = sum(1 for f in functions
+                                      if isinstance(f, dict) and
+                                      "regex" in str(f.get("id", "")).lower())
+                        # Count all functions
+                        elif "function_count" in count_type:
+                            functions = self._get_field(config, "functions") or []
+                            count = len(functions) if isinstance(functions, list) else 0
+                        else:
+                            count = 0
+
+                        # Evaluate comparison
+                        if operator == ">":
+                            return count > threshold
+                        elif operator == "<":
+                            return count < threshold
+                        elif operator == ">=":
+                            return count >= threshold
+                        elif operator == "<=":
+                            return not (count <= threshold)  # Violation if exceeds
+                        elif operator == "==":
+                            return count != threshold
+                        elif operator == "!=":
+                            return count == threshold
+                    break
+
         # Fallback: return False (no violation)
         log.debug(
             "config_pattern_not_evaluated",

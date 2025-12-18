@@ -324,17 +324,21 @@ class TestConfigAnalyzerIntegration:
         assert result.success is True
         assert result.objective == "config"
 
-        # Should have no findings for valid config
-        assert len(result.findings) == 0
+        # May have low-severity performance findings (Phase 2B rules)
+        # but no critical/high/medium severity issues
+        critical_high_medium = [f for f in result.findings
+                               if f.severity in ["critical", "high", "medium"]]
+        assert len(critical_high_medium) == 0
 
         # Should have metadata
         assert "compliance_score" in result.metadata
-        assert result.metadata["compliance_score"] == 100.0  # Perfect score
+        assert result.metadata["compliance_score"] >= 95.0  # High score (low-severity findings ok)
         assert result.metadata["pipelines_analyzed"] == 2
         assert result.metadata["routes_analyzed"] == 2
 
-        # Should have no recommendations for perfect config
-        assert len(result.recommendations) == 0
+        # May have low-priority recommendations for optimization
+        high_priority_recs = [r for r in result.recommendations if r.priority in ["p0", "p1"]]
+        assert len(high_priority_recs) == 0
 
     @pytest.mark.integration
     @pytest.mark.asyncio

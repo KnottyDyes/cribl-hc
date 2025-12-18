@@ -128,37 +128,38 @@ rules:
   - id: rule-perf-filter-early
     name: "Filtering should occur early in pipeline"
     category: performance
-    description: "Place filter, drop, or sampling functions at the beginning of pipelines"
-    rationale: "Early filtering reduces data volume processed by downstream functions, improving throughput"
+    description: "Pipeline does not start with filtering/sampling functions"
+    rationale: "Early filtering reduces data volume processed by downstream functions, improving throughput by 20-50%"
     check_type: config_pattern
-    validation_logic: "functions.0.id matches: ^(drop|sampling|eval)$"
+    validation_logic: "functions.0.id matches: ^(drop|sampling|aggreg|eval)"
     severity_if_violated: low
     documentation_link: "https://docs.cribl.io/stream/pipelines-performance"
     cribl_version_min: "4.0.0"
-    enabled: false  # Disabled until Phase 2B implementation
+    enabled: true
 
   - id: rule-perf-limit-regex
-    name: "Limit regex operations"
+    name: "Excessive regex operations in pipeline"
     category: performance
-    description: "Pipelines should minimize regex operations (max 2)"
-    rationale: "Regex operations are computationally expensive and can reduce throughput by 50%+"
+    description: "Pipeline contains more than 2 regex-based functions"
+    rationale: "Regex operations are computationally expensive and can reduce throughput by 50%+. Consider using structured parsing or field extraction functions"
     check_type: config_pattern
     validation_logic: "regex_count <= 2"
     severity_if_violated: medium
     documentation_link: "https://docs.cribl.io/stream/performance-tuning"
     cribl_version_min: "4.0.0"
-    enabled: false  # Disabled until Phase 2B implementation
+    enabled: true
 
-  - id: rule-perf-eval-complexity
-    name: "Complex eval expressions"
+  - id: rule-perf-pipeline-length
+    name: "Pipeline has too many functions"
     category: performance
-    description: "Eval function contains complex expressions that may impact performance"
-    rationale: "Complex eval expressions can slow down event processing. Consider simplifying or using specialized functions"
+    description: "Pipeline contains more than 15 functions"
+    rationale: "Long pipelines with many functions can impact processing performance and are harder to maintain. Consider splitting into multiple pipelines or using route-based processing"
     check_type: config_pattern
-    validation_logic: "function.conf.add.value.length < 200"
+    validation_logic: "functions.length > 15"
     severity_if_violated: low
-    documentation_link: "https://docs.cribl.io/stream/eval-function"
-    enabled: false  # Disabled until Phase 2B implementation
+    documentation_link: "https://docs.cribl.io/stream/pipelines"
+    cribl_version_min: "4.0.0"
+    enabled: true
 
   # ========================================
   # Reliability Rules (New for Phase 2C)
