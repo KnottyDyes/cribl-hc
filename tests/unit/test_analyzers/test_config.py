@@ -961,3 +961,305 @@ class TestConfigAnalyzer:
         assert result.metadata["product_type"] == "edge"
         assert result.metadata["pipelines_analyzed"] == 0
         assert result.metadata["routes_analyzed"] == 0
+
+    # ========================================
+    # Phase 2B: Pipeline Efficiency Tests
+    # ========================================
+
+    def test_pipeline_efficiency_score_optimal(self):
+        """Test efficiency score for optimally ordered pipeline."""
+        analyzer = ConfigAnalyzer()
+
+        # Optimal pipeline: filter first, then expensive operations
+        functions = [
+            {"id": "drop", "conf": {"filter": "status == 404"}},
+            {"id": "regex_extract", "conf": {"pattern": ".*"}},
+            {"id": "eval", "conf": {"expression": "field = value"}}
+        ]
+
+        score = analyzer._calculate_pipeline_efficiency_score(functions)
+
+        # Should have perfect or near-perfect score
+        assert score >= 90.0
+        assert score <= 100.0
+
+    def test_pipeline_efficiency_score_suboptimal(self):
+        """Test efficiency score for suboptimally ordered pipeline."""
+        analyzer = ConfigAnalyzer()
+
+        # Suboptimal: expensive operations before filtering
+        functions = [
+            {"id": "regex_extract", "conf": {"pattern": ".*"}},
+            {"id": "lookup", "conf": {}},
+            {"id": "eval", "conf": {"expression": "field = value"}},
+            {"id": "drop", "conf": {"filter": "status == 404"}}
+        ]
+
+        score = analyzer._calculate_pipeline_efficiency_score(functions)
+
+        # Should have lower score due to expensive functions before filtering
+        assert score < 60.0  # 3 expensive functions before filter = -45 points
+
+    def test_pipeline_efficiency_score_excessive_operations(self):
+        """Test efficiency score penalizes excessive expensive operations."""
+        analyzer = ConfigAnalyzer()
+
+        # Too many expensive operations
+        functions = [
+            {"id": "regex_extract", "conf": {}},
+            {"id": "regex", "conf": {}},
+            {"id": "grok", "conf": {}},
+            {"id": "lookup", "conf": {}},
+            {"id": "eval", "conf": {}}  # 5 total, 2 over threshold of 3
+        ]
+
+        score = analyzer._calculate_pipeline_efficiency_score(functions)
+
+        # Should penalize for having > 3 expensive operations
+        assert score < 100.0
+
+    def test_pipeline_efficiency_score_empty_pipeline(self):
+        """Test efficiency score for empty pipeline."""
+        analyzer = ConfigAnalyzer()
+
+        score = analyzer._calculate_pipeline_efficiency_score([])
+
+        # Empty pipeline should have perfect score
+        assert score == 100.0
+
+    @pytest.mark.asyncio
+    async def test_function_ordering_check_detects_issues(self):
+        """Test detection of expensive functions before filtering."""
+        # Setup: Pipeline with regex before drop
+        pipelines = [{
+            "id": "test_pipeline",
+            "conf": {
+                "functions": [
+                    {"id": "regex_extract", "conf": {"pattern": ".*"}},
+                    {"id": "drop", "conf": {"filter": "status == 404"}}
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect function ordering issue
+        ordering_findings = [f for f in result.findings
+                            if f.id.startswith("config-perf-function-ordering")]
+        assert len(ordering_findings) > 0
+
+        finding = ordering_findings[0]
+        assert "test_pipeline" in finding.affected_components[0]
+        assert finding.severity == "medium"
+        assert "expensive operations before filtering" in finding.description.lower()
+
+    @pytest.mark.asyncio
+    async def test_function_ordering_check_no_issues(self):
+        """Test no issues for optimal function ordering."""
+        # Setup: Well-ordered pipeline
+        pipelines = [{
+            "id": "optimal_pipeline",
+            "conf": {
+                "functions": [
+                    {"id": "drop", "conf": {"filter": "status == 404"}},
+                    {"id": "regex_extract", "conf": {"pattern": ".*"}}
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should NOT detect function ordering issues
+        ordering_findings = [f for f in result.findings
+                            if f.id.startswith("config-perf-function-ordering")]
+        assert len(ordering_findings) == 0
+
+    @pytest.mark.asyncio
+    async def test_multiple_regex_detection(self):
+        """Test detection of multiple regex operations."""
+        # Setup: Pipeline with 3 regex functions
+        pipelines = [{
+            "id": "regex_heavy_pipeline",
+            "conf": {
+                "functions": [
+                    {"id": "regex_extract", "conf": {}},
+                    {"id": "regex", "conf": {}},
+                    {"id": "grok", "conf": {}}
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect multiple regex operations
+        regex_findings = [f for f in result.findings
+                         if f.id.startswith("config-perf-multiple-regex")]
+        assert len(regex_findings) > 0
+
+        finding = regex_findings[0]
+        assert finding.severity == "medium"
+        assert "3" in finding.description  # Should mention count
+        assert finding.metadata["regex_function_count"] == 3
+
+    @pytest.mark.asyncio
+    async def test_lookup_caching_detection(self):
+        """Test detection of lookup without caching."""
+        # Setup: Pipeline with uncached lookup
+        pipelines = [{
+            "id": "lookup_pipeline",
+            "conf": {
+                "functions": [
+                    {
+                        "id": "lookup",
+                        "conf": {
+                            "cache": {"enabled": False}
+                        }
+                    }
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect lookup without caching
+        cache_findings = [f for f in result.findings
+                         if f.id.startswith("config-perf-lookup-no-cache")]
+        assert len(cache_findings) > 0
+
+        finding = cache_findings[0]
+        assert finding.severity == "low"
+        assert "caching" in finding.description.lower()
+        assert finding.metadata["cache_enabled"] is False
+
+    @pytest.mark.asyncio
+    async def test_efficiency_metadata_populated(self):
+        """Test that efficiency metadata is populated in results."""
+        # Setup: Mix of pipelines
+        pipelines = [
+            {
+                "id": "good_pipeline",
+                "conf": {
+                    "functions": [
+                        {"id": "drop", "conf": {"filter": "status == 404"}},
+                        {"id": "eval", "conf": {}}
+                    ]
+                }
+            },
+            {
+                "id": "bad_pipeline",
+                "conf": {
+                    "functions": [
+                        {"id": "regex_extract", "conf": {}},
+                        {"id": "lookup", "conf": {}},
+                        {"id": "drop", "conf": {}}
+                    ]
+                }
+            }
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should have efficiency metadata
+        assert "pipeline_efficiency_score" in result.metadata
+        assert "max_pipeline_efficiency" in result.metadata
+        assert "min_pipeline_efficiency" in result.metadata
+        assert "performance_opportunities" in result.metadata
+
+        # Scores should be within valid range
+        assert 0.0 <= result.metadata["pipeline_efficiency_score"] <= 100.0
+        assert 0.0 <= result.metadata["max_pipeline_efficiency"] <= 100.0
+        assert 0.0 <= result.metadata["min_pipeline_efficiency"] <= 100.0
+
+    @pytest.mark.asyncio
+    async def test_efficiency_no_pipelines(self):
+        """Test efficiency analysis with no pipelines."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should have default perfect efficiency score when no pipelines
+        assert result.metadata["pipeline_efficiency_score"] == 100.0
+        assert result.metadata["performance_opportunities"] == 0
+
+    @pytest.mark.asyncio
+    async def test_efficiency_empty_functions(self):
+        """Test efficiency analysis with pipelines that have no functions."""
+        pipelines = [
+            {"id": "empty1", "conf": {"functions": []}},
+            {"id": "empty2", "conf": {}}  # No functions key
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should handle gracefully - empty pipelines don't generate findings
+        assert result.success is True
+        # No performance issues from empty pipelines
+        assert result.metadata["performance_opportunities"] == 0

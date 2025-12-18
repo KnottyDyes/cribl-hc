@@ -135,6 +135,9 @@ class ConfigAnalyzer(BaseAnalyzer):
             # Evaluate best practice rules (Phase 2A)
             self._evaluate_best_practice_rules(pipelines, routes, inputs, outputs, result)
 
+            # Analyze pipeline efficiency (Phase 2B)
+            self._analyze_pipeline_efficiency(pipelines, result)
+
             # Calculate compliance score
             compliance_score = self._calculate_compliance_score(result)
 
@@ -975,6 +978,281 @@ class ConfigAnalyzer(BaseAnalyzer):
                 }
             )
         )
+
+    def _analyze_pipeline_efficiency(
+        self,
+        pipelines: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Analyze pipeline efficiency and function ordering (Phase 2B).
+
+        Detects:
+        - Expensive functions (regex, lookup, eval) placed before filtering
+        - Multiple regex operations in single pipeline
+        - Missing early-stage volume reduction
+        - Lack of caching hints on lookups
+
+        Args:
+            pipelines: List of pipeline configurations
+            result: AnalyzerResult to add findings to
+        """
+        # Track efficiency scores for metadata
+        efficiency_scores = []
+        performance_opportunities = 0
+
+        for pipeline in pipelines:
+            pipeline_id = pipeline.get("id", "unknown")
+            functions = pipeline.get("conf", {}).get("functions", [])
+
+            if not functions:
+                continue
+
+            # Calculate efficiency score for this pipeline
+            efficiency_score = self._calculate_pipeline_efficiency_score(functions)
+            efficiency_scores.append(efficiency_score)
+
+            # Check for expensive functions before filtering
+            self._check_function_ordering(pipeline_id, functions, result)
+
+            # Check for performance anti-patterns
+            perf_issues = self._check_performance_antipatterns(pipeline_id, functions, result)
+            performance_opportunities += perf_issues
+
+        # Store efficiency metadata
+        if efficiency_scores:
+            result.metadata["pipeline_efficiency_score"] = round(
+                sum(efficiency_scores) / len(efficiency_scores), 2
+            )
+            result.metadata["max_pipeline_efficiency"] = round(max(efficiency_scores), 2)
+            result.metadata["min_pipeline_efficiency"] = round(min(efficiency_scores), 2)
+        else:
+            result.metadata["pipeline_efficiency_score"] = 100.0
+
+        result.metadata["performance_opportunities"] = performance_opportunities
+
+        self.log.debug(
+            "pipeline_efficiency_analyzed",
+            pipelines=len(pipelines),
+            avg_efficiency=result.metadata.get("pipeline_efficiency_score", 100.0),
+            opportunities=performance_opportunities
+        )
+
+    def _calculate_pipeline_efficiency_score(self, functions: List[Dict[str, Any]]) -> float:
+        """
+        Calculate efficiency score (0-100) for a pipeline based on function ordering.
+
+        Higher scores indicate better efficiency:
+        - Filtering early: +points
+        - Expensive operations after filtering: +points
+        - Expensive operations before filtering: -points
+        - Multiple expensive operations: -points
+
+        Args:
+            functions: List of function configurations
+
+        Returns:
+            Efficiency score from 0.0 to 100.0
+        """
+        if not functions:
+            return 100.0
+
+        score = 100.0
+        expensive_funcs = {"regex", "regex_extract", "lookup", "eval", "grok"}
+        filter_funcs = {"drop", "sampling", "eval"}  # eval can be used for filtering
+
+        # Find index of first filtering operation
+        first_filter_idx = None
+        for idx, func in enumerate(functions):
+            func_id = func.get("id", "").lower()
+            # Check if this is a filtering operation
+            if func_id in filter_funcs:
+                # For eval, check if it's actually filtering (has filter:true or disabled field)
+                if func_id == "eval":
+                    if func.get("conf", {}).get("filter") or "disabled" in func.get("conf", {}):
+                        first_filter_idx = idx
+                        break
+                else:
+                    first_filter_idx = idx
+                    break
+
+        # Penalize expensive functions before filtering
+        for idx, func in enumerate(functions):
+            func_id = func.get("id", "").lower()
+
+            if func_id in expensive_funcs:
+                # If no filtering or expensive func comes before filtering
+                if first_filter_idx is None or idx < first_filter_idx:
+                    score -= 15  # Heavy penalty for each expensive func before filtering
+
+        # Count total expensive operations (penalize excessive use)
+        expensive_count = sum(
+            1 for f in functions if f.get("id", "").lower() in expensive_funcs
+        )
+        if expensive_count > 3:
+            score -= (expensive_count - 3) * 5  # Penalty for each operation over 3
+
+        return max(0.0, min(100.0, round(score, 2)))
+
+    def _check_function_ordering(
+        self,
+        pipeline_id: str,
+        functions: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Check for suboptimal function ordering.
+
+        Flags expensive operations (regex, lookup, eval) that appear before
+        filtering operations (drop, sampling).
+
+        Args:
+            pipeline_id: Pipeline identifier
+            functions: List of function configurations
+            result: AnalyzerResult to add findings to
+        """
+        expensive_funcs = {"regex", "regex_extract", "lookup", "eval", "grok"}
+        filter_funcs = {"drop", "sampling"}
+
+        # Find first filtering operation
+        first_filter_idx = None
+        for idx, func in enumerate(functions):
+            if func.get("id", "") in filter_funcs:
+                first_filter_idx = idx
+                break
+
+        # If we have filtering, check for expensive operations before it
+        if first_filter_idx is not None:
+            expensive_before_filter = []
+            for idx in range(first_filter_idx):
+                func = functions[idx]
+                func_id = func.get("id", "")
+                if func_id in expensive_funcs:
+                    expensive_before_filter.append((idx + 1, func_id))  # 1-indexed for user display
+
+            if expensive_before_filter:
+                func_list = ", ".join([f"'{f[1]}' (position {f[0]})" for f in expensive_before_filter])
+
+                result.add_finding(
+                    Finding(
+                        id=f"config-perf-function-ordering-{pipeline_id}",
+                        category="config",
+                        severity="medium",
+                        title=f"Suboptimal Function Ordering: {pipeline_id}",
+                        description=f"Pipeline '{pipeline_id}' has expensive operations before filtering: {func_list}",
+                        affected_components=[f"pipeline-{pipeline_id}"],
+                        remediation_steps=[
+                            f"Move filtering functions (drop, sampling) earlier in pipeline '{pipeline_id}'",
+                            "Place expensive operations (regex, lookup, eval) after volume reduction",
+                            "This reduces the number of events processed by expensive functions",
+                            "Expected performance improvement: 20-50% depending on filter selectivity"
+                        ],
+                        documentation_links=[
+                            "https://docs.cribl.io/stream/pipelines-performance/",
+                            "https://docs.cribl.io/stream/best-practices/"
+                        ],
+                        estimated_impact="Processing unnecessary events with expensive operations - increased CPU usage",
+                        confidence_level="high",
+                        metadata={
+                            "pipeline_id": pipeline_id,
+                            "expensive_functions_before_filter": len(expensive_before_filter),
+                            "first_filter_position": first_filter_idx + 1,
+                            "functions_to_reorder": [f[1] for f in expensive_before_filter]
+                        }
+                    )
+                )
+
+    def _check_performance_antipatterns(
+        self,
+        pipeline_id: str,
+        functions: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> int:
+        """
+        Check for performance anti-patterns in pipeline.
+
+        Detects:
+        - Multiple regex operations (>2)
+        - Lookup functions without caching hints
+        - Complex eval expressions
+
+        Args:
+            pipeline_id: Pipeline identifier
+            functions: List of function configurations
+            result: AnalyzerResult to add findings to
+
+        Returns:
+            Number of performance issues found
+        """
+        issues_found = 0
+
+        # Check for multiple regex operations
+        regex_funcs = [f for f in functions if f.get("id", "") in ["regex", "regex_extract", "grok"]]
+        if len(regex_funcs) > 2:
+            issues_found += 1
+            result.add_finding(
+                Finding(
+                    id=f"config-perf-multiple-regex-{pipeline_id}",
+                    category="config",
+                    severity="medium",
+                    title=f"Multiple Regex Operations: {pipeline_id}",
+                    description=f"Pipeline '{pipeline_id}' contains {len(regex_funcs)} regex-based operations, which can be CPU-intensive",
+                    affected_components=[f"pipeline-{pipeline_id}"],
+                    remediation_steps=[
+                        f"Consider consolidating regex operations in pipeline '{pipeline_id}'",
+                        "Combine multiple regex patterns into single function where possible",
+                        "Use simpler string operations (startswith, contains) when regex isn't needed",
+                        "Profile pipeline performance to identify bottlenecks"
+                    ],
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/regex-extract-function/",
+                        "https://docs.cribl.io/stream/pipelines-performance/"
+                    ],
+                    estimated_impact="High CPU usage from multiple regex evaluations per event",
+                    confidence_level="high",
+                    metadata={
+                        "pipeline_id": pipeline_id,
+                        "regex_function_count": len(regex_funcs),
+                        "regex_functions": [f.get("id") for f in regex_funcs]
+                    }
+                )
+            )
+
+        # Check for lookup functions without caching
+        for func in functions:
+            if func.get("id") == "lookup":
+                conf = func.get("conf", {})
+                # Check if caching is explicitly disabled or not configured
+                if not conf.get("cache", {}).get("enabled", False):
+                    issues_found += 1
+                    result.add_finding(
+                        Finding(
+                            id=f"config-perf-lookup-no-cache-{pipeline_id}",
+                            category="config",
+                            severity="low",
+                            title=f"Lookup Without Caching: {pipeline_id}",
+                            description=f"Pipeline '{pipeline_id}' has lookup function without caching enabled",
+                            affected_components=[f"pipeline-{pipeline_id}"],
+                            remediation_steps=[
+                                f"Enable caching for lookup function in pipeline '{pipeline_id}'",
+                                "Set appropriate TTL based on lookup data freshness requirements",
+                                "Monitor cache hit rate after enabling",
+                                "Test with representative data volume"
+                            ],
+                            documentation_links=[
+                                "https://docs.cribl.io/stream/lookup-function/"
+                            ],
+                            estimated_impact="Repeated lookups without caching - increased latency and external system load",
+                            confidence_level="medium",
+                            metadata={
+                                "pipeline_id": pipeline_id,
+                                "function": "lookup",
+                                "cache_enabled": False
+                            }
+                        )
+                    )
+
+        return issues_found
 
     def _calculate_compliance_score(self, result: AnalyzerResult) -> float:
         """

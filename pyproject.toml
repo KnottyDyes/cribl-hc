@@ -33,6 +33,8 @@ dependencies = [
     "structlog>=23.2.0",
     "cryptography>=41.0.0",
     "python-dateutil>=2.8.0",
+    "pyyaml>=6.0.0",
+    "textual>=0.47.0",
 ]
 
 [project.optional-dependencies]
