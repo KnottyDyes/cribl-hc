@@ -429,7 +429,11 @@ class TestConfigAnalyzerIntegration:
 
         # Check finding details
         for finding in high_findings:
-            assert "credential" in finding.title.lower() or "password" in finding.title.lower() or "token" in finding.title.lower()
+            assert ("credential" in finding.title.lower() or
+                    "password" in finding.title.lower() or
+                    "token" in finding.title.lower() or
+                    "secret" in finding.title.lower() or
+                    "api key" in finding.title.lower())
             assert "insecure-splunk" in finding.affected_components[0]
 
             # Should have remediation steps

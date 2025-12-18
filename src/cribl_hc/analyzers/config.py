@@ -12,6 +12,7 @@ from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
 from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
+from cribl_hc.rules.loader import RuleLoader, RuleEvaluator
 
 
 class ConfigAnalyzer(BaseAnalyzer):
@@ -53,6 +54,11 @@ class ConfigAnalyzer(BaseAnalyzer):
         """Initialize the configuration analyzer."""
         super().__init__()
         self.log = structlog.get_logger(__name__)
+
+        # Initialize rule system (Phase 2A)
+        self.rule_loader = RuleLoader()
+        self.rule_evaluator = RuleEvaluator()
+        self._rules_cache = None
 
     @property
     def objective_name(self) -> str:
@@ -126,6 +132,9 @@ class ConfigAnalyzer(BaseAnalyzer):
             # Check security misconfigurations (Phase 5)
             self._check_security_misconfigurations(outputs, result)
 
+            # Evaluate best practice rules (Phase 2A)
+            self._evaluate_best_practice_rules(pipelines, routes, inputs, outputs, result)
+
             # Calculate compliance score
             compliance_score = self._calculate_compliance_score(result)
 
@@ -150,6 +159,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                 f for f in result.findings if "security" in f.id.lower()
             ])
             result.metadata["compliance_score"] = compliance_score
+            result.metadata["rules_evaluated"] = result.metadata.get("rules_evaluated", 0)
             result.metadata["critical_findings"] = len([
                 f for f in result.findings if f.severity == "critical"
             ])
@@ -804,6 +814,167 @@ class ConfigAnalyzer(BaseAnalyzer):
                             }
                         )
                     )
+
+    def _evaluate_best_practice_rules(
+        self,
+        pipelines: List[Dict[str, Any]],
+        routes: List[Dict[str, Any]],
+        inputs: List[Dict[str, Any]],
+        outputs: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Evaluate configuration-driven best practice rules (Phase 2A).
+
+        Loads rules from YAML and evaluates them against configurations.
+        Generates findings for rule violations.
+
+        Args:
+            pipelines: List of pipeline configurations
+            routes: List of route configurations
+            inputs: List of input configurations
+            outputs: List of output configurations
+            result: AnalyzerResult to add findings to
+        """
+        try:
+            # Load and filter rules
+            if self._rules_cache is None:
+                all_rules = self.rule_loader.load_all_rules(cache=True)
+                self._rules_cache = self.rule_loader.filter_enabled_only(all_rules)
+
+            rules = self._rules_cache
+            rules_evaluated = 0
+
+            # Build context for relationship rules
+            context = {
+                "pipelines": pipelines,
+                "routes": routes,
+                "inputs": inputs,
+                "outputs": outputs
+            }
+
+            # Evaluate rules against each configuration type
+            # Check pipelines
+            for pipeline in pipelines:
+                pipeline_id = pipeline.get("id", "unknown")
+                functions = pipeline.get("functions", pipeline.get("conf", {}).get("functions", []))
+
+                # Evaluate pipeline-level rules
+                for rule in rules:
+                    if rule.category in ["performance", "best_practice"]:
+                        violated = self.rule_evaluator.evaluate_rule(rule, pipeline, context)
+                        rules_evaluated += 1
+
+                        if violated:
+                            self._create_rule_violation_finding(
+                                rule, pipeline_id, "pipeline", result
+                            )
+
+                # Evaluate function-level rules
+                if isinstance(functions, list):
+                    for func_idx, function in enumerate(functions):
+                        if not isinstance(function, dict):
+                            continue
+
+                        for rule in rules:
+                            # Check for deprecated functions
+                            if "deprecated" in rule.id:
+                                violated = self.rule_evaluator.evaluate_rule(rule, function, context)
+                                rules_evaluated += 1
+
+                                if violated:
+                                    self._create_rule_violation_finding(
+                                        rule,
+                                        f"{pipeline_id}.functions[{func_idx}]",
+                                        "function",
+                                        result
+                                    )
+
+            # Check routes for relationship violations
+            for route in routes:
+                route_id = route.get("id", "unknown")
+
+                for rule in rules:
+                    if rule.check_type == "relationship":
+                        violated = self.rule_evaluator.evaluate_rule(rule, route, context)
+                        rules_evaluated += 1
+
+                        if violated:
+                            self._create_rule_violation_finding(
+                                rule, route_id, "route", result
+                            )
+
+            # Check outputs for security violations
+            for output in outputs:
+                output_id = output.get("id", "unknown")
+
+                for rule in rules:
+                    if rule.category == "security":
+                        violated = self.rule_evaluator.evaluate_rule(rule, output, context)
+                        rules_evaluated += 1
+
+                        if violated:
+                            self._create_rule_violation_finding(
+                                rule, output_id, "output", result
+                            )
+
+            # Store rules evaluated count in metadata
+            result.metadata["rules_evaluated"] = rules_evaluated
+
+            self.log.debug(
+                "best_practice_rules_evaluated",
+                rules_count=len(rules),
+                evaluations=rules_evaluated,
+                violations=len([f for f in result.findings if f.id.startswith("rule-")])
+            )
+
+        except Exception as e:
+            # Don't fail analysis if rule evaluation fails
+            self.log.warning("rule_evaluation_failed", error=str(e))
+            result.metadata["rules_evaluated"] = 0
+
+    def _create_rule_violation_finding(
+        self,
+        rule,
+        component_id: str,
+        component_type: str,
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Create a finding from a rule violation.
+
+        Args:
+            rule: BestPracticeRule that was violated
+            component_id: ID of the affected component
+            component_type: Type of component (pipeline, route, function, etc.)
+            result: AnalyzerResult to add finding to
+        """
+        result.add_finding(
+            Finding(
+                id=f"{rule.id}-{component_id}",
+                category="config",
+                severity=rule.severity_if_violated,
+                title=f"{rule.name}: {component_id}",
+                description=f"{rule.description} (Component: {component_type} '{component_id}')\n\nRationale: {rule.rationale}",
+                affected_components=[f"{component_type}-{component_id}"],
+                remediation_steps=[
+                    f"Review {component_type} '{component_id}' configuration",
+                    f"Apply best practice: {rule.name}",
+                    "Refer to documentation for implementation guidance",
+                    "Test changes in non-production environment first"
+                ],
+                documentation_links=[rule.documentation_link],
+                estimated_impact=f"Best practice violation: {rule.rationale}",
+                confidence_level="high",
+                metadata={
+                    "rule_id": rule.id,
+                    "rule_category": rule.category,
+                    "component_id": component_id,
+                    "component_type": component_type,
+                    "check_type": rule.check_type
+                }
+            )
+        )
 
     def _calculate_compliance_score(self, result: AnalyzerResult) -> float:
         """

@@ -33,7 +33,7 @@ rules:
     severity_if_violated: medium
     documentation_link: "https://docs.cribl.io/stream/regex-extract-function"
     cribl_version_min: "4.0.0"
-    enabled: true
+    enabled: false  # Disabled - already handled by hardcoded _check_deprecated_functions()
 
   - id: rule-bp-no-deprecated-code
     name: "Deprecated 'code' function"
@@ -45,7 +45,7 @@ rules:
     severity_if_violated: medium
     documentation_link: "https://docs.cribl.io/stream/eval-function"
     cribl_version_min: "4.0.0"
-    enabled: true
+    enabled: false  # Disabled - already handled by hardcoded _check_deprecated_functions()
 
   # ========================================
   # Security Rules (Migrated from hardcoded)
@@ -60,7 +60,7 @@ rules:
     validation_logic: "password exists: password"
     severity_if_violated: high
     documentation_link: "https://docs.cribl.io/stream/securing-and-monitoring/#environment-variables"
-    enabled: true
+    enabled: false  # Disabled - already handled by hardcoded _check_security_misconfigurations()
 
   - id: rule-sec-no-hardcoded-token
     name: "Hardcoded API token detected"
@@ -71,7 +71,7 @@ rules:
     validation_logic: "token exists: token"
     severity_if_violated: high
     documentation_link: "https://docs.cribl.io/stream/securing-and-monitoring/#environment-variables"
-    enabled: true
+    enabled: false  # Disabled - already handled by hardcoded _check_security_misconfigurations()
 
   - id: rule-sec-no-hardcoded-secret
     name: "Hardcoded secret detected"
@@ -82,7 +82,7 @@ rules:
     validation_logic: "secret exists: secret"
     severity_if_violated: high
     documentation_link: "https://docs.cribl.io/stream/securing-and-monitoring/#environment-variables"
-    enabled: true
+    enabled: false  # Disabled - already handled by hardcoded _check_security_misconfigurations()
 
   - id: rule-sec-no-hardcoded-api-key
     name: "Hardcoded API key detected"
@@ -93,7 +93,7 @@ rules:
     validation_logic: "apiKey exists: apiKey"
     severity_if_violated: high
     documentation_link: "https://docs.cribl.io/stream/securing-and-monitoring/#environment-variables"
-    enabled: true
+    enabled: false  # Disabled - already handled by hardcoded _check_security_misconfigurations()
 
   - id: rule-sec-require-tls
     name: "Unencrypted connection detected"
@@ -104,7 +104,7 @@ rules:
     validation_logic: "url matches: ^https://"
     severity_if_violated: medium
     documentation_link: "https://docs.cribl.io/stream/securing-and-monitoring/#encrypting-data-in-transit"
-    enabled: true
+    enabled: false  # Disabled - already handled by hardcoded _check_security_misconfigurations()
 
   # ========================================
   # Relationship Rules (Migrated from hardcoded)
@@ -119,7 +119,7 @@ rules:
     validation_logic: "references:pipelines"
     severity_if_violated: high
     documentation_link: "https://docs.cribl.io/stream/routes"
-    enabled: true
+    enabled: false  # Disabled - already handled by hardcoded _validate_route_configuration()
 
   # ========================================
   # Performance Rules (New for Phase 2B)
