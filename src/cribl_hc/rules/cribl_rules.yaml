@@ -1,0 +1,191 @@
+# Cribl Best Practice Rules
+#
+# This file contains validation rules for Cribl Stream and Edge configurations.
+# Rules are evaluated during configuration analysis to identify issues and
+# optimization opportunities.
+#
+# Format:
+#   - id: Unique identifier (e.g., rule-bp-pipeline-ordering)
+#   - name: Human-readable name
+#   - category: performance | security | reliability | best_practice
+#   - description: What the rule checks
+#   - rationale: Why this matters
+#   - check_type: config_pattern | metric_threshold | relationship
+#   - validation_logic: Expression to evaluate
+#   - severity_if_violated: critical | high | medium | low
+#   - documentation_link: URL to Cribl docs
+#   - cribl_version_min: Optional minimum version (e.g., "4.0.0")
+#   - cribl_version_max: Optional maximum version
+#   - enabled: true | false
+
+rules:
+  # ========================================
+  # Best Practice Rules (Migrated from hardcoded)
+  # ========================================
+
+  - id: rule-bp-no-deprecated-regex
+    name: "Deprecated 'regex' function"
+    category: best_practice
+    description: "Pipeline uses deprecated 'regex' function"
+    rationale: "The 'regex' function is deprecated in favor of 'regex_extract' which provides better performance and functionality"
+    check_type: config_pattern
+    validation_logic: "function.id equals: regex"
+    severity_if_violated: medium
+    documentation_link: "https://docs.cribl.io/stream/regex-extract-function"
+    cribl_version_min: "4.0.0"
+    enabled: true
+
+  - id: rule-bp-no-deprecated-code
+    name: "Deprecated 'code' function"
+    category: best_practice
+    description: "Pipeline uses deprecated 'code' function"
+    rationale: "The 'code' function is deprecated in favor of 'eval' which provides better safety and performance"
+    check_type: config_pattern
+    validation_logic: "function.id equals: code"
+    severity_if_violated: medium
+    documentation_link: "https://docs.cribl.io/stream/eval-function"
+    cribl_version_min: "4.0.0"
+    enabled: true
+
+  # ========================================
+  # Security Rules (Migrated from hardcoded)
+  # ========================================
+
+  - id: rule-sec-no-hardcoded-password
+    name: "Hardcoded password detected"
+    category: security
+    description: "Configuration contains hardcoded password"
+    rationale: "Hardcoded credentials pose a security risk. Use environment variables or secrets management instead"
+    check_type: config_pattern
+    validation_logic: "password exists: password"
+    severity_if_violated: high
+    documentation_link: "https://docs.cribl.io/stream/securing-and-monitoring/#environment-variables"
+    enabled: true
+
+  - id: rule-sec-no-hardcoded-token
+    name: "Hardcoded API token detected"
+    category: security
+    description: "Configuration contains hardcoded API token"
+    rationale: "Hardcoded credentials pose a security risk. Use environment variables or secrets management instead"
+    check_type: config_pattern
+    validation_logic: "token exists: token"
+    severity_if_violated: high
+    documentation_link: "https://docs.cribl.io/stream/securing-and-monitoring/#environment-variables"
+    enabled: true
+
+  - id: rule-sec-no-hardcoded-secret
+    name: "Hardcoded secret detected"
+    category: security
+    description: "Configuration contains hardcoded secret"
+    rationale: "Hardcoded credentials pose a security risk. Use environment variables or secrets management instead"
+    check_type: config_pattern
+    validation_logic: "secret exists: secret"
+    severity_if_violated: high
+    documentation_link: "https://docs.cribl.io/stream/securing-and-monitoring/#environment-variables"
+    enabled: true
+
+  - id: rule-sec-no-hardcoded-api-key
+    name: "Hardcoded API key detected"
+    category: security
+    description: "Configuration contains hardcoded API key"
+    rationale: "Hardcoded credentials pose a security risk. Use environment variables or secrets management instead"
+    check_type: config_pattern
+    validation_logic: "apiKey exists: apiKey"
+    severity_if_violated: high
+    documentation_link: "https://docs.cribl.io/stream/securing-and-monitoring/#environment-variables"
+    enabled: true
+
+  - id: rule-sec-require-tls
+    name: "Unencrypted connection detected"
+    category: security
+    description: "Output uses unencrypted HTTP connection"
+    rationale: "Data transmitted over HTTP is not encrypted and could be intercepted. Use HTTPS for secure communication"
+    check_type: config_pattern
+    validation_logic: "url matches: ^https://"
+    severity_if_violated: medium
+    documentation_link: "https://docs.cribl.io/stream/securing-and-monitoring/#encrypting-data-in-transit"
+    enabled: true
+
+  # ========================================
+  # Relationship Rules (Migrated from hardcoded)
+  # ========================================
+
+  - id: rule-rel-no-orphaned-routes
+    name: "Route references non-existent pipeline"
+    category: reliability
+    description: "Route references a pipeline that doesn't exist"
+    rationale: "Orphaned routes will fail at runtime. Ensure all referenced pipelines exist"
+    check_type: relationship
+    validation_logic: "references:pipelines"
+    severity_if_violated: high
+    documentation_link: "https://docs.cribl.io/stream/routes"
+    enabled: true
+
+  # ========================================
+  # Performance Rules (New for Phase 2B)
+  # ========================================
+
+  - id: rule-perf-filter-early
+    name: "Filtering should occur early in pipeline"
+    category: performance
+    description: "Place filter, drop, or sampling functions at the beginning of pipelines"
+    rationale: "Early filtering reduces data volume processed by downstream functions, improving throughput"
+    check_type: config_pattern
+    validation_logic: "functions.0.id matches: ^(drop|sampling|eval)$"
+    severity_if_violated: low
+    documentation_link: "https://docs.cribl.io/stream/pipelines-performance"
+    cribl_version_min: "4.0.0"
+    enabled: false  # Disabled until Phase 2B implementation
+
+  - id: rule-perf-limit-regex
+    name: "Limit regex operations"
+    category: performance
+    description: "Pipelines should minimize regex operations (max 2)"
+    rationale: "Regex operations are computationally expensive and can reduce throughput by 50%+"
+    check_type: config_pattern
+    validation_logic: "regex_count <= 2"
+    severity_if_violated: medium
+    documentation_link: "https://docs.cribl.io/stream/performance-tuning"
+    cribl_version_min: "4.0.0"
+    enabled: false  # Disabled until Phase 2B implementation
+
+  - id: rule-perf-eval-complexity
+    name: "Complex eval expressions"
+    category: performance
+    description: "Eval function contains complex expressions that may impact performance"
+    rationale: "Complex eval expressions can slow down event processing. Consider simplifying or using specialized functions"
+    check_type: config_pattern
+    validation_logic: "function.conf.add.value.length < 200"
+    severity_if_violated: low
+    documentation_link: "https://docs.cribl.io/stream/eval-function"
+    enabled: false  # Disabled until Phase 2B implementation
+
+  # ========================================
+  # Reliability Rules (New for Phase 2C)
+  # ========================================
+
+  - id: rule-rel-route-output-required
+    name: "Route missing output destination"
+    category: reliability
+    description: "Route does not specify an output destination"
+    rationale: "Routes without outputs will drop events. Ensure all routes have valid output configurations"
+    check_type: config_pattern
+    validation_logic: "output exists: output"
+    severity_if_violated: medium
+    documentation_link: "https://docs.cribl.io/stream/routes"
+    enabled: false  # Disabled until Phase 2C implementation
+
+  # ========================================
+  # Configuration Quality Rules (New for Phase 2D)
+  # ========================================
+
+  - id: rule-quality-pipeline-complexity
+    name: "Pipeline complexity too high"
+    category: best_practice
+    description: "Pipeline contains too many functions (>10), consider splitting"
+    rationale: "Complex pipelines are harder to maintain and troubleshoot. Consider breaking into smaller, focused pipelines"
+    check_type: config_pattern
+    validation_logic: "functions.length <= 10"
+    severity_if_violated: low
+    documentation_link: "https://docs.cribl.io/stream/pipelines"
+    enabled: false  # Disabled until Phase 2D implementation
