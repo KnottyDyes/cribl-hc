@@ -43,6 +43,24 @@ app.add_typer(
 
 
 @app.command()
+def tui():
+    """
+    Launch interactive Terminal User Interface.
+
+    Provides unified interface for:
+    - Managing deployment credentials
+    - Running health check analyses
+    - Viewing analysis results
+    """
+    try:
+        from cribl_hc.cli.unified_tui import UnifiedTUI
+        unified = UnifiedTUI()
+        unified.run()
+    except KeyboardInterrupt:
+        console.print("\n[cyan]Goodbye![/cyan]")
+
+
+@app.command()
 def version():
     """Show cribl-hc version information."""
     from cribl_hc import __version__
