@@ -897,3 +897,67 @@ class TestConfigAnalyzer:
         assert isinstance(result.metadata["compliance_score"], float)
         assert result.metadata["pipelines_analyzed"] == 3
         assert result.metadata["routes_analyzed"] == 1
+
+    @pytest.mark.asyncio
+    async def test_edge_deployment_analysis(self):
+        """Test ConfigAnalyzer works with Edge deployments."""
+        # Create mock Edge client
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = True
+        mock_client.is_stream = False
+        mock_client.product_type = "edge"
+
+        # Mock Edge configuration responses
+        mock_client.get_pipelines.return_value = [
+            create_pipeline("edge-pipeline-01")
+        ]
+        mock_client.get_routes.return_value = [
+            create_route("edge-route-01", "edge-pipeline-01")
+        ]
+        mock_client.get_inputs.return_value = [
+            {"id": "edge-input-01", "type": "syslog"}
+        ]
+        mock_client.get_outputs.return_value = [
+            {"id": "edge-output-01", "type": "cribl"}
+        ]
+
+        # Run analysis
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Verify Edge-specific metadata
+        assert result.success is True
+        assert result.metadata["product_type"] == "edge"
+        assert result.metadata["pipelines_analyzed"] == 1
+        assert result.metadata["routes_analyzed"] == 1
+
+        # Verify API calls
+        mock_client.get_pipelines.assert_called_once()
+        mock_client.get_routes.assert_called_once()
+        mock_client.get_inputs.assert_called_once()
+        mock_client.get_outputs.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_edge_product_type_metadata(self):
+        """Test Edge product type is captured in metadata."""
+        # Create mock Edge client
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = True
+        mock_client.is_stream = False
+        mock_client.product_type = "edge"
+
+        # Mock successful responses (but empty to keep test fast)
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        # Run analysis
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should succeed and capture Edge product type
+        assert result.success is True
+        assert result.metadata["product_type"] == "edge"
+        assert result.metadata["pipelines_analyzed"] == 0
+        assert result.metadata["routes_analyzed"] == 0

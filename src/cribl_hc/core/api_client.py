@@ -262,24 +262,35 @@ class CriblAPIClient:
         self._product_version = version_info.get("version")
         log.info("product_defaulted", product="stream", version=self._product_version)
 
-    def _build_config_endpoint(self, resource: str) -> str:
+    def _build_config_endpoint(self, resource: str, fleet: Optional[str] = None) -> str:
         """
-        Build the correct API endpoint based on deployment type.
+        Build the correct API endpoint based on deployment type and product.
 
         Args:
             resource: Resource type (pipelines, routes, inputs, outputs)
+            fleet: Optional Edge fleet name (only used for Edge deployments)
 
         Returns:
             Full endpoint path for the resource
 
         Example:
-            Self-hosted: /api/v1/master/pipelines
-            Cloud: /api/v1/m/default/pipelines
+            Stream self-hosted: /api/v1/master/pipelines
+            Stream Cloud: /api/v1/m/default/pipelines
+            Edge global: /api/v1/edge/pipelines
+            Edge fleet-specific: /api/v1/e/{fleet}/pipelines
         """
-        if self._is_cloud:
+        if self.is_edge:
+            # Edge deployment
+            if fleet:
+                return f"/api/v1/e/{fleet}/{resource}"
+            else:
+                return f"/api/v1/edge/{resource}"
+        elif self._is_cloud:
+            # Stream Cloud deployment
             group = self._worker_group or "default"
             return f"/api/v1/m/{group}/{resource}"
         else:
+            # Stream self-hosted deployment
             return f"/api/v1/master/{resource}"
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):

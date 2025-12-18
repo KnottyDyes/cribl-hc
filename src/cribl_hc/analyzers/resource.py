@@ -67,7 +67,9 @@ class ResourceAnalyzer(BaseAnalyzer):
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         """
-        Analyze resource utilization across worker fleet.
+        Analyze resource utilization across worker fleet or Edge nodes.
+
+        Automatically adapts based on detected product type (Stream or Edge).
 
         Args:
             client: Authenticated Cribl API client
@@ -78,15 +80,18 @@ class ResourceAnalyzer(BaseAnalyzer):
         result = AnalyzerResult(objective="resource")
 
         try:
-            self.log.info("resource_analysis_started")
+            # Detect product type
+            product_name = "Cribl Edge" if client.is_edge else "Cribl Stream"
+            self.log.info("resource_analysis_started", product=client.product_type, product_name=product_name)
 
-            # 1. Fetch resource data
+            # 1. Fetch resource data (unified API works for both Stream and Edge)
             workers = await self._fetch_workers(client)
             metrics = await self._fetch_metrics(client)
             system_status = await self._fetch_system_status(client)
 
             result.metadata["worker_count"] = len(workers)
             result.metadata["analysis_timestamp"] = datetime.utcnow().isoformat()
+            result.metadata["product_type"] = client.product_type
 
             # 2. Analyze resource utilization
             self._analyze_cpu_utilization(workers, metrics, result)
@@ -115,24 +120,31 @@ class ResourceAnalyzer(BaseAnalyzer):
 
             self.log.info(
                 "resource_analysis_completed",
+                product=client.product_type,
                 findings=len(result.findings),
                 recommendations=len(result.recommendations),
                 health_score=resource_score,
             )
 
         except Exception as e:
-            self.log.error("resource_analysis_failed", error=str(e))
+            self.log.error("resource_analysis_failed", product=client.product_type, error=str(e))
             result.success = True  # Graceful degradation
+            result.metadata["product_type"] = client.product_type
+
+            # Product-aware error messages
+            product_name = "Cribl Edge" if client.is_edge else "Cribl Stream"
+
             result.add_finding(
                 Finding(
                     id="resource-analysis-error",
                     category="resource",
                     severity="medium",
-                    title="Resource Analysis Incomplete",
-                    description=f"Analysis failed: {str(e)}",
+                    title=f"Resource Analysis Incomplete ({product_name})",
+                    description=f"Analysis failed on {product_name}: {str(e)}",
                     affected_components=["resource-analyzer"],
-                    remediation_steps=["Check API connectivity", "Verify permissions"],
+                    remediation_steps=["Check API connectivity", "Verify permissions", f"Review {product_name} API access"],
                     confidence_level="high",
+                    metadata={"product_type": client.product_type, "error": str(e)},
                 )
             )
 

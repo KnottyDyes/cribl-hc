@@ -85,7 +85,9 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         """
-        Perform configuration analysis.
+        Perform configuration analysis on Cribl Stream or Edge deployment.
+
+        Automatically adapts based on detected product type.
 
         Args:
             client: Authenticated Cribl API client
@@ -95,7 +97,9 @@ class ConfigAnalyzer(BaseAnalyzer):
         """
         result = AnalyzerResult(objective=self.objective_name)
 
-        self.log.info("config_analysis_started")
+        # Detect product type and log appropriately
+        product_name = "Cribl Edge" if client.is_edge else "Cribl Stream"
+        self.log.info("config_analysis_started", product=client.product_type, product_name=product_name)
 
         try:
             # Fetch configuration data
@@ -103,6 +107,9 @@ class ConfigAnalyzer(BaseAnalyzer):
             routes = await self._fetch_routes(client)
             inputs = await self._fetch_inputs(client)
             outputs = await self._fetch_outputs(client)
+
+            # Store product type in metadata
+            result.metadata["product_type"] = client.product_type
 
             # Run basic syntax validation (Phase 1)
             self._validate_pipeline_syntax(pipelines, result)
@@ -158,6 +165,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
             self.log.info(
                 "config_analysis_completed",
+                product=client.product_type,
                 pipelines=len(pipelines),
                 routes=len(routes),
                 findings=len(result.findings)
@@ -165,12 +173,21 @@ class ConfigAnalyzer(BaseAnalyzer):
 
         except Exception as e:
             # Graceful degradation - Constitution Principle #6
-            self.log.error("config_analysis_failed", error=str(e))
+            self.log.error("config_analysis_failed", product=client.product_type, error=str(e))
             result.success = True  # Still return success
             result.metadata["pipelines_analyzed"] = 0
             result.metadata["routes_analyzed"] = 0
             result.metadata["inputs_analyzed"] = 0
             result.metadata["outputs_analyzed"] = 0
+            result.metadata["product_type"] = client.product_type
+
+            # Product-aware error messages
+            product_name = "Cribl Edge" if client.is_edge else "Cribl Stream"
+            docs_link = (
+                "https://docs.cribl.io/edge/api-reference/"
+                if client.is_edge
+                else "https://docs.cribl.io/stream/api-reference/"
+            )
 
             # Add error as finding
             result.add_finding(
@@ -178,21 +195,19 @@ class ConfigAnalyzer(BaseAnalyzer):
                     id="config-analysis-error",
                     category="config",
                     severity="high",
-                    title="Configuration Analysis Error",
-                    description=f"Failed to complete configuration analysis: {str(e)}",
+                    title=f"Configuration Analysis Error ({product_name})",
+                    description=f"Failed to complete configuration analysis on {product_name}: {str(e)}",
                     affected_components=["configuration"],
                     remediation_steps=[
                         "Check API connectivity and authentication",
                         "Verify read permissions for configuration endpoints",
                         "Review API token permissions",
-                        "Check Cribl Stream API availability"
+                        f"Check {product_name} API availability"
                     ],
-                    documentation_links=[
-                        "https://docs.cribl.io/stream/api-reference/"
-                    ],
+                    documentation_links=[docs_link],
                     estimated_impact="Unable to validate configuration - manual review recommended",
                     confidence_level="high",
-                    metadata={"error": str(e)}
+                    metadata={"error": str(e), "product_type": client.product_type}
                 )
             )
 

@@ -772,3 +772,118 @@ class TestResourceAnalyzer:
         # Should still analyze CPU and memory
         assert result.success is True
         assert result.metadata.get("worker_count") == 1
+
+    @pytest.mark.asyncio
+    async def test_edge_deployment_analysis(self):
+        """Test ResourceAnalyzer works with Edge deployments."""
+        # Create mock Edge client
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = True
+        mock_client.is_stream = False
+        mock_client.is_cloud = False
+        mock_client.product_type = "edge"
+
+        # Mock Edge node data (similar to Stream workers)
+        mock_client.get_workers.return_value = [
+            {
+                "id": "edge-node-01",
+                "info": {
+                    "hostname": "edge-node-01.example.com",
+                    "cpus": 4,
+                    "totalMemory": 16 * 1024**3,  # 16GB
+                    "freeMemory": 8 * 1024**3,    # 8GB free (50% used)
+                },
+                "metrics": {
+                    "cpu": {
+                        "perc": 0.45,  # 45% CPU
+                        "loadAverage": [2.1, 1.9, 1.8]
+                    }
+                }
+            }
+        ]
+
+        mock_client.get_metrics.return_value = {}
+        mock_client.get_system_status.return_value = {}
+
+        # Run analysis
+        analyzer = ResourceAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Verify Edge-specific metadata
+        assert result.success is True
+        assert result.metadata["product_type"] == "edge"
+        assert result.metadata["worker_count"] == 1
+
+        # Should analyze CPU and memory for Edge nodes
+        assert "resource_health_score" in result.metadata
+        assert "avg_cpu_utilization" in result.metadata
+
+        # Verify API calls
+        mock_client.get_workers.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_edge_high_resource_utilization(self):
+        """Test Edge node with high resource utilization triggers findings."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = True
+        mock_client.is_stream = False
+        mock_client.is_cloud = False
+        mock_client.product_type = "edge"
+
+        # Mock Edge node with high CPU and memory usage
+        mock_client.get_workers.return_value = [
+            {
+                "id": "edge-node-overloaded",
+                "info": {
+                    "hostname": "edge-node-overloaded.example.com",
+                    "cpus": 2,
+                    "totalMemory": 8 * 1024**3,   # 8GB
+                    "freeMemory": 0.5 * 1024**3,  # 0.5GB free (93.75% used - critical)
+                },
+                "metrics": {
+                    "cpu": {
+                        "perc": 0.92,  # 92% CPU (critical)
+                        "loadAverage": [4.5, 4.2, 4.0]
+                    }
+                }
+            }
+        ]
+
+        mock_client.get_metrics.return_value = {}
+        mock_client.get_system_status.return_value = {}
+
+        analyzer = ResourceAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should have critical/high findings for CPU and memory
+        cpu_findings = [f for f in result.findings if "cpu" in f.id.lower()]
+        memory_findings = [f for f in result.findings if "memory" in f.id.lower()]
+
+        assert len(cpu_findings) > 0
+        assert len(memory_findings) > 0
+
+        # At least one should be high/critical severity
+        high_severity = [f for f in result.findings if f.severity in ["high", "critical"]]
+        assert len(high_severity) >= 2
+
+    @pytest.mark.asyncio
+    async def test_edge_product_type_metadata(self):
+        """Test Edge product type is captured in metadata."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = True
+        mock_client.is_stream = False
+        mock_client.is_cloud = False
+        mock_client.product_type = "edge"
+
+        # Mock empty responses (no nodes)
+        mock_client.get_workers.return_value = []
+        mock_client.get_metrics.return_value = {}
+        mock_client.get_system_status.return_value = {}
+
+        analyzer = ResourceAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should succeed and capture Edge product type
+        assert result.success is True
+        assert result.metadata["product_type"] == "edge"
+        assert result.metadata["worker_count"] == 0
