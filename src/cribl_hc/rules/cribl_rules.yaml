@@ -172,9 +172,31 @@ rules:
     rationale: "Routes without outputs will drop events. Ensure all routes have valid output configurations"
     check_type: config_pattern
     validation_logic: "output exists: output"
-    severity_if_violated: medium
+    severity_if_violated: high
     documentation_link: "https://docs.cribl.io/stream/routes"
-    enabled: false  # Disabled until Phase 2C implementation
+    enabled: true
+
+  - id: rule-rel-route-filter-required
+    name: "Route missing filter expression"
+    category: reliability
+    description: "Route does not specify a filter expression"
+    rationale: "Routes without filters will match all events, which may not be intended. Explicit filters improve clarity and prevent unintended routing"
+    check_type: config_pattern
+    validation_logic: "filter exists: filter"
+    severity_if_violated: low
+    documentation_link: "https://docs.cribl.io/stream/routes"
+    enabled: true
+
+  - id: rule-rel-route-final-required
+    name: "No final catch-all route defined"
+    category: reliability
+    description: "Route configuration lacks a final catch-all route"
+    rationale: "Without a final route with filter='true', unmatched events may be dropped unexpectedly"
+    check_type: config_pattern
+    validation_logic: "final_route exists: true"
+    severity_if_violated: low
+    documentation_link: "https://docs.cribl.io/stream/routes"
+    enabled: false  # This needs special handling at the route collection level
 
   # ========================================
   # Configuration Quality Rules (New for Phase 2D)

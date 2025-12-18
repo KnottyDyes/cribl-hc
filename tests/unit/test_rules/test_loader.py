@@ -535,3 +535,71 @@ class TestRuleEvaluator:
         }
         violated = evaluator.evaluate_rule(rule, config_bad)
         assert violated is True
+
+    def test_evaluate_route_output_required(self):
+        """Test Phase 2C: Route output destination check."""
+        evaluator = RuleEvaluator()
+
+        rule = BestPracticeRule(
+            id="rule-rel-route-output-required",
+            name="Route missing output destination",
+            category="reliability",
+            description="Route does not specify an output destination",
+            rationale="Routes without outputs will drop events",
+            check_type="config_pattern",
+            validation_logic="output exists: output",
+            severity_if_violated="high",
+            documentation_link="https://docs.cribl.io/stream/routes",
+            enabled=True
+        )
+
+        # Route with output = no violation
+        config_with_output = {
+            "id": "route-1",
+            "filter": "true",
+            "output": "splunk-output"
+        }
+        violated = evaluator.evaluate_rule(rule, config_with_output)
+        assert violated is False
+
+        # Route without output = violation
+        config_no_output = {
+            "id": "route-2",
+            "filter": "source=='app'"
+        }
+        violated = evaluator.evaluate_rule(rule, config_no_output)
+        assert violated is True
+
+    def test_evaluate_route_filter_required(self):
+        """Test Phase 2C: Route filter expression check."""
+        evaluator = RuleEvaluator()
+
+        rule = BestPracticeRule(
+            id="rule-rel-route-filter-required",
+            name="Route missing filter expression",
+            category="reliability",
+            description="Route does not specify a filter expression",
+            rationale="Routes without filters will match all events",
+            check_type="config_pattern",
+            validation_logic="filter exists: filter",
+            severity_if_violated="low",
+            documentation_link="https://docs.cribl.io/stream/routes",
+            enabled=True
+        )
+
+        # Route with filter = no violation
+        config_with_filter = {
+            "id": "route-1",
+            "filter": "source=='app'",
+            "output": "default"
+        }
+        violated = evaluator.evaluate_rule(rule, config_with_filter)
+        assert violated is False
+
+        # Route without filter = violation
+        config_no_filter = {
+            "id": "route-2",
+            "output": "default"
+        }
+        violated = evaluator.evaluate_rule(rule, config_no_filter)
+        assert violated is True
