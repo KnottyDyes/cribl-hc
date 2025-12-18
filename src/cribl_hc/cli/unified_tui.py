@@ -214,17 +214,44 @@ class UnifiedTUI:
             return
 
         # Show available deployments
+        deployment_list = sorted(credentials.keys())
+        default_deployment = deployment_list[0]
+
         self.console.print("[bold]Available Deployments:[/bold]")
-        for i, deployment_id in enumerate(sorted(credentials.keys()), 1):
+        for i, deployment_id in enumerate(deployment_list, 1):
             url = credentials[deployment_id].get("url", "Unknown")
             self.console.print(f"  {i}. [cyan]{deployment_id}[/cyan] - {url}")
         self.console.print()
 
-        # Get deployment selection
-        deployment_id = Prompt.ask(
-            "[cyan]Select deployment[/cyan]",
-            choices=list(credentials.keys())
-        )
+        # Get deployment selection with support for numbers, names, or Enter for default
+        while True:
+            selection = Prompt.ask(
+                "[cyan]Select deployment (number or name)[/cyan]",
+                default=default_deployment
+            )
+
+            # Handle empty input (Enter pressed) - use default
+            if not selection:
+                deployment_id = default_deployment
+                break
+
+            # Try to parse as number
+            if selection.isdigit():
+                idx = int(selection) - 1
+                if 0 <= idx < len(deployment_list):
+                    deployment_id = deployment_list[idx]
+                    break
+                else:
+                    self.console.print(f"[red]Invalid number. Please enter 1-{len(deployment_list)}[/red]")
+                    continue
+
+            # Try as deployment name
+            if selection in credentials:
+                deployment_id = selection
+                break
+            else:
+                self.console.print(f"[red]Deployment '{selection}' not found[/red]")
+                continue
 
         cred = credentials[deployment_id]
         url = cred.get("url")

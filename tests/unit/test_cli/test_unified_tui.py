@@ -256,6 +256,134 @@ class TestUnifiedTUI:
             # Should set running to False
             assert tui.running is False
 
+    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.commands.config.load_credentials")
+    @patch("cribl_hc.cli.unified_tui.asyncio.run")
+    def test_run_health_check_select_by_number(self, mock_run, mock_load, mock_prompt):
+        """Test selecting deployment by number."""
+        tui = UnifiedTUI()
+
+        # Mock credentials with multiple deployments
+        mock_load.return_value = {
+            "prod": {"url": "https://prod.com", "token": "prod-token"},
+            "dev": {"url": "https://dev.com", "token": "dev-token"},
+        }
+
+        # User selects deployment by number (2 = "prod" after sorting)
+        mock_prompt.side_effect = ["2", ""]  # Select number 2, then press enter to continue
+
+        # Mock successful analysis
+        from cribl_hc.models.analysis import AnalysisRun
+        from datetime import datetime, timezone
+
+        mock_analysis_run = AnalysisRun(
+            id="test-run",
+            deployment_id="prod",
+            started_at=datetime.now(timezone.utc),
+            status="completed",
+            objectives_analyzed=["health"],
+            findings=[],
+            recommendations=[],
+            api_calls_used=10
+        )
+        mock_run.return_value = mock_analysis_run
+
+        with patch.object(tui.console, "clear"), \
+             patch.object(tui.console, "print"), \
+             patch.object(tui.results_tui, "display") as mock_display:
+            tui._run_health_check()
+
+            # Should display results for "prod" (2nd in sorted list)
+            mock_display.assert_called_once()
+
+    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.commands.config.load_credentials")
+    @patch("cribl_hc.cli.unified_tui.asyncio.run")
+    def test_run_health_check_select_by_default(self, mock_run, mock_load, mock_prompt):
+        """Test selecting deployment by pressing Enter (default)."""
+        tui = UnifiedTUI()
+
+        # Mock credentials
+        mock_load.return_value = {
+            "prod": {"url": "https://prod.com", "token": "prod-token"},
+            "dev": {"url": "https://dev.com", "token": "dev-token"},
+        }
+
+        # User presses Enter (empty string) to select default (first sorted = "dev")
+        mock_prompt.side_effect = ["", ""]  # Empty for default, then press enter to continue
+
+        # Mock successful analysis
+        from cribl_hc.models.analysis import AnalysisRun
+        from datetime import datetime, timezone
+
+        mock_analysis_run = AnalysisRun(
+            id="test-run",
+            deployment_id="dev",
+            started_at=datetime.now(timezone.utc),
+            status="completed",
+            objectives_analyzed=["health"],
+            findings=[],
+            recommendations=[],
+            api_calls_used=10
+        )
+        mock_run.return_value = mock_analysis_run
+
+        with patch.object(tui.console, "clear"), \
+             patch.object(tui.console, "print"), \
+             patch.object(tui.results_tui, "display") as mock_display:
+            tui._run_health_check()
+
+            # Should display results for default deployment
+            mock_display.assert_called_once()
+
+    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.commands.config.load_credentials")
+    def test_run_health_check_invalid_number_then_valid(self, mock_load, mock_prompt):
+        """Test selecting deployment with invalid number, then valid selection."""
+        tui = UnifiedTUI()
+
+        # Mock credentials
+        mock_load.return_value = {
+            "prod": {"url": "https://prod.com", "token": "prod-token"}
+        }
+
+        # User enters invalid number (5), then valid name (prod), then press enter
+        mock_prompt.side_effect = ["5", "prod", ""]
+
+        with patch.object(tui.console, "clear"), \
+             patch.object(tui.console, "print") as mock_print, \
+             patch("cribl_hc.cli.unified_tui.asyncio.run"):
+            tui._run_health_check()
+
+            # Should show invalid number error
+            error_calls = [call for call in mock_print.call_args_list
+                          if "Invalid number" in str(call)]
+            assert len(error_calls) > 0
+
+    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.commands.config.load_credentials")
+    def test_run_health_check_invalid_name_then_valid(self, mock_load, mock_prompt):
+        """Test selecting deployment with invalid name, then valid selection."""
+        tui = UnifiedTUI()
+
+        # Mock credentials
+        mock_load.return_value = {
+            "prod": {"url": "https://prod.com", "token": "prod-token"}
+        }
+
+        # User enters invalid name (staging), then valid name (prod), then press enter
+        mock_prompt.side_effect = ["staging", "prod", ""]
+
+        with patch.object(tui.console, "clear"), \
+             patch.object(tui.console, "print") as mock_print, \
+             patch("cribl_hc.cli.unified_tui.asyncio.run"):
+            tui._run_health_check()
+
+            # Should show not found error
+            error_calls = [call for call in mock_print.call_args_list
+                          if "not found" in str(call)]
+            assert len(error_calls) > 0
+
     def test_run_quit_immediately(self):
         """Test running TUI and quitting immediately."""
         tui = UnifiedTUI()
