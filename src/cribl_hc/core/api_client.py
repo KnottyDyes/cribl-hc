@@ -63,27 +63,50 @@ class CriblAPIClient:
     def __init__(
         self,
         base_url: str,
-        auth_token: str,
+        auth_token: Optional[str] = None,
         timeout: float = 30.0,
         max_retries: int = 3,
         rate_limiter: Optional[RateLimiter] = None,
         worker_group: Optional[str] = None,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
     ):
         """
         Initialize Cribl API client.
 
+        Supports two authentication methods:
+        1. Bearer Token (direct): Provide auth_token
+        2. OAuth Client Credentials: Provide client_id and client_secret
+
         Args:
             base_url: Cribl leader URL (e.g., "https://cribl.example.com")
-            auth_token: Bearer token for authentication
+            auth_token: Bearer token for direct authentication (optional)
             timeout: Request timeout in seconds (default: 30.0)
             max_retries: Maximum retry attempts (default: 3)
             rate_limiter: Optional rate limiter (creates default if not provided)
             worker_group: Worker group name for Cribl Cloud (auto-detected if not provided)
+            client_id: OAuth Client ID (optional, for OAuth flow)
+            client_secret: OAuth Client Secret (optional, for OAuth flow)
+
+        Raises:
+            ValueError: If neither auth_token nor client_id/client_secret provided
         """
         self.base_url = base_url.rstrip("/")
-        self.auth_token = auth_token
         self.timeout = timeout
         self.max_retries = max_retries
+
+        # Determine authentication method
+        if auth_token:
+            self.auth_token = auth_token
+            self._oauth_manager: Optional["OAuthTokenManager"] = None
+        elif client_id and client_secret:
+            from cribl_hc.core.auth import OAuthTokenManager
+            self.auth_token = None  # Will be set by OAuth manager
+            self._oauth_manager = OAuthTokenManager(client_id, client_secret)
+        else:
+            raise ValueError(
+                "Must provide either auth_token OR both client_id and client_secret"
+            )
 
         # HTTP client will be initialized in __aenter__
         self._client: Optional[httpx.AsyncClient] = None
@@ -106,6 +129,11 @@ class CriblAPIClient:
 
     async def __aenter__(self):
         """Async context manager entry - initialize HTTP client."""
+        # Get access token (either direct token or via OAuth)
+        if self._oauth_manager:
+            self.auth_token = await self._oauth_manager.get_access_token()
+            log.info("oauth_authentication", message="Obtained access token via OAuth")
+
         headers = {
             "Authorization": f"Bearer {self.auth_token}",
             "Accept": "application/json",
