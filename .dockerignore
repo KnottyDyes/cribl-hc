@@ -1,0 +1,96 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Documentation (not needed in image)
+docs/
+*.md
+!README.md
+
+# Specs and planning
+specs/
+.claude/
+CLAUDE.md
+
+# Reports and temporary files
+*.log
+*.tmp
+reports/
+prod_report.md
+*.html
+htmlcov/
+
+# Session files
+SESSION_SUMMARY.md
+SUMMARY.md
+OAUTH_AND_TUI_UPDATES.md
+OAUTH_AUTHENTICATION_SUPPORT.md
+PHASE_2A_COMPLETION.md
+PERFORMANCE_VALIDATION.md
+CREDENTIAL_STORAGE_IMPLEMENTATION.md
+HEALTH_ANALYZER_ENHANCEMENTS.md
+DEBUG_MODE_USAGE.md
+
+# Docker files (avoid recursion)
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+
+# Credentials (NEVER include in image)
+.cribl-hc/
+credentials.enc
+.key

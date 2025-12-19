@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  cribl-hc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cribl-health-check:latest
+    container_name: cribl-hc
+
+    # Mount volumes for persistent storage
+    volumes:
+      # Credentials storage (persists between runs)
+      - cribl-hc-credentials:/home/criblhc/.cribl-hc
+      # Reports output directory
+      - ./reports:/app/reports
+
+    # Environment variables (optional)
+    environment:
+      # Set log level (debug, info, warning, error)
+      - LOG_LEVEL=info
+      # Uncomment to disable colored output
+      # - NO_COLOR=1
+
+    # Network mode (use host network to access local Cribl instances)
+    # Comment out if not needed
+    # network_mode: host
+
+    # Default command (override with docker-compose run)
+    command: ["--help"]
+
+    # Stdin and TTY for interactive TUI
+    stdin_open: true
+    tty: true
+
+# Named volumes for credential persistence
+volumes:
+  cribl-hc-credentials:
+    driver: local
+
+# Example usage:
+#
+# Build the image:
+#   docker-compose build
+#
+# Run interactive TUI:
+#   docker-compose run --rm cribl-hc tui
+#
+# Configure credentials:
+#   docker-compose run --rm cribl-hc config set prod \
+#     --url https://cribl.example.com \
+#     --token YOUR_TOKEN
+#
+# Run analysis:
+#   docker-compose run --rm cribl-hc analyze health --deployment prod
+#
+# Export results:
+#   Results saved to ./reports/ directory (auto-mounted)

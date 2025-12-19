@@ -37,13 +37,29 @@ _*Disk metrics available on self-hosted deployments only. Cribl Cloud does not e
 
 ## Installation
 
-### Prerequisites
+Choose your preferred installation method:
 
+### Option 1: Docker (Recommended for Quick Start)
+
+**No Python installation required!**
+
+```bash
+git clone https://github.com/KnottyDyes/cribl-hc.git
+cd cribl-hc
+
+# Build and run with docker-compose
+docker-compose build
+docker-compose run --rm cribl-hc --help
+```
+
+See [Docker Guide](docs/DOCKER_GUIDE.md) for full Docker usage.
+
+### Option 2: Install from Source
+
+**Prerequisites:**
 - Python 3.11 or higher
 - Cribl Stream API access token
 - Network access to Cribl Stream API endpoints
-
-### Install from Source (Current)
 
 ```bash
 git clone https://github.com/KnottyDyes/cribl-hc.git
@@ -51,14 +67,14 @@ cd cribl-hc
 pip install -e .
 ```
 
-### Install from PyPI (Coming Soon)
+### Option 3: Install from PyPI (Coming Soon)
 
 ```bash
 # Not yet available - package will be published to PyPI in the future
 pip install cribl-health-check
 ```
 
-> **Note**: The package is not yet published to PyPI. Currently, you must install from source using the method above.
+> **Note**: The package is not yet published to PyPI. Currently, install from source or use Docker.
 
 ## Quick Start
 
