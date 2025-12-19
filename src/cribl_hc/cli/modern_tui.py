@@ -31,6 +31,8 @@ from textual.widgets import (
     ListItem,
     Input,
     Select,
+    RadioSet,
+    RadioButton,
 )
 from textual.screen import Screen, ModalScreen
 from textual.binding import Binding
@@ -56,8 +58,8 @@ class AddDeploymentDialog(ModalScreen):
     }
 
     #dialog {
-        width: 60;
-        height: 28;
+        width: 70;
+        height: 35;
         border: thick $primary;
         background: $surface;
         padding: 1 2;
@@ -72,6 +74,17 @@ class AddDeploymentDialog(ModalScreen):
     .input-row {
         height: 4;
         margin: 1 0;
+    }
+
+    .auth-section {
+        border: solid $primary;
+        padding: 1;
+        margin: 1 0;
+    }
+
+    RadioSet {
+        height: 3;
+        margin: 0 0 1 0;
     }
 
     .button-row {
@@ -96,29 +109,85 @@ class AddDeploymentDialog(ModalScreen):
             with Container(classes="input-row"):
                 yield Label("URL:")
                 yield Input(placeholder="https://main-myorg.cribl.cloud", id="input-url")
-            with Container(classes="input-row"):
-                yield Label("Token:")
-                yield Input(placeholder="Your bearer token", password=True, id="input-token")
+
+            # Authentication method selection
+            with Container(classes="auth-section"):
+                yield Label("Authentication Method:")
+                with RadioSet(id="auth-method"):
+                    yield RadioButton("Bearer Token (Quick Start)", value=True, id="radio-bearer")
+                    yield RadioButton("API Credentials (Production)", id="radio-oauth")
+
+                # Bearer token inputs
+                with Container(id="bearer-inputs"):
+                    with Container(classes="input-row"):
+                        yield Label("Token:")
+                        yield Input(placeholder="Your bearer token", password=True, id="input-token")
+
+                # OAuth inputs (hidden by default)
+                with Container(id="oauth-inputs", classes="hidden"):
+                    with Container(classes="input-row"):
+                        yield Label("Client ID:")
+                        yield Input(placeholder="Your client ID", id="input-client-id")
+                    with Container(classes="input-row"):
+                        yield Label("Client Secret:")
+                        yield Input(placeholder="Your client secret", password=True, id="input-client-secret")
+
             with Horizontal(classes="button-row"):
                 yield Button("Save", variant="success", id="btn-save")
                 yield Button("Cancel", variant="default", id="btn-cancel")
 
+    def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
+        """Toggle auth input fields based on selection."""
+        if event.pressed.id == "radio-bearer":
+            self.query_one("#bearer-inputs").remove_class("hidden")
+            self.query_one("#oauth-inputs").add_class("hidden")
+        else:
+            self.query_one("#bearer-inputs").add_class("hidden")
+            self.query_one("#oauth-inputs").remove_class("hidden")
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "btn-save":
-            # Get input values
+            # Get common input values
             deployment_id = self.query_one("#input-id", Input).value.strip()
             url = self.query_one("#input-url", Input).value.strip()
-            token = self.query_one("#input-token", Input).value.strip()
 
-            if not deployment_id or not url or not token:
-                self.app.notify("All fields are required", severity="error")
+            if not deployment_id or not url:
+                self.app.notify("Deployment ID and URL are required", severity="error")
                 return
 
-            # Save credentials
+            # Determine auth method
+            auth_method = self.query_one("#auth-method", RadioSet)
+            use_bearer = auth_method.pressed_button.id == "radio-bearer"
+
             try:
                 credentials = load_credentials()
-                credentials[deployment_id] = {"url": url, "token": token}
+
+                if use_bearer:
+                    # Bearer token auth
+                    token = self.query_one("#input-token", Input).value.strip()
+                    if not token:
+                        self.app.notify("Token is required", severity="error")
+                        return
+                    credentials[deployment_id] = {
+                        "url": url,
+                        "auth_type": "bearer",
+                        "token": token
+                    }
+                else:
+                    # OAuth auth
+                    client_id = self.query_one("#input-client-id", Input).value.strip()
+                    client_secret = self.query_one("#input-client-secret", Input).value.strip()
+                    if not client_id or not client_secret:
+                        self.app.notify("Client ID and Secret are required", severity="error")
+                        return
+                    credentials[deployment_id] = {
+                        "url": url,
+                        "auth_type": "oauth",
+                        "client_id": client_id,
+                        "client_secret": client_secret
+                    }
+
                 save_credentials(credentials)
                 self.app.notify(f"Deployment '{deployment_id}' added successfully", severity="information")
                 self.dismiss(True)
@@ -137,8 +206,8 @@ class EditDeploymentDialog(ModalScreen):
     }
 
     #dialog {
-        width: 60;
-        height: 25;
+        width: 70;
+        height: 35;
         border: thick $primary;
         background: $surface;
         padding: 1 2;
@@ -155,6 +224,12 @@ class EditDeploymentDialog(ModalScreen):
         margin: 1 0;
     }
 
+    .auth-section {
+        border: solid $primary;
+        padding: 1;
+        margin: 1 0;
+    }
+
     .button-row {
         height: 5;
         align: center middle;
@@ -167,11 +242,14 @@ class EditDeploymentDialog(ModalScreen):
     }
     """
 
-    def __init__(self, deployment_id: str, url: str, token: str):
+    def __init__(self, deployment_id: str, credential_data: dict):
         super().__init__()
         self.deployment_id = deployment_id
-        self.initial_url = url
-        self.initial_token = token
+        self.initial_url = credential_data.get("url", "")
+        self.auth_type = credential_data.get("auth_type", "bearer")
+        self.initial_token = credential_data.get("token", "")
+        self.initial_client_id = credential_data.get("client_id", "")
+        self.initial_client_secret = credential_data.get("client_secret", "")
 
     def compose(self) -> ComposeResult:
         """Create dialog widgets."""
@@ -180,28 +258,107 @@ class EditDeploymentDialog(ModalScreen):
             with Container(classes="input-row"):
                 yield Label("URL:")
                 yield Input(value=self.initial_url, id="input-url")
-            with Container(classes="input-row"):
-                yield Label("Token:")
-                yield Input(value=self.initial_token, password=True, id="input-token")
+
+            # Authentication method selection
+            with Container(classes="auth-section"):
+                yield Label("Authentication Method:")
+                with RadioSet(id="auth-method"):
+                    yield RadioButton(
+                        "Bearer Token (Quick Start)",
+                        value=(self.auth_type == "bearer"),
+                        id="radio-bearer"
+                    )
+                    yield RadioButton(
+                        "API Credentials (Production)",
+                        value=(self.auth_type == "oauth"),
+                        id="radio-oauth"
+                    )
+
+                # Bearer token inputs
+                bearer_classes = "bearer-inputs" if self.auth_type == "bearer" else "bearer-inputs hidden"
+                with Container(id="bearer-inputs", classes=bearer_classes):
+                    with Container(classes="input-row"):
+                        yield Label("Token:")
+                        yield Input(
+                            value=self.initial_token,
+                            placeholder="Your bearer token",
+                            password=True,
+                            id="input-token"
+                        )
+
+                # OAuth inputs
+                oauth_classes = "oauth-inputs" if self.auth_type == "oauth" else "oauth-inputs hidden"
+                with Container(id="oauth-inputs", classes=oauth_classes):
+                    with Container(classes="input-row"):
+                        yield Label("Client ID:")
+                        yield Input(
+                            value=self.initial_client_id,
+                            placeholder="Your client ID",
+                            id="input-client-id"
+                        )
+                    with Container(classes="input-row"):
+                        yield Label("Client Secret:")
+                        yield Input(
+                            value=self.initial_client_secret,
+                            placeholder="Your client secret",
+                            password=True,
+                            id="input-client-secret"
+                        )
+
             with Horizontal(classes="button-row"):
                 yield Button("Save", variant="success", id="btn-save")
                 yield Button("Cancel", variant="default", id="btn-cancel")
 
+    def on_radio_set_changed(self, event: RadioSet.Changed) -> None:
+        """Toggle auth input fields based on selection."""
+        if event.pressed.id == "radio-bearer":
+            self.query_one("#bearer-inputs").remove_class("hidden")
+            self.query_one("#oauth-inputs").add_class("hidden")
+        else:
+            self.query_one("#bearer-inputs").add_class("hidden")
+            self.query_one("#oauth-inputs").remove_class("hidden")
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "btn-save":
-            # Get input values
+            # Get common input values
             url = self.query_one("#input-url", Input).value.strip()
-            token = self.query_one("#input-token", Input).value.strip()
 
-            if not url or not token:
-                self.app.notify("All fields are required", severity="error")
+            if not url:
+                self.app.notify("URL is required", severity="error")
                 return
 
-            # Update credentials
+            # Determine which authentication method is selected
+            auth_method = self.query_one("#auth-method", RadioSet)
+            use_bearer = auth_method.pressed_button.id == "radio-bearer"
+
+            # Update credentials based on auth method
             try:
                 credentials = load_credentials()
-                credentials[self.deployment_id] = {"url": url, "token": token}
+
+                if use_bearer:
+                    token = self.query_one("#input-token", Input).value.strip()
+                    if not token:
+                        self.app.notify("Bearer token is required", severity="error")
+                        return
+                    credentials[self.deployment_id] = {
+                        "url": url,
+                        "auth_type": "bearer",
+                        "token": token
+                    }
+                else:
+                    client_id = self.query_one("#input-client-id", Input).value.strip()
+                    client_secret = self.query_one("#input-client-secret", Input).value.strip()
+                    if not client_id or not client_secret:
+                        self.app.notify("Client ID and Client Secret are required", severity="error")
+                        return
+                    credentials[self.deployment_id] = {
+                        "url": url,
+                        "auth_type": "oauth",
+                        "client_id": client_id,
+                        "client_secret": client_secret
+                    }
+
                 save_credentials(credentials)
                 self.app.notify(f"Deployment '{self.deployment_id}' updated successfully", severity="information")
                 self.dismiss(True)
@@ -612,6 +769,10 @@ class CriblHealthCheckApp(App):
     Select {
         width: 100%;
     }
+
+    .hidden {
+        display: none;
+    }
     """
 
     TITLE = "Cribl Health Check"
@@ -749,15 +910,13 @@ class CriblHealthCheckApp(App):
 
             # Get current credentials
             current = credentials[selected]
-            url = current.get("url", "")
-            token = current.get("token", "")
 
             # Show edit dialog
             def check_result(updated: bool) -> None:
                 if updated:
                     self.action_refresh()
 
-            self.push_screen(EditDeploymentDialog(selected, url, token), check_result)
+            self.push_screen(EditDeploymentDialog(selected, current), check_result)
         except Exception as e:
             self.notify(f"Error: {str(e)}", severity="error")
 

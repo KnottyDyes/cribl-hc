@@ -64,33 +64,46 @@ pip install cribl-health-check
 
 ### 1. Configure Credentials
 
-```bash
-# Configure credentials for your Cribl Stream deployment
+cribl-hc supports two authentication methods:
 
-# For Cribl Cloud (format: https://<workspace>-<org-name>.cribl.cloud)
-# Where <workspace> is your workspace ID (e.g., "main", "dev", "prod")
+#### Option A: Bearer Token (Quick Start)
+Found in Cribl Stream UI → **Settings** → **API Reference** → Copy token
+
+```bash
+# Cribl Cloud
 cribl-hc config set prod \
   --url https://main-myorg.cribl.cloud \
-  --token YOUR_API_TOKEN
+  --token YOUR_BEARER_TOKEN
 
-# For self-hosted Cribl Stream
+# Self-hosted
 cribl-hc config set prod \
   --url https://cribl.example.com \
-  --token YOUR_API_TOKEN
-
-# Short form:
-cribl-hc config set prod -u https://main-myorg.cribl.cloud -t YOUR_API_TOKEN
+  --token YOUR_BEARER_TOKEN
 ```
+
+#### Option B: API Credentials (Recommended for Production)
+Created in Cribl Stream UI → **Settings** → **API Settings** → **Create API Credential**
+
+```bash
+cribl-hc config set prod \
+  --url https://main-myorg.cribl.cloud \
+  --client-id YOUR_CLIENT_ID \
+  --client-secret YOUR_CLIENT_SECRET
+```
+
+**Why use API Credentials?**
+- Auto-expiring tokens (better security)
+- Easier credential rotation
+- Recommended for Cribl.Cloud
+- What admins typically create
 
 **Alternative**: Use environment variables:
 ```bash
-# Cribl Cloud (workspace can be "main", "dev", "prod", etc.)
+# Bearer Token method
 export CRIBL_URL=https://main-myorg.cribl.cloud
 export CRIBL_TOKEN=YOUR_API_TOKEN
 
-# Self-hosted
-export CRIBL_URL=https://cribl.example.com
-export CRIBL_TOKEN=YOUR_API_TOKEN
+# OAuth method (set via config command only)
 ```
 
 ### 2. Interactive TUI (Recommended for Getting Started)

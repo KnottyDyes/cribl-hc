@@ -41,16 +41,34 @@ pip install cribl-health-check
 
 ### 1. Set Your Credentials
 
+cribl-hc supports two authentication methods:
+
+**Option A: Bearer Token** (Quick Start)
 ```bash
-# For Cribl Cloud (format: https://<workspace>-<org-name>.cribl.cloud)
-# Where <workspace> is your workspace ID (e.g., "main", "dev", "prod")
+# Store credentials (recommended - encrypted storage)
+cribl-hc config set prod \
+  --url https://main-myorg.cribl.cloud \
+  --token YOUR_BEARER_TOKEN
+
+# Or use environment variables
 export CRIBL_URL=https://main-myorg.cribl.cloud
 export CRIBL_TOKEN=your_bearer_token
-
-# Or for self-hosted Cribl Stream
-export CRIBL_URL=https://cribl.example.com
-export CRIBL_TOKEN=your_bearer_token
 ```
+
+**Option B: API Credentials** (Production - Recommended)
+```bash
+# Create API credential in Cribl UI:
+# Settings → API Settings → Create API Credential
+
+cribl-hc config set prod \
+  --url https://main-myorg.cribl.cloud \
+  --client-id YOUR_CLIENT_ID \
+  --client-secret YOUR_CLIENT_SECRET
+```
+
+**Where to find credentials:**
+- Bearer Token: Cribl UI → Settings → API Reference → Copy token
+- API Credentials: Cribl UI → Settings → API Settings → Create API Credential
 
 ### 2. Run Your First Health Check
 

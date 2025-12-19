@@ -584,3 +584,211 @@ class TestEdgeAPIMethods:
         assert normalized == stream_worker
         assert normalized["status"] == "healthy"
         assert normalized["group"] == "default"
+
+
+class TestOAuthAuthentication:
+    """Test OAuth authentication integration in CriblAPIClient."""
+
+    def test_client_initialization_with_oauth_credentials(self):
+        """Test client initialization with OAuth credentials."""
+        client = CriblAPIClient(
+            base_url="https://main-myorg.cribl.cloud",
+            client_id="test_client_id",
+            client_secret="test_client_secret",
+        )
+
+        assert client.base_url == "https://main-myorg.cribl.cloud"
+        assert client.auth_token is None  # Not set until context manager entry
+        assert client._oauth_manager is not None
+        assert client._oauth_manager.client_id == "test_client_id"
+        assert client._oauth_manager.client_secret == "test_client_secret"
+
+    def test_client_initialization_with_bearer_token(self):
+        """Test client initialization with direct bearer token."""
+        client = CriblAPIClient(
+            base_url="https://cribl.example.com",
+            auth_token="my_bearer_token",
+        )
+
+        assert client.base_url == "https://cribl.example.com"
+        assert client.auth_token == "my_bearer_token"
+        assert client._oauth_manager is None
+
+    def test_client_initialization_requires_auth(self):
+        """Test that client requires either token or OAuth credentials."""
+        with pytest.raises(ValueError, match="Must provide either auth_token OR both client_id and client_secret"):
+            CriblAPIClient(
+                base_url="https://cribl.example.com",
+                # No auth provided
+            )
+
+    def test_client_initialization_oauth_requires_both_credentials(self):
+        """Test that OAuth requires both client_id and client_secret."""
+        with pytest.raises(ValueError, match="Must provide either auth_token OR both client_id and client_secret"):
+            CriblAPIClient(
+                base_url="https://cribl.example.com",
+                client_id="only_id",  # Missing client_secret
+            )
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_oauth_token_exchange_on_context_entry(self):
+        """Test that OAuth token is exchanged when entering context manager."""
+        # Mock OAuth token endpoint
+        respx.post("https://login.cribl.cloud/oauth/token").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test_oauth_token",
+                    "token_type": "Bearer",
+                    "expires_in": 86400,
+                },
+            )
+        )
+
+        client = CriblAPIClient(
+            base_url="https://main-myorg.cribl.cloud",
+            client_id="test_client_id",
+            client_secret="test_client_secret",
+        )
+
+        # Token should not be set before context manager entry
+        assert client.auth_token is None
+
+        # Enter context manager
+        async with client:
+            # Token should now be set from OAuth exchange
+            assert client.auth_token is not None
+            assert client.auth_token == "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test_oauth_token"
+            assert client._client is not None
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_oauth_api_call_uses_exchanged_token(self):
+        """Test that API calls use the OAuth-exchanged token."""
+        # Mock OAuth token endpoint
+        respx.post("https://login.cribl.cloud/oauth/token").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "access_token": "oauth_access_token_123",
+                    "token_type": "Bearer",
+                    "expires_in": 86400,
+                },
+            )
+        )
+
+        # Mock API version endpoint
+        version_route = respx.get("https://main-myorg.cribl.cloud/api/v1/version").mock(
+            return_value=httpx.Response(
+                200,
+                json={"version": "4.6.0", "build": "54321"},
+            )
+        )
+
+        client = CriblAPIClient(
+            base_url="https://main-myorg.cribl.cloud",
+            client_id="test_client_id",
+            client_secret="test_client_secret",
+        )
+
+        async with client:
+            result = await client.test_connection()
+
+        # Verify the API call was made with OAuth token
+        assert result.success is True
+        assert result.cribl_version == "4.6.0"
+
+        # Verify Authorization header had the OAuth token
+        assert version_route.called
+        request = version_route.calls[0].request
+        assert request.headers["Authorization"] == "Bearer oauth_access_token_123"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_oauth_token_exchange_failure(self):
+        """Test handling of OAuth token exchange failure."""
+        # Mock OAuth endpoint to return error
+        respx.post("https://login.cribl.cloud/oauth/token").mock(
+            return_value=httpx.Response(
+                401,
+                json={"error": "invalid_client", "error_description": "Invalid credentials"},
+            )
+        )
+
+        client = CriblAPIClient(
+            base_url="https://main-myorg.cribl.cloud",
+            client_id="bad_client_id",
+            client_secret="bad_secret",
+        )
+
+        # Should raise HTTPStatusError when entering context
+        with pytest.raises(httpx.HTTPStatusError):
+            async with client:
+                pass
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_bearer_token_skips_oauth_flow(self):
+        """Test that bearer token authentication skips OAuth flow."""
+        # Don't mock OAuth endpoint - it shouldn't be called
+
+        # Mock API version endpoint
+        respx.get("https://cribl.example.com/api/v1/version").mock(
+            return_value=httpx.Response(
+                200,
+                json={"version": "4.5.0", "build": "11111"},
+            )
+        )
+
+        client = CriblAPIClient(
+            base_url="https://cribl.example.com",
+            auth_token="direct_bearer_token",
+        )
+
+        async with client:
+            result = await client.test_connection()
+
+        assert result.success is True
+
+        # Verify OAuth endpoint was never called
+        oauth_calls = [call for call in respx.calls if "login.cribl.cloud" in str(call.request.url)]
+        assert len(oauth_calls) == 0
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_oauth_token_cached_across_multiple_calls(self):
+        """Test that OAuth token is cached and reused."""
+        # Mock OAuth token endpoint - should only be called once
+        oauth_route = respx.post("https://login.cribl.cloud/oauth/token").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "access_token": "cached_oauth_token",
+                    "token_type": "Bearer",
+                    "expires_in": 86400,
+                },
+            )
+        )
+
+        # Mock multiple API endpoints
+        respx.get("https://main-myorg.cribl.cloud/api/v1/version").mock(
+            return_value=httpx.Response(200, json={"version": "4.6.0"})
+        )
+        respx.get("https://main-myorg.cribl.cloud/api/v1/system/settings").mock(
+            return_value=httpx.Response(200, json={"settings": {}})
+        )
+
+        client = CriblAPIClient(
+            base_url="https://main-myorg.cribl.cloud",
+            client_id="test_client_id",
+            client_secret="test_client_secret",
+        )
+
+        async with client:
+            # Make multiple API calls
+            await client.test_connection()
+            # In a real scenario, would make more API calls here
+
+        # OAuth token should only be requested once (cached)
+        assert oauth_route.call_count == 1

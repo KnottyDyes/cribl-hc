@@ -425,3 +425,298 @@ class TestExportKeyCommand:
         import stat
         mode = output_file.stat().st_mode
         assert stat.S_IMODE(mode) == 0o600
+
+
+class TestOAuthCredentialManagement:
+    """Test suite for OAuth credential management."""
+
+    def test_set_oauth_credentials(self, temp_config_dir):
+        """Test setting OAuth credentials via CLI."""
+        result = runner.invoke(
+            app,
+            [
+                "set",
+                "test-oauth",
+                "--url",
+                "https://main-myorg.cribl.cloud",
+                "--client-id",
+                "test_client_id_123",
+                "--client-secret",
+                "test_client_secret_456",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Saved credentials for deployment: test-oauth" in result.stdout
+
+        # Verify credentials were saved correctly
+        credentials = load_credentials()
+        assert "test-oauth" in credentials
+        assert credentials["test-oauth"]["url"] == "https://main-myorg.cribl.cloud"
+        assert credentials["test-oauth"]["auth_type"] == "oauth"
+        assert credentials["test-oauth"]["client_id"] == "test_client_id_123"
+        assert credentials["test-oauth"]["client_secret"] == "test_client_secret_456"
+        assert "token" not in credentials["test-oauth"]
+
+    def test_set_bearer_token_credentials(self, temp_config_dir):
+        """Test setting bearer token credentials via CLI."""
+        result = runner.invoke(
+            app,
+            [
+                "set",
+                "test-bearer",
+                "--url",
+                "https://cribl.example.com",
+                "--token",
+                "my_bearer_token_abc",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Saved credentials for deployment: test-bearer" in result.stdout
+
+        # Verify credentials were saved correctly
+        credentials = load_credentials()
+        assert "test-bearer" in credentials
+        assert credentials["test-bearer"]["url"] == "https://cribl.example.com"
+        assert credentials["test-bearer"]["auth_type"] == "bearer"
+        assert credentials["test-bearer"]["token"] == "my_bearer_token_abc"
+        assert "client_id" not in credentials["test-bearer"]
+        assert "client_secret" not in credentials["test-bearer"]
+
+    def test_set_requires_auth_credentials(self, temp_config_dir):
+        """Test that set command requires either token or OAuth credentials."""
+        result = runner.invoke(
+            app,
+            [
+                "set",
+                "test-invalid",
+                "--url",
+                "https://cribl.example.com",
+                # No auth provided
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Must provide either --token OR both --client-id and --client-secret" in result.stdout
+
+    def test_set_oauth_requires_both_credentials(self, temp_config_dir):
+        """Test that OAuth requires both client-id and client-secret."""
+        # Only client-id provided
+        result = runner.invoke(
+            app,
+            [
+                "set",
+                "test-partial",
+                "--url",
+                "https://cribl.example.com",
+                "--client-id",
+                "only_id",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Must provide either --token OR both --client-id and --client-secret" in result.stdout
+
+    def test_get_displays_oauth_credentials(self, temp_config_dir):
+        """Test that get command displays OAuth credentials properly."""
+        # First set OAuth credentials
+        credentials = {
+            "test-oauth": {
+                "url": "https://main-myorg.cribl.cloud",
+                "auth_type": "oauth",
+                "client_id": "display_test_client_id",
+                "client_secret": "display_test_client_secret",
+            }
+        }
+        save_credentials(credentials)
+
+        result = runner.invoke(app, ["get", "test-oauth"])
+
+        assert result.exit_code == 0
+        assert "test-oauth" in result.stdout
+        assert "https://main-myorg.cribl.cloud" in result.stdout
+        assert "oauth" in result.stdout.lower()
+        assert "display_test_client_id" in result.stdout
+        # Secret should be present (masked with asterisks)
+
+    def test_list_displays_both_auth_types(self, temp_config_dir):
+        """Test that list command displays both auth types correctly."""
+        # Set both OAuth and bearer token credentials
+        credentials = {
+            "prod-oauth": {
+                "url": "https://main-myorg.cribl.cloud",
+                "auth_type": "oauth",
+                "client_id": "prod_client_id",
+                "client_secret": "prod_client_secret",
+            },
+            "dev-bearer": {
+                "url": "https://cribl.example.com",
+                "auth_type": "bearer",
+                "token": "dev_bearer_token",
+            },
+        }
+        save_credentials(credentials)
+
+        result = runner.invoke(app, ["list"])
+
+        assert result.exit_code == 0
+        # Check that both deployments are listed
+        assert "prod-oauth" in result.stdout
+        assert "dev-bearer" in result.stdout
+        # Check that URLs are displayed (may be truncated with ...)
+        assert "main-myorg" in result.stdout or "cribl.cloud" in result.stdout
+        assert "cribl.example" in result.stdout
+
+    def test_delete_oauth_credentials(self, temp_config_dir):
+        """Test deleting OAuth credentials."""
+        # First set OAuth credentials
+        credentials = {
+            "delete-me": {
+                "url": "https://delete.example.com",
+                "auth_type": "oauth",
+                "client_id": "delete_client_id",
+                "client_secret": "delete_client_secret",
+            }
+        }
+        save_credentials(credentials)
+
+        # Verify it exists
+        assert "delete-me" in load_credentials()
+
+        # Delete it
+        result = runner.invoke(app, ["delete", "delete-me", "--yes"])
+
+        assert result.exit_code == 0
+        assert "Deleted credentials for: delete-me" in result.stdout
+
+        # Verify it's gone
+        credentials = load_credentials()
+        assert "delete-me" not in credentials
+
+    def test_update_from_bearer_to_oauth(self, temp_config_dir):
+        """Test updating credentials from bearer token to OAuth."""
+        # Start with bearer token
+        credentials = {
+            "update-test": {
+                "url": "https://update.example.com",
+                "auth_type": "bearer",
+                "token": "old_bearer_token",
+            }
+        }
+        save_credentials(credentials)
+
+        # Update to OAuth
+        result = runner.invoke(
+            app,
+            [
+                "set",
+                "update-test",
+                "--url",
+                "https://update.example.com",
+                "--client-id",
+                "new_client_id",
+                "--client-secret",
+                "new_client_secret",
+            ],
+        )
+
+        assert result.exit_code == 0
+
+        # Verify it's now OAuth
+        credentials = load_credentials()
+        assert credentials["update-test"]["auth_type"] == "oauth"
+        assert credentials["update-test"]["client_id"] == "new_client_id"
+        assert credentials["update-test"]["client_secret"] == "new_client_secret"
+        assert "token" not in credentials["update-test"]
+
+    def test_update_from_oauth_to_bearer(self, temp_config_dir):
+        """Test updating credentials from OAuth to bearer token."""
+        # Start with OAuth
+        credentials = {
+            "update-test": {
+                "url": "https://update.example.com",
+                "auth_type": "oauth",
+                "client_id": "old_client_id",
+                "client_secret": "old_client_secret",
+            }
+        }
+        save_credentials(credentials)
+
+        # Update to bearer token
+        result = runner.invoke(
+            app,
+            [
+                "set",
+                "update-test",
+                "--url",
+                "https://update.example.com",
+                "--token",
+                "new_bearer_token",
+            ],
+        )
+
+        assert result.exit_code == 0
+
+        # Verify it's now bearer token
+        credentials = load_credentials()
+        assert credentials["update-test"]["auth_type"] == "bearer"
+        assert credentials["update-test"]["token"] == "new_bearer_token"
+        assert "client_id" not in credentials["update-test"]
+        assert "client_secret" not in credentials["update-test"]
+
+    @pytest.mark.asyncio
+    async def test_create_api_client_from_oauth_credentials(self, temp_config_dir):
+        """Test creating API client from stored OAuth credentials."""
+        from cribl_hc.cli.commands.config import create_api_client_from_credentials
+
+        # Save OAuth credentials
+        credentials = {
+            "api-test-oauth": {
+                "url": "https://main-myorg.cribl.cloud",
+                "auth_type": "oauth",
+                "client_id": "api_test_client_id",
+                "client_secret": "api_test_client_secret",
+            }
+        }
+        save_credentials(credentials)
+
+        # Create API client
+        client = create_api_client_from_credentials("api-test-oauth")
+
+        assert client is not None
+        assert client.base_url == "https://main-myorg.cribl.cloud"
+        assert client._oauth_manager is not None
+        assert client._oauth_manager.client_id == "api_test_client_id"
+        assert client._oauth_manager.client_secret == "api_test_client_secret"
+
+    @pytest.mark.asyncio
+    async def test_create_api_client_from_bearer_credentials(self, temp_config_dir):
+        """Test creating API client from stored bearer token credentials."""
+        from cribl_hc.cli.commands.config import create_api_client_from_credentials
+
+        # Save bearer token credentials
+        credentials = {
+            "api-test-bearer": {
+                "url": "https://cribl.example.com",
+                "auth_type": "bearer",
+                "token": "api_test_bearer_token",
+            }
+        }
+        save_credentials(credentials)
+
+        # Create API client
+        client = create_api_client_from_credentials("api-test-bearer")
+
+        assert client is not None
+        assert client.base_url == "https://cribl.example.com"
+        assert client.auth_token == "api_test_bearer_token"
+        assert client._oauth_manager is None
+
+    @pytest.mark.asyncio
+    async def test_create_api_client_handles_missing_deployment(self, temp_config_dir):
+        """Test that create_api_client raises error for missing deployment."""
+        from cribl_hc.cli.commands.config import create_api_client_from_credentials
+
+        with pytest.raises(ValueError, match="No credentials found for deployment"):
+            create_api_client_from_credentials("non-existent-deployment")

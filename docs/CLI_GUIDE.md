@@ -77,21 +77,17 @@ cribl-hc analyze run --output report.json
 
 ### `cribl-hc tui`
 
-Launch the modern interactive Terminal User Interface - a Pocker-style navigable interface for managing credentials and running health checks.
+Launch the interactive Terminal User Interface - a Pocker-style navigable interface for managing credentials and running health checks.
 
 **Usage:**
 
 ```bash
-# Launch modern TUI (default)
 cribl-hc tui
-
-# Use legacy simple TUI
-cribl-hc tui --legacy
 ```
 
-**Modern TUI Features:**
+**TUI Features:**
 
-The modern TUI provides a panel-based, keyboard-navigable interface with real-time updates:
+The TUI provides a panel-based, keyboard-navigable interface with real-time updates:
 
 **Dashboard Tab:**
 1. **Deployments Panel** (Left)
@@ -183,7 +179,7 @@ The modern TUI provides a panel-based, keyboard-navigable interface with real-ti
 - **At-a-glance severity assessment**: Traffic light color coding for instant priority identification
 
 **Known Issues:**
-- **Findings Panel Scrolling**: In some terminal sizes, the findings table cursor may scroll slightly beyond the visible viewport when navigating to the last rows. This is a layout constraint issue being investigated. Workaround: Use the `--legacy` flag for the simple TUI, or resize your terminal window to provide more vertical space.
+- **Findings Panel Scrolling**: In some terminal sizes, the findings table cursor may scroll slightly beyond the visible viewport when navigating to the last rows. This is a layout constraint issue being investigated. Workaround: Resize your terminal window to provide more vertical space.
 
 ### `cribl-hc version`
 
@@ -495,19 +491,34 @@ cribl-hc analyze run \
 
 ### Example 8: Using Stored Credentials
 
-First, store credentials:
+cribl-hc supports two authentication methods:
+
+**Method 1: Bearer Token** (found in UI → Settings → API Reference)
 
 ```bash
 cribl-hc config set prod \
     --url https://cribl.example.com \
-    --token YOUR_TOKEN
+    --token YOUR_BEARER_TOKEN
 ```
 
-Then use them:
+**Method 2: API Credentials** (created in UI → Settings → API Settings → Create API Credential)
+
+```bash
+cribl-hc config set prod \
+    --url https://main-myorg.cribl.cloud \
+    --client-id YOUR_CLIENT_ID \
+    --client-secret YOUR_CLIENT_SECRET
+```
+
+Then use either method with:
 
 ```bash
 cribl-hc analyze run --deployment prod
 ```
+
+**When to use each:**
+- **Bearer Token**: Quick testing, personal use, self-hosted
+- **API Credentials**: Production, Cribl.Cloud, automated workflows (recommended)
 
 ### Example 9: Custom API Budget
 
