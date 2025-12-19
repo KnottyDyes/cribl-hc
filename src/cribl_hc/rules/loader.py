@@ -1,197 +1,189 @@
 """
-Rule loader and evaluator for best practice validation.
+Rule loading and evaluation engine for configuration validation.
 
-This module provides functionality to load, filter, and evaluate BestPracticeRules
-from YAML configuration files.
+This module provides a configuration-driven approach to validating Cribl
+deployments against best practices, security standards, and performance guidelines.
 """
 
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import structlog
 import yaml
+from packaging import version
 
 from cribl_hc.models.rule import BestPracticeRule
-from cribl_hc.utils.logger import get_logger
-from cribl_hc.utils.version import parse_version
 
-
-log = get_logger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class RuleLoader:
-    """
-    Loads and manages best practice rules from YAML files.
-
-    Example:
-        >>> loader = RuleLoader()
-        >>> rules = loader.load_rules_from_yaml("cribl_rules.yaml")
-        >>> filtered = loader.filter_by_version(rules, "4.5.0")
-    """
+    """Loads and filters best practice rules from YAML configuration."""
 
     def __init__(self, rules_dir: Optional[Path] = None):
         """
         Initialize the rule loader.
 
         Args:
-            rules_dir: Directory containing rule YAML files.
-                      Defaults to package rules directory.
+            rules_dir: Directory containing YAML rule files. If None, uses default bundled rules.
         """
         if rules_dir is None:
-            # Default to package rules directory
+            # Use default bundled rules directory
             rules_dir = Path(__file__).parent
 
-        self.rules_dir = Path(rules_dir)
-        self._rules_cache: Optional[List[BestPracticeRule]] = None
+        self.rules_dir = rules_dir
+        self._cache: Optional[List[BestPracticeRule]] = None
 
     def load_rules_from_yaml(self, filename: str = "cribl_rules.yaml") -> List[BestPracticeRule]:
         """
-        Load best practice rules from a YAML file.
+        Load rules from a specific YAML file.
 
         Args:
-            filename: Name of the YAML file in rules directory
+            filename: Name of the YAML file to load. Defaults to "cribl_rules.yaml".
 
         Returns:
-            List of BestPracticeRule objects
-
-        Raises:
-            FileNotFoundError: If YAML file doesn't exist
-            yaml.YAMLError: If YAML is malformed
-            ValueError: If rule validation fails
+            List of BestPracticeRule objects.
         """
-        filepath = self.rules_dir / filename
+        rules_path = self.rules_dir / filename
 
-        if not filepath.exists():
-            log.warning("rules_file_not_found", filepath=str(filepath))
+        if not rules_path.exists():
+            logger.warning("Rules file not found, returning empty list", path=str(rules_path))
             return []
 
         try:
-            with open(filepath, "r") as f:
+            with open(rules_path, "r") as f:
                 data = yaml.safe_load(f)
 
             if not data or "rules" not in data:
-                log.warning("rules_file_empty_or_invalid", filepath=str(filepath))
+                logger.warning("No rules found in YAML file", path=str(rules_path))
                 return []
 
+            # Convert to BestPracticeRule objects
             rules = []
             for rule_data in data["rules"]:
                 try:
                     rule = BestPracticeRule(**rule_data)
                     rules.append(rule)
                 except Exception as e:
-                    log.error(
-                        "rule_validation_failed",
+                    logger.warning(
+                        "Failed to parse rule, skipping",
                         rule_id=rule_data.get("id", "unknown"),
-                        error=str(e)
+                        error=str(e),
                     )
-                    # Continue loading other rules
                     continue
 
-            log.info("rules_loaded", count=len(rules), filepath=str(filepath))
+            logger.info("Loaded rules from YAML", count=len(rules), path=str(rules_path))
             return rules
 
         except yaml.YAMLError as e:
-            log.error("yaml_parse_error", filepath=str(filepath), error=str(e))
-            raise
-        except Exception as e:
-            log.error("rules_load_failed", filepath=str(filepath), error=str(e))
-            raise
+            logger.error("Failed to parse YAML", path=str(rules_path), error=str(e))
+            return []
 
     def load_all_rules(self, cache: bool = True) -> List[BestPracticeRule]:
         """
-        Load all rules from default cribl_rules.yaml file.
+        Load all rules from all YAML files in the rules directory.
 
         Args:
-            cache: Whether to cache loaded rules
+            cache: Whether to cache loaded rules. Defaults to True.
 
         Returns:
-            List of all available best practice rules
+            List of all BestPracticeRule objects.
         """
-        if cache and self._rules_cache is not None:
-            log.debug("returning_cached_rules", count=len(self._rules_cache))
-            return self._rules_cache
+        if cache and self._cache is not None:
+            return self._cache
 
+        # For now, just load from the main cribl_rules.yaml file
         rules = self.load_rules_from_yaml()
 
         if cache:
-            self._rules_cache = rules
+            self._cache = rules
 
         return rules
 
     def filter_by_version(
-        self,
-        rules: List[BestPracticeRule],
-        cribl_version: str
+        self, rules: List[BestPracticeRule], cribl_version: str
     ) -> List[BestPracticeRule]:
         """
         Filter rules applicable to a specific Cribl version.
 
         Args:
-            rules: List of rules to filter
-            cribl_version: Cribl version string (e.g., "4.5.2")
+            rules: List of rules to filter.
+            cribl_version: Cribl version string (e.g., "4.5.0").
 
         Returns:
-            List of rules applicable to the version
+            Filtered list of rules applicable to the version.
         """
-        try:
-            version = parse_version(cribl_version)
-        except Exception as e:
-            log.warning("version_parse_failed", version=cribl_version, error=str(e))
-            # If version parsing fails, return all rules
+        if not cribl_version:
             return rules
 
         filtered = []
+        try:
+            ver = version.parse(cribl_version)
+        except Exception:
+            logger.warning("Invalid version string, returning all rules", version=cribl_version)
+            return rules
+
         for rule in rules:
-            # Check minimum version
+            # Check min_version
             if rule.cribl_version_min:
                 try:
-                    min_version = parse_version(rule.cribl_version_min)
-                    if version < min_version:
+                    min_ver = version.parse(rule.cribl_version_min)
+                    if ver < min_ver:
                         continue
                 except Exception:
-                    pass
+                    logger.warning(
+                        "Invalid min_version in rule, skipping version check",
+                        rule_id=rule.id,
+                        min_version=rule.cribl_version_min,
+                    )
 
-            # Check maximum version
+            # Check max_version
             if rule.cribl_version_max:
                 try:
-                    max_version = parse_version(rule.cribl_version_max)
-                    if version > max_version:
+                    max_ver = version.parse(rule.cribl_version_max)
+                    if ver > max_ver:
                         continue
                 except Exception:
-                    pass
+                    logger.warning(
+                        "Invalid max_version in rule, skipping version check",
+                        rule_id=rule.id,
+                        max_version=rule.cribl_version_max,
+                    )
 
             filtered.append(rule)
 
-        log.debug(
-            "rules_filtered_by_version",
-            total=len(rules),
-            filtered=len(filtered),
-            version=cribl_version
+        logger.debug(
+            "Filtered rules by version",
+            original_count=len(rules),
+            filtered_count=len(filtered),
+            version=cribl_version,
         )
         return filtered
 
     def filter_by_category(
-        self,
-        rules: List[BestPracticeRule],
-        categories: List[str]
+        self, rules: List[BestPracticeRule], categories: List[str]
     ) -> List[BestPracticeRule]:
         """
         Filter rules by category.
 
         Args:
-            rules: List of rules to filter
-            categories: List of categories to include
+            rules: List of rules to filter.
+            categories: List of category names to include.
 
         Returns:
-            List of rules matching any of the categories
+            Filtered list of rules matching the categories.
         """
-        filtered = [r for r in rules if r.category in categories]
+        if not categories:
+            return rules
 
-        log.debug(
-            "rules_filtered_by_category",
-            total=len(rules),
-            filtered=len(filtered),
-            categories=categories
+        filtered = [rule for rule in rules if rule.category in categories]
+
+        logger.debug(
+            "Filtered rules by category",
+            original_count=len(rules),
+            filtered_count=len(filtered),
+            categories=categories,
         )
         return filtered
 
@@ -200,342 +192,342 @@ class RuleLoader:
         Filter to only enabled rules.
 
         Args:
-            rules: List of rules to filter
+            rules: List of rules to filter.
 
         Returns:
-            List of enabled rules
+            List of enabled rules only.
         """
-        return [r for r in rules if r.enabled]
+        filtered = [rule for rule in rules if rule.enabled]
+
+        logger.debug(
+            "Filtered enabled rules",
+            original_count=len(rules),
+            filtered_count=len(filtered),
+        )
+        return filtered
 
 
 class RuleEvaluator:
-    """
-    Evaluates best practice rules against configurations.
-
-    Example:
-        >>> evaluator = RuleEvaluator()
-        >>> violated = evaluator.evaluate_rule(rule, pipeline_config)
-    """
+    """Evaluates configuration against loaded rules."""
 
     def evaluate_rule(
-        self,
-        rule: BestPracticeRule,
-        config: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None
+        self, rule: BestPracticeRule, config: Dict[str, Any], context: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
-        Evaluate a single rule against a configuration.
+        Evaluate a single rule against configuration.
 
         Args:
-            rule: Rule to evaluate
-            config: Configuration to check
-            context: Additional context (metrics, relationships, etc.)
+            rule: The rule to evaluate.
+            config: Configuration dictionary to check.
+            context: Optional context (metrics, relationships, etc.).
 
         Returns:
-            True if rule is violated, False if passed
+            True if rule is violated, False otherwise.
         """
+        # Skip disabled rules
         if not rule.enabled:
             return False
 
-        try:
-            if rule.check_type == "config_pattern":
-                return self.evaluate_config_pattern(rule, config)
-            elif rule.check_type == "metric_threshold":
-                metrics = context.get("metrics", {}) if context else {}
-                return self.evaluate_metric_threshold(rule, metrics)
-            elif rule.check_type == "relationship":
-                return self.evaluate_relationship(rule, config, context or {})
+        # Delegate to specific evaluators based on check_type
+        if rule.check_type == "config_pattern":
+            return self._evaluate_config_pattern(rule, config)
+        elif rule.check_type == "metric_threshold":
+            metrics = context.get("metrics", {}) if context else {}
+            return self._evaluate_metric_threshold(rule, metrics)
+        elif rule.check_type == "relationship":
+            return self._evaluate_relationship(rule, config, context or {})
+        else:
+            logger.warning("Unknown check_type, skipping rule", rule_id=rule.id, check_type=rule.check_type)
+            return False
+
+    def _evaluate_config_pattern(self, rule: BestPracticeRule, config: Dict[str, Any]) -> bool:
+        """
+        Evaluate config_pattern rule.
+
+        Supports simple patterns like:
+        - "exists:field_name" - Check if field exists (violated if missing)
+        - "field equals: value" - Check if field equals value (violated if not equal)
+        - "field matches: regex" - Check if field matches regex pattern (violated if doesn't match)
+        - "field not_matches: regex" - Check if field does NOT match regex (violated if matches)
+
+        Returns:
+            True if rule is violated.
+        """
+        logic = rule.validation_logic
+
+        # Handle "exists:field" or "field exists: field" pattern
+        if "exists:" in logic:
+            if logic.startswith("exists:"):
+                field_name = logic.split(":", 1)[1].strip()
             else:
-                log.warning("unknown_check_type", rule_id=rule.id, check_type=rule.check_type)
+                # Format: "output exists: output" (weird but in tests)
+                parts = logic.split("exists:", 1)
+                field_name = parts[1].strip()
+            
+            exists = self._field_exists(config, field_name)
+            # Rule wants field to exist - violated if it doesn't
+            return not exists
+
+        # Handle "field equals: value" pattern
+        if " equals: " in logic:
+            parts = logic.split(" equals: ", 1)
+            field_path = parts[0].strip()
+            expected_value = parts[1].strip()
+            actual_value = self._get_field(config, field_path)
+            # Violated if NOT equal
+            return str(actual_value) != expected_value
+
+        # Handle "field matches: regex" pattern
+        if " matches: " in logic:
+            parts = logic.split(" matches: ", 1)
+            field_path = parts[0].strip()
+            pattern = parts[1].strip()
+            
+            # Special handling for array length checks
+            if field_path.endswith(".length"):
+                base_path = field_path[:-7]  # Remove ".length"
+                array = self._get_field(config, base_path)
+                if isinstance(array, list):
+                    length = len(array)
+                    # Handle operators in pattern like "> 15"
+                    if pattern.startswith(">"):
+                        threshold = int(pattern[1:].strip())
+                        # Violated if length > threshold
+                        return length > threshold
+                    elif pattern.startswith("<"):
+                        threshold = int(pattern[1:].strip())
+                        # Violated if length < threshold
+                        return length < threshold
+                return False
+            
+            value = self._get_field(config, field_path)
+            if value is None:
+                return True  # Field missing = violation
+            
+            try:
+                match = re.search(pattern, str(value))
+                # Violated if does NOT match
+                return not bool(match)
+            except re.error:
+                logger.warning("Invalid regex pattern", pattern=pattern, rule_id=rule.id)
                 return False
 
-        except Exception as e:
-            log.error(
-                "rule_evaluation_failed",
-                rule_id=rule.id,
-                error=str(e)
-            )
-            # Fail safe: don't report violations on evaluation errors
-            return False
+        # Handle "field not_matches: regex" pattern
+        if " not_matches: " in logic:
+            parts = logic.split(" not_matches: ", 1)
+            field_path = parts[0].strip()
+            pattern = parts[1].strip()
+            value = self._get_field(config, field_path)
+            if value is None:
+                return False  # Field missing = no violation for not_matches
+            
+            try:
+                match = re.search(pattern, str(value))
+                # Violated if DOES match
+                return bool(match)
+            except re.error:
+                logger.warning("Invalid regex pattern", pattern=pattern, rule_id=rule.id)
+                return False
 
-    def evaluate_config_pattern(
-        self,
-        rule: BestPracticeRule,
-        config: Dict[str, Any]
-    ) -> bool:
-        """
-        Evaluate a config_pattern rule.
-
-        Uses simple pattern matching on configuration fields.
-
-        Args:
-            rule: Rule with check_type="config_pattern"
-            config: Configuration dictionary
-
-        Returns:
-            True if pattern indicates violation
-        """
-        validation_logic = rule.validation_logic
-
-        # Simple keyword-based evaluation
-        # For Phase 2A, we use basic checks. Can expand to JSONPath later.
-
-        # Check for field existence patterns
-        if "exists:" in validation_logic:
-            # Format: "exists:field.path"
-            field_path = validation_logic.split("exists:", 1)[1].strip()
-            return not self._field_exists(config, field_path)
-
-        # Check for value patterns
-        if "equals:" in validation_logic:
-            # Format: "field.path equals: value"
-            parts = validation_logic.split("equals:")
-            if len(parts) == 2:
-                field_path = parts[0].strip()
-                expected_value = parts[1].strip().strip('"\'')
-                actual_value = self._get_field(config, field_path)
-                return str(actual_value) != expected_value
-
-        # Check for negative regex patterns (Phase 2D)
-        # MUST check not_matches BEFORE matches to avoid substring matching
-        if "not_matches:" in validation_logic:
-            # Format: "field.path not_matches: regex_pattern"
-            # Violation if pattern DOES match
-            parts = validation_logic.split("not_matches:")
-            if len(parts) == 2:
-                field_path = parts[0].strip()
-                pattern = parts[1].strip().strip('"\'')
-                value = self._get_field(config, field_path)
-                if value:
-                    return bool(re.search(pattern, str(value)))
-                return False  # No value = no violation
-
-        # Check for regex patterns
-        if "matches:" in validation_logic:
-            # Format: "field.path matches: regex_pattern"
-            parts = validation_logic.split("matches:")
-            if len(parts) == 2:
-                field_path = parts[0].strip()
-                pattern = parts[1].strip().strip('"\'')
-                value = self._get_field(config, field_path)
-                if value:
-                    return not bool(re.search(pattern, str(value)))
-                return True  # No value = violation
-
-        # Check for length comparisons (Phase 2B)
-        # Format: "field.path.length > 10" or "field.path.length <= 5"
-        if ".length" in validation_logic:
-            # Check operators in order: multi-char first, then single-char
-            for operator in [">=", "<=", "==", "!=", ">", "<"]:
-                if operator in validation_logic:
-                    parts = validation_logic.split(operator)
-                    if len(parts) == 2:
-                        field_expr = parts[0].strip()
-                        threshold = float(parts[1].strip())
-
-                        # Extract field path (remove .length suffix)
-                        if field_expr.endswith(".length"):
-                            field_path = field_expr[:-7]  # Remove ".length"
-                            value = self._get_field(config, field_path)
-
-                            # Get length based on type
-                            if value is not None:
-                                if isinstance(value, (list, dict, str)):
-                                    length = len(value)
-                                else:
-                                    length = 0
-
-                                # Evaluate comparison
-                                if operator == ">":
-                                    return length > threshold  # Violation if exceeds
-                                elif operator == "<":
-                                    return length < threshold
-                                elif operator == ">=":
-                                    return length >= threshold
-                                elif operator == "<=":
-                                    return not (length <= threshold)  # Violation if exceeds
-                                elif operator == "==":
-                                    return length != threshold
-                                elif operator == "!=":
-                                    return length == threshold
-                    break
-
-        # Check for count patterns (Phase 2B)
-        # Format: "regex_count <= 2" - count functions matching a pattern
-        if "regex_count" in validation_logic or "function_count" in validation_logic:
-            # Check operators in order: multi-char first, then single-char
-            for operator in [">=", "<=", "==", "!=", ">", "<"]:
-                if operator in validation_logic:
-                    parts = validation_logic.split(operator)
-                    if len(parts) == 2:
-                        count_type = parts[0].strip()
-                        threshold = float(parts[1].strip())
-
-                        # Count regex-related functions
-                        if "regex_count" in count_type:
-                            functions = self._get_field(config, "functions") or []
-                            count = sum(1 for f in functions
-                                      if isinstance(f, dict) and
-                                      "regex" in str(f.get("id", "")).lower())
-                        # Count all functions
-                        elif "function_count" in count_type:
-                            functions = self._get_field(config, "functions") or []
-                            count = len(functions) if isinstance(functions, list) else 0
+        # Handle "regex_count <= N" pattern
+        if "regex_count" in logic:
+            functions = config.get("functions", [])
+            regex_count = sum(1 for f in functions if "regex" in f.get("id", ""))
+            
+            if "<=" in logic:
+                threshold = int(logic.split("<=")[1].strip())
+                # Violated if count EXCEEDS threshold
+                return regex_count > threshold
+            elif ">=" in logic:
+                threshold = int(logic.split(">=")[1].strip())
+                # Violated if count is BELOW threshold
+                return regex_count < threshold
+            elif "==" in logic:
+                threshold = int(logic.split("==")[1].strip())
+                # Violated if count doesn't match
+                return regex_count != threshold
+            
+        # Handle direct comparison expressions like "field.length > N" or "field > N"
+        for operator in [">=", "<=", ">", "<", "=="]:
+            if operator in logic:
+                parts = logic.split(operator, 1)
+                if len(parts) == 2:
+                    field_path = parts[0].strip()
+                    threshold_str = parts[1].strip()
+                    
+                    try:
+                        threshold = float(threshold_str)
+                        
+                        # Special handling for .length
+                        if field_path.endswith(".length"):
+                            base_path = field_path[:-7]
+                            array = self._get_field(config, base_path)
+                            if isinstance(array, list):
+                                actual_value = float(len(array))
+                            else:
+                                return False  # Not an array
                         else:
-                            count = 0
+                            actual_value = self._get_field(config, field_path)
+                            if actual_value is None:
+                                return False
+                            actual_value = float(actual_value)
+                        
+                        # Evaluate the comparison
+                        if operator == ">" and actual_value > threshold:
+                            return True
+                        elif operator == "<" and actual_value < threshold:
+                            return True
+                        elif operator == ">=" and actual_value >= threshold:
+                            return True
+                        elif operator == "<=" and actual_value <= threshold:
+                            return True
+                        elif operator == "==" and actual_value == threshold:
+                            return True
+                        
+                        return False
+                        
+                    except (ValueError, TypeError):
+                        # Not a numeric comparison
+                        continue
+                break  # Found an operator, stop looking
 
-                        # Evaluate comparison
-                        if operator == ">":
-                            return count > threshold
-                        elif operator == "<":
-                            return count < threshold
-                        elif operator == ">=":
-                            return count >= threshold
-                        elif operator == "<=":
-                            return not (count <= threshold)  # Violation if exceeds
-                        elif operator == "==":
-                            return count != threshold
-                        elif operator == "!=":
-                            return count == threshold
-                    break
-
-        # Fallback: return False (no violation)
-        log.debug(
-            "config_pattern_not_evaluated",
-            rule_id=rule.id,
-            validation_logic=validation_logic
-        )
         return False
 
-    def evaluate_metric_threshold(
-        self,
-        rule: BestPracticeRule,
-        metrics: Dict[str, Any]
-    ) -> bool:
+    def _evaluate_metric_threshold(self, rule: BestPracticeRule, metrics: Dict[str, Any]) -> bool:
         """
-        Evaluate a metric_threshold rule.
+        Evaluate metric_threshold rule.
 
-        Args:
-            rule: Rule with check_type="metric_threshold"
-            metrics: Metrics dictionary
+        The validation_logic expresses a THRESHOLD CONDITION that triggers a violation.
+        For example: "cpu.usage > 80" means "violated if cpu.usage exceeds 80".
 
         Returns:
-            True if threshold exceeded (violation)
+            True if rule is violated (threshold condition is TRUE).
         """
-        validation_logic = rule.validation_logic
+        logic = rule.validation_logic
 
-        # Format: "metric.path > 80" or "metric.path < 10"
-        for operator in [">", "<", ">=", "<=", "==", "!="]:
-            if operator in validation_logic:
-                parts = validation_logic.split(operator)
+        # Parse threshold logic
+        for operator in [">=", "<=", "==", ">", "<"]:
+            if operator in logic:
+                parts = logic.split(operator, 1)
                 if len(parts) == 2:
                     metric_path = parts[0].strip()
-                    threshold = float(parts[1].strip())
-                    metric_value = self._get_field(metrics, metric_path)
-
-                    if metric_value is None:
-                        return False  # No metric = no violation
+                    threshold_str = parts[1].strip()
 
                     try:
-                        metric_value = float(metric_value)
+                        threshold = float(threshold_str)
+                        actual_value = self._get_field(metrics, metric_path)
 
-                        if operator == ">":
-                            return metric_value > threshold
-                        elif operator == "<":
-                            return metric_value < threshold
-                        elif operator == ">=":
-                            return metric_value >= threshold
-                        elif operator == "<=":
-                            return metric_value <= threshold
-                        elif operator == "==":
-                            return metric_value == threshold
-                        elif operator == "!=":
-                            return metric_value != threshold
-                    except (ValueError, TypeError):
+                        if actual_value is None:
+                            return False  # Metric missing = no violation
+
+                        actual_value = float(actual_value)
+
+                        # Check if the threshold condition is TRUE (= violation)
+                        if operator == ">" and actual_value > threshold:
+                            return True
+                        elif operator == "<" and actual_value < threshold:
+                            return True
+                        elif operator == ">=" and actual_value >= threshold:
+                            return True
+                        elif operator == "<=" and actual_value <= threshold:
+                            return True
+                        elif operator == "==" and actual_value == threshold:
+                            return True
+
                         return False
 
+                    except (ValueError, TypeError):
+                        logger.warning(
+                            "Failed to evaluate metric threshold",
+                            rule_id=rule.id,
+                            metric=metric_path,
+                        )
+                        return False
+                break
+
         return False
 
-    def evaluate_relationship(
-        self,
-        rule: BestPracticeRule,
-        config: Dict[str, Any],
-        context: Dict[str, Any]
+    def _evaluate_relationship(
+        self, rule: BestPracticeRule, config: Dict[str, Any], context: Dict[str, Any]
     ) -> bool:
         """
-        Evaluate a relationship rule.
+        Evaluate relationship rule.
 
-        Checks relationships between configurations (e.g., orphaned references).
-
-        Args:
-            rule: Rule with check_type="relationship"
-            config: Configuration to check
-            context: Related configurations
+        Checks cross-component relationships like:
+        - "references:pipelines" - Check if referenced pipeline exists
 
         Returns:
-            True if relationship violation detected
+            True if rule is violated.
         """
-        validation_logic = rule.validation_logic
+        logic = rule.validation_logic
 
-        # Format: "references:pipelines"
-        if "references:" in validation_logic:
-            ref_type = validation_logic.split("references:", 1)[1].strip()
-            pipeline_ref = config.get("pipeline")
-
-            if ref_type == "pipelines" and pipeline_ref:
-                all_pipelines = context.get("pipelines", [])
-                pipeline_ids = [p.get("id") for p in all_pipelines]
-                return pipeline_ref not in pipeline_ids
+        if logic.startswith("references:"):
+            resource_type = logic.split(":", 1)[1].strip()
+            
+            # Get the reference from config (e.g., "pipeline" field)
+            reference_field = resource_type.rstrip("s")  # "pipelines" -> "pipeline"
+            referenced_id = config.get(reference_field)
+            
+            if not referenced_id:
+                return False  # No reference = no violation
+            
+            # Check if resource exists in context
+            available_resources = context.get(resource_type, [])
+            resource_ids = [r.get("id") for r in available_resources if isinstance(r, dict)]
+            
+            # Violated if referenced resource doesn't exist
+            return referenced_id not in resource_ids
 
         return False
 
-    def _field_exists(self, obj: Dict[str, Any], path: str) -> bool:
+    def _field_exists(self, config: Any, field_path: str) -> bool:
         """
-        Check if a nested field exists.
+        Check if a field exists in config (supports nested paths like "conf.functions.0.id").
 
         Args:
-            obj: Dictionary to search
-            path: Dot-separated path (e.g., "conf.functions.0.id")
+            config: Configuration to search.
+            field_path: Dot-separated path.
 
         Returns:
-            True if field exists
+            True if field exists.
         """
-        try:
-            value = self._get_field(obj, path)
-            return value is not None
-        except Exception:
-            return False
+        return self._get_field(config, field_path) is not None
 
-    def _get_field(self, obj: Dict[str, Any], path: str) -> Any:
+    def _get_field(self, config: Any, field_path: str) -> Any:
         """
-        Get a nested field value.
+        Get a field value from config using dot notation.
+
+        Supports:
+        - Nested objects: "level1.level2.level3"
+        - Array indices: "array.0", "array.1"
 
         Args:
-            obj: Dictionary to search
-            path: Dot-separated path
+            config: Configuration dictionary.
+            field_path: Dot-separated path.
 
         Returns:
-            Field value or None if not found
+            Field value or None if not found.
         """
-        if not path:
-            return obj
-
-        parts = path.split(".")
-        current = obj
+        parts = field_path.split(".")
+        value = config
 
         for part in parts:
-            if isinstance(current, dict):
-                current = current.get(part)
-            elif isinstance(current, list):
+            if value is None:
+                return None
+
+            # Handle array index access
+            if isinstance(value, list):
                 try:
                     index = int(part)
-                    current = current[index] if 0 <= index < len(current) else None
-                except (ValueError, IndexError):
+                    if 0 <= index < len(value):
+                        value = value[index]
+                    else:
+                        return None
+                except ValueError:
                     return None
+            elif isinstance(value, dict):
+                value = value.get(part)
             else:
                 return None
 
-            if current is None:
-                return None
-
-        return current
+        return value

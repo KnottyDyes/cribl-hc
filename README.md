@@ -5,7 +5,7 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 ## Features
 
 - **Quick Health Assessment**: Overall health score (0-100) with prioritized critical issues
-- **Configuration Validation**: Detect syntax errors, deprecated functions, and best practice violations
+- **Configuration Validation**: Rule-based validation with 30+ checks for syntax errors, deprecated functions, performance anti-patterns, and security misconfigurations
 - **Performance Optimization**: Identify over/under-provisioned workers and optimization opportunities
 - **Security Auditing**: Validate TLS configs, detect exposed secrets, assess RBAC
 - **Cost Management**: Track license consumption and predict exhaustion timelines
@@ -410,6 +410,7 @@ This project is provided as-is for use with Cribl Stream deployments.
 - **[Getting Started Guide](docs/GETTING_STARTED.md)** - Quick start guide
 - **[CLI Guide](docs/CLI_GUIDE.md)** - Complete CLI reference
 - **[CLI Quick Reference](docs/CLI_QUICK_REFERENCE.md)** - Command cheat sheet
+- **[Best Practices Rules](docs/BEST_PRACTICES_RULES.md)** - Rule system guide and custom rule authoring
 - **[Product Compatibility](docs/PRODUCT_COMPATIBILITY.md)** - Supported products and features
 - **[Cribl Cloud API Notes](docs/cribl_cloud_api_notes.md)** - Cloud vs self-hosted differences
 

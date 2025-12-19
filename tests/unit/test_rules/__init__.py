@@ -1,1 +1,1 @@
-"""Unit tests for rules module."""
+"""Tests for rule loading and evaluation system."""

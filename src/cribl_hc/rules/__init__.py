@@ -1,10 +1,7 @@
 """
-Best practice rules management.
-
-This package provides rule loading, filtering, and evaluation
-for configuration best practices validation.
+Rule loading and evaluation system for configuration validation.
 """
 
-from cribl_hc.rules.loader import RuleEvaluator, RuleLoader
+from cribl_hc.rules.loader import RuleLoader, RuleEvaluator
 
 __all__ = ["RuleLoader", "RuleEvaluator"]
