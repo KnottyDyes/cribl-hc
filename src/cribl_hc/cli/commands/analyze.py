@@ -291,13 +291,14 @@ async def run_analysis_async(
         # Validate performance targets
         _check_performance_targets(analysis_run, console, verbose or debug)
 
-        # Display results in terminal
+        # Display results
         console.print()
         if verbose:
             log.info("displaying_results",
                     findings_count=len(analysis_run.findings),
                     recommendations_count=len(analysis_run.recommendations))
 
+        # Display standard terminal output
         display_analysis_results(results, analysis_run, console)
 
         # Save to JSON file if requested

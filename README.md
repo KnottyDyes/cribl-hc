@@ -93,10 +93,28 @@ export CRIBL_URL=https://cribl.example.com
 export CRIBL_TOKEN=YOUR_API_TOKEN
 ```
 
-### 2. Run Health Check (MVP)
+### 2. Interactive TUI (Recommended for Getting Started)
 
 ```bash
-# Quick health assessment
+# Launch the unified Terminal User Interface
+cribl-hc tui
+```
+
+The TUI provides an interactive menu for:
+- **Managing Deployments**: Add, edit, delete, and test deployment credentials
+- **Running Health Checks**: Select a deployment and run analysis interactively
+- **Viewing Results**: Browse analysis results with formatted output
+
+**Features:**
+- Easy credential management without command-line flags
+- Interactive deployment selection (type number, name, or press Enter for default)
+- Live progress tracking with status updates
+- Formatted results display with color-coded health scores
+
+### 3. Run Health Check (Command Line)
+
+```bash
+# Quick health assessment using stored credentials
 cribl-hc analyze run --deployment prod
 
 # Short form:
@@ -105,7 +123,7 @@ cribl-hc analyze run -p prod
 # Output: Health score and critical findings
 ```
 
-### 3. Generate Report
+### 4. Generate Report
 
 ```bash
 # Generate JSON and markdown reports

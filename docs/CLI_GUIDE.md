@@ -35,13 +35,33 @@ pip install cribl-health-check
 
 ## Quick Start
 
+### Option 1: Interactive TUI (Recommended for Getting Started)
+
+```bash
+# Launch the interactive Terminal User Interface
+cribl-hc tui
+
+# Follow the prompts to:
+# 1. Add your deployment credentials
+# 2. Run health checks interactively
+# 3. View formatted results
+```
+
+### Option 2: Command Line
+
 ```bash
 # Check version
 cribl-hc version
 
-# Run all analyzers
-# For Cribl Cloud (format: https://<workspace>-<org-name>.cribl.cloud)
-# Where <workspace> is your workspace ID (e.g., "main", "dev", "prod")
+# Configure credentials (one-time setup)
+cribl-hc config set prod \
+  --url https://main-myorg.cribl.cloud \
+  --token your_bearer_token
+
+# Run analysis
+cribl-hc analyze run --deployment prod
+
+# Or use environment variables
 export CRIBL_URL=https://main-myorg.cribl.cloud
 export CRIBL_TOKEN=your_bearer_token
 cribl-hc analyze run
@@ -54,6 +74,116 @@ cribl-hc analyze run --output report.json
 ```
 
 ## Commands
+
+### `cribl-hc tui`
+
+Launch the modern interactive Terminal User Interface - a Pocker-style navigable interface for managing credentials and running health checks.
+
+**Usage:**
+
+```bash
+# Launch modern TUI (default)
+cribl-hc tui
+
+# Use legacy simple TUI
+cribl-hc tui --legacy
+```
+
+**Modern TUI Features:**
+
+The modern TUI provides a panel-based, keyboard-navigable interface with real-time updates:
+
+**Dashboard Tab:**
+1. **Deployments Panel** (Left)
+   - View all configured deployments with health indicators (● ○ ⚠ ✗)
+   - Click to select deployment for analysis
+   - Add/Delete buttons for deployment management
+   - Interactive list with arrow key navigation
+
+2. **Analysis Status Panel** (Top Right)
+   - Real-time progress bar during analysis
+   - API call counter (X/100 budget)
+   - Duration tracking
+   - Current deployment and status display
+   - "Run Analysis" and "Export Results" buttons
+
+3. **Findings Panel** (Bottom Right)
+   - Live-updated findings table with color-coded severity indicators
+   - Color scheme: <span style="color:red">**RED**</span> (Critical/High), <span style="color:yellow">**YELLOW**</span> (Medium), <span style="color:green">**GREEN**</span> (Low)
+   - Sorted by severity: ⚠ CRITICAL, ⚠ HIGH, ℹ MEDIUM, · LOW
+   - Shows affected components
+   - Row selection with cursor navigation
+
+**Results History Tab:**
+- Browse previous analysis results
+- View historical health scores
+- Compare trends over time *(Coming soon)*
+
+**Modal Dialogs:**
+- **Add Deployment**: Form-based input for deployment ID, URL, and token
+- **Export Results**: Choose format (JSON/Markdown) and filename
+
+**Keyboard Shortcuts:**
+- `F1` - Show help
+- `F2` - Run analysis on selected deployment
+- `F3` - Export current results (JSON or Markdown)
+- `F5` - Refresh deployment list
+- `Tab` - Switch between panels
+- `Arrow Keys` - Navigate lists and tables
+- `Enter` - Select items
+- `Q` or `Ctrl+C` - Quit
+
+**Example Layout:**
+
+```
+┌─ Cribl Health Check ─────────────────────────────────────────────┐
+│ [Dashboard] [Results History]                               [×] │
+├─────────────────────────────────────────────────────────────────┤
+│ ┌─ Deployments ───────┐ ┌─ Analysis Status ────────────────┐   │
+│ │ ● prod (Healthy)     │ │ Current: prod                    │   │
+│ │ ○ dev (Not analyzed) │ │ Status: Running                  │   │
+│ │ ○ staging (Warning)  │ │ Progress: [████████░░] 80%      │   │
+│ │                      │ │ API Calls: 15/100                │   │
+│ │ [Add] [Delete]       │ │ Duration: 45s                    │   │
+│ └─────────────────────-┘ │ [Run Analysis] [Export Results]  │   │
+│                          └──────────────────────────────────┘   │
+│ ┌─ Recent Findings ───────────────────────────────────────────┐ │
+│ │ Severity  │ Category  │ Issue                │ Component   │ │
+│ │ ⚠ CRITICAL│ health    │ Worker node offline  │ worker-3    │ │
+│ │ ⚠ HIGH    │ security  │ Hardcoded credentials│ output-splunk│ │
+│ │ ℹ MEDIUM  │ config    │ Pipeline complexity  │ pipeline-main│ │
+│ └─────────────────────────────────────────────────────────────┘ │
+│ [F1 Help] [F2 Run] [F3 Export] [F5 Refresh] [Q Quit]          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Export Dialog:**
+
+```
+┌─ Export Analysis Results ──────────────────┐
+│                                             │
+│ Format:                                     │
+│ [JSON ▼] (Dropdown: JSON, Markdown)        │
+│                                             │
+│ Filename:                                   │
+│ [prod_report___________________]            │
+│                                             │
+│        [Export]  [Cancel]                   │
+└─────────────────────────────────────────────┘
+```
+
+**Benefits:**
+- **Pocker-style interface**: Panel-based layout with keyboard navigation
+- **Real-time updates**: Live progress bars, API counters, and findings
+- **No command memorization**: Visual, mouse-clickable interface
+- **Quick deployment management**: Add/delete deployments without CLI commands
+- **Instant export**: Save reports in JSON or Markdown format with one click
+- **Professional appearance**: Color-coded severity (red/yellow/green), zebra-striped tables
+- **Accessible**: Full keyboard navigation with F-key shortcuts
+- **At-a-glance severity assessment**: Traffic light color coding for instant priority identification
+
+**Known Issues:**
+- **Findings Panel Scrolling**: In some terminal sizes, the findings table cursor may scroll slightly beyond the visible viewport when navigating to the last rows. This is a layout constraint issue being investigated. Workaround: Use the `--legacy` flag for the simple TUI, or resize your terminal window to provide more vertical space.
 
 ### `cribl-hc version`
 
