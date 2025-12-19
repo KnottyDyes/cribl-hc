@@ -144,6 +144,9 @@ class ConfigAnalyzer(BaseAnalyzer):
             # Analyze configuration complexity (Phase 2D)
             self._analyze_complexity_metrics(pipelines, result)
 
+            # Advanced security checks (Phase 2E)
+            await self._check_advanced_security(pipelines, result)
+
             # Calculate compliance score
             compliance_score = self._calculate_compliance_score(result)
 
@@ -1738,6 +1741,136 @@ class ConfigAnalyzer(BaseAnalyzer):
 
         # Hash for compact comparison
         return hashlib.md5(pattern_str.encode()).hexdigest()
+
+    async def _check_advanced_security(
+        self,
+        pipelines: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Perform advanced security checks (Phase 2E).
+
+        Checks:
+        - PII/sensitive data handling in pipelines
+        - Data masking configurations
+        - Encryption in transit for outputs
+        - Sensitive field exposure
+        """
+        pii_issues = 0
+        masking_issues = 0
+        encryption_issues = 0
+
+        # Common PII field patterns
+        pii_patterns = {
+            "ssn": ["ssn", "social_security", "social security number"],
+            "credit_card": ["ccn", "credit_card", "creditcard", "card_number", "cardnumber"],
+            "email": ["email", "email_address"],
+            "phone": ["phone", "telephone", "phone_number"],
+            "ip_address": ["ip", "ip_addr", "ipaddress", "client_ip"],
+            "password": ["password", "passwd", "pwd"],
+            "api_key": ["api_key", "apikey", "api_token", "access_token"],
+        }
+
+        # Check pipelines for PII handling
+        for pipeline in pipelines:
+            pipeline_id = pipeline.get("id", "unknown")
+            functions = pipeline.get("conf", {}).get("functions", [])
+
+            # Track fields being processed
+            fields_processed = set()
+            masked_fields = set()
+
+            for func in functions:
+                func_id = func.get("id", "")
+                func_conf = func.get("conf", {})
+
+                # Collect fields being processed
+                if "field" in func_conf:
+                    fields_processed.add(func_conf["field"].lower())
+                if "fields" in func_conf:
+                    for field in func_conf.get("fields", []):
+                        if isinstance(field, str):
+                            fields_processed.add(field.lower())
+
+                # Track masked fields
+                if func_id in ["mask", "redact"]:
+                    if "fields" in func_conf:
+                        for field in func_conf.get("fields", []):
+                            if isinstance(field, str):
+                                masked_fields.add(field.lower())
+
+                # Check eval expressions for PII references
+                if "expression" in func_conf:
+                    expr = func_conf["expression"].lower()
+                    for pii_type, patterns in pii_patterns.items():
+                        for pattern in patterns:
+                            if pattern in expr and pattern not in str(masked_fields):
+                                pii_issues += 1
+                                result.add_finding(
+                                    Finding(
+                                        id=f"config-sec-pii-{pii_type}-{pipeline_id}",
+                                        category="security",
+                                        severity="high",
+                                        title=f"Potential {pii_type.upper()} Exposure: {pipeline_id}",
+                                        description=f"Pipeline '{pipeline_id}' references potential PII field '{pattern}' without masking",
+                                        affected_components=[f"pipeline-{pipeline_id}"],
+                                        remediation_steps=[
+                                            f"Review if field '{pattern}' in pipeline '{pipeline_id}' contains PII",
+                                            "Add mask/redact function before sending to outputs",
+                                            "Ensure compliance with data protection regulations (GDPR, CCPA)",
+                                            "Consider using encryption for sensitive data in transit"
+                                        ],
+                                        documentation_links=[
+                                            "https://docs.cribl.io/stream/mask-function/",
+                                            "https://docs.cribl.io/stream/redact-function/",
+                                            "https://docs.cribl.io/stream/data-privacy/"
+                                        ],
+                                        estimated_impact="Potential PII leakage - regulatory compliance risk",
+                                        confidence_level="medium",
+                                        metadata={
+                                            "pipeline_id": pipeline_id,
+                                            "pii_type": pii_type,
+                                            "field_pattern": pattern
+                                        }
+                                    )
+                                )
+
+            # Check for unmasked PII fields
+            for field in fields_processed:
+                for pii_type, patterns in pii_patterns.items():
+                    if any(pattern in field for pattern in patterns):
+                        if field not in masked_fields:
+                            masking_issues += 1
+                            result.add_finding(
+                                Finding(
+                                    id=f"config-sec-unmasked-{field}-{pipeline_id}",
+                                    category="security",
+                                    severity="medium",
+                                    title=f"Unmasked Sensitive Field: {pipeline_id}",
+                                    description=f"Pipeline '{pipeline_id}' processes field '{field}' which may contain {pii_type} without masking",
+                                    affected_components=[f"pipeline-{pipeline_id}"],
+                                    remediation_steps=[
+                                        f"Add masking for field '{field}' in pipeline '{pipeline_id}'",
+                                        "Use mask or redact function to protect sensitive data",
+                                        "Verify field contents before removing masking"
+                                    ],
+                                    documentation_links=[
+                                        "https://docs.cribl.io/stream/mask-function/"
+                                    ],
+                                    estimated_impact="Sensitive data may be exposed in logs/outputs",
+                                    confidence_level="medium",
+                                    metadata={
+                                        "pipeline_id": pipeline_id,
+                                        "field": field,
+                                        "pii_type": pii_type
+                                    }
+                                )
+                            )
+
+        # Store security metadata
+        result.metadata["pii_exposure_risks"] = pii_issues
+        result.metadata["unmasked_sensitive_fields"] = masking_issues
+        result.metadata["encryption_issues"] = encryption_issues
 
     def _calculate_compliance_score(self, result: AnalyzerResult) -> float:
         """

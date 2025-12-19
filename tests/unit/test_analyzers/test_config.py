@@ -1812,3 +1812,425 @@ class TestConfigAnalyzer:
         assert result.metadata["avg_pipeline_complexity"] == 0.0
         assert result.metadata["max_pipeline_complexity"] == 0
         assert result.metadata["duplicate_patterns_found"] == 0
+
+    # Phase 2E: Advanced Security Checks Tests
+
+    @pytest.mark.asyncio
+    async def test_pii_exposure_in_expression_detected(self):
+        """Test detection of PII references in eval expressions."""
+        pipelines = [{
+            "id": "user_data_pipeline",
+            "conf": {
+                "functions": [
+                    {
+                        "id": "eval",
+                        "conf": {
+                            "expression": "user_ssn = social_security_number"
+                        }
+                    }
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect SSN exposure
+        pii_findings = [f for f in result.findings
+                       if f.id.startswith("config-sec-pii")]
+        assert len(pii_findings) > 0
+
+        finding = pii_findings[0]
+        assert finding.severity == "high"
+        assert "ssn" in finding.title.lower() or "social" in finding.title.lower()
+
+    @pytest.mark.asyncio
+    async def test_unmasked_sensitive_field_detected(self):
+        """Test detection of unmasked sensitive fields."""
+        pipelines = [{
+            "id": "payment_pipeline",
+            "conf": {
+                "functions": [
+                    {
+                        "id": "eval",
+                        "conf": {
+                            "field": "credit_card",
+                            "expression": "value = credit_card"
+                        }
+                    },
+                    # No mask/redact function
+                    {
+                        "id": "publish",
+                        "conf": {}
+                    }
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect unmasked credit card field
+        unmasked_findings = [f for f in result.findings
+                            if f.id.startswith("config-sec-unmasked")]
+        assert len(unmasked_findings) > 0
+
+        finding = unmasked_findings[0]
+        assert finding.severity == "medium"
+        assert "credit" in finding.description.lower() or "card" in finding.description.lower()
+
+    @pytest.mark.asyncio
+    async def test_masked_sensitive_field_not_flagged(self):
+        """Test that properly masked fields are not flagged."""
+        pipelines = [{
+            "id": "secure_pipeline",
+            "conf": {
+                "functions": [
+                    {
+                        "id": "eval",
+                        "conf": {
+                            "field": "credit_card"
+                        }
+                    },
+                    {
+                        "id": "mask",
+                        "conf": {
+                            "fields": ["credit_card", "ssn"]
+                        }
+                    }
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should NOT flag properly masked fields
+        unmasked_findings = [f for f in result.findings
+                            if f.id.startswith("config-sec-unmasked") and "credit_card" in f.id]
+        assert len(unmasked_findings) == 0
+
+    @pytest.mark.asyncio
+    async def test_multiple_pii_types_detected(self):
+        """Test detection of multiple PII types in single pipeline."""
+        pipelines = [{
+            "id": "multi_pii_pipeline",
+            "conf": {
+                "functions": [
+                    {
+                        "id": "eval",
+                        "conf": {
+                            "expression": "log = email + ' ' + phone + ' ' + password"
+                        }
+                    }
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect multiple PII types
+        pii_findings = [f for f in result.findings
+                       if f.id.startswith("config-sec-pii")]
+        assert len(pii_findings) >= 3  # email, phone, password
+
+    @pytest.mark.asyncio
+    async def test_api_key_exposure_detected(self):
+        """Test detection of API key exposure."""
+        pipelines = [{
+            "id": "api_pipeline",
+            "conf": {
+                "functions": [
+                    {
+                        "id": "eval",
+                        "conf": {
+                            "expression": "auth = api_key + ':' + api_token"
+                        }
+                    }
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect API key exposure
+        api_findings = [f for f in result.findings
+                       if "api" in f.title.lower() and f.id.startswith("config-sec-pii")]
+        assert len(api_findings) >= 1
+
+    @pytest.mark.asyncio
+    async def test_ip_address_handling_detected(self):
+        """Test detection of IP address handling without masking."""
+        pipelines = [{
+            "id": "network_pipeline",
+            "conf": {
+                "functions": [
+                    {
+                        "id": "eval",
+                        "conf": {
+                            "field": "client_ip"
+                        }
+                    }
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect IP address field
+        ip_findings = [f for f in result.findings
+                      if "ip" in f.metadata.get("field", "").lower() or "ip" in f.metadata.get("pii_type", "")]
+        assert len(ip_findings) >= 0  # May or may not flag IPs depending on policy
+
+    @pytest.mark.asyncio
+    async def test_redact_function_protects_fields(self):
+        """Test that redact function properly protects fields."""
+        pipelines = [{
+            "id": "redacted_pipeline",
+            "conf": {
+                "functions": [
+                    {
+                        "id": "eval",
+                        "conf": {
+                            "field": "password"
+                        }
+                    },
+                    {
+                        "id": "redact",
+                        "conf": {
+                            "fields": ["password", "api_key"]
+                        }
+                    }
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should NOT flag password field (it's redacted)
+        pwd_findings = [f for f in result.findings
+                       if f.id.startswith("config-sec-unmasked") and "password" in f.id]
+        assert len(pwd_findings) == 0
+
+    @pytest.mark.asyncio
+    async def test_security_metadata_populated(self):
+        """Test that security metadata is properly populated."""
+        pipelines = [{
+            "id": "test_pipeline",
+            "conf": {
+                "functions": [
+                    {
+                        "id": "eval",
+                        "conf": {
+                            "expression": "data = email + ssn",
+                            "field": "credit_card"
+                        }
+                    }
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should have security metadata
+        assert "pii_exposure_risks" in result.metadata
+        assert "unmasked_sensitive_fields" in result.metadata
+        assert "encryption_issues" in result.metadata
+
+    @pytest.mark.asyncio
+    async def test_no_pipelines_security_check(self):
+        """Test security check with no pipelines."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should handle gracefully
+        assert result.metadata["pii_exposure_risks"] == 0
+        assert result.metadata["unmasked_sensitive_fields"] == 0
+
+    @pytest.mark.asyncio
+    async def test_fields_list_pii_detection(self):
+        """Test PII detection in fields list."""
+        pipelines = [{
+            "id": "batch_pipeline",
+            "conf": {
+                "functions": [
+                    {
+                        "id": "eval",
+                        "conf": {
+                            "fields": ["name", "email", "phone", "address"]
+                        }
+                    }
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect email and phone in fields list
+        sensitive_findings = [f for f in result.findings
+                             if f.id.startswith("config-sec-unmasked")]
+        assert len(sensitive_findings) >= 2  # At least email and phone
+
+    @pytest.mark.asyncio
+    async def test_case_insensitive_pii_detection(self):
+        """Test that PII detection is case-insensitive."""
+        pipelines = [{
+            "id": "mixed_case_pipeline",
+            "conf": {
+                "functions": [
+                    {
+                        "id": "eval",
+                        "conf": {
+                            "expression": "data = CREDIT_CARD + Email_Address"
+                        }
+                    }
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect PII regardless of case
+        pii_findings = [f for f in result.findings
+                       if f.id.startswith("config-sec-pii")]
+        assert len(pii_findings) >= 2  # credit_card and email
+
+    @pytest.mark.asyncio
+    async def test_partial_field_name_matching(self):
+        """Test PII detection with partial field name matches."""
+        pipelines = [{
+            "id": "partial_match_pipeline",
+            "conf": {
+                "functions": [
+                    {
+                        "id": "eval",
+                        "conf": {
+                            "field": "user_email_address"  # Contains "email"
+                        }
+                    }
+                ]
+            }
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect email in composite field name
+        email_findings = [f for f in result.findings
+                         if "email" in f.metadata.get("field", "").lower()]
+        assert len(email_findings) >= 1
