@@ -138,6 +138,12 @@ class ConfigAnalyzer(BaseAnalyzer):
             # Analyze pipeline efficiency (Phase 2B)
             self._analyze_pipeline_efficiency(pipelines, result)
 
+            # Detect route conflicts (Phase 2C)
+            self._analyze_route_conflicts(routes, pipelines, result)
+
+            # Analyze configuration complexity (Phase 2D)
+            self._analyze_complexity_metrics(pipelines, result)
+
             # Calculate compliance score
             compliance_score = self._calculate_compliance_score(result)
 
@@ -1253,6 +1259,485 @@ class ConfigAnalyzer(BaseAnalyzer):
                     )
 
         return issues_found
+
+    def _analyze_route_conflicts(
+        self,
+        routes: List[Dict[str, Any]],
+        pipelines: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Analyze route configurations for conflicts and issues (Phase 2C).
+
+        Detects:
+        - Overlapping route filters (multiple routes matching same events)
+        - Unreachable routes (shadowed by earlier catch-all routes)
+        - Invalid or always-true/always-false filter expressions
+        - Routes without filters (catch-all routes)
+        """
+        if not routes:
+            result.metadata["route_conflicts_found"] = 0
+            result.metadata["unreachable_routes"] = 0
+            return
+
+        conflicts_found = 0
+        unreachable_count = 0
+
+        # Check for overlapping and unreachable routes
+        for i, route in enumerate(routes):
+            route_id = route.get("id", f"route_{i}")
+            route_filter = route.get("filter", "")
+
+            # Check if this is a catch-all route (no filter or always-true filter)
+            is_catchall = self._is_catchall_route(route_filter)
+
+            if is_catchall and i < len(routes) - 1:
+                # Catch-all route that's not last - makes all following routes unreachable
+                following_routes = routes[i + 1:]
+                unreachable_count += len(following_routes)
+
+                result.add_finding(
+                    Finding(
+                        id=f"config-route-catchall-not-last-{route_id}",
+                        category="config",
+                        severity="high",
+                        title=f"Catch-All Route Not Last: {route_id}",
+                        description=f"Route '{route_id}' at position {i + 1} has no filter (catch-all), making {len(following_routes)} subsequent routes unreachable",
+                        affected_components=[f"route-{route_id}"] + [f"route-{r.get('id', f'route_{i+1+j}')}" for j, r in enumerate(following_routes)],
+                        remediation_steps=[
+                            f"Move catch-all route '{route_id}' to the end of the route list",
+                            "Or add a filter to make this route more specific",
+                            "Review all routes after this one - they will never be matched",
+                            "Consider removing unreachable routes to simplify configuration"
+                        ],
+                        documentation_links=[
+                            "https://docs.cribl.io/stream/routes/",
+                            "https://docs.cribl.io/stream/routes-best-practices/"
+                        ],
+                        estimated_impact=f"{len(following_routes)} routes are unreachable and serve no purpose",
+                        confidence_level="high",
+                        metadata={
+                            "route_id": route_id,
+                            "route_position": i + 1,
+                            "unreachable_routes": len(following_routes),
+                            "unreachable_route_ids": [r.get("id", f"route_{i+1+j}") for j, r in enumerate(following_routes)]
+                        }
+                    )
+                )
+                conflicts_found += 1
+
+            # Check for overlapping routes (simple heuristic: same or very similar filters)
+            for j in range(i + 1, len(routes)):
+                other_route = routes[j]
+                other_id = other_route.get("id", f"route_{j}")
+                other_filter = other_route.get("filter", "")
+
+                if self._filters_overlap(route_filter, other_filter):
+                    conflicts_found += 1
+                    result.add_finding(
+                        Finding(
+                            id=f"config-route-overlap-{route_id}-{other_id}",
+                            category="config",
+                            severity="medium",
+                            title=f"Potentially Overlapping Routes: {route_id} and {other_id}",
+                            description=f"Routes '{route_id}' (position {i + 1}) and '{other_id}' (position {j + 1}) may have overlapping filters",
+                            affected_components=[f"route-{route_id}", f"route-{other_id}"],
+                            remediation_steps=[
+                                f"Review filters for routes '{route_id}' and '{other_id}'",
+                                "Ensure route ordering reflects intended precedence",
+                                "Consider making filters mutually exclusive if possible",
+                                "Test with sample data to verify routing behavior"
+                            ],
+                            documentation_links=[
+                                "https://docs.cribl.io/stream/routes/",
+                                "https://docs.cribl.io/stream/filtering-data/"
+                            ],
+                            estimated_impact="Events may be routed unpredictably if multiple routes match",
+                            confidence_level="medium",
+                            metadata={
+                                "route_1": route_id,
+                                "route_1_position": i + 1,
+                                "route_1_filter": route_filter,
+                                "route_2": other_id,
+                                "route_2_position": j + 1,
+                                "route_2_filter": other_filter
+                            }
+                        )
+                    )
+
+            # Validate filter expressions
+            if route_filter and not self._is_valid_filter_expression(route_filter):
+                conflicts_found += 1
+                result.add_finding(
+                    Finding(
+                        id=f"config-route-invalid-filter-{route_id}",
+                        category="config",
+                        severity="high",
+                        title=f"Invalid Route Filter Expression: {route_id}",
+                        description=f"Route '{route_id}' has a potentially invalid filter expression",
+                        affected_components=[f"route-{route_id}"],
+                        remediation_steps=[
+                            f"Review and test filter expression for route '{route_id}'",
+                            "Ensure expression follows Cribl expression syntax",
+                            "Test filter with sample events",
+                            "Check for syntax errors or undefined fields"
+                        ],
+                        documentation_links=[
+                            "https://docs.cribl.io/stream/filtering-data/",
+                            "https://docs.cribl.io/stream/expressions/"
+                        ],
+                        estimated_impact="Route may not function as intended or cause processing errors",
+                        confidence_level="medium",
+                        metadata={
+                            "route_id": route_id,
+                            "filter_expression": route_filter
+                        }
+                    )
+                )
+
+        result.metadata["route_conflicts_found"] = conflicts_found
+        result.metadata["unreachable_routes"] = unreachable_count
+
+    def _is_catchall_route(self, route_filter: str) -> bool:
+        """
+        Check if a route filter is a catch-all (no filter or always-true).
+
+        Args:
+            route_filter: The filter expression
+
+        Returns:
+            True if this is a catch-all route
+        """
+        if not route_filter or route_filter.strip() == "":
+            return True
+
+        # Check for always-true expressions
+        always_true_patterns = ["true", "1==1", "1 == 1", "'true'"]
+        normalized = route_filter.strip().lower()
+
+        return normalized in always_true_patterns
+
+    def _filters_overlap(self, filter1: str, filter2: str) -> bool:
+        """
+        Check if two route filters potentially overlap.
+
+        This is a simple heuristic check. For more sophisticated analysis,
+        would need full expression parsing and SAT solving.
+
+        Args:
+            filter1: First filter expression
+            filter2: Second filter expression
+
+        Returns:
+            True if filters might overlap
+        """
+        # If either is catch-all, they definitely overlap
+        if self._is_catchall_route(filter1) or self._is_catchall_route(filter2):
+            return True
+
+        # If filters are identical, they overlap
+        if filter1.strip() == filter2.strip():
+            return True
+
+        # Simple heuristic: check if filters reference the same fields
+        # This is not perfect but catches common cases
+        filter1_lower = filter1.lower()
+        filter2_lower = filter2.lower()
+
+        # Extract potential field names (simple pattern matching)
+        import re
+        field_pattern = r'\b([a-z_][a-z0-9_]*)\b'
+
+        fields1 = set(re.findall(field_pattern, filter1_lower))
+        fields2 = set(re.findall(field_pattern, filter2_lower))
+
+        # Remove common keywords
+        keywords = {'true', 'false', 'null', 'and', 'or', 'not', 'in', 'match'}
+        fields1 -= keywords
+        fields2 -= keywords
+
+        # If they reference the same fields, they might overlap
+        # This is conservative - better to flag potential issues
+        if fields1 & fields2:  # Intersection
+            return True
+
+        return False
+
+    def _is_valid_filter_expression(self, filter_expr: str) -> bool:
+        """
+        Perform basic validation of filter expression syntax.
+
+        This is a simple sanity check, not a full parser.
+
+        Args:
+            filter_expr: The filter expression to validate
+
+        Returns:
+            True if expression appears valid
+        """
+        if not filter_expr or not filter_expr.strip():
+            return True  # Empty filter is valid (catch-all)
+
+        # Check for balanced parentheses
+        paren_count = 0
+        for char in filter_expr:
+            if char == '(':
+                paren_count += 1
+            elif char == ')':
+                paren_count -= 1
+            if paren_count < 0:
+                return False
+
+        if paren_count != 0:
+            return False
+
+        # Check for balanced quotes
+        single_quote_count = filter_expr.count("'")
+        double_quote_count = filter_expr.count('"')
+
+        if single_quote_count % 2 != 0 or double_quote_count % 2 != 0:
+            return False
+
+        # Check for obvious syntax errors
+        invalid_patterns = [
+            '&&',  # Should use 'and'
+            '||',  # Should use 'or'
+            '===', # Triple equals
+            '!==', # Not equals equals
+        ]
+
+        for pattern in invalid_patterns:
+            if pattern in filter_expr:
+                return False
+
+        return True
+
+    def _analyze_complexity_metrics(
+        self,
+        pipelines: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Analyze configuration complexity and detect duplicate patterns (Phase 2D).
+
+        Calculates:
+        - Pipeline complexity scores based on function count and nesting
+        - Duplicate configuration patterns across pipelines
+        - Complexity-based recommendations for simplification
+        """
+        if not pipelines:
+            result.metadata["avg_pipeline_complexity"] = 0.0
+            result.metadata["max_pipeline_complexity"] = 0
+            result.metadata["duplicate_patterns_found"] = 0
+            return
+
+        complexity_scores = []
+        pipeline_patterns = {}  # Track patterns for duplicate detection
+
+        for pipeline in pipelines:
+            pipeline_id = pipeline.get("id", "unknown")
+            functions = pipeline.get("conf", {}).get("functions", [])
+
+            # Calculate complexity score for this pipeline
+            complexity = self._calculate_pipeline_complexity(functions)
+            complexity_scores.append(complexity)
+
+            # Track function patterns for duplicate detection
+            pattern_key = self._get_pipeline_pattern(functions)
+            if pattern_key not in pipeline_patterns:
+                pipeline_patterns[pattern_key] = []
+            pipeline_patterns[pattern_key].append(pipeline_id)
+
+            # Flag overly complex pipelines
+            if complexity > 50:  # High complexity threshold
+                result.add_finding(
+                    Finding(
+                        id=f"config-complexity-high-{pipeline_id}",
+                        category="config",
+                        severity="medium" if complexity <= 75 else "high",
+                        title=f"High Pipeline Complexity: {pipeline_id}",
+                        description=f"Pipeline '{pipeline_id}' has complexity score of {complexity} (threshold: 50). High complexity makes pipelines harder to maintain and debug.",
+                        affected_components=[f"pipeline-{pipeline_id}"],
+                        remediation_steps=[
+                            f"Review pipeline '{pipeline_id}' for opportunities to simplify",
+                            "Consider splitting into multiple smaller, focused pipelines",
+                            "Reduce nesting depth in conditional expressions",
+                            "Extract repeated logic into reusable functions or routes"
+                        ],
+                        documentation_links=[
+                            "https://docs.cribl.io/stream/pipelines-best-practices/",
+                            "https://docs.cribl.io/stream/pipeline-design-patterns/"
+                        ],
+                        estimated_impact="Complex pipelines are harder to troubleshoot and maintain",
+                        confidence_level="high",
+                        metadata={
+                            "pipeline_id": pipeline_id,
+                            "complexity_score": complexity,
+                            "function_count": len(functions)
+                        }
+                    )
+                )
+
+            # Flag pipelines with too many functions
+            if len(functions) > 10:
+                result.add_finding(
+                    Finding(
+                        id=f"config-complexity-function-count-{pipeline_id}",
+                        category="config",
+                        severity="low",
+                        title=f"Many Functions in Pipeline: {pipeline_id}",
+                        description=f"Pipeline '{pipeline_id}' contains {len(functions)} functions. Consider splitting for better maintainability.",
+                        affected_components=[f"pipeline-{pipeline_id}"],
+                        remediation_steps=[
+                            f"Review if pipeline '{pipeline_id}' can be split into logical stages",
+                            "Consider using routes to split processing paths",
+                            "Group related functions into separate pipelines"
+                        ],
+                        documentation_links=[
+                            "https://docs.cribl.io/stream/pipelines-best-practices/"
+                        ],
+                        estimated_impact="Large pipelines are harder to understand and maintain",
+                        confidence_level="medium",
+                        metadata={
+                            "pipeline_id": pipeline_id,
+                            "function_count": len(functions)
+                        }
+                    )
+                )
+
+        # Detect duplicate pipeline patterns
+        duplicate_count = 0
+        for pattern_key, pipeline_ids in pipeline_patterns.items():
+            if len(pipeline_ids) > 1 and pattern_key != "":  # Multiple pipelines with same pattern
+                duplicate_count += 1
+                result.add_finding(
+                    Finding(
+                        id=f"config-complexity-duplicate-pattern-{'-'.join(sorted(pipeline_ids)[:2])}",
+                        category="config",
+                        severity="low",
+                        title=f"Duplicate Pipeline Pattern: {', '.join(pipeline_ids[:3])}{'...' if len(pipeline_ids) > 3 else ''}",
+                        description=f"Found {len(pipeline_ids)} pipelines with identical or very similar function configurations: {', '.join(pipeline_ids)}",
+                        affected_components=[f"pipeline-{pid}" for pid in pipeline_ids],
+                        remediation_steps=[
+                            "Consider consolidating duplicate pipelines into a single reusable pipeline",
+                            "Use routes to direct different data sources to the same processing logic",
+                            "If variations are needed, parameterize the differences",
+                            "This reduces maintenance burden and ensures consistency"
+                        ],
+                        documentation_links=[
+                            "https://docs.cribl.io/stream/routes/",
+                            "https://docs.cribl.io/stream/pipelines-best-practices/"
+                        ],
+                        estimated_impact="Duplicate configurations increase maintenance burden and risk of inconsistency",
+                        confidence_level="high",
+                        metadata={
+                            "duplicate_pipeline_ids": pipeline_ids,
+                            "pattern_hash": pattern_key[:16]  # First 16 chars of hash
+                        }
+                    )
+                )
+
+        # Store complexity metadata
+        if complexity_scores:
+            result.metadata["avg_pipeline_complexity"] = round(
+                sum(complexity_scores) / len(complexity_scores), 2
+            )
+            result.metadata["max_pipeline_complexity"] = max(complexity_scores)
+            result.metadata["min_pipeline_complexity"] = min(complexity_scores)
+        else:
+            result.metadata["avg_pipeline_complexity"] = 0.0
+            result.metadata["max_pipeline_complexity"] = 0
+            result.metadata["min_pipeline_complexity"] = 0
+
+        result.metadata["duplicate_patterns_found"] = duplicate_count
+
+    def _calculate_pipeline_complexity(self, functions: List[Dict[str, Any]]) -> int:
+        """
+        Calculate complexity score for a pipeline.
+
+        Factors:
+        - Number of functions (2 points each)
+        - Nested expressions/conditionals (5 points each level)
+        - Function configuration complexity (1-3 points based on config size)
+
+        Returns:
+            Complexity score (0-100+, higher = more complex)
+        """
+        if not functions:
+            return 0
+
+        complexity = 0
+
+        # Base complexity from function count
+        complexity += len(functions) * 2
+
+        # Analyze each function's configuration
+        for func in functions:
+            func_conf = func.get("conf", {})
+
+            # Check for nested conditions/filters
+            filter_expr = func_conf.get("filter", "")
+            if filter_expr:
+                # Count nesting depth by parentheses
+                max_depth = 0
+                current_depth = 0
+                for char in filter_expr:
+                    if char == '(':
+                        current_depth += 1
+                        max_depth = max(max_depth, current_depth)
+                    elif char == ')':
+                        current_depth -= 1
+
+                complexity += max_depth * 5
+
+            # Complex eval expressions
+            eval_expr = func_conf.get("expression", "")
+            if eval_expr and len(eval_expr) > 50:
+                complexity += 3
+
+            # Large configuration objects indicate complexity
+            if len(func_conf) > 5:
+                complexity += 2
+
+        return min(complexity, 100)  # Cap at 100
+
+    def _get_pipeline_pattern(self, functions: List[Dict[str, Any]]) -> str:
+        """
+        Generate a pattern signature for a pipeline based on function sequence.
+
+        Used to detect duplicate or very similar pipelines.
+
+        Args:
+            functions: List of function configurations
+
+        Returns:
+            Pattern hash string
+        """
+        if not functions:
+            return ""
+
+        # Create a simplified pattern based on function IDs and key config
+        import hashlib
+
+        pattern_parts = []
+        for func in functions:
+            func_id = func.get("id", "unknown")
+            # Include key configuration that affects behavior
+            conf = func.get("conf", {})
+
+            # For pattern matching, we care about:
+            # - Function type (id)
+            # - Presence of filter (not exact value)
+            # - Major config keys
+            has_filter = "yes" if conf.get("filter") else "no"
+            has_expression = "yes" if conf.get("expression") else "no"
+
+            pattern_parts.append(f"{func_id}:{has_filter}:{has_expression}")
+
+        pattern_str = "|".join(pattern_parts)
+
+        # Hash for compact comparison
+        return hashlib.md5(pattern_str.encode()).hexdigest()
 
     def _calculate_compliance_score(self, result: AnalyzerResult) -> float:
         """

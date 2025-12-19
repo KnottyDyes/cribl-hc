@@ -108,8 +108,9 @@ The modern TUI provides a panel-based, keyboard-navigable interface with real-ti
    - "Run Analysis" and "Export Results" buttons
 
 3. **Findings Panel** (Bottom Right)
-   - Live-updated findings table with severity indicators
-   - Sortable by severity: ⚠ CRITICAL, ⚠ HIGH, ℹ MEDIUM, · LOW
+   - Live-updated findings table with color-coded severity indicators
+   - Color scheme: <span style="color:red">**RED**</span> (Critical/High), <span style="color:yellow">**YELLOW**</span> (Medium), <span style="color:green">**GREEN**</span> (Low)
+   - Sorted by severity: ⚠ CRITICAL, ⚠ HIGH, ℹ MEDIUM, · LOW
    - Shows affected components
    - Row selection with cursor navigation
 
@@ -177,8 +178,9 @@ The modern TUI provides a panel-based, keyboard-navigable interface with real-ti
 - **No command memorization**: Visual, mouse-clickable interface
 - **Quick deployment management**: Add/delete deployments without CLI commands
 - **Instant export**: Save reports in JSON or Markdown format with one click
-- **Professional appearance**: Color-coded severity, zebra-striped tables
+- **Professional appearance**: Color-coded severity (red/yellow/green), zebra-striped tables
 - **Accessible**: Full keyboard navigation with F-key shortcuts
+- **At-a-glance severity assessment**: Traffic light color coding for instant priority identification
 
 **Known Issues:**
 - **Findings Panel Scrolling**: In some terminal sizes, the findings table cursor may scroll slightly beyond the visible viewport when navigating to the last rows. This is a layout constraint issue being investigated. Workaround: Use the `--legacy` flag for the simple TUI, or resize your terminal window to provide more vertical space.

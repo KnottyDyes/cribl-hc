@@ -1263,3 +1263,552 @@ class TestConfigAnalyzer:
         assert result.success is True
         # No performance issues from empty pipelines
         assert result.metadata["performance_opportunities"] == 0
+
+    # Phase 2C: Route Conflict Detection Tests
+
+    @pytest.mark.asyncio
+    async def test_catchall_route_not_last_detected(self):
+        """Test detection of catch-all route that's not at the end."""
+        # Setup: Catch-all route in middle of list
+        routes = [
+            {"id": "specific_route", "filter": "status == 200"},
+            {"id": "catchall_route", "filter": ""},  # Catch-all in middle
+            {"id": "unreachable_route_1", "filter": "status == 404"},
+            {"id": "unreachable_route_2", "filter": "status == 500"}
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_routes.return_value = routes
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect catch-all not last
+        catchall_findings = [f for f in result.findings
+                            if f.id.startswith("config-route-catchall-not-last")]
+        assert len(catchall_findings) == 1
+
+        finding = catchall_findings[0]
+        assert finding.severity == "high"
+        assert "catchall_route" in finding.description
+        assert finding.metadata["unreachable_routes"] == 2
+        assert "unreachable_route_1" in finding.metadata["unreachable_route_ids"]
+        assert "unreachable_route_2" in finding.metadata["unreachable_route_ids"]
+
+        # Metadata should track unreachable routes
+        assert result.metadata["unreachable_routes"] == 2
+
+    @pytest.mark.asyncio
+    async def test_catchall_route_last_is_ok(self):
+        """Test that catch-all route at the end is not flagged."""
+        routes = [
+            {"id": "specific_route_1", "filter": "status == 200"},
+            {"id": "specific_route_2", "filter": "status == 404"},
+            {"id": "catchall_route", "filter": ""}  # Catch-all at end is OK
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_routes.return_value = routes
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should NOT detect catch-all issue (it's last)
+        catchall_findings = [f for f in result.findings
+                            if f.id.startswith("config-route-catchall-not-last")]
+        assert len(catchall_findings) == 0
+
+        # No unreachable routes
+        assert result.metadata["unreachable_routes"] == 0
+
+    @pytest.mark.asyncio
+    async def test_overlapping_routes_detected(self):
+        """Test detection of routes with overlapping filters."""
+        routes = [
+            {"id": "route_1", "filter": "host == 'server1'"},
+            {"id": "route_2", "filter": "host == 'server1'"}  # Identical filter
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_routes.return_value = routes
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect overlapping routes
+        overlap_findings = [f for f in result.findings
+                           if f.id.startswith("config-route-overlap")]
+        assert len(overlap_findings) == 1
+
+        finding = overlap_findings[0]
+        assert finding.severity == "medium"
+        assert "route_1" in finding.metadata["route_1"]
+        assert "route_2" in finding.metadata["route_2"]
+
+    @pytest.mark.asyncio
+    async def test_overlapping_routes_same_fields(self):
+        """Test detection of routes referencing same fields."""
+        routes = [
+            {"id": "route_1", "filter": "status == 200 and host == 'server1'"},
+            {"id": "route_2", "filter": "host == 'server2' and path == '/api'"}
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_routes.return_value = routes
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect potential overlap (both reference 'host')
+        overlap_findings = [f for f in result.findings
+                           if f.id.startswith("config-route-overlap")]
+        assert len(overlap_findings) == 1
+
+    @pytest.mark.asyncio
+    async def test_non_overlapping_routes(self):
+        """Test that non-overlapping routes are not flagged."""
+        routes = [
+            {"id": "route_1", "filter": "sourcetype == 'syslog'"},
+            {"id": "route_2", "filter": "application == 'web'"}
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_routes.return_value = routes
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should NOT detect overlap (different fields)
+        overlap_findings = [f for f in result.findings
+                           if f.id.startswith("config-route-overlap")]
+        assert len(overlap_findings) == 0
+
+    @pytest.mark.asyncio
+    async def test_invalid_filter_expression_detected(self):
+        """Test detection of invalid filter expressions."""
+        routes = [
+            {"id": "bad_route_1", "filter": "status == 200 and (host == 'server1'"},  # Unbalanced parens
+            {"id": "bad_route_2", "filter": "path == '/api' && method == 'GET'"},  # Wrong operator
+            {"id": "bad_route_3", "filter": "message == 'test"}  # Unbalanced quotes
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_routes.return_value = routes
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect all 3 invalid filters
+        invalid_findings = [f for f in result.findings
+                           if f.id.startswith("config-route-invalid-filter")]
+        assert len(invalid_findings) == 3
+
+        # All should be high severity
+        for finding in invalid_findings:
+            assert finding.severity == "high"
+
+    @pytest.mark.asyncio
+    async def test_valid_filter_expressions_not_flagged(self):
+        """Test that valid filter expressions are not flagged."""
+        routes = [
+            {"id": "route_1", "filter": "status == 200"},
+            {"id": "route_2", "filter": "(status == 404 or status == 500) and host == 'server1'"},
+            {"id": "route_3", "filter": "message == 'test' and not (error == true)"}
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_routes.return_value = routes
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should NOT detect invalid filters
+        invalid_findings = [f for f in result.findings
+                           if f.id.startswith("config-route-invalid-filter")]
+        assert len(invalid_findings) == 0
+
+    @pytest.mark.asyncio
+    async def test_route_conflict_metadata_populated(self):
+        """Test that route conflict metadata is properly populated."""
+        routes = [
+            {"id": "route_1", "filter": ""},  # Catch-all not last
+            {"id": "route_2", "filter": "status == 200"},
+            {"id": "route_3", "filter": "status == 200"}  # Overlapping
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_routes.return_value = routes
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should have metadata about conflicts
+        assert "route_conflicts_found" in result.metadata
+        assert result.metadata["route_conflicts_found"] >= 2  # Catch-all + overlap
+        assert "unreachable_routes" in result.metadata
+        assert result.metadata["unreachable_routes"] == 2  # route_2 and route_3
+
+    @pytest.mark.asyncio
+    async def test_no_routes_handled_gracefully(self):
+        """Test that empty routes list is handled gracefully."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_routes.return_value = []
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should handle gracefully
+        assert result.success is True
+        assert result.metadata["route_conflicts_found"] == 0
+        assert result.metadata["unreachable_routes"] == 0
+
+    @pytest.mark.asyncio
+    async def test_catchall_variations_detected(self):
+        """Test detection of various catch-all patterns."""
+        routes = [
+            {"id": "route_1", "filter": "true"},  # Always-true
+            {"id": "route_2", "filter": "status == 200"},
+            {"id": "route_3", "filter": "1==1"},  # Another always-true
+            {"id": "route_4", "filter": "status == 404"}
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_routes.return_value = routes
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect both catch-all routes
+        catchall_findings = [f for f in result.findings
+                            if f.id.startswith("config-route-catchall-not-last")]
+        assert len(catchall_findings) == 2  # Both route_1 and route_3 are catch-all
+
+    # Phase 2D: Configuration Complexity Metrics Tests
+
+    def test_pipeline_complexity_calculation_simple(self):
+        """Test complexity calculation for simple pipeline."""
+        analyzer = ConfigAnalyzer()
+
+        # Simple pipeline: 3 functions, no nesting
+        functions = [
+            {"id": "eval", "conf": {"expression": "x = 1"}},
+            {"id": "drop", "conf": {"filter": "status == 200"}},
+            {"id": "mask", "conf": {"fields": ["password"]}}
+        ]
+
+        complexity = analyzer._calculate_pipeline_complexity(functions)
+
+        # Expected: 3 functions * 2 = 6, plus minimal nesting/config overhead
+        assert complexity >= 6
+        assert complexity < 20  # Should be low complexity
+
+    def test_pipeline_complexity_calculation_complex(self):
+        """Test complexity calculation for complex pipeline with nesting."""
+        analyzer = ConfigAnalyzer()
+
+        # Complex pipeline: nested filters and long expressions
+        functions = [
+            {
+                "id": "eval",
+                "conf": {
+                    "filter": "((status == 200 or status == 201) and (method == 'GET' or method == 'POST'))",
+                    "expression": "very_long_expression_" * 10  # >50 chars
+                }
+            },
+            {
+                "id": "regex_extract",
+                "conf": {
+                    "pattern": ".*",
+                    "field": "message",
+                    "output": "extracted",
+                    "mode": "sed",
+                    "iterations": 100,
+                    "cache_enabled": True  # >5 config keys
+                }
+            }
+        ]
+
+        complexity = analyzer._calculate_pipeline_complexity(functions)
+
+        # Should have high complexity due to nesting and config size
+        assert complexity >= 19  # Actual is 19 - nested parens + config
+
+    def test_pipeline_complexity_empty(self):
+        """Test complexity for empty pipeline."""
+        analyzer = ConfigAnalyzer()
+
+        complexity = analyzer._calculate_pipeline_complexity([])
+
+        assert complexity == 0
+
+    @pytest.mark.asyncio
+    async def test_high_complexity_pipeline_detected(self):
+        """Test detection of overly complex pipelines."""
+        # Create pipeline with high complexity (>50)
+        complex_functions = []
+        for i in range(15):  # 15 functions * 2 = 30 base complexity
+            complex_functions.append({
+                "id": "eval",
+                "conf": {
+                    "filter": "((a and b) or (c and d))",  # Adds nesting points
+                    "expression": "long_expression_" * 10
+                }
+            })
+
+        pipelines = [{
+            "id": "complex_pipeline",
+            "conf": {"functions": complex_functions}
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect high complexity
+        complexity_findings = [f for f in result.findings
+                              if f.id.startswith("config-complexity-high")]
+        assert len(complexity_findings) == 1
+
+        finding = complexity_findings[0]
+        assert finding.severity in ["medium", "high"]
+        assert "complex_pipeline" in finding.affected_components[0]
+
+    @pytest.mark.asyncio
+    async def test_many_functions_pipeline_detected(self):
+        """Test detection of pipelines with too many functions."""
+        # Create pipeline with >10 functions
+        many_functions = [
+            {"id": f"function_{i}", "conf": {}} for i in range(12)
+        ]
+
+        pipelines = [{
+            "id": "large_pipeline",
+            "conf": {"functions": many_functions}
+        }]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect too many functions
+        function_count_findings = [f for f in result.findings
+                                  if f.id.startswith("config-complexity-function-count")]
+        assert len(function_count_findings) == 1
+
+        finding = function_count_findings[0]
+        assert finding.severity == "low"
+        assert finding.metadata["function_count"] == 12
+
+    @pytest.mark.asyncio
+    async def test_duplicate_pipeline_patterns_detected(self):
+        """Test detection of duplicate pipeline patterns."""
+        # Create two pipelines with identical function patterns
+        identical_functions = [
+            {"id": "eval", "conf": {"expression": "x = 1"}},
+            {"id": "drop", "conf": {"filter": "status == 404"}},
+            {"id": "mask", "conf": {"fields": ["password"]}}
+        ]
+
+        pipelines = [
+            {"id": "pipeline_1", "conf": {"functions": identical_functions}},
+            {"id": "pipeline_2", "conf": {"functions": identical_functions}},  # Duplicate
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should detect duplicate pattern
+        duplicate_findings = [f for f in result.findings
+                             if f.id.startswith("config-complexity-duplicate-pattern")]
+        assert len(duplicate_findings) == 1
+
+        finding = duplicate_findings[0]
+        assert finding.severity == "low"
+        assert "pipeline_1" in finding.metadata["duplicate_pipeline_ids"]
+        assert "pipeline_2" in finding.metadata["duplicate_pipeline_ids"]
+
+    @pytest.mark.asyncio
+    async def test_unique_pipelines_not_flagged_as_duplicate(self):
+        """Test that unique pipelines are not flagged as duplicates."""
+        pipelines = [
+            {
+                "id": "pipeline_1",
+                "conf": {
+                    "functions": [
+                        {"id": "eval", "conf": {"expression": "x = 1"}},
+                        {"id": "drop", "conf": {"filter": "status == 404"}}
+                    ]
+                }
+            },
+            {
+                "id": "pipeline_2",
+                "conf": {
+                    "functions": [
+                        {"id": "mask", "conf": {"fields": ["password"]}},
+                        {"id": "regex_extract", "conf": {"pattern": ".*"}}
+                    ]
+                }
+            }
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should NOT detect duplicates
+        duplicate_findings = [f for f in result.findings
+                             if f.id.startswith("config-complexity-duplicate-pattern")]
+        assert len(duplicate_findings) == 0
+
+    @pytest.mark.asyncio
+    async def test_complexity_metadata_populated(self):
+        """Test that complexity metadata is properly populated."""
+        pipelines = [
+            {"id": "simple", "conf": {"functions": [{"id": "drop", "conf": {}}]}},
+            {
+                "id": "complex",
+                "conf": {
+                    "functions": [
+                        {"id": f"func_{i}", "conf": {"filter": "((a and b) or c)"}}
+                        for i in range(10)
+                    ]
+                }
+            },
+            {"id": "medium", "conf": {"functions": [{"id": f"func_{i}", "conf": {}} for i in range(5)]}}
+        ]
+
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = pipelines
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should have complexity metadata
+        assert "avg_pipeline_complexity" in result.metadata
+        assert "max_pipeline_complexity" in result.metadata
+        assert "min_pipeline_complexity" in result.metadata
+        assert "duplicate_patterns_found" in result.metadata
+
+        # Verify values are reasonable
+        assert result.metadata["avg_pipeline_complexity"] > 0
+        assert result.metadata["max_pipeline_complexity"] >= result.metadata["avg_pipeline_complexity"]
+        assert result.metadata["min_pipeline_complexity"] <= result.metadata["avg_pipeline_complexity"]
+
+    @pytest.mark.asyncio
+    async def test_complexity_no_pipelines(self):
+        """Test complexity analysis with no pipelines."""
+        mock_client = AsyncMock(spec=CriblAPIClient)
+        mock_client.is_edge = False
+        mock_client.is_stream = True
+        mock_client.product_type = "stream"
+        mock_client.get_pipelines.return_value = []
+        mock_client.get_routes.return_value = []
+        mock_client.get_inputs.return_value = []
+        mock_client.get_outputs.return_value = []
+
+        analyzer = ConfigAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        # Should handle gracefully
+        assert result.metadata["avg_pipeline_complexity"] == 0.0
+        assert result.metadata["max_pipeline_complexity"] == 0
+        assert result.metadata["duplicate_patterns_found"] == 0

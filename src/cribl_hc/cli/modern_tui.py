@@ -447,6 +447,8 @@ class FindingsPanel(Static):
 
     def watch_findings(self, findings: list) -> None:
         """Update findings display."""
+        from rich.text import Text
+
         table = self.query_one("#findings-table", DataTable)
         table.clear()
 
@@ -458,19 +460,27 @@ class FindingsPanel(Static):
         )[:15]  # Limit to 15 for better viewport fit
 
         for finding in sorted_findings:
-            severity_icon = {
-                "critical": "⚠",
-                "high": "⚠",
-                "medium": "ℹ",
-                "low": "·"
-            }.get(finding.severity, "·")
+            # Icon and color scheme based on severity
+            severity_display = {
+                "critical": ("⚠", "red"),
+                "high": ("⚠", "red"),
+                "medium": ("ℹ", "yellow"),
+                "low": ("·", "green")
+            }
+
+            icon, color = severity_display.get(finding.severity, ("·", "white"))
+
+            # Create colored severity text
+            severity_text = Text()
+            severity_text.append(f"{icon} ", style=color)
+            severity_text.append(finding.severity.upper(), style=f"bold {color}")
 
             component = ", ".join(finding.affected_components[:2])
             if len(finding.affected_components) > 2:
                 component += f" +{len(finding.affected_components) - 2}"
 
             table.add_row(
-                f"{severity_icon} {finding.severity.upper()}",
+                severity_text,
                 finding.category,
                 finding.title[:40],  # Truncate long titles
                 component
