@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/_build/
+*.md
+!README.md
+
+# Credentials and reports (never include in image)
+.cribl-hc/
+*.json
+*.md
+reports/
+
+# Session files (temporary documentation)
+SESSION_SUMMARY.md
+OAUTH_*.md
+DOCKER_IMPLEMENTATION.md
+GUI_IMPLEMENTATION_PLAN.md
+PHASE_*.md
+API_PHASE1_COMPLETE.md
+MVP_COMPLETION_SUMMARY.md
+PERFORMANCE_VALIDATION.md
+QUICK_START_TESTING.md
+SUMMARY.md
+
+# Development files
+.env
+.env.*
+*.log
+
+# macOS
+.DS_Store
+
+# Frontend (will be in separate stage later)
+frontend/
+node_modules/

@@ -1,0 +1,78 @@
+# Docker Compose configuration for Cribl Health Check
+# Supports both CLI and Web GUI modes
+
+version: '3.8'
+
+services:
+  # Main application service
+  cribl-hc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cribl-hc:latest
+    container_name: cribl-hc
+
+    # Web API mode (default)
+    ports:
+      - "8080:8080"
+
+    # Persistent storage for credentials and reports
+    volumes:
+      - cribl-hc-credentials:/home/criblhc/.cribl-hc
+      - ./reports:/app/reports
+
+    # Environment variables
+    environment:
+      - PYTHONUNBUFFERED=1
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+    # Resource limits (optional)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+# Named volumes for persistence
+volumes:
+  cribl-hc-credentials:
+    driver: local
+
+# Usage Examples:
+#
+# Start web API (default):
+#   docker-compose up -d
+#
+# View logs:
+#   docker-compose logs -f
+#
+# Stop:
+#   docker-compose down
+#
+# Run CLI command:
+#   docker-compose run --rm cribl-hc cribl-hc --help
+#   docker-compose run --rm cribl-hc cribl-hc config add prod
+#   docker-compose run --rm cribl-hc cribl-hc analyze prod
+#
+# Interactive shell:
+#   docker-compose run --rm cribl-hc bash
+#
+# Rebuild after code changes:
+#   docker-compose build
+#   docker-compose up -d
+#
+# View credential volume location:
+#   docker volume inspect cribl-hc_cribl-hc-credentials

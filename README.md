@@ -4,6 +4,7 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 
 ## Features
 
+### CLI Features
 - **Quick Health Assessment**: Overall health score (0-100) with prioritized critical issues
 - **Configuration Validation**: Detect syntax errors, deprecated functions, and best practice violations
 - **Performance Optimization**: Identify over/under-provisioned workers and optimization opportunities
@@ -11,6 +12,14 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 - **Cost Management**: Track license consumption and predict exhaustion timelines
 - **Read-Only by Design**: All operations use read-only API access, zero risk to production
 - **Fast Analysis**: Complete analysis in under 5 minutes using fewer than 100 API calls
+
+### Web GUI Features (New!)
+- **Interactive Dashboard**: Modern web interface for managing health checks
+- **Real-time Updates**: Live progress tracking via WebSocket during analysis
+- **Credential Management**: Add, edit, and test deployment credentials from the browser
+- **Visual Results**: Interactive findings table with filtering and sorting
+- **REST API**: Full API backend for programmatic access
+- **Docker Support**: One-command deployment with Docker Compose
 
 ## Supported Products
 
@@ -42,16 +51,39 @@ _*Disk metrics available on self-hosted deployments only. Cribl Cloud does not e
 - Python 3.11 or higher
 - Cribl Stream API access token
 - Network access to Cribl Stream API endpoints
+- (Optional) Docker for containerized deployment
+- (Optional) Node.js 18+ for frontend development
 
-### Install from Source (Current)
+### Option 1: Docker (Recommended for Web GUI)
 
 ```bash
+# Clone repository
 git clone https://github.com/KnottyDyes/cribl-hc.git
 cd cribl-hc
-pip install -e .
+
+# Start web API
+docker-compose up -d
+
+# Access web interface
+open http://localhost:8080/api/docs
 ```
 
-### Install from PyPI (Coming Soon)
+### Option 2: Install from Source
+
+```bash
+# Clone repository
+git clone https://github.com/KnottyDyes/cribl-hc.git
+cd cribl-hc
+
+# Install for CLI usage
+pip install -e .
+
+# OR install for web API
+pip install -e .
+python run_api.py  # Starts web server on port 8080
+```
+
+### Option 3: Install from PyPI (Coming Soon)
 
 ```bash
 # Not yet available - package will be published to PyPI in the future
@@ -62,7 +94,38 @@ pip install cribl-health-check
 
 ## Quick Start
 
-### 1. Configure Credentials
+Choose your preferred interface:
+- **Web GUI**: Modern browser-based interface (recommended for production use)
+- **CLI**: Command-line interface for automation and scripting
+- **TUI**: Interactive terminal interface for quick checks
+
+### Web GUI Mode
+
+```bash
+# Start API server
+python run_api.py
+
+# OR with Docker
+docker-compose up -d
+
+# Access in browser
+open http://localhost:8080/api/docs
+
+# Interactive API documentation with "Try it out" buttons
+# Add credentials, run analyses, view results - all from the browser
+```
+
+**Features**:
+- Add/edit/test credentials via web interface
+- Start analyses with real-time progress updates
+- View findings in interactive table
+- WebSocket live updates during analysis
+
+**Documentation**: See [docs/WEB_GUI_QUICKSTART.md](docs/WEB_GUI_QUICKSTART.md)
+
+### CLI Mode
+
+#### 1. Configure Credentials
 
 ```bash
 # Configure credentials for your Cribl Stream deployment
