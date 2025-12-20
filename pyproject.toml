@@ -35,6 +35,12 @@ dependencies = [
     "python-dateutil>=2.8.0",
     "pyyaml>=6.0.0",
     "textual>=0.47.0",
+    "packaging>=23.0",
+    # Web API dependencies
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "python-multipart>=0.0.6",
+    "websockets>=12.0",
 ]
 
 [project.optional-dependencies]
