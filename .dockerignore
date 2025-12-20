@@ -74,16 +74,20 @@ prod_report.md
 *.html
 htmlcov/
 
-# Session files
+# Session files (temporary documentation)
 SESSION_SUMMARY.md
 SUMMARY.md
-OAUTH_AND_TUI_UPDATES.md
-OAUTH_AUTHENTICATION_SUPPORT.md
+OAUTH_*.md
 PHASE_2A_COMPLETION.md
 PERFORMANCE_VALIDATION.md
-CREDENTIAL_STORAGE_IMPLEMENTATION.md
+CREDENTIAL_*.md
 HEALTH_ANALYZER_ENHANCEMENTS.md
-DEBUG_MODE_USAGE.md
+DEBUG_MODE_*.md
+MVP_COMPLETION_SUMMARY.md
+QUICK_START_TESTING.md
+DOCKER_IMPLEMENTATION.md
+GUI_IMPLEMENTATION_PLAN.md
+generate_status_report_pdf.py
 
 # Docker files (avoid recursion)
 Dockerfile*

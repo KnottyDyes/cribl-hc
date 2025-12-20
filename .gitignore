@@ -99,7 +99,19 @@ MVP_COMPLETION_SUMMARY.md
 PERFORMANCE_VALIDATION.md
 QUICK_START_TESTING.md
 SUMMARY.md
+SESSION_SUMMARY.md
+OAUTH_*.md
+PHASE_2A_COMPLETION.md
+DOCKER_IMPLEMENTATION.md
+GUI_IMPLEMENTATION_PLAN.md
 generate_status_report_pdf.py
+
+# Generated test/example reports (not official docs)
+prod_report.md
+default_report.md
+integration_test_report.md
+*_report.md
+!docs/*_report.md
 
 # Build artifacts
 *.prof
