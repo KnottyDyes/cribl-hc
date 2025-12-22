@@ -71,6 +71,11 @@ export interface AnalysisRequest {
   analyzers?: string[]
 }
 
+export interface AnalysisRequestInput {
+  credential_name: string
+  analyzers: string[]
+}
+
 export interface AnalysisResponse {
   analysis_id: string
   deployment_name: string
@@ -92,11 +97,14 @@ export interface Finding {
   description: string
   affected_components: string[]
   remediation_steps: string[]
-  documentation_links: string[]
-  estimated_impact: string
-  confidence_level: 'high' | 'medium' | 'low'
-  detected_at: string
-  metadata: Record<string, any>
+  documentation_links?: string[]
+  documentation_url?: string
+  estimated_impact?: string
+  impact_score?: number
+  confidence_level?: 'high' | 'medium' | 'low'
+  false_positive_risk?: boolean
+  detected_at?: string
+  metadata?: Record<string, any>
 }
 
 export interface AnalysisResultResponse {
@@ -109,6 +117,17 @@ export interface AnalysisResultResponse {
   recommendations_count: number
   completed_at: string | null
   duration_seconds: number | null
+  summary?: {
+    total_findings: number
+    critical_count: number
+    high_count: number
+    medium_count: number
+    low_count: number
+    info_count: number
+    health_score: number
+    risk_level: string
+    categories: Record<string, number>
+  }
 }
 
 // ============================================================================
