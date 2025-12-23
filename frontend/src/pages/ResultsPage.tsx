@@ -122,11 +122,21 @@ export function ResultsPage() {
     label: cat === 'all' ? 'All Categories' : cat,
   }))
 
-  const filteredFindings = enrichedResults.findings.filter((finding) => {
-    const matchesSeverity = severityFilter === 'all' || finding.severity === severityFilter
-    const matchesCategory = categoryFilter === 'all' || finding.category === categoryFilter
-    return matchesSeverity && matchesCategory
-  })
+  const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 }
+
+  const filteredFindings = enrichedResults.findings
+    .filter((finding) => {
+      const matchesSeverity = severityFilter === 'all' || finding.severity === severityFilter
+      const matchesCategory = categoryFilter === 'all' || finding.category === categoryFilter
+      return matchesSeverity && matchesCategory
+    })
+    .sort((a, b) => {
+      // Sort by severity first (descending: critical → high → medium → low → info)
+      const severityDiff = severityOrder[b.severity] - severityOrder[a.severity]
+      if (severityDiff !== 0) return severityDiff
+      // Then by category (ascending) as secondary sort
+      return a.category.localeCompare(b.category)
+    })
 
   return (
     <div className="min-h-screen bg-gray-50">

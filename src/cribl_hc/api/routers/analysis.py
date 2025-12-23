@@ -12,7 +12,10 @@ from typing import Dict, List, Optional
 from enum import Enum
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
+import json
+from json import JSONEncoder
 
 from cribl_hc.analyzers import get_global_registry
 from cribl_hc.cli.commands.config import load_credentials
@@ -25,6 +28,16 @@ from cribl_hc.utils.logger import get_logger
 
 router = APIRouter()
 log = get_logger(__name__)
+
+
+# Custom JSON encoder for datetime and enum objects
+class CustomJSONEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, Enum):
+            return obj.value
+        return super().default(obj)
 
 
 # In-memory storage for analysis results (will be replaced with database in v2)
@@ -389,6 +402,240 @@ async def delete_analysis(analysis_id: str):
     log.info("analysis_deleted", analysis_id=analysis_id)
 
     return None
+
+
+@router.get("/{analysis_id}/export/{format}")
+async def export_analysis(analysis_id: str, format: str):
+    """
+    Export analysis results in various formats.
+
+    Supported formats:
+    - json: Raw JSON export
+    - html: Formatted HTML report
+    - md: Markdown report
+    """
+    if analysis_id not in analysis_results:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Analysis '{analysis_id}' not found"
+        )
+
+    data = analysis_results[analysis_id]
+
+    if data["status"] not in [AnalysisStatus.COMPLETED, AnalysisStatus.FAILED]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Analysis is still {data['status']}. Cannot export incomplete analysis."
+        )
+
+    if format == "json":
+        # JSON export
+        export_data = {
+            "analysis_id": analysis_id,
+            "deployment_name": data["deployment_name"],
+            "status": data["status"].value if isinstance(data["status"], AnalysisStatus) else data["status"],
+            "health_score": data.get("health_score"),
+            "findings": data.get("findings", []),
+            "recommendations": data.get("recommendations", []),
+            "completed_at": data.get("completed_at").isoformat() if data.get("completed_at") else None,
+            "duration_seconds": data.get("duration_seconds"),
+        }
+        content = json.dumps(export_data, indent=2, cls=CustomJSONEncoder)
+        media_type = "application/json"
+
+    elif format == "html":
+        # HTML export
+        findings = data.get("findings", [])
+        health_score = data.get("health_score")
+
+        # Calculate health score if not provided by backend
+        if health_score is None:
+            critical_count = sum(1 for f in findings if f.get('severity') == 'critical')
+            high_count = sum(1 for f in findings if f.get('severity') == 'high')
+            medium_count = sum(1 for f in findings if f.get('severity') == 'medium')
+            low_count = sum(1 for f in findings if f.get('severity') == 'low')
+            health_score = max(0, 100 - (critical_count * 20 + high_count * 10 + medium_count * 3 + low_count * 0.5))
+
+        # Round to 1 decimal place for display
+        health_score_display = round(health_score, 1) if isinstance(health_score, (int, float)) else 0
+
+        # Sort findings by severity
+        severity_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3, 'info': 4}
+        sorted_findings = sorted(findings, key=lambda f: severity_order.get(f.get('severity', 'info'), 5))
+
+        # Determine health score color
+        score_color = '#16a34a' if health_score >= 70 else '#ea580c' if health_score >= 40 else '#dc2626'
+
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Health Check Report - {data['deployment_name']}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+        h1 {{ color: #1e40af; border-bottom: 3px solid #1e40af; padding-bottom: 10px; }}
+        .header {{ margin-bottom: 30px; }}
+        .score-container {{ margin: 20px 0; }}
+        .score-label {{ font-weight: bold; margin-bottom: 10px; }}
+        .score-bar-bg {{ width: 100%; height: 40px; background: #e5e7eb; border-radius: 20px; overflow: hidden; position: relative; }}
+        .score-bar-fill {{ height: 100%; background: {score_color}; transition: width 0.3s ease; }}
+        .score-text {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; font-size: 18px; color: #1f2937; }}
+        .finding {{ border: 1px solid #ddd; margin: 15px 0; padding: 15px; border-radius: 6px; }}
+        .critical {{ border-left: 4px solid #dc2626; background: #fef2f2; }}
+        .high {{ border-left: 4px solid #ea580c; background: #fff7ed; }}
+        .medium {{ border-left: 4px solid #f59e0b; background: #fffbeb; }}
+        .low {{ border-left: 4px solid #3b82f6; background: #eff6ff; }}
+        .info {{ border-left: 4px solid #6b7280; background: #f9fafb; }}
+        .severity {{ display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; text-transform: uppercase; }}
+        .severity-critical {{ background: #dc2626; color: white; }}
+        .severity-high {{ background: #ea580c; color: white; }}
+        .severity-medium {{ background: #f59e0b; color: white; }}
+        .severity-low {{ background: #3b82f6; color: white; }}
+        .severity-info {{ background: #6b7280; color: white; }}
+        .metadata {{ color: #666; font-size: 14px; margin-top: 5px; }}
+        ul {{ margin: 10px 0; padding-left: 20px; }}
+        .info-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; }}
+        .info-item {{ background: #f9fafb; padding: 12px; border-radius: 6px; }}
+        .info-item strong {{ display: block; color: #6b7280; font-size: 12px; margin-bottom: 4px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Cribl Health Check Report</h1>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <strong>Deployment</strong>
+                    {data['deployment_name']}
+                </div>
+                <div class="info-item">
+                    <strong>Analysis ID</strong>
+                    {analysis_id}
+                </div>
+                <div class="info-item">
+                    <strong>Completed</strong>
+                    {data.get('completed_at').isoformat() if data.get('completed_at') else 'N/A'}
+                </div>
+                <div class="info-item">
+                    <strong>Total Findings</strong>
+                    {len(findings)}
+                </div>
+            </div>
+
+            <div class="score-container">
+                <div class="score-label">Health Score</div>
+                <div class="score-bar-bg">
+                    <div class="score-bar-fill" style="width: {health_score}%"></div>
+                    <div class="score-text">{health_score_display}/100</div>
+                </div>
+            </div>
+        </div>
+
+        <h2>Findings ({len(findings)})</h2>
+"""
+
+        for finding in sorted_findings:
+            severity = finding.get('severity', 'info')
+            html_content += f"""
+        <div class="finding {severity}">
+            <div>
+                <span class="severity severity-{severity}">{severity}</span>
+                <strong style="margin-left: 10px;">{finding.get('title', 'Untitled')}</strong>
+            </div>
+            <p class="metadata">Category: {finding.get('category', 'N/A')}</p>
+            <p>{finding.get('description', 'No description')}</p>
+            <p><strong>Affected Components:</strong></p>
+            <ul>
+                {''.join(f'<li>{comp}</li>' for comp in finding.get('affected_components', []))}
+            </ul>
+            <p><strong>Remediation Steps:</strong></p>
+            <ul>
+                {''.join(f'<li>{step}</li>' for step in finding.get('remediation_steps', []))}
+            </ul>
+        </div>
+"""
+
+        html_content += """
+    </div>
+</body>
+</html>
+"""
+        content = html_content
+        media_type = "text/html"
+
+    elif format == "md":
+        # Markdown export
+        findings = data.get("findings", [])
+        health_score = data.get("health_score")
+
+        # Calculate health score if not provided by backend
+        if health_score is None:
+            critical_count = sum(1 for f in findings if f.get('severity') == 'critical')
+            high_count = sum(1 for f in findings if f.get('severity') == 'high')
+            medium_count = sum(1 for f in findings if f.get('severity') == 'medium')
+            low_count = sum(1 for f in findings if f.get('severity') == 'low')
+            health_score = max(0, 100 - (critical_count * 20 + high_count * 10 + medium_count * 3 + low_count * 0.5))
+
+        # Round to 1 decimal place for display
+        health_score_display = round(health_score, 1) if isinstance(health_score, (int, float)) else 0
+
+        md_content = f"""# Cribl Health Check Report
+
+**Deployment:** {data['deployment_name']}
+**Analysis ID:** {analysis_id}
+**Completed:** {data.get('completed_at').isoformat() if data.get('completed_at') else 'N/A'}
+**Health Score:** {health_score_display}/100
+
+---
+
+## Findings ({len(findings)})
+
+"""
+
+        # Sort by severity
+        severity_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3, 'info': 4}
+        sorted_findings = sorted(findings, key=lambda f: severity_order.get(f.get('severity', 'info'), 5))
+
+        for finding in sorted_findings:
+            md_content += f"""
+### {finding.get('title', 'Untitled')}
+
+**Severity:** {finding.get('severity', 'info').upper()}
+**Category:** {finding.get('category', 'N/A')}
+
+{finding.get('description', 'No description')}
+
+**Affected Components:**
+{chr(10).join(f'- {comp}' for comp in finding.get('affected_components', []))}
+
+**Remediation Steps:**
+{chr(10).join(f'{i+1}. {step}' for i, step in enumerate(finding.get('remediation_steps', [])))}
+
+---
+
+"""
+
+        content = md_content
+        media_type = "text/markdown"
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported format '{format}'. Use json, html, or md."
+        )
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="health-check-{analysis_id}.{format}"',
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 
 @router.websocket("/ws/{analysis_id}")

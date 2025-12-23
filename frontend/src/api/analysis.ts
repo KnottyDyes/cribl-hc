@@ -48,4 +48,17 @@ export const analysisApi = {
   delete: async (id: string): Promise<void> => {
     return apiClient.delete(`/api/v1/analysis/${id}`)
   },
+
+  /**
+   * Export analysis results in specified format
+   * GET /api/v1/analysis/{id}/export/{format}
+   */
+  export: async (id: string, format: 'json' | 'html' | 'md'): Promise<Blob> => {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+    const response = await fetch(`${API_BASE_URL}/api/v1/analysis/${id}/export/${format}`)
+    if (!response.ok) {
+      throw new Error(`Export failed: ${response.statusText}`)
+    }
+    return response.blob()
+  },
 }
