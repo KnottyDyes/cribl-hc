@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { credentialsApi } from '../../api/credentials'
 import { CredentialCard } from './CredentialCard'
 import { CredentialForm } from './CredentialForm'
-import { Button, Modal } from '../common'
+import { Button, Modal, SkeletonCredentialCard } from '../common'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import type { Credential, CredentialCreate } from '../../api/types'
 
@@ -92,8 +92,20 @@ export function CredentialList() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Credentials</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Loading credentials...
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCredentialCard key={i} />
+          ))}
+        </div>
       </div>
     )
   }

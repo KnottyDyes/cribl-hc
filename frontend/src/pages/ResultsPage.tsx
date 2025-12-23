@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { analysisApi } from '../api/analysis'
 import { ResultsSummary } from '../components/results/ResultsSummary'
 import { FindingCard } from '../components/results/FindingCard'
-import { Button, Select } from '../components/common'
+import { Button, Select, SkeletonFindingCard } from '../components/common'
 import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import type { AnalysisResultResponse } from '../api/types'
 
@@ -87,8 +87,27 @@ export function ResultsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="bg-gray-50 min-h-screen p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-6">
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/analysis')}
+              className="mb-4"
+            >
+              <ArrowLeftIcon className="h-5 w-5 mr-2" />
+              Back to Analyses
+            </Button>
+            <h1 className="text-3xl font-bold text-gray-900">Loading Analysis Results...</h1>
+          </div>
+
+          {/* Loading Skeletons */}
+          <div className="grid grid-cols-1 gap-6">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonFindingCard key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
