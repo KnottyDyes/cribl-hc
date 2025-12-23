@@ -1,7 +1,13 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  /* Cribl brand colors */
+* {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Cribl brand colors */
+:root {
   --color-cribl-primary: #00A3E0;
   --color-cribl-secondary: #0066A1;
   --color-cribl-accent: #FFB81C;
@@ -12,8 +18,4 @@
   --color-severity-medium: #F59E0B;
   --color-severity-low: #3B82F6;
   --color-severity-info: #6B7280;
-}
-
-* {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
