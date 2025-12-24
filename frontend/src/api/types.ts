@@ -104,7 +104,7 @@ export interface Finding {
   confidence_level?: 'high' | 'medium' | 'low'
   false_positive_risk?: boolean
   detected_at?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface AnalysisResultResponse {
