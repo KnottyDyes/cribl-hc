@@ -273,11 +273,13 @@ class HealthAnalyzer(BaseAnalyzer):
             total_cpus = info.get("cpus", 0)
 
             if worker_processes > 0 and total_cpus > 0:
-                # Typical recommendation is workerProcesses = CPUs - 1 (but at least 1)
-                recommended_processes = max(1, total_cpus - 1)
+                # Cribl default recommendation is -2 (CPUs - 2)
+                # This leaves 2 CPUs for OS and Cribl management tasks
+                recommended_processes = max(1, total_cpus - 2)
 
-                # Only flag if worker is healthy (don't add noise to already-unhealthy workers)
-                if worker_processes < recommended_processes and worker.get("status") == "healthy":
+                # Only flag if significantly under-configured (more than 3 below optimal)
+                # Worker at n-2 is optimal, n-3 or less is suboptimal
+                if worker_processes < (recommended_processes - 1) and worker.get("status") == "healthy":
                     result.add_finding(
                         Finding(
                             id=f"health-worker-processes-{worker_id}",
