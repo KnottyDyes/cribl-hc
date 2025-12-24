@@ -100,3 +100,22 @@ generate_status_report_pdf.py
 # Build artifacts
 *.prof
 *.out
+
+# Frontend (Node.js)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+
+# Root level Node (should not exist, but just in case)
+node_modules/
+
+# Test coverage and reports
+htmlcov/
+integration_test_report.json
+*.coverage
+
+# Temporary and cache files
+*.tmp
+*.temp
+.cache/
