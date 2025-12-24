@@ -80,7 +80,7 @@ export function ResultsPage() {
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-    } catch (error) {
+    } catch {
       alert('Failed to export results')
     }
   }

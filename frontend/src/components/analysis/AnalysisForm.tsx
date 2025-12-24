@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { credentialsApi } from '../../api/credentials'
 import { analyzersApi } from '../../api/analyzers'

@@ -27,7 +27,7 @@ export function CredentialList() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ name, data }: { name: string; data: any }) =>
+    mutationFn: ({ name, data }: { name: string; data: CredentialCreate }) =>
       credentialsApi.update(name, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['credentials'] })
