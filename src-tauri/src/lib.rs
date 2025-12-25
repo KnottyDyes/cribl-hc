@@ -38,18 +38,31 @@ fn get_backend_status() -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn save_file(filename: String, content: Vec<u8>) -> Result<String, String> {
-    // Get Downloads directory
-    let downloads_dir = dirs::download_dir()
-        .ok_or_else(|| "Could not find Downloads directory".to_string())?;
+async fn save_file_with_dialog(
+    app_handle: tauri::AppHandle,
+    filename: String,
+    content: Vec<u8>,
+) -> Result<String, String> {
+    use tauri_plugin_dialog::{DialogExt, FilePath};
 
-    let file_path = downloads_dir.join(&filename);
+    // Show save dialog
+    let file_path = app_handle
+        .dialog()
+        .file()
+        .set_file_name(&filename)
+        .blocking_save_file();
 
-    // Write file
-    fs::write(&file_path, content)
-        .map_err(|e| format!("Failed to save file: {}", e))?;
+    match file_path {
+        Some(FilePath::Path(path)) => {
+            // Write file to chosen location
+            fs::write(&path, content)
+                .map_err(|e| format!("Failed to save file: {}", e))?;
 
-    Ok(file_path.to_string_lossy().to_string())
+            Ok(path.to_string_lossy().to_string())
+        }
+        Some(FilePath::Url(_)) => Err("URL paths not supported".to_string()),
+        None => Err("Save cancelled".to_string()),
+    }
 }
 
 #[tauri::command]
@@ -86,7 +99,8 @@ fn open_downloads_folder() -> Result<(), String> {
 pub fn run() {
   tauri::Builder::default()
     .manage(PythonBackend(Default::default()))
-    .invoke_handler(tauri::generate_handler![start_backend, get_backend_status, save_file, open_downloads_folder])
+    .plugin(tauri_plugin_dialog::init())
+    .invoke_handler(tauri::generate_handler![start_backend, get_backend_status, save_file_with_dialog, open_downloads_folder])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

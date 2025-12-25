@@ -93,14 +93,14 @@ export function ResultsPage() {
 
       // Check if running in Tauri
       if (window.__TAURI_INTERNALS__) {
-        // Use Tauri's file save command
-        console.log('Tauri detected, using save_file command')
+        // Use Tauri's file save dialog
+        console.log('Tauri detected, using save_file_with_dialog command')
         console.log('Filename:', filename)
         const arrayBuffer = await blob.arrayBuffer()
         const uint8Array = new Uint8Array(arrayBuffer)
         console.log('File size:', uint8Array.length, 'bytes')
 
-        const filePath = await invoke<string>('save_file', {
+        const filePath = await invoke<string>('save_file_with_dialog', {
           filename,
           content: Array.from(uint8Array)
         })
