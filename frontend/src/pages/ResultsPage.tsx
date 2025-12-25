@@ -83,7 +83,12 @@ export function ResultsPage() {
     if (!id) return
     try {
       const blob = await analysisApi.export(id, format)
-      const filename = `health-check-${id}.${format}`
+
+      // Create filename with deployment name
+      const deploymentName = enrichedResults?.deployment_name || 'unknown'
+      const sanitizedName = deploymentName.replace(/[^a-z0-9-_]/gi, '-')
+      const timestamp = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+      const filename = `cribl-hc-${sanitizedName}-${timestamp}.${format}`
 
       // Check if running in Tauri
       if ((window as any).__TAURI__) {
