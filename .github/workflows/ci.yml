@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop, GUI-beta ]
+    branches: [ main, develop, GUI-beta, feature/tauri-desktop-app ]
   pull_request:
     branches: [ main ]
 
@@ -10,12 +10,12 @@ jobs:
   lint-and-test-backend:
     name: Backend Lint & Test
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v6
-    
+    - uses: actions/checkout@v4
+
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
         cache: 'pip'
@@ -52,12 +52,12 @@ jobs:
   lint-and-test-frontend:
     name: Frontend Lint & Test
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v6
-    
+    - uses: actions/checkout@v4
+
     - name: Set up Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v4
       with:
         node-version: '20'
         cache: 'npm'
@@ -82,13 +82,13 @@ jobs:
   docker-build:
     name: Docker Build Test
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v6
-    
+    - uses: actions/checkout@v4
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-    
+
     - name: Build Docker image
       uses: docker/build-push-action@v6
       with:
