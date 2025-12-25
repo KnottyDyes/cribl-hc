@@ -350,9 +350,17 @@ async def test_connection(name: str):
         async with client:
             result = await client.test_connection()
 
+        # Customize message to include credential name
+        if result.success:
+            message = f"Successfully connected to '{name}' deployment"
+            if result.cribl_version and result.cribl_version != "unknown":
+                message += f" (Cribl Stream {result.cribl_version})"
+        else:
+            message = result.message
+
         return ConnectionTestResult(
             success=result.success,
-            message=result.message,
+            message=message,
             cribl_version=result.cribl_version,
             response_time_ms=result.response_time_ms,
             error=result.error,
