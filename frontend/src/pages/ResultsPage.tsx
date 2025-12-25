@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { analysisApi } from '../api/analysis'
 import { ResultsSummary } from '../components/results/ResultsSummary'
 import { FindingCard } from '../components/results/FindingCard'
-import { Button, Select, SkeletonFindingCard } from '../components/common'
+import { Button, Select, SkeletonFindingCard, Toast } from '../components/common'
+import type { ToastType } from '../components/common'
 import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import type { AnalysisResultResponse } from '../api/types'
 
@@ -13,6 +14,16 @@ export function ResultsPage() {
   const navigate = useNavigate()
   const [severityFilter, setSeverityFilter] = useState<string>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [toast, setToast] = useState<{
+    show: boolean
+    type: ToastType
+    title: string
+    message?: string
+  }>({
+    show: false,
+    type: 'success',
+    title: '',
+  })
 
   const { data: results, isLoading, error } = useQuery({
     queryKey: ['analysis-results', id],
@@ -80,8 +91,21 @@ export function ResultsPage() {
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-    } catch {
-      alert('Failed to export results')
+
+      setToast({
+        show: true,
+        type: 'success',
+        title: 'Export successful!',
+        message: `Report downloaded as health-check-${id}.${format}`,
+      })
+    } catch (error) {
+      console.error('Export error:', error)
+      setToast({
+        show: true,
+        type: 'error',
+        title: 'Export failed!',
+        message: error instanceof Error ? error.message : 'Failed to export results. Please try again.',
+      })
     }
   }
 
@@ -234,6 +258,14 @@ export function ResultsPage() {
             ))
           )}
         </div>
+
+        <Toast
+          show={toast.show}
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onClose={() => setToast({ ...toast, show: false })}
+        />
       </div>
     </div>
   )
