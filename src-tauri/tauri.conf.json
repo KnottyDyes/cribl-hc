@@ -22,8 +22,7 @@
       }
     ],
     "security": {
-      "csp": null,
-      "devTools": true
+      "csp": null
     }
   },
   "bundle": {
