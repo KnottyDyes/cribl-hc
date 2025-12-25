@@ -54,7 +54,7 @@ pub fn run() {
       if !cfg!(debug_assertions) {
           let handle = app.handle().clone();
           tauri::async_runtime::spawn(async move {
-              tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+              std::thread::sleep(std::time::Duration::from_millis(500));
               if let Err(e) = start_backend(handle) {
                   eprintln!("Failed to start backend: {}", e);
               }
