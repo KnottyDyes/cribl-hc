@@ -1,5 +1,7 @@
 use std::process::{Command, Child};
 use std::sync::Mutex;
+use std::fs;
+use std::path::PathBuf;
 use tauri::Manager;
 
 struct PythonBackend(Mutex<Option<Child>>);
@@ -36,11 +38,56 @@ fn get_backend_status() -> Result<String, String> {
     Ok("Backend status: Running on http://localhost:8000".to_string())
 }
 
+#[tauri::command]
+async fn save_file(filename: String, content: Vec<u8>) -> Result<String, String> {
+    // Get Downloads directory
+    let downloads_dir = dirs::download_dir()
+        .ok_or_else(|| "Could not find Downloads directory".to_string())?;
+
+    let file_path = downloads_dir.join(&filename);
+
+    // Write file
+    fs::write(&file_path, content)
+        .map_err(|e| format!("Failed to save file: {}", e))?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn open_downloads_folder() -> Result<(), String> {
+    // Open Downloads folder in native file manager
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(std::env::var("HOME").unwrap_or_default() + "/Downloads")
+            .spawn()
+            .map_err(|e| format!("Failed to open Downloads: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open")
+            .arg(std::env::var("HOME").unwrap_or_default() + "/Downloads")
+            .spawn()
+            .map_err(|e| format!("Failed to open Downloads: {}", e))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .arg(std::env::var("USERPROFILE").unwrap_or_default() + "\\Downloads")
+            .spawn()
+            .map_err(|e| format!("Failed to open Downloads: {}", e))?;
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
     .manage(PythonBackend(Default::default()))
-    .invoke_handler(tauri::generate_handler![start_backend, get_backend_status])
+    .invoke_handler(tauri::generate_handler![start_backend, get_backend_status, save_file, open_downloads_folder])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

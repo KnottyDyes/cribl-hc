@@ -83,21 +83,42 @@ export function ResultsPage() {
     if (!id) return
     try {
       const blob = await analysisApi.export(id, format)
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `health-check-${id}.${format}`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
+      const filename = `health-check-${id}.${format}`
 
-      setToast({
-        show: true,
-        type: 'success',
-        title: 'Export successful!',
-        message: `Report downloaded as health-check-${id}.${format}`,
-      })
+      // Check if running in Tauri
+      if ((window as any).__TAURI__) {
+        // Use Tauri's file save command
+        const arrayBuffer = await blob.arrayBuffer()
+        const uint8Array = new Uint8Array(arrayBuffer)
+        const filePath = await (window as any).__TAURI__.core.invoke('save_file', {
+          filename,
+          content: Array.from(uint8Array)
+        })
+
+        setToast({
+          show: true,
+          type: 'success',
+          title: 'Export successful!',
+          message: `Saved to ${filePath}`,
+        })
+      } else {
+        // Use browser download for web version
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+
+        setToast({
+          show: true,
+          type: 'success',
+          title: 'Export successful!',
+          message: `Downloaded ${filename}`,
+        })
+      }
     } catch (error) {
       console.error('Export error:', error)
       setToast({
