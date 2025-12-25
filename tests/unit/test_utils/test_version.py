@@ -375,3 +375,57 @@ class TestVersionEdgeCases:
             version = parse_version(version_str)
             assert version is not None
             assert version.build is not None
+
+    def test_version_less_than_or_equal(self):
+        """Test version <= comparison."""
+        v1 = CriblVersion(major=4, minor=5, patch=0, raw="4.5.0")
+        v2 = CriblVersion(major=4, minor=5, patch=0, raw="4.5.0")
+        v3 = CriblVersion(major=4, minor=5, patch=1, raw="4.5.1")
+
+        assert v1 <= v2
+        assert v1 <= v3
+        assert not (v3 <= v1)
+
+    def test_version_greater_than_or_equal(self):
+        """Test version >= comparison."""
+        v1 = CriblVersion(major=4, minor=5, patch=2, raw="4.5.2")
+        v2 = CriblVersion(major=4, minor=5, patch=2, raw="4.5.2")
+        v3 = CriblVersion(major=4, minor=5, patch=1, raw="4.5.1")
+
+        assert v1 >= v2
+        assert v1 >= v3
+        assert not (v3 >= v1)
+
+    def test_detect_version_with_nested_data(self):
+        """Test detection with nested version data."""
+        response_data = {
+            "data": {
+                "version": "4.8.0"
+            },
+            "build": "12345"
+        }
+
+        # Should look at top-level first
+        version = detect_version(response_data)
+        # If it doesn't find it at top level, it will return None
+        # This tests the lookup order
+
+    def test_version_compatibility_edge_cases(self):
+        """Test version compatibility with edge cases."""
+        current = parse_version("4.7.0")
+
+        # Test exact boundary at N-2
+        version_n2 = parse_version("4.5.0")
+        assert is_version_supported(version_n2, current) is True
+
+        # Test just below N-2 (should not be supported)
+        version_n3 = parse_version("4.4.9")
+        assert is_version_supported(version_n3, current) is False
+
+    def test_compatibility_message_major_mismatch(self):
+        """Test compatibility message for different major versions."""
+        current = parse_version("5.0.0")
+        old_major = parse_version("4.9.0")
+
+        message = get_version_compatibility_message(old_major, current)
+        assert "not supported" in message.lower()

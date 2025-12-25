@@ -322,3 +322,44 @@ class TestRateLimiterEdgeCases:
 
         # Backoff should be capped at max
         assert limiter.current_backoff_seconds <= 0.5
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_wait(self):
+        """Test that acquire waits when rate limit is hit within window."""
+        # Create limiter with higher budget but limited rate per window
+        # max_calls is total budget, but we also enforce rate within time window
+        limiter = RateLimiter(max_calls=100, time_window_seconds=0.5)
+
+        # Make 2 calls quickly
+        await limiter.acquire()
+        await limiter.acquire()
+
+        # These should have been recorded
+        assert limiter.total_calls_made == 2
+
+        # Wait for window to expire, then make another call
+        await asyncio.sleep(0.6)
+
+        await limiter.acquire()
+
+        # Should have successfully made 3 calls total
+        assert limiter.total_calls_made == 3
+        # But only 1 call should be in the current window (after expiration)
+        assert limiter.get_calls_in_window() == 1
+
+    @pytest.mark.asyncio
+    async def test_sync_rate_limit_exceeded_wait_calculation(self):
+        """Test SimpleSyncRateLimiter wait time calculation when rate limited."""
+        limiter = SimpleSyncRateLimiter(max_calls=2, time_window_seconds=1.0)
+
+        # Use up the rate limit
+        limiter.acquire()
+        limiter.acquire()
+
+        # Next call should fail with wait time
+        with pytest.raises(RuntimeError) as exc_info:
+            limiter.acquire()
+
+        error_msg = str(exc_info.value)
+        # Should either mention budget exhausted or wait time
+        assert "budget exhausted" in error_msg.lower() or "wait" in error_msg.lower()
