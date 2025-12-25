@@ -1,7 +1,6 @@
 use std::process::{Command, Child};
 use std::sync::Mutex;
 use std::fs;
-use std::path::PathBuf;
 use tauri::Manager;
 
 struct PythonBackend(Mutex<Option<Child>>);
