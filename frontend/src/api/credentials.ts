@@ -23,7 +23,7 @@ export const credentialsApi = {
    * GET /api/v1/credentials/{name}
    */
   get: async (name: string): Promise<Credential> => {
-    return apiClient.get(`/api/v1/credentials/${name}`)
+    return apiClient.get(`/api/v1/credentials/${encodeURIComponent(name)}`)
   },
 
   /**
@@ -39,7 +39,7 @@ export const credentialsApi = {
    * PUT /api/v1/credentials/{name}
    */
   update: async (name: string, data: CredentialUpdate): Promise<Credential> => {
-    return apiClient.put(`/api/v1/credentials/${name}`, data)
+    return apiClient.put(`/api/v1/credentials/${encodeURIComponent(name)}`, data)
   },
 
   /**
@@ -47,7 +47,7 @@ export const credentialsApi = {
    * DELETE /api/v1/credentials/{name}
    */
   delete: async (name: string): Promise<void> => {
-    return apiClient.delete(`/api/v1/credentials/${name}`)
+    return apiClient.delete(`/api/v1/credentials/${encodeURIComponent(name)}`)
   },
 
   /**
@@ -55,6 +55,6 @@ export const credentialsApi = {
    * POST /api/v1/credentials/{name}/test
    */
   test: async (name: string): Promise<ConnectionTestResult> => {
-    return apiClient.post(`/api/v1/credentials/${name}/test`)
+    return apiClient.post(`/api/v1/credentials/${encodeURIComponent(name)}/test`)
   },
 }

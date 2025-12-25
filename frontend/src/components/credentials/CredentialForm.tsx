@@ -26,6 +26,71 @@ export function CredentialForm({
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  /**
+   * Extract URL and token from pasted content
+   * Handles:
+   * - curl commands: curl -H "Authorization: Bearer TOKEN" https://example.com/api/v1/...
+   * - Raw URLs: https://example.com/api/v1/something
+   * - URLs with paths (strips to base URL)
+   */
+  const extractFromPaste = (text: string): { url?: string; token?: string } => {
+    const result: { url?: string; token?: string } = {}
+
+    // Extract Bearer token from curl command or Authorization header
+    const bearerMatch = text.match(/(?:Bearer\s+|bearer\s+)([A-Za-z0-9_\-.]+)/i)
+    if (bearerMatch) {
+      result.token = bearerMatch[1]
+    }
+
+    // Extract URL (handles both curl and raw URLs)
+    const urlMatch = text.match(/(https?:\/\/[^\s"'<>]+)/i)
+    if (urlMatch) {
+      const url = urlMatch[1]
+
+      // Strip API path - keep only base URL
+      // Example: https://cribl.example.com/api/v1/system/status -> https://cribl.example.com
+      try {
+        const urlObj = new URL(url)
+        result.url = `${urlObj.protocol}//${urlObj.host}`
+      } catch {
+        // If URL parsing fails, use as-is
+        result.url = url
+      }
+    }
+
+    return result
+  }
+
+  const handleUrlPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pastedText = e.clipboardData.getData('text')
+    const extracted = extractFromPaste(pastedText)
+
+    if (extracted.url || extracted.token) {
+      e.preventDefault() // Prevent default paste
+
+      setFormData((prev) => ({
+        ...prev,
+        ...(extracted.url && { url: extracted.url }),
+        ...(extracted.token && { token: extracted.token, auth_type: 'bearer' }),
+      }))
+    }
+  }
+
+  const handleTokenPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pastedText = e.clipboardData.getData('text')
+    const extracted = extractFromPaste(pastedText)
+
+    if (extracted.token || extracted.url) {
+      e.preventDefault() // Prevent default paste
+
+      setFormData((prev) => ({
+        ...prev,
+        ...(extracted.token && { token: extracted.token }),
+        ...(extracted.url && { url: extracted.url }),
+      }))
+    }
+  }
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {}
 
@@ -89,9 +154,10 @@ export function CredentialForm({
         type="url"
         value={formData.url}
         onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+        onPaste={handleUrlPaste}
         error={errors.url}
         placeholder="https://cribl.example.com"
-        helperText="Full URL to your Cribl deployment"
+        helperText="Paste a curl command or API URL - we'll extract the base URL and token"
         required
       />
 
@@ -111,9 +177,10 @@ export function CredentialForm({
           type="password"
           value={formData.token || ''}
           onChange={(e) => setFormData({ ...formData, token: e.target.value })}
+          onPaste={handleTokenPaste}
           error={errors.token}
           placeholder="Enter your bearer token"
-          helperText="API token from Cribl deployment"
+          helperText="Paste a curl command or bearer token - we'll extract it automatically"
           required
         />
       )}
