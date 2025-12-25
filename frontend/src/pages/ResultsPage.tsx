@@ -8,6 +8,7 @@ import { Button, Select, SkeletonFindingCard, Toast } from '../components/common
 import type { ToastType } from '../components/common'
 import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import type { AnalysisResultResponse } from '../api/types'
+import { invoke } from '@tauri-apps/api/core'
 
 export function ResultsPage() {
   const { id } = useParams<{ id: string }>()
@@ -91,14 +92,20 @@ export function ResultsPage() {
       const filename = `cribl-hc-${sanitizedName}-${timestamp}.${format}`
 
       // Check if running in Tauri
-      if ((window as any).__TAURI__) {
+      if (window.__TAURI_INTERNALS__) {
         // Use Tauri's file save command
+        console.log('Tauri detected, using save_file command')
+        console.log('Filename:', filename)
         const arrayBuffer = await blob.arrayBuffer()
         const uint8Array = new Uint8Array(arrayBuffer)
-        const filePath = await (window as any).__TAURI__.core.invoke('save_file', {
+        console.log('File size:', uint8Array.length, 'bytes')
+
+        const filePath = await invoke<string>('save_file', {
           filename,
           content: Array.from(uint8Array)
         })
+
+        console.log('File saved to:', filePath)
 
         setToast({
           show: true,
@@ -108,6 +115,7 @@ export function ResultsPage() {
         })
       } else {
         // Use browser download for web version
+        console.log('Browser mode, using download')
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
