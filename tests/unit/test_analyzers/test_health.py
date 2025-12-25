@@ -578,7 +578,7 @@ class TestHealthAnalyzer:
         )
         assert process_finding is not None
         assert process_finding.severity == "low"
-        assert "7 processes" in process_finding.description  # Recommended: CPUs - 1
+        assert "6 processes" in process_finding.description  # Recommended: CPUs - 2 (n-2)
 
 
 def create_edge_node(
