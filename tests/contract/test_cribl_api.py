@@ -341,6 +341,129 @@ class TestMetricsEndpoint:
                 assert isinstance(value, (int, float))
 
 
+class TestConfigEndpoints:
+    """Contract tests for configuration endpoints (User Story 2)."""
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_pipelines_endpoint_structure(self):
+        """Test /api/v1/m/{group}/pipelines endpoint returns expected structure."""
+        from cribl_hc.core.api_client import CriblAPIClient
+
+        respx.get("https://cribl.example.com/api/v1/m/default/pipelines").mock(
+            return_value=Response(
+                200,
+                json={
+                    "items": [
+                        {
+                            "id": "pipeline-01",
+                            "description": "Main processing pipeline",
+                            "functions": [
+                                {
+                                    "id": "eval",
+                                    "filter": "true",
+                                    "conf": {"expression": "status = 'ok'"},
+                                }
+                            ],
+                        }
+                    ],
+                    "count": 1,
+                },
+            )
+        )
+
+        async with CriblAPIClient(
+            base_url="https://cribl.example.com",
+            auth_token="test-token",
+        ) as client:
+            response = await client._client.get("/api/v1/m/default/pipelines")
+            data = response.json()
+
+            assert "items" in data
+            assert isinstance(data["items"], list)
+            if data["items"]:
+                pipeline = data["items"][0]
+                assert "id" in pipeline
+                assert "functions" in pipeline
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_routes_endpoint_structure(self):
+        """Test /api/v1/m/{group}/routes endpoint returns expected structure."""
+        from cribl_hc.core.api_client import CriblAPIClient
+
+        respx.get("https://cribl.example.com/api/v1/m/default/routes").mock(
+            return_value=Response(
+                200,
+                json={
+                    "items": [
+                        {
+                            "id": "route-01",
+                            "name": "Production Route",
+                            "filter": "source=='production'",
+                            "output": "splunk-prod",
+                            "final": False,
+                        }
+                    ],
+                    "count": 1,
+                },
+            )
+        )
+
+        async with CriblAPIClient(
+            base_url="https://cribl.example.com",
+            auth_token="test-token",
+        ) as client:
+            response = await client._client.get("/api/v1/m/default/routes")
+            data = response.json()
+
+            assert "items" in data
+            assert isinstance(data["items"], list)
+            if data["items"]:
+                route = data["items"][0]
+                assert "id" in route
+                assert "filter" in route or "output" in route
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_outputs_endpoint_structure(self):
+        """Test /api/v1/m/{group}/outputs endpoint returns expected structure."""
+        from cribl_hc.core.api_client import CriblAPIClient
+
+        respx.get("https://cribl.example.com/api/v1/m/default/outputs").mock(
+            return_value=Response(
+                200,
+                json={
+                    "items": [
+                        {
+                            "id": "splunk-prod",
+                            "type": "splunk_hec",
+                            "systemFields": ["cribl_pipe"],
+                            "streamtags": [],
+                            "host": "splunk.example.com",
+                            "port": 8088,
+                        }
+                    ],
+                    "count": 1,
+                },
+            )
+        )
+
+        async with CriblAPIClient(
+            base_url="https://cribl.example.com",
+            auth_token="test-token",
+        ) as client:
+            response = await client._client.get("/api/v1/m/default/outputs")
+            data = response.json()
+
+            assert "items" in data
+            assert isinstance(data["items"], list)
+            if data["items"]:
+                output = data["items"][0]
+                assert "id" in output
+                assert "type" in output
+
+
 class TestErrorResponses:
     """Contract tests for error responses."""
 
