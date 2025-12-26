@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 
 export interface WebSocketMessage {
   type: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 interface UseWebSocketOptions {
@@ -55,11 +55,13 @@ export function useWebSocket({
   enabled = true,
 }: UseWebSocketOptions): UseWebSocketReturn {
   const wsRef = useRef<WebSocket | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [isReconnecting, setIsReconnecting] = useState(false)
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  const reconnectAttemptsRef = useRef(0)
   const shouldReconnectRef = useRef(true)
+  const connectRef = useRef<() => void>(() => {})
 
   const connect = useCallback(() => {
     if (!enabled || wsRef.current?.readyState === WebSocket.OPEN) {
@@ -75,6 +77,7 @@ export function useWebSocket({
         setIsConnected(true)
         setIsReconnecting(false)
         setReconnectAttempts(0)
+        reconnectAttemptsRef.current = 0
         shouldReconnectRef.current = true
         onOpen?.()
       }
@@ -99,14 +102,16 @@ export function useWebSocket({
         onClose?.()
 
         // Attempt reconnection if not manually disconnected
-        if (shouldReconnectRef.current && reconnectAttempts < maxReconnectAttempts) {
+        const currentAttempts = reconnectAttemptsRef.current
+        if (shouldReconnectRef.current && currentAttempts < maxReconnectAttempts) {
           setIsReconnecting(true)
-          const nextAttempt = reconnectAttempts + 1
+          const nextAttempt = currentAttempts + 1
           setReconnectAttempts(nextAttempt)
+          reconnectAttemptsRef.current = nextAttempt
 
           // Exponential backoff: 3s, 6s, 12s, 24s, 48s
           const backoffDelay = Math.min(
-            reconnectInterval * Math.pow(2, reconnectAttempts),
+            reconnectInterval * Math.pow(2, currentAttempts),
             30000 // Max 30 seconds
           )
 
@@ -115,9 +120,9 @@ export function useWebSocket({
           )
 
           reconnectTimeoutRef.current = setTimeout(() => {
-            connect()
+            connectRef.current()
           }, backoffDelay)
-        } else if (reconnectAttempts >= maxReconnectAttempts) {
+        } else if (currentAttempts >= maxReconnectAttempts) {
           console.error('WebSocket max reconnect attempts reached')
           setIsReconnecting(false)
         }
@@ -135,8 +140,12 @@ export function useWebSocket({
     onError,
     reconnectInterval,
     maxReconnectAttempts,
-    reconnectAttempts,
   ])
+
+  // Update the ref to the latest connect function
+  useEffect(() => {
+    connectRef.current = connect
+  }, [connect])
 
   const disconnect = useCallback(() => {
     shouldReconnectRef.current = false
@@ -172,14 +181,14 @@ export function useWebSocket({
   // Connect on mount if enabled
   useEffect(() => {
     if (enabled) {
-      connect()
+      connectRef.current()
     }
 
     // Cleanup on unmount
     return () => {
       disconnect()
     }
-  }, [enabled, connect, disconnect])
+  }, [enabled, disconnect])
 
   return {
     isConnected,
