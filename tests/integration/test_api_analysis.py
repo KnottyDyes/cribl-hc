@@ -29,13 +29,16 @@ async def async_client():
 @pytest.fixture
 async def test_credential(async_client):
     """Create a test credential for analysis tests."""
+    import uuid
+    cred_name = f"analysis-test-{uuid.uuid4().hex[:8]}"
     credential_data = {
-        "name": "analysis-test-cred",
+        "name": cred_name,
         "url": "https://cribl.example.com:9000",
+        "auth_type": "bearer",
         "token": "test-token"
     }
     response = await async_client.post("/api/v1/credentials", json=credential_data)
-    assert response.status_code == 201
+    assert response.status_code == 201, f"Failed to create credential: {response.status_code} - {response.text}"
     return response.json()
 
 
@@ -46,25 +49,24 @@ class TestAnalysisWorkflow:
     async def test_start_analysis_success(self, async_client, test_credential):
         """Test starting a new analysis run."""
         analysis_request = {
-            "credential_name": test_credential["name"],
-            "objectives": ["health"],
-            "options": {}
+            "deployment_name": test_credential["name"],
+            "analyzers": ["health"]
         }
 
-        with patch('cribl_hc.api.routers.analysis.start_analysis_background') as mock_start:
+        with patch('cribl_hc.api.routers.analysis.run_analysis_task') as mock_task:
             # Mock the background task
-            mock_start.return_value = None
+            mock_task.return_value = None
 
             response = await async_client.post(
-                "/api/v1/analysis/start",
+                "/api/v1/analysis",
                 json=analysis_request
             )
 
         assert response.status_code == 202  # Accepted
         data = response.json()
         assert "analysis_id" in data
-        assert data["status"] == "running"
-        assert "credential_name" in data
+        assert data["status"] == "pending"
+        assert "deployment_name" in data
 
     @pytest.mark.asyncio
     async def test_start_analysis_invalid_credential(self, async_client):
