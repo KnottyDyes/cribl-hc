@@ -9,6 +9,7 @@ import type { ToastType } from '../components/common'
 import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import type { AnalysisResultResponse } from '../api/types'
 import { invoke } from '@tauri-apps/api/core'
+import { isTauri } from '../utils/tauri'
 
 export function ResultsPage() {
   const { id } = useParams<{ id: string }>()
@@ -92,7 +93,7 @@ export function ResultsPage() {
       const filename = `cribl-hc-${sanitizedName}-${timestamp}.${format}`
 
       // Check if running in Tauri
-      if (window.__TAURI_INTERNALS__) {
+      if (isTauri()) {
         // Use Tauri's file save dialog
         console.log('Tauri detected, using save_file_with_dialog command')
         console.log('Filename:', filename)

@@ -182,7 +182,10 @@ export function CredentialList() {
         <CredentialForm
           onSubmit={editingCredential ? handleUpdate : handleCreate}
           onCancel={handleCloseModal}
-          initialData={editingCredential || undefined}
+          initialData={editingCredential ? {
+            ...editingCredential,
+            client_id: editingCredential.client_id || undefined
+          } : undefined}
           isSubmitting={createMutation.isPending || updateMutation.isPending}
         />
       </Modal>

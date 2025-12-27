@@ -8,6 +8,10 @@ interface ResultsSummaryProps {
 export function ResultsSummary({ results }: ResultsSummaryProps) {
   const summary = results.summary
 
+  if (!summary) {
+    return null
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <Card padding="md">
