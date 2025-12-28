@@ -157,7 +157,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                 Finding(
                     id=f"lake-short-retention-{dataset.id}",
                     category="lake",
-                    severity="warning",
+                    severity="high",
                     title=f"Very Short Retention Period: {dataset.id}",
                     description=(
                         f"Dataset '{dataset.id}' has a very short retention period "
@@ -216,6 +216,9 @@ class LakeHealthAnalyzer(BaseAnalyzer):
 
         result.add_recommendation(
             Recommendation(
+                id=f"rec-lake-retention-{dataset.id}",
+                type="configuration",
+                priority="p1" if current_retention < self.VERY_SHORT_RETENTION else "p2",
                 title=f"Increase Retention for {dataset.id}",
                 description=(
                     f"Increase retention period from {current_retention} to "
@@ -231,14 +234,13 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                     f"Update 'Retention Period' to {recommended_retention} days",
                     "Save changes"
                 ],
-                priority="high" if current_retention < self.VERY_SHORT_RETENTION else "medium",
-                effort_level="low",
-                impact=ImpactEstimate(
-                    description="Prevents accidental data loss",
-                    time_savings_hours=0,
-                    cost_savings=0.0
+                before_state=f"{dataset.id} retention: {current_retention} days",
+                after_state=f"{dataset.id} retention: {recommended_retention} days",
+                impact_estimate=ImpactEstimate(
+                    performance_improvement="Prevents accidental data loss for historical queries"
                 ),
-                affected_components=["Lake", dataset.id]
+                implementation_effort="low",
+                product_tags=["lake"]
             )
         )
 
@@ -246,6 +248,9 @@ class LakeHealthAnalyzer(BaseAnalyzer):
         """Add recommendation to convert to Parquet format."""
         result.add_recommendation(
             Recommendation(
+                id=f"rec-lake-parquet-{dataset.id}",
+                type="optimization",
+                priority="p2",
                 title=f"Convert {dataset.id} to Parquet Format",
                 description=(
                     "Convert dataset from JSON to Parquet for 60-80% storage reduction "
@@ -261,13 +266,14 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                     "Monitor both datasets during transition",
                     "Update queries to use new dataset"
                 ],
-                priority="medium",
-                effort_level="medium",
-                impact=ImpactEstimate(
-                    description="60-80% storage cost reduction + faster queries",
-                    time_savings_hours=5,
-                    cost_savings=0.0
+                before_state=f"{dataset.id} using JSON format (inefficient compression)",
+                after_state=f"{dataset.id} using Parquet format (60-80% storage reduction)",
+                impact_estimate=ImpactEstimate(
+                    storage_reduction_gb=None,  # Unknown without actual size data
+                    performance_improvement="Faster query performance with columnar storage",
+                    time_to_implement="2-4 hours"
                 ),
-                affected_components=["Lake", dataset.id]
+                implementation_effort="medium",
+                product_tags=["lake"]
             )
         )

@@ -101,9 +101,9 @@ class TestLakeHealthAnalyzer:
 
         assert result.success is True
         assert result.metadata["datasets_with_short_retention"] == 2
-        # Should have warning findings for short retention
-        warning_findings = [f for f in result.findings if f.severity == "warning"]
-        assert len(warning_findings) > 0
+        # Should have high severity findings for short retention
+        high_findings = [f for f in result.findings if f.severity == "high"]
+        assert len(high_findings) > 0
 
     @pytest.mark.asyncio
     async def test_analyze_detects_json_format_inefficiency(self, analyzer, mock_client):
