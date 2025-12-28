@@ -767,6 +767,28 @@ class CriblAPIClient:
         data = response.json()
         return data.get("items", [])
 
+    async def get_license_info(self) -> dict:
+        """
+        Get license information including consumption and allocation.
+
+        Returns:
+            License information with daily_gb_limit and current_daily_gb
+
+        Example:
+            >>> license_info = await client.get_license_info()
+            >>> print(f"License: {license_info['current_daily_gb']}/{license_info['daily_gb_limit']} GB/day")
+        """
+        endpoint = f"{self.base_url}/api/v1/system/limits"
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        data = response.json()
+
+        # Transform to expected format
+        return {
+            "daily_gb_limit": data.get("dailyVolumeQuota", 0) / (1024 ** 3) if data.get("dailyVolumeQuota") else 0,
+            "current_daily_gb": data.get("currentDailyVolume", 0) / (1024 ** 3) if data.get("currentDailyVolume") else 0,
+        }
+
     def get_api_calls_remaining(self) -> int:
         """
         Get number of API calls remaining in budget.
