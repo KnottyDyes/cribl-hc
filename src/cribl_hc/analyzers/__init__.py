@@ -11,6 +11,8 @@ Available Objectives:
 - storage: Storage optimization, data reduction, cost savings
 - security: Security posture, compliance, credential exposure
 - cost: License tracking, cost forecasting, TCO analysis
+- fleet: Multi-deployment management, configuration drift detection
+- predictive: Predictive analytics, capacity forecasting, anomaly detection
 """
 
 from typing import Dict, List, Optional, Type
@@ -271,6 +273,7 @@ from cribl_hc.analyzers.storage import StorageAnalyzer
 from cribl_hc.analyzers.security import SecurityAnalyzer
 from cribl_hc.analyzers.cost import CostAnalyzer
 from cribl_hc.analyzers.fleet import FleetAnalyzer
+from cribl_hc.analyzers.predictive import PredictiveAnalyzer
 
 register_analyzer(HealthAnalyzer)
 register_analyzer(ConfigAnalyzer)
@@ -279,3 +282,4 @@ register_analyzer(StorageAnalyzer)
 register_analyzer(SecurityAnalyzer)
 register_analyzer(CostAnalyzer)
 register_analyzer(FleetAnalyzer)
+register_analyzer(PredictiveAnalyzer)
