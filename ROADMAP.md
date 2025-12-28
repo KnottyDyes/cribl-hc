@@ -22,7 +22,10 @@ Phase 5: Fleet Management (US6)   ███████████████�
 Phase 6: Predictive (US7)         ████████████████████ 100% ✅
 Phase 7: Lake Support (US8-9)     ████████████████████ 100% ✅
 Phase 8: Search Support           ░░░░░░░░░░░░░░░░░░░░   0% 📋
-Phase 9: Polish & Integration     ░░░░░░░░░░░░░░░░░░░░   0% 📋
+Phase 9: Runtime Operations (P1)  ░░░░░░░░░░░░░░░░░░░░   0% 📋
+Phase 10: Data Quality (P2)       ░░░░░░░░░░░░░░░░░░░░   0% 📋
+Phase 11: Polish & Integration    ░░░░░░░░░░░░░░░░░░░░   0% 📋
+Phase 12+: Future Architecture    ░░░░░░░░░░░░░░░░░░░░   0% 🔮
 ```
 
 **Legend**: ✅ Complete | ⏳ In Progress | 📋 Planned
@@ -267,26 +270,61 @@ Phase 9: Polish & Integration     ░░░░░░░░░░░░░░░�
 
 **Goal**: Build Search-specific analyzers and API integration
 
-**Requirements**:
-- Search API endpoint research and mapping
-- Data models for Search entities
-- Search-specific user stories
-
 **Potential Features**:
-- Index optimization
+- Search job health monitoring
 - Query performance analysis
-- Schema management
-- Search cluster health
-- Query cost analysis
-
-**Next Steps**:
-1. Document Search API structure
-2. Create Search user stories
-3. Design Search analyzers
+- Dashboard health checks
+- Saved search validation
 
 ---
 
-### 📋 Phase 9: Polish & Integration (PLANNED)
+### 📋 Phase 9: Runtime Operations - P1 (PLANNED)
+
+**Status**: Planned | **Priority**: P1 (High Impact)
+
+**Goal**: Address runtime/operational health gaps identified via community research
+
+**BackpressureAnalyzer**:
+- Destination backpressure detection (`backpressure.outputs`, `blocked.outputs`)
+- Persistent queue depth monitoring (`pq.queue_size`)
+- Queue exhaustion prediction
+- HTTP destination retry pattern analysis (5xx trending)
+
+**PipelinePerformanceAnalyzer**:
+- Function-level latency profiling
+- Regex complexity scoring (catastrophic backtracking detection)
+- JavaScript filter anti-patterns (`test()` vs `indexOf()`)
+- Pipeline timing instrumentation recommendations
+
+**Rationale**: Community research shows production issues are more often operational (backpressure, queue overflow) than configuration-based.
+
+---
+
+### 📋 Phase 10: Data Quality & Topology - P2 (PLANNED)
+
+**Status**: Planned | **Priority**: P2 (Medium Impact)
+
+**DataFlowTopologyAnalyzer**:
+- Source → Pipeline → Route → Destination mapping
+- Dead-end detection (sources with no active routes)
+- Unused pipeline identification
+- Circular dependency detection
+
+**SchemaQualityAnalyzer**:
+- Field cardinality analysis (high-cardinality detection)
+- Schema drift detection
+- Null/missing field rate monitoring
+- Timestamp format consistency
+
+**LookupHealthAnalyzer**:
+- Lookup table size monitoring
+- Lookup miss rate analysis
+- Stale lookup data detection
+- Memory impact assessment
+
+---
+
+### 📋 Phase 11: Polish & Integration (PLANNED)
 
 **Status**: Planned
 
@@ -348,6 +386,24 @@ Phase 9: Polish & Integration     ░░░░░░░░░░░░░░░�
 ---
 
 ## 🔮 Future Considerations
+
+### Phase 12+: Future Architecture (Requires Refactoring)
+
+**Real-time Monitoring Mode**:
+- WebSocket-based continuous monitoring
+- Threshold alerting with notifications
+- Historical trend storage and comparison
+
+**Remediation Automation**:
+- Safe remediation script generation
+- Terraform/IaC export for fixes
+- Dry-run validation before applying
+
+**Integration Hooks**:
+- Jira/ServiceNow - Auto-create tickets from findings
+- Slack/Teams - Real-time alerting
+- PagerDuty - Critical issue escalation
+- Grafana - Dashboard embedding
 
 ### Product-Specific Features
 - **Edge**: Resource constraints, connectivity resilience, edge security
