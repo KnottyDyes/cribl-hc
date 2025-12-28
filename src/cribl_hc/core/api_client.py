@@ -814,3 +814,85 @@ class CriblAPIClient:
             >>> print(f"Used {used}/100 API calls")
         """
         return self.rate_limiter.total_calls_made
+
+    # -------------------------------------------------------------------------
+    # Cribl Lake API Methods
+    # -------------------------------------------------------------------------
+
+    async def get_lake_datasets(
+        self,
+        lake_name: str = "default",
+        include_metrics: bool = False,
+        storage_location_id: Optional[str] = None
+    ) -> dict:
+        """
+        Get Lake datasets.
+
+        Uses product-scoped endpoint pattern:
+        /api/v1/products/lake/lakes/{lake_name}/datasets
+
+        Args:
+            lake_name: Lake name (default: "default")
+            include_metrics: Include dataset metrics in response
+            storage_location_id: Filter by storage location ID
+
+        Returns:
+            Dict with "items" (list of datasets) and "count" (total count)
+
+        Example:
+            >>> datasets = await client.get_lake_datasets(include_metrics=True)
+            >>> for ds in datasets["items"]:
+            ...     print(f"{ds['id']}: {ds['retentionPeriodInDays']} days")
+        """
+        endpoint = f"{self.base_url}/api/v1/products/lake/lakes/{lake_name}/datasets"
+
+        # Build query parameters
+        params = {}
+        if include_metrics:
+            params["includeMetrics"] = "true"
+        if storage_location_id:
+            params["storageLocationId"] = storage_location_id
+
+        response = await self.get(endpoint, params=params if params else None)
+        response.raise_for_status()
+        return response.json()
+
+    async def get_lake_dataset_stats(self, lake_name: str = "default") -> dict:
+        """
+        Get Lake dataset statistics.
+
+        Args:
+            lake_name: Lake name (default: "default")
+
+        Returns:
+            Dict with "items" (list of dataset stats) and "count"
+
+        Example:
+            >>> stats = await client.get_lake_dataset_stats()
+            >>> for stat in stats["items"]:
+            ...     print(f"{stat['datasetId']}: {stat['sizeBytes']} bytes")
+        """
+        endpoint = f"{self.base_url}/api/v1/products/lake/lakes/{lake_name}/datasets/stats"
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        return response.json()
+
+    async def get_lake_lakehouses(self, lake_name: str = "default") -> dict:
+        """
+        Get Lake lakehouses.
+
+        Args:
+            lake_name: Lake name (default: "default")
+
+        Returns:
+            Dict with "items" (list of lakehouses) and "count"
+
+        Example:
+            >>> lakehouses = await client.get_lake_lakehouses()
+            >>> for lh in lakehouses["items"]:
+            ...     print(f"{lh['id']}: {lh['status']}")
+        """
+        endpoint = f"{self.base_url}/api/v1/products/lake/lakes/{lake_name}/lakehouses"
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        return response.json()
