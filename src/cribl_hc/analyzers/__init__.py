@@ -7,8 +7,8 @@ to assess different aspects of a Cribl Stream deployment.
 Available Objectives:
 - health: Overall health assessment, worker monitoring, critical issues
 - config: Configuration validation, best practices, anti-patterns
-- sizing: Resource sizing, over/under-provisioning, scaling recommendations
-- performance: Performance bottlenecks, optimization opportunities
+- resource: Resource sizing, over/under-provisioning, scaling recommendations
+- storage: Storage optimization, data reduction, cost savings
 - security: Security posture, compliance, credential exposure
 - cost: License tracking, cost forecasting, TCO analysis
 """
@@ -267,7 +267,9 @@ __all__ = [
 from cribl_hc.analyzers.health import HealthAnalyzer
 from cribl_hc.analyzers.config import ConfigAnalyzer
 from cribl_hc.analyzers.resource import ResourceAnalyzer
+from cribl_hc.analyzers.storage import StorageAnalyzer
 
 register_analyzer(HealthAnalyzer)
 register_analyzer(ConfigAnalyzer)
 register_analyzer(ResourceAnalyzer)
+register_analyzer(StorageAnalyzer)
