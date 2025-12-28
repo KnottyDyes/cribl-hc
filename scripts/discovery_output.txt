@@ -1,0 +1,46 @@
+🔐 Loading sandbox credentials from encrypted storage...
+
+{"event": "credential_decrypted", "level": "debug", "timestamp": "2025-12-28T16:26:20.409210Z"}
+📋 Credential structure type: <class 'dict'>
+✅ Loaded sandbox credentials
+   URL: https://sandboxdev-serene-lovelace-dd6mau4.cribl.cloud
+   Token: ********************hc2eoX-Q
+
+🔍 Discovering API endpoints for: https://sandboxdev-serene-lovelace-dd6mau4.cribl.cloud
+
+📦 Identifying product type...
+   ✅ /api/v1/version: /api/v1/version
+   ✅ Product: unknown
+   ✅ Version: unknown
+
+🔧 Testing common endpoints...
+   ✅ System settings: /api/v1/system/settings
+   ✅ Health check: /api/v1/health
+   ✅ Version info: /api/v1/version
+
+🏞️  Testing Lake-specific endpoints...
+
+🔎 Testing Search-specific endpoints...
+   ✅ Jobs list: /api/v1/jobs
+
+📚 Attempting to fetch API reference...
+
+💾 Results saved to: scripts/api_discovery_sandbox_20251228_162622.json
+
+======================================================================
+📊 DISCOVERY SUMMARY
+======================================================================
+Product Type: unknown
+Common Endpoints: 3
+Lake Endpoints: 0
+Search Endpoints: 1
+Errors: 0
+======================================================================
+
+✅ Available Common Endpoints:
+   GET /api/v1/system/settings - System settings
+   GET /api/v1/health - Health check
+   GET /api/v1/version - Version info
+
+🔎 Available Search Endpoints:
+   GET /api/v1/jobs - Jobs list

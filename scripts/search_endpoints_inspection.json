@@ -1,0 +1,650 @@
+{
+  "jobs": {
+    "endpoint": "/api/v1/m/default_search/search/jobs",
+    "status": "success",
+    "data": {
+      "items": [
+        {
+          "query": "dataset=\"cribl_search_sample\" | limit 1000",
+          "earliest": "-1h",
+          "latest": "now",
+          "sampleRate": 1,
+          "chartConfig": {
+            "shouldApplyUserChartSettings": false
+          },
+          "user": "samlp|serene-lovelace-dd6mau4|sarmstrong@truezerotech.com",
+          "displayUsername": "sarmstrong@truezerotech.com",
+          "isPrivate": true,
+          "group": "default_search",
+          "id": "1766939703881.P0akH8",
+          "timeCreated": 1766939703882,
+          "setOptions": {},
+          "stages": [
+            {
+              "id": "root",
+              "subQueryText": "dataset=\"cribl_search_sample\" | limit 1000",
+              "dependencies": [],
+              "filter": "(dataset == 'cribl_search_sample')",
+              "resolvedDatasetIds": [
+                "cribl_search_sample"
+              ],
+              "searchConfig": {
+                "pipelines": {
+                  "Federated": {
+                    "id": "root",
+                    "conf": {
+                      "asyncFuncTimeout": 1000,
+                      "description": "Pipeline, generated from Kalipso query",
+                      "functions": [
+                        {
+                          "id": "drop",
+                          "conf": {},
+                          "description": "dataset=\"cribl_search_sample\"",
+                          "filter": "!(dataset == 'cribl_search_sample')",
+                          "disabled": false,
+                          "final": false,
+                          "canFullyPushToFederated": true,
+                          "functionInstanceId": "root:0:UkFe"
+                        },
+                        {
+                          "id": "limit",
+                          "filter": "true",
+                          "description": "limit 1000",
+                          "disabled": false,
+                          "final": false,
+                          "conf": {
+                            "limit": 1000
+                          },
+                          "canFullyPushToFederated": false,
+                          "functionInstanceId": "root:1:neeB"
+                        }
+                      ]
+                    }
+                  },
+                  "Coordinated": {
+                    "id": "root",
+                    "conf": {
+                      "asyncFuncTimeout": 1000,
+                      "description": "Pipeline, generated from Kalipso query",
+                      "functions": [
+                        {
+                          "id": "limit",
+                          "filter": "true",
+                          "description": "limit 1000",
+                          "disabled": false,
+                          "final": false,
+                          "conf": {
+                            "limit": 1000
+                          },
+                          "canFullyPushToFederated": false,
+                          "functionInstanceId": "root:2:bNru"
+                        }
+                      ]
+                    }
+                  },
+                  "Combined": {
+                    "id": "root",
+                    "conf": {
+                      "asyncFuncTimeout": 1000,
+                      "description": "Pipeline, generated from Kalipso query",
+                      "functions": [
+                        {
+                          "id": "drop",
+                          "conf": {},
+                          "description": "dataset=\"cribl_search_sample\"",
+                          "filter": "!(dataset == 'cribl_search_sample')",
+                          "disabled": false,
+                          "final": false,
+                          "canFullyPushToFederated": true,
+                          "functionInstanceId": "root:0:UkFe"
+                        },
+                        {
+                          "id": "limit",
+                          "filter": "true",
+                          "description": "limit 1000",
+                          "disabled": false,
+                          "final": false,
+                          "conf": {
+                            "limit": 1000
+                          },
+                          "canFullyPushToFederated": false,
+                          "functionInstanceId": "root:1:neeB"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "logicalPlans": {
+                  "Federated": {
+                    "root:0:UkFe": [
+                      {
+                        "condition": {
+                          "operator": "==",
+                          "lhs": {
+                            "columnPath": [
+                              "dataset"
+                            ],
+                            "type": "identifier"
+                          },
+                          "rhs": {
+                            "literal": "cribl_search_sample",
+                            "type": "literal"
+                          },
+                          "caseSensitive": false,
+                          "type": "binaryOperation"
+                        },
+                        "type": "filter"
+                      }
+                    ],
+                    "root:1:neeB": [
+                      {
+                        "limit": 1000,
+                        "type": "limit"
+                      }
+                    ]
+                  },
+                  "Coordinated": {
+                    "root:2:bNru": [
+                      {
+                        "limit": 1000,
+                        "type": "limit"
+                      }
+                    ]
+                  },
+                  "Combined": {
+                    "root:0:UkFe": [
+                      {
+                        "condition": {
+                          "operator": "==",
+                          "lhs": {
+                            "columnPath": [
+                              "dataset"
+                            ],
+                            "type": "identifier"
+                          },
+                          "rhs": {
+                            "literal": "cribl_search_sample",
+                            "type": "literal"
+                          },
+                          "caseSensitive": false,
+                          "type": "binaryOperation"
+                        },
+                        "type": "filter"
+                      }
+                    ],
+                    "root:1:neeB": [
+                      {
+                        "limit": 1000,
+                        "type": "limit"
+                      }
+                    ]
+                  }
+                },
+                "datasets": [
+                  "cribl_search_sample"
+                ],
+                "searchTerms": [],
+                "useFormattedVisualization": false,
+                "orderedFieldNames": [],
+                "referencedColumnPaths": [
+                  [
+                    "dataset"
+                  ]
+                ],
+                "hasSendOperator": false,
+                "canComputeMetadataDistributively": false
+              },
+              "status": "running",
+              "searchVersionByDatasetId": {},
+              "cacheStatusByDatasetId": {
+                "cribl_search_sample": {
+                  "usedCache": false,
+                  "reason": "Not a Lake Dataset"
+                }
+              }
+            }
+          ],
+          "accelerated": false,
+          "compatibilityChecks": {
+            "datatypes": false
+          },
+          "metadata": {
+            "datasets": {
+              "cribl_search_sample": 1
+            },
+            "providers": {
+              "cribl_s3sample_provider": 1
+            },
+            "providerTypes": {
+              "s3": 1
+            },
+            "computeTypes": {
+              "v1": 1
+            },
+            "operators": {
+              "dataset=\"cribl_search_sample\"": 1,
+              "limit": 1
+            },
+            "arguments": {},
+            "functions": {}
+          },
+          "type": "standard",
+          "timeStarted": 1766939705422,
+          "status": "running",
+          "cpuMetrics": {
+            "totalCPUSeconds": 316.1170000000001,
+            "billableCPUSeconds": 0,
+            "totalExecCPUSeconds": 316.1170000000001,
+            "executorsCPUSeconds": {
+              "COORDINATOR": 255.172,
+              "JwWdaizK": 1.355,
+              "BLXRJFhh": 1.353,
+              "nDQERJ4C": 1.266,
+              "VDaI7Zct": 1.257,
+              "BfNHvKoo": 1.252,
+              "R6rory2Q": 1.251,
+              "Spc78fWm": 1.235,
+              "B89H7o4I": 1.223,
+              "X9CkSR0y": 1.217,
+              "Ee6cPrfI": 1.27,
+              "w2M5tVds": 1.284,
+              "HuifJWaq": 1.279,
+              "Sf3107Pk": 1.286,
+              "iwVhwcFj": 1.19,
+              "2Fib257e": 1.197,
+              "3sVZNMgK": 1.293,
+              "3IkgzogP": 1.257,
+              "hrnHiAnB": 1.134,
+              "NeKqhEgY": 1.123,
+              "fh4adOTC": 1.238,
+              "65979QIQ": 1.245,
+              "CpKgARns": 1.301,
+              "8ampjJLV": 1.258,
+              "WVAxYBDM": 1.282,
+              "zIiqz2eM": 1.157,
+              "xJShYbMG": 1.275,
+              "k5qkBzBF": 1.212,
+              "59ZTqZSp": 1.275,
+              "wn8QYM8f": 1.26,
+              "i4ED0JpJ": 1.083,
+              "P6Bc2Ltu": 1.411,
+              "Wmtn9wOv": 1.192,
+              "MN7bfbRK": 1.219,
+              "dSXa5AX8": 1.219,
+              "5LpoXfj0": 1.381,
+              "MAcbXPxE": 1.375,
+              "pq24R0Zs": 1.237,
+              "kzfO5Wid": 1.436,
+              "Q0jkG0yl": 1.234,
+              "Tua6NJg6": 1.228,
+              "sJXBqLLK": 1.478,
+              "h7hqrOGy": 1.265,
+              "OLx3MeTj": 1.492,
+              "JqrYHge3": 1.407,
+              "5CDf7eJp": 1.264,
+              "BMpEeAEd": 1.266,
+              "JqN2rKaJ": 1.29,
+              "Zbm36KnU": 1.243
+            }
+          },
+          "earliestEpoch": 1766936103882,
+          "latestEpoch": 1766939703882
+        }
+      ],
+      "count": 1
+    }
+  },
+  "datasets": {
+    "endpoint": "/api/v1/m/default_search/search/datasets",
+    "status": "success",
+    "data": {
+      "items": [
+        {
+          "provider": "cribl_edge",
+          "type": "cribl_edge",
+          "description": "Search Appscope events across all Cribl Edge fleets",
+          "fleets": [
+            "*"
+          ],
+          "path": "$CRIBL_HOME/state/appscope/${input_id}/${guid}/${_time:%s}/evt/${event_source}",
+          "filter": "source.endsWith('.json') && !source.match(/\\/cfg\\/[^/]+\\/[^/]+\\/[^/]+$/)",
+          "id": "cribl_edge_appscope_events"
+        },
+        {
+          "provider": "cribl_edge",
+          "type": "cribl_edge",
+          "description": "Search Appscope metrics across all Cribl Edge fleets",
+          "fleets": [
+            "*"
+          ],
+          "path": "$CRIBL_HOME/state/appscope/${input_id}/${guid}/${__earliest:%s}/metric/${metric}",
+          "filter": "source.endsWith('.json') && !source.match(/\\/cfg\\/[^/]+\\/[^/]+\\/[^/]+$/)",
+          "id": "cribl_edge_appscope_metrics"
+        },
+        {
+          "provider": "cribl_edge",
+          "type": "cribl_edge",
+          "description": "Search Cribl Edge internal logs across all fleets",
+          "fleets": [
+            "*"
+          ],
+          "path": "$CRIBL_LOG_DIR",
+          "filter": "source.endsWith('.log')",
+          "id": "cribl_edge_logs"
+        },
+        {
+          "provider": "cribl_edge",
+          "type": "cribl_edge",
+          "description": "Search Cribl Edge system state across all fleets",
+          "fleets": [
+            "*"
+          ],
+          "path": "$CRIBL_STATE_DIR/system_state/${__earliest:%s}/${state_source}",
+          "id": "cribl_edge_state"
+        },
+        {
+          "provider": "cribl_edge",
+          "type": "cribl_edge",
+          "description": "Search Cribl Edge system metrics across all fleets",
+          "fleets": [
+            "*"
+          ],
+          "path": "$CRIBL_STATE_DIR/${__folderPrefix}_metrics/${__earliest:%s}/${metrics_source}",
+          "filter": "__folderPrefix == \"system\" || __folderPrefix == \"windows\"",
+          "id": "cribl_edge_metrics"
+        },
+        {
+          "provider": "cribl_edge",
+          "type": "cribl_edge",
+          "description": "Search Cribl Edge system logs across all fleets",
+          "fleets": [
+            "*"
+          ],
+          "path": "/var/log",
+          "filter": "true",
+          "id": "cribl_edge_system_logs"
+        },
+        {
+          "provider": "cribl_edge",
+          "type": "cribl_edge",
+          "description": "Search Cribl Edge Prometheus scraper data across all fleets",
+          "fleets": [
+            "*"
+          ],
+          "path": "$CRIBL_SPOOL_DIR/in/edge_prometheus/${input_id}/${__earliest:%s}_${__latest:%s}",
+          "filter": "!source.endsWith('.tmp')",
+          "id": "cribl_edge_prometheus_scraper"
+        },
+        {
+          "provider": "cribl_edge",
+          "type": "cribl_edge",
+          "description": "Search Cribl Edge Kubernetes logs across all fleets",
+          "fleets": [
+            "*"
+          ],
+          "path": "$CRIBL_SPOOL_DIR/in/kube_logs/${input_id}/${__earliest:%s}_${__latest:%s}/${namespace}/${pod}/${container}",
+          "filter": "!source.endsWith('.tmp')",
+          "id": "cribl_edge_kubernetes_logs"
+        },
+        {
+          "provider": "cribl_edge",
+          "type": "cribl_edge",
+          "description": "Search Cribl Edge Disk Spool outputs",
+          "fleets": [
+            "*"
+          ],
+          "path": "$CRIBL_SPOOL_DIR/out/disk_spool/${output_id}/${__earliest:%s}_${__latest:%s}",
+          "filter": "!source.endsWith('.tmp')",
+          "id": "cribl_edge_spool"
+        },
+        {
+          "provider": "cribl_leader",
+          "type": "cribl_leader",
+          "description": "Search Cribl internal logs",
+          "path": "$CRIBL_LOG_DIR",
+          "filter": "source.endsWith('.log')",
+          "id": "cribl_internal_logs"
+        },
+        {
+          "breakerRulesets": [
+            "CSV Datatypes"
+          ],
+          "provider": "cribl_leader",
+          "type": "cribl_leader",
+          "description": "Search Cribl lookup tables",
+          "path": "$CRIBL_LOOKUP_DIR/${lookup_table}.${lookup_table_extension}",
+          "filter": "source.endsWith('.csv') || source.endsWith('.csv.gz')",
+          "excludeInternalFields": true,
+          "id": "cribl_lookups"
+        },
+        {
+          "type": "s3",
+          "breakerRulesets": [
+            "AWS Datatypes",
+            "Apache Datatypes",
+            "Syslog Datatypes",
+            "Cribl Search",
+            "Microsoft Windows Datatypes",
+            "Azure Datatypes",
+            "Microsoft O365 Datatypes",
+            "Microsoft Graph API Datatypes"
+          ],
+          "staleChannelFlushMs": 10000,
+          "filter": "true",
+          "provider": "cribl_s3sample_provider",
+          "description": "Search Cribl provided public sample data",
+          "bucket": "cribl-search-example/data/${dataSource}/${_time:%Y}/${_time:%m}/${_time:%d}/${_time:%H}",
+          "region": "us-west-2",
+          "id": "cribl_search_sample",
+          "storageClasses": [
+            "STANDARD",
+            "INTELLIGEN",
+            "STANDARD_I",
+            "ONEZONE_IA",
+            "GLACIER_IR",
+            "REDUCED_RE",
+            "_RESTORED"
+          ]
+        },
+        {
+          "provider": "cribl_meta",
+          "type": "cribl_meta",
+          "description": "Default list of datasets to be searched when none is specified",
+          "datasets": [
+            "cribl_search_sample"
+          ],
+          "id": "default"
+        },
+        {
+          "id": "default_events",
+          "description": "Think events from Kubernetes or a 3rd party API (i.e. rest collector or O365 Management Activity API)",
+          "provider": "cribl_lake",
+          "type": "cribl_lake",
+          "breakerRulesets": [
+            "Cribl Search"
+          ],
+          "name": "default_events"
+        },
+        {
+          "id": "default_logs",
+          "description": "Default dataset for capturing logs from multiple sources",
+          "provider": "cribl_lake",
+          "type": "cribl_lake",
+          "breakerRulesets": [
+            "Cribl Search"
+          ],
+          "name": "default_logs"
+        },
+        {
+          "id": "default_metrics",
+          "description": "Default dataset for capturing metrics from multiple sources",
+          "provider": "cribl_lake",
+          "type": "cribl_lake",
+          "breakerRulesets": [
+            "Cribl Search"
+          ],
+          "name": "default_metrics"
+        },
+        {
+          "id": "default_spans",
+          "description": "Default dataset for capturing distributed trace spans from multiple sources",
+          "provider": "cribl_lake",
+          "type": "cribl_lake",
+          "breakerRulesets": [
+            "Cribl Search"
+          ],
+          "name": "default_spans"
+        },
+        {
+          "id": "cribl_logs",
+          "description": "Internal logs from Cribl deployments",
+          "provider": "cribl_lake",
+          "type": "cribl_lake",
+          "breakerRulesets": [
+            "Cribl Search"
+          ],
+          "name": "cribl_logs"
+        },
+        {
+          "id": "cribl_metrics",
+          "description": "Internal metrics from Cribl deployments",
+          "provider": "cribl_lake",
+          "type": "cribl_lake",
+          "breakerRulesets": [
+            "Cribl Search"
+          ],
+          "name": "cribl_metrics"
+        },
+        {
+          "id": "storage_test",
+          "description": "",
+          "provider": "cribl_lake",
+          "type": "cribl_lake",
+          "breakerRulesets": [
+            "Cribl Search"
+          ],
+          "name": "storage_test"
+        }
+      ],
+      "count": 20
+    }
+  },
+  "dashboards": {
+    "endpoint": "/api/v1/m/default_search/search/dashboards",
+    "status": "success",
+    "data": {
+      "items": [
+        {
+          "schedule": {
+            "enabled": false,
+            "cronSchedule": "0 0 * * *",
+            "tz": "UTC",
+            "keepLastN": 2
+          },
+          "groups": {},
+          "name": "HC Discovery",
+          "description": "Testing REST calls used for discovery",
+          "category": "cat-lehlk21ei",
+          "elements": [
+            {
+              "config": {
+                "axis": {}
+              },
+              "search": {
+                "type": "values",
+                "values": [
+                  "sandboxdev-serene-lovelace-dd6mau4.cribl.cloud"
+                ]
+              },
+              "id": "507b1kjyb",
+              "inputId": "Cust_ORG",
+              "type": "input.dropdown",
+              "layout": {
+                "x": 0,
+                "y": 0,
+                "w": 2,
+                "h": 2
+              },
+              "variant": "input",
+              "title": "Customer Org URL"
+            },
+            {
+              "config": {
+                "defaultValue": "Item 1"
+              },
+              "search": {
+                "type": "values",
+                "values": [
+                  "Item 1",
+                  "Item 2"
+                ]
+              },
+              "id": "9b7rz52ea",
+              "inputId": "workerGroups",
+              "type": "input.dropdown",
+              "layout": {
+                "x": 2,
+                "y": 0,
+                "w": 2,
+                "h": 2
+              },
+              "variant": "input",
+              "title": "WorkerGroups"
+            }
+          ],
+          "createdBy": "samlp|serene-lovelace-dd6mau4|sarmstrong@truezerotech.com",
+          "modifiedBy": "samlp|serene-lovelace-dd6mau4|sarmstrong@truezerotech.com",
+          "modified": 1765295674626,
+          "created": 1765295491473,
+          "displayCreatedBy": "Sean Armstrong",
+          "displayModifiedBy": "Sean Armstrong",
+          "id": "5p7ybnzyh"
+        }
+      ],
+      "count": 1
+    }
+  },
+  "saved": {
+    "endpoint": "/api/v1/m/default_search/search/saved",
+    "status": "success",
+    "data": {
+      "items": [
+        {
+          "earliest": "-1h",
+          "latest": "now",
+          "query": "cribl dataset=\"cribl_internal_logs\" source=*searches.log message=\"search finished\" | summarize count(), elapsedMS=sum(stats.elapsedMs), eventsFound=sum(stats.eventsFound) by user=stats.user",
+          "name": "cribl_search_finished_1h",
+          "description": "Searches finished in the last 1h",
+          "lib": "cribl",
+          "id": "cribl_search_finished_1h"
+        },
+        {
+          "earliest": "-1h",
+          "latest": "now",
+          "query": "cribl dataset=\"cribl_internal_logs\" source=*searches.log message=\"search started\" | summarize count() by user=stats.user",
+          "name": "cribl_search_started_1h",
+          "description": "Searches started in the last 1h",
+          "lib": "cribl",
+          "id": "cribl_search_started_1h"
+        }
+      ],
+      "count": 2
+    }
+  },
+  "metrics": {
+    "endpoint": "/api/v1/m/default_search/search/metrics",
+    "status": "error_404"
+  },
+  "stats": {
+    "endpoint": "/api/v1/m/default_search/search/stats",
+    "status": "error_404"
+  },
+  "health": {
+    "endpoint": "/api/v1/m/default_search/search/health",
+    "status": "error_404"
+  },
+  "providers": {
+    "endpoint": "/api/v1/m/default_search/search/providers",
+    "status": "error_404"
+  }
+}

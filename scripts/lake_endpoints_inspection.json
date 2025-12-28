@@ -1,0 +1,181 @@
+{
+  "datasets_with_metrics": {
+    "endpoint": "/api/v1/products/lake/lakes/default/datasets?includeMetrics=true&storageLocationId=cribl_lake",
+    "status": "success",
+    "data": {
+      "items": [
+        {
+          "id": "default_events",
+          "bucketName": "lake-sandboxdev-serene-lovelace-dd6mau4",
+          "description": "Think events from Kubernetes or a 3rd party API (i.e. rest collector or O365 Management Activity API)",
+          "retentionPeriodInDays": 30,
+          "format": "json",
+          "viewName": "default_events-read-view",
+          "metrics": {}
+        },
+        {
+          "id": "default_logs",
+          "bucketName": "lake-sandboxdev-serene-lovelace-dd6mau4",
+          "description": "Default dataset for capturing logs from multiple sources",
+          "retentionPeriodInDays": 30,
+          "format": "json",
+          "viewName": "default_logs-read-view",
+          "metrics": {}
+        },
+        {
+          "id": "default_metrics",
+          "bucketName": "lake-sandboxdev-serene-lovelace-dd6mau4",
+          "description": "Default dataset for capturing metrics from multiple sources",
+          "retentionPeriodInDays": 15,
+          "format": "json",
+          "viewName": "default_metrics-read-view",
+          "metrics": {}
+        },
+        {
+          "id": "default_spans",
+          "bucketName": "lake-sandboxdev-serene-lovelace-dd6mau4",
+          "description": "Default dataset for capturing distributed trace spans from multiple sources",
+          "retentionPeriodInDays": 10,
+          "format": "json",
+          "viewName": "default_spans-read-view",
+          "metrics": {}
+        },
+        {
+          "id": "cribl_logs",
+          "bucketName": "internal-sandboxdev-serene-lovelace-dd6mau4",
+          "description": "Internal logs from Cribl deployments",
+          "retentionPeriodInDays": 30,
+          "format": "json",
+          "viewName": "cribl_logs-read-view",
+          "metrics": {}
+        },
+        {
+          "id": "cribl_metrics",
+          "bucketName": "internal-sandboxdev-serene-lovelace-dd6mau4",
+          "description": "Internal metrics from Cribl deployments",
+          "retentionPeriodInDays": 30,
+          "format": "json",
+          "viewName": "cribl_metrics-read-view",
+          "metrics": {}
+        },
+        {
+          "retentionPeriodInDays": 5,
+          "format": "json",
+          "id": "storage_test",
+          "bucketName": "lake-sandboxdev-serene-lovelace-dd6mau4",
+          "viewName": "storage_test-read-view",
+          "metrics": {}
+        }
+      ],
+      "count": 7
+    }
+  },
+  "datasets": {
+    "endpoint": "/api/v1/products/lake/lakes/default/datasets",
+    "status": "success",
+    "data": {
+      "items": [
+        {
+          "id": "default_events",
+          "bucketName": "lake-sandboxdev-serene-lovelace-dd6mau4",
+          "description": "Think events from Kubernetes or a 3rd party API (i.e. rest collector or O365 Management Activity API)",
+          "retentionPeriodInDays": 30,
+          "format": "json",
+          "viewName": "default_events-read-view"
+        },
+        {
+          "id": "default_logs",
+          "bucketName": "lake-sandboxdev-serene-lovelace-dd6mau4",
+          "description": "Default dataset for capturing logs from multiple sources",
+          "retentionPeriodInDays": 30,
+          "format": "json",
+          "viewName": "default_logs-read-view"
+        },
+        {
+          "id": "default_metrics",
+          "bucketName": "lake-sandboxdev-serene-lovelace-dd6mau4",
+          "description": "Default dataset for capturing metrics from multiple sources",
+          "retentionPeriodInDays": 15,
+          "format": "json",
+          "viewName": "default_metrics-read-view"
+        },
+        {
+          "id": "default_spans",
+          "bucketName": "lake-sandboxdev-serene-lovelace-dd6mau4",
+          "description": "Default dataset for capturing distributed trace spans from multiple sources",
+          "retentionPeriodInDays": 10,
+          "format": "json",
+          "viewName": "default_spans-read-view"
+        },
+        {
+          "id": "cribl_logs",
+          "bucketName": "internal-sandboxdev-serene-lovelace-dd6mau4",
+          "description": "Internal logs from Cribl deployments",
+          "retentionPeriodInDays": 30,
+          "format": "json",
+          "viewName": "cribl_logs-read-view"
+        },
+        {
+          "id": "cribl_metrics",
+          "bucketName": "internal-sandboxdev-serene-lovelace-dd6mau4",
+          "description": "Internal metrics from Cribl deployments",
+          "retentionPeriodInDays": 30,
+          "format": "json",
+          "viewName": "cribl_metrics-read-view"
+        },
+        {
+          "retentionPeriodInDays": 5,
+          "format": "json",
+          "id": "storage_test",
+          "bucketName": "lake-sandboxdev-serene-lovelace-dd6mau4",
+          "viewName": "storage_test-read-view"
+        }
+      ],
+      "count": 7
+    }
+  },
+  "lake_info": {
+    "endpoint": "/api/v1/products/lake/lakes/default",
+    "status": "error_404"
+  },
+  "all_lakes": {
+    "endpoint": "/api/v1/products/lake/lakes",
+    "status": "error_404"
+  },
+  "dataset_stats": {
+    "endpoint": "/api/v1/products/lake/lakes/default/datasets/stats",
+    "status": "success",
+    "data": {
+      "items": [],
+      "count": 0
+    }
+  },
+  "lakehouses": {
+    "endpoint": "/api/v1/products/lake/lakes/default/lakehouses",
+    "status": "success",
+    "data": {
+      "items": [],
+      "count": 0
+    }
+  },
+  "lake_health": {
+    "endpoint": "/api/v1/products/lake/lakes/default/health",
+    "status": "error_404"
+  },
+  "lake_metrics": {
+    "endpoint": "/api/v1/products/lake/lakes/default/metrics",
+    "status": "error_404"
+  },
+  "lake_status": {
+    "endpoint": "/api/v1/products/lake/lakes/default/status",
+    "status": "error_404"
+  },
+  "storage_locations": {
+    "endpoint": "/api/v1/products/lake/storage/locations",
+    "status": "error_404"
+  },
+  "storage_usage": {
+    "endpoint": "/api/v1/products/lake/lakes/default/storage/usage",
+    "status": "error_404"
+  }
+}

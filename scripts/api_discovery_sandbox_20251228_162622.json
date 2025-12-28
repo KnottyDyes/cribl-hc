@@ -1,0 +1,56 @@
+{
+  "discovery_time": "2025-12-28T16:26:20.477299",
+  "base_url": "https://sandboxdev-serene-lovelace-dd6mau4.cribl.cloud",
+  "product_type": "unknown",
+  "endpoints": {
+    "/api/v1/system/settings": {
+      "method": "GET",
+      "description": "System settings",
+      "available": true,
+      "sample_keys": [
+        "items",
+        "count"
+      ]
+    },
+    "/api/v1/health": {
+      "method": "GET",
+      "description": "Health check",
+      "available": true,
+      "sample_keys": [
+        "status",
+        "startTime",
+        "role"
+      ]
+    },
+    "/api/v1/version": {
+      "method": "GET",
+      "description": "Version info",
+      "available": true,
+      "sample_keys": [
+        "items",
+        "count"
+      ]
+    }
+  },
+  "lake_endpoints": {},
+  "search_endpoints": {
+    "/api/v1/jobs": {
+      "method": "GET",
+      "description": "Jobs list",
+      "available": true,
+      "sample_keys": [
+        "items",
+        "count",
+        "offset",
+        "limit"
+      ],
+      "sample_data": {
+        "items": [],
+        "count": 0,
+        "offset": 0,
+        "limit": 500
+      }
+    }
+  },
+  "errors": []
+}
