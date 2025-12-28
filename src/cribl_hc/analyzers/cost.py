@@ -83,6 +83,11 @@ class CostAnalyzer(BaseAnalyzer):
         """Return the objective name for this analyzer."""
         return "cost"
 
+    @property
+    def supported_products(self) -> List[str]:
+        """Cost analyzer primarily supports Stream (licensing model)."""
+        return ["stream"]
+
     def get_estimated_api_calls(self) -> int:
         """
         Estimate API calls: license(1) + metrics(1) + outputs(1) = 3.

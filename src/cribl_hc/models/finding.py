@@ -3,7 +3,7 @@ Finding model for identified problems and improvement opportunities.
 """
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, List, Literal
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
@@ -30,6 +30,7 @@ class Finding(BaseModel):
         documentation_links: URLs to Cribl documentation
         estimated_impact: Impact description
         confidence_level: Confidence in this finding
+        product_tags: Products this finding applies to (e.g., ["stream"], ["edge"], ["lake"], ["search"], or any combination)
         detected_at: When finding was detected
         metadata: Additional context data
 
@@ -65,6 +66,10 @@ class Finding(BaseModel):
     estimated_impact: str = Field(default="", description="Impact description")
     confidence_level: Literal["high", "medium", "low"] = Field(
         ..., description="Confidence level"
+    )
+    product_tags: List[Literal["stream", "edge", "lake", "search"]] = Field(
+        default_factory=lambda: ["stream", "edge", "lake", "search"],
+        description="Products this finding applies to"
     )
     detected_at: datetime = Field(default_factory=datetime.utcnow)
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional context")

@@ -61,6 +61,44 @@ class AnalyzerResult:
         """Get high severity findings."""
         return [f for f in self.findings if f.severity == "high"]
 
+    def sort_findings_by_severity(self) -> None:
+        """
+        Sort findings by severity (critical > high > medium > low > info).
+
+        Modifies self.findings in-place.
+        """
+        severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+        self.findings.sort(key=lambda f: severity_order.get(f.severity, 99))
+
+    def sort_recommendations_by_priority(self) -> None:
+        """
+        Sort recommendations by priority (p0 > p1 > p2 > p3).
+
+        Modifies self.recommendations in-place.
+        """
+        priority_order = {"p0": 0, "p1": 1, "p2": 2, "p3": 3}
+        self.recommendations.sort(key=lambda r: priority_order.get(r.priority, 99))
+
+    def filter_by_product(self, product: str) -> "AnalyzerResult":
+        """
+        Filter findings and recommendations by product tag.
+
+        Args:
+            product: Product name (e.g., "stream", "edge", "lake", "search")
+
+        Returns:
+            New AnalyzerResult with filtered findings and recommendations
+        """
+        filtered_result = AnalyzerResult(
+            objective=self.objective,
+            findings=[f for f in self.findings if product in f.product_tags],
+            recommendations=[r for r in self.recommendations if product in r.product_tags],
+            metadata=self.metadata.copy(),
+            success=self.success,
+            error=self.error
+        )
+        return filtered_result
+
     def __repr__(self) -> str:
         return (
             f"AnalyzerResult(objective={self.objective}, "
@@ -105,6 +143,22 @@ class BaseAnalyzer(ABC):
             Objective name string
         """
         pass
+
+    @property
+    def supported_products(self) -> List[str]:
+        """
+        Return list of products this analyzer supports.
+
+        Returns:
+            List of product names (default: ["stream", "edge", "lake", "search"])
+
+        Example:
+            >>> class StreamOnlyAnalyzer(BaseAnalyzer):
+            ...     @property
+            ...     def supported_products(self) -> List[str]:
+            ...         return ["stream"]
+        """
+        return ["stream", "edge", "lake", "search"]
 
     @abstractmethod
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
