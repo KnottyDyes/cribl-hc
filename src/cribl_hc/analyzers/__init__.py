@@ -268,8 +268,10 @@ from cribl_hc.analyzers.health import HealthAnalyzer
 from cribl_hc.analyzers.config import ConfigAnalyzer
 from cribl_hc.analyzers.resource import ResourceAnalyzer
 from cribl_hc.analyzers.storage import StorageAnalyzer
+from cribl_hc.analyzers.security import SecurityAnalyzer
 
 register_analyzer(HealthAnalyzer)
 register_analyzer(ConfigAnalyzer)
 register_analyzer(ResourceAnalyzer)
 register_analyzer(StorageAnalyzer)
+register_analyzer(SecurityAnalyzer)
