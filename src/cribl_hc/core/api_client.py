@@ -810,6 +810,60 @@ class CriblAPIClient:
         data = response.json()
         return data.get("items", [])
 
+    async def get_lookups(self) -> List[Dict[str, Any]]:
+        """
+        Get lookup table configurations.
+
+        Automatically uses the correct endpoint for Cloud or self-hosted deployments:
+        - Cloud: /api/v1/m/{group}/system/lookups
+        - Self-hosted: /api/v1/system/lookups
+
+        Returns:
+            List of lookup table configurations with fields:
+            - id: Lookup filename (e.g., "users.csv")
+            - size: File size in bytes
+            - mode: Storage mode ("memory" or "disk")
+            - version: Version hash
+            - description: Optional description
+            - tags: Optional tags
+
+        Example:
+            >>> lookups = await client.get_lookups()
+            >>> for lookup in lookups:
+            ...     print(f"{lookup['id']}: {lookup.get('size', 0)} bytes")
+        """
+        endpoint = self._build_config_endpoint("system/lookups")
+        try:
+            response = await self.get(endpoint)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("lookups_fetch_failed", error=str(e), endpoint=endpoint)
+            return []
+
+    async def get_parsers(self) -> List[Dict[str, Any]]:
+        """
+        Get parser library configurations.
+
+        Returns:
+            List of parser configurations including regex, grok, and JSON parsers
+
+        Example:
+            >>> parsers = await client.get_parsers()
+            >>> for parser in parsers:
+            ...     print(f"{parser['id']}: {parser['type']}")
+        """
+        endpoint = self._build_config_endpoint("system/parsers")
+        try:
+            response = await self.get(endpoint)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("parsers_fetch_failed", error=str(e), endpoint=endpoint)
+            return []
+
     async def get_license_info(self) -> dict:
         """
         Get license information including consumption and allocation.

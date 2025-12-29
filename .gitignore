@@ -93,6 +93,9 @@ health-report.md
 docs/development/
 docs/reports/
 
+# Cribl API reference docs (proprietary - not for distribution)
+docs/cribl_api_reference/
+
 # Session notes and working documents (not part of official docs)
 CLAUDE.md
 generate_status_report_pdf.py

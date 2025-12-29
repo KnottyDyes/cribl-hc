@@ -13,6 +13,11 @@ Available Objectives:
 - cost: License tracking, cost forecasting, TCO analysis
 - fleet: Multi-deployment management, configuration drift detection
 - predictive: Predictive analytics, capacity forecasting, anomaly detection
+- backpressure: Queue monitoring, backpressure detection, flow control
+- pipeline_performance: Pipeline efficiency, function analysis, bottleneck detection
+- lookup_health: Lookup table sizes, memory optimization, orphan detection
+- schema_quality: Parser analysis, regex optimization, schema mapping
+- dataflow_topology: Route validation, connectivity checking, data path analysis
 """
 
 from typing import Dict, List, Optional, Type
@@ -276,6 +281,9 @@ from cribl_hc.analyzers.fleet import FleetAnalyzer
 from cribl_hc.analyzers.predictive import PredictiveAnalyzer
 from cribl_hc.analyzers.backpressure import BackpressureAnalyzer
 from cribl_hc.analyzers.pipeline_performance import PipelinePerformanceAnalyzer
+from cribl_hc.analyzers.lookup_health import LookupHealthAnalyzer
+from cribl_hc.analyzers.schema_quality import SchemaQualityAnalyzer
+from cribl_hc.analyzers.dataflow_topology import DataFlowTopologyAnalyzer
 
 register_analyzer(HealthAnalyzer)
 register_analyzer(ConfigAnalyzer)
@@ -287,3 +295,6 @@ register_analyzer(FleetAnalyzer)
 register_analyzer(PredictiveAnalyzer)
 register_analyzer(BackpressureAnalyzer)
 register_analyzer(PipelinePerformanceAnalyzer)
+register_analyzer(LookupHealthAnalyzer)
+register_analyzer(SchemaQualityAnalyzer)
+register_analyzer(DataFlowTopologyAnalyzer)
