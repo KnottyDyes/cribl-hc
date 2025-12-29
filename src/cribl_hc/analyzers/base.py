@@ -27,7 +27,14 @@ class AnalyzerResult:
         metadata: Additional metadata about the analysis
         success: Whether analysis completed successfully
         error: Error message if analysis failed
+
+    Product Tracking:
+        Automatically tracks findings and recommendations by product tag.
+        Use get_product_summary() for aggregated counts.
     """
+
+    # Valid product names
+    PRODUCTS = ["stream", "edge", "lake", "search"]
 
     def __init__(
         self,
@@ -45,13 +52,37 @@ class AnalyzerResult:
         self.success = success
         self.error = error
 
+        # Initialize product counters
+        self._findings_by_product: Dict[str, int] = {p: 0 for p in self.PRODUCTS}
+        self._recommendations_by_product: Dict[str, int] = {p: 0 for p in self.PRODUCTS}
+
+        # Count any pre-existing findings/recommendations
+        for finding in self.findings:
+            self._increment_finding_counts(finding)
+        for rec in self.recommendations:
+            self._increment_recommendation_counts(rec)
+
+    def _increment_finding_counts(self, finding: Finding) -> None:
+        """Increment product counters for a finding."""
+        for product in finding.product_tags:
+            if product in self._findings_by_product:
+                self._findings_by_product[product] += 1
+
+    def _increment_recommendation_counts(self, recommendation: Recommendation) -> None:
+        """Increment product counters for a recommendation."""
+        for product in recommendation.product_tags:
+            if product in self._recommendations_by_product:
+                self._recommendations_by_product[product] += 1
+
     def add_finding(self, finding: Finding) -> None:
-        """Add a finding to the results."""
+        """Add a finding to the results and update product counts."""
         self.findings.append(finding)
+        self._increment_finding_counts(finding)
 
     def add_recommendation(self, recommendation: Recommendation) -> None:
-        """Add a recommendation to the results."""
+        """Add a recommendation to the results and update product counts."""
         self.recommendations.append(recommendation)
+        self._increment_recommendation_counts(recommendation)
 
     def get_critical_findings(self) -> List[Finding]:
         """Get only critical severity findings."""
@@ -98,6 +129,50 @@ class AnalyzerResult:
             error=self.error
         )
         return filtered_result
+
+    def get_product_summary(self) -> Dict[str, Dict[str, int]]:
+        """
+        Get summary of findings and recommendations by product.
+
+        Returns:
+            Dict with product names as keys and counts as values:
+            {
+                "stream": {"findings": 5, "recommendations": 3},
+                "edge": {"findings": 2, "recommendations": 1},
+                "lake": {"findings": 3, "recommendations": 2},
+                "search": {"findings": 4, "recommendations": 2}
+            }
+
+        Example:
+            >>> result = analyzer.analyze(client)
+            >>> summary = result.get_product_summary()
+            >>> print(f"Stream findings: {summary['stream']['findings']}")
+        """
+        return {
+            product: {
+                "findings": self._findings_by_product[product],
+                "recommendations": self._recommendations_by_product[product]
+            }
+            for product in self.PRODUCTS
+        }
+
+    def get_findings_by_product(self) -> Dict[str, int]:
+        """
+        Get count of findings by product.
+
+        Returns:
+            Dict with product names as keys and finding counts as values.
+        """
+        return self._findings_by_product.copy()
+
+    def get_recommendations_by_product(self) -> Dict[str, int]:
+        """
+        Get count of recommendations by product.
+
+        Returns:
+            Dict with product names as keys and recommendation counts as values.
+        """
+        return self._recommendations_by_product.copy()
 
     def __repr__(self) -> str:
         return (
