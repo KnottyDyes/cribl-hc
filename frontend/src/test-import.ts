@@ -1,5 +1,5 @@
 // Test import
-import { Credential } from './api/types'
+import type { Credential } from './api/types'
 
 console.log('Import successful!')
 

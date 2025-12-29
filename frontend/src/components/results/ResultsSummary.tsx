@@ -8,6 +8,14 @@ interface ResultsSummaryProps {
 export function ResultsSummary({ results }: ResultsSummaryProps) {
   const summary = results.summary
 
+  if (!summary) {
+    return (
+      <div className="text-center text-gray-500 py-8">
+        No summary data available
+      </div>
+    )
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <Card padding="md">

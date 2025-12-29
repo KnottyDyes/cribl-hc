@@ -14,7 +14,7 @@ export interface Credential {
   auth_type: AuthType
   has_token: boolean
   has_oauth: boolean
-  client_id?: string | null
+  client_id?: string
 }
 
 export interface CredentialCreate {
