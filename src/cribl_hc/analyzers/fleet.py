@@ -64,38 +64,325 @@ class FleetAnalyzer(BaseAnalyzer):
         """
         Estimate API calls per deployment.
 
-        Each deployment: system_status(1) + pipelines(1) + workers(1) = 3 calls.
-        For N deployments: 3N calls.
+        Single deployment: system_status(1) + pipelines(1) + workers(1) +
+                          worker_groups(1) + master_summary(1) = 5 calls.
+        For N deployments: 5N calls.
         """
-        return 3  # Per deployment
+        return 5  # Per deployment
 
     def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:system",
             "read:pipelines",
-            "read:workers"
+            "read:workers",
+            "read:master"
         ]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         """
-        Analyze is not used for FleetAnalyzer.
+        Analyze single deployment for fleet health and config drift.
 
-        Use analyze_fleet() instead with multiple clients.
+        Checks worker groups for configuration version mismatches,
+        deployment status, and fleet-wide health metrics.
 
         Args:
-            client: Single API client (not used)
+            client: API client for the deployment
 
         Returns:
-            AnalyzerResult with error message
+            AnalyzerResult with fleet health findings
 
-        Raises:
-            NotImplementedError: Use analyze_fleet() instead
+        Note:
+            For multi-deployment comparison, use analyze_fleet() instead.
         """
-        result = AnalyzerResult(objective=self.objective_name, success=False)
-        result.error = "FleetAnalyzer requires analyze_fleet() with multiple deployments"
-        self.log.warning("analyze_called_use_analyze_fleet_instead")
+        result = AnalyzerResult(objective=self.objective_name)
+        self.log.info("fleet_single_deployment_analysis_started")
+
+        try:
+            # Fetch worker groups and master summary using Core API
+            worker_groups = await client.get_worker_groups()
+            master_summary = await client.get_master_summary()
+            workers = await client.get_workers()
+
+            result.metadata["worker_group_count"] = len(worker_groups)
+            result.metadata["total_workers"] = len(workers)
+            result.metadata["master_summary"] = master_summary
+
+            # Analyze config drift within worker groups
+            await self._analyze_config_drift(client, worker_groups, workers, result)
+
+            # Analyze worker group health
+            self._analyze_worker_group_health(worker_groups, master_summary, result)
+
+            # Analyze fleet-wide patterns
+            self._analyze_single_deployment_patterns(workers, result)
+
+            result.success = True
+
+        except Exception as e:
+            self.log.error("fleet_analysis_failed", error=str(e))
+            result.error = f"Fleet analysis failed: {str(e)}"
+            result.success = False
+
         return result
+
+    async def _analyze_config_drift(
+        self,
+        client: CriblAPIClient,
+        worker_groups: List[Dict[str, Any]],
+        workers: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Analyze configuration drift between worker groups and workers.
+
+        Detects:
+        - Workers running different config versions than their group
+        - Worker groups with deployments in progress
+        - Workers that haven't received latest config
+
+        Args:
+            client: API client for fetching group summaries
+            worker_groups: List of worker group configurations
+            workers: List of worker nodes
+            result: AnalyzerResult to add findings to
+        """
+        if not worker_groups:
+            self.log.info("no_worker_groups_found_skipping_drift_check")
+            return
+
+        # Build lookup of expected config versions by group
+        group_config_versions: Dict[str, str] = {}
+        groups_deploying: List[Dict[str, Any]] = []
+
+        for group in worker_groups:
+            group_id = group.get("id", "unknown")
+            config_version = group.get("configVersion", "unknown")
+            deploying_count = group.get("deployingWorkerCount", 0)
+
+            group_config_versions[group_id] = config_version
+
+            # Check for deployments in progress
+            if deploying_count > 0:
+                groups_deploying.append({
+                    "group": group_id,
+                    "deploying_count": deploying_count,
+                    "config_version": config_version
+                })
+
+        # Report deployments in progress
+        if groups_deploying:
+            for deploying in groups_deploying:
+                result.add_finding(Finding(
+                    id=f"fleet-deployment-in-progress-{deploying['group']}",
+                    category="fleet",
+                    severity="low",
+                    title=f"Config Deployment In Progress: {deploying['group']}",
+                    description=(
+                        f"Worker group '{deploying['group']}' has {deploying['deploying_count']} "
+                        f"worker(s) still deploying config version {deploying['config_version']}. "
+                        f"This is normal during deployments but should complete within minutes."
+                    ),
+                    confidence_level="high",
+                    remediation_steps=[
+                        "Monitor deployment progress in Cribl UI",
+                        "If stuck for >10 minutes, check worker connectivity",
+                        "Review worker logs for deployment errors"
+                    ],
+                    metadata=deploying
+                ))
+
+        # Check individual workers for config drift
+        workers_with_drift: List[Dict[str, Any]] = []
+        workers_by_group: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+
+        for worker in workers:
+            worker_id = worker.get("id", "unknown")
+            worker_group = worker.get("group", "default")
+            worker_config = worker.get("configVersion", "unknown")
+
+            workers_by_group[worker_group].append(worker)
+
+            expected_version = group_config_versions.get(worker_group)
+            if expected_version and worker_config != expected_version:
+                workers_with_drift.append({
+                    "worker_id": worker_id,
+                    "group": worker_group,
+                    "worker_version": worker_config,
+                    "expected_version": expected_version,
+                    "status": worker.get("status", "unknown")
+                })
+
+        # Report config drift
+        if workers_with_drift:
+            # Group by worker group for better reporting
+            drift_by_group: Dict[str, List[str]] = defaultdict(list)
+            for drift in workers_with_drift:
+                drift_by_group[drift["group"]].append(drift["worker_id"])
+
+            for group_id, drifted_workers in drift_by_group.items():
+                expected = group_config_versions.get(group_id, "unknown")
+                result.add_finding(Finding(
+                    id=f"fleet-config-drift-{group_id}",
+                    category="fleet",
+                    severity="medium",
+                    title=f"Config Version Drift in Worker Group: {group_id}",
+                    description=(
+                        f"{len(drifted_workers)} worker(s) in group '{group_id}' are running "
+                        f"a different config version than expected ({expected}). "
+                        f"This may indicate failed deployments or connectivity issues."
+                    ),
+                    confidence_level="high",
+                    estimated_impact="Workers may process data with outdated configurations",
+                    remediation_steps=[
+                        f"Review worker status for group '{group_id}' in Cribl UI",
+                        "Check worker connectivity to leader node",
+                        "Attempt manual config deployment to affected workers",
+                        "Review worker logs for deployment errors",
+                        "Consider restarting affected workers if deployment is stuck"
+                    ],
+                    affected_components=drifted_workers,
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/manage-workers/"
+                    ],
+                    metadata={
+                        "group": group_id,
+                        "expected_version": expected,
+                        "drifted_worker_count": len(drifted_workers),
+                        "drifted_workers": workers_with_drift
+                    }
+                ))
+
+        # Store drift summary in metadata
+        result.metadata["config_drift"] = {
+            "groups_deploying": len(groups_deploying),
+            "workers_with_drift": len(workers_with_drift),
+            "group_config_versions": group_config_versions
+        }
+
+    def _analyze_worker_group_health(
+        self,
+        worker_groups: List[Dict[str, Any]],
+        master_summary: Dict[str, Any],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Analyze health metrics across worker groups.
+
+        Args:
+            worker_groups: List of worker group configurations
+            master_summary: Master summary with fleet-wide metrics
+            result: AnalyzerResult to add findings to
+        """
+        if not master_summary:
+            return
+
+        # Extract fleet-wide metrics
+        total_workers = master_summary.get("workerCount", 0)
+        healthy_workers = master_summary.get("healthyWorkerCount", 0)
+        unhealthy_workers = total_workers - healthy_workers
+
+        result.metadata["fleet_health"] = {
+            "total_workers": total_workers,
+            "healthy_workers": healthy_workers,
+            "unhealthy_workers": unhealthy_workers,
+            "health_pct": round((healthy_workers / total_workers * 100), 1) if total_workers > 0 else 0
+        }
+
+        # Alert if significant portion of fleet is unhealthy
+        if total_workers > 0:
+            unhealthy_pct = (unhealthy_workers / total_workers) * 100
+
+            if unhealthy_pct >= 25:
+                result.add_finding(Finding(
+                    id="fleet-health-critical",
+                    category="fleet",
+                    severity="critical",
+                    title="Critical Fleet Health Issue",
+                    description=(
+                        f"{unhealthy_workers} of {total_workers} workers ({unhealthy_pct:.0f}%) "
+                        f"are unhealthy. This represents a significant portion of your fleet."
+                    ),
+                    confidence_level="high",
+                    estimated_impact="Significant risk of data processing interruption",
+                    remediation_steps=[
+                        "Immediately investigate unhealthy workers in Cribl UI",
+                        "Check leader node health and connectivity",
+                        "Review infrastructure (CPU, memory, disk, network)",
+                        "Consider scaling or replacing unhealthy workers"
+                    ],
+                    metadata={
+                        "unhealthy_count": unhealthy_workers,
+                        "total_count": total_workers,
+                        "unhealthy_pct": round(unhealthy_pct, 1)
+                    }
+                ))
+            elif unhealthy_pct >= 10:
+                result.add_finding(Finding(
+                    id="fleet-health-warning",
+                    category="fleet",
+                    severity="medium",
+                    title="Fleet Health Degraded",
+                    description=(
+                        f"{unhealthy_workers} of {total_workers} workers ({unhealthy_pct:.0f}%) "
+                        f"are unhealthy. Monitor closely and investigate."
+                    ),
+                    confidence_level="high",
+                    remediation_steps=[
+                        "Review unhealthy workers in Cribl UI",
+                        "Check for common issues (connectivity, resources)",
+                        "Schedule maintenance if needed"
+                    ],
+                    metadata={
+                        "unhealthy_count": unhealthy_workers,
+                        "total_count": total_workers,
+                        "unhealthy_pct": round(unhealthy_pct, 1)
+                    }
+                ))
+
+    def _analyze_single_deployment_patterns(
+        self,
+        workers: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Analyze patterns in a single deployment.
+
+        Args:
+            workers: List of worker nodes
+            result: AnalyzerResult to add findings to
+        """
+        if not workers:
+            return
+
+        # Group workers by status
+        status_counts: Dict[str, int] = Counter()
+        for worker in workers:
+            status = worker.get("status", "unknown")
+            status_counts[status] += 1
+
+        result.metadata["worker_status_distribution"] = dict(status_counts)
+
+        # Check for workers with unknown status
+        unknown_count = status_counts.get("unknown", 0)
+        if unknown_count > 0:
+            result.add_finding(Finding(
+                id="fleet-workers-unknown-status",
+                category="fleet",
+                severity="low",
+                title="Workers with Unknown Status",
+                description=(
+                    f"{unknown_count} worker(s) are reporting unknown status. "
+                    f"This may indicate monitoring issues or workers that haven't checked in."
+                ),
+                confidence_level="medium",
+                remediation_steps=[
+                    "Check worker connectivity to leader",
+                    "Review worker heartbeat settings",
+                    "Verify network path between workers and leader"
+                ],
+                metadata={"unknown_count": unknown_count}
+            ))
 
     async def analyze_fleet(
         self,
