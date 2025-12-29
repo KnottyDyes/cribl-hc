@@ -225,7 +225,8 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         pipeline_ids = {p.get("id") for p in pipelines if p.get("id")}
         output_ids = {o.get("id") for o in outputs if o.get("id")}
 
-        enabled_routes = [r for r in routes if r.get("enabled", True) is not False]
+        # API uses 'disabled' field (True means disabled), not 'enabled'
+        enabled_routes = [r for r in routes if not r.get("disabled", False)]
         disabled_routes = len(routes) - len(enabled_routes)
 
         result.metadata["enabled_routes"] = len(enabled_routes)
@@ -260,7 +261,8 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         catch_all_routes = []
         for route in routes:
             route_id = route.get("id", "unknown")
-            enabled = route.get("enabled", True)
+            # API uses 'disabled' field (True means disabled)
+            disabled = route.get("disabled", False)
             pipeline_id = route.get("pipeline", "")
             output_id = route.get("output", "")
             filter_expr = route.get("filter", "true")
@@ -312,7 +314,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                 )
 
             # Check for catch-all routes (no filter or filter=true)
-            if enabled and (not filter_expr or filter_expr == "true"):
+            if not disabled and (not filter_expr or filter_expr == "true"):
                 catch_all_routes.append(route_id)
 
         # Warn about catch-all routes not at the end
@@ -353,7 +355,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         referenced_outputs = set()
 
         for route in routes:
-            if route.get("enabled", True):
+            if not route.get("disabled", False):
                 pipeline = route.get("pipeline", "")
                 output = route.get("output", "")
                 if pipeline:
@@ -514,7 +516,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
 
     def _analyze_route_ordering(self, result: AnalyzerResult, routes: List[Dict[str, Any]]) -> None:
         """Analyze route ordering for potential issues."""
-        enabled_routes = [r for r in routes if r.get("enabled", True) is not False]
+        enabled_routes = [r for r in routes if not r.get("disabled", False)]
 
         # Check for routes that might never match due to ordering
         seen_outputs = set()
@@ -567,7 +569,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
     ) -> None:
         """Add summary finding for data flow topology."""
         issues = len([f for f in result.findings if f.severity in ("high", "critical", "medium")])
-        enabled_routes = len([r for r in routes if r.get("enabled", True) is not False])
+        enabled_routes = len([r for r in routes if not r.get("disabled", False)])
 
         if issues == 0:
             severity = "info"

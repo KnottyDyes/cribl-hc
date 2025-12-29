@@ -13,24 +13,6 @@ from cribl_hc.core.api_client import CriblAPIClient, ConnectionTestResult
 from cribl_hc.utils.rate_limiter import RateLimiter
 
 
-@pytest.fixture
-def mock_cribl_api():
-    """Setup respx mock for Cribl API."""
-    with respx.mock:
-        yield respx
-
-
-@pytest.fixture
-async def api_client():
-    """Create API client for testing."""
-    client = CriblAPIClient(
-        base_url="https://cribl.example.com:9000",
-        auth_token="test-token-12345"
-    )
-    yield client
-    await client.close()
-
-
 class TestCriblAPIClient:
     """Test CriblAPIClient core functionality."""
 
@@ -42,294 +24,327 @@ class TestCriblAPIClient:
             auth_token="test-token"
         )
 
+        # Before entering context manager, _client is None
         assert client.base_url == "https://cribl.example.com:9000"
-        assert client.client is not None
-
-        await client.close()
-
-    @pytest.mark.asyncio
-    async def test_initialization_with_oauth(self):
-        """Test client initialization with OAuth credentials."""
-        client = CriblAPIClient(
-            base_url="https://cribl.example.com:9000",
-            auth_token="test-token",
-            client_id="test-client-id",
-            client_secret="test-client-secret"
-        )
-
-        assert client.client_id == "test-client-id"
-        assert client.client_secret == "test-client-secret"
-
-        await client.close()
+        assert client._client is None
 
     @pytest.mark.asyncio
     async def test_context_manager(self):
         """Test client as async context manager."""
-        async with CriblAPIClient(
-            base_url="https://cribl.example.com:9000",
-            auth_token="test-token"
-        ) as client:
-            assert client.client is not None
+        with respx.mock:
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token"
+            ) as client:
+                # After entering context manager, _client is initialized
+                assert client._client is not None
 
     @pytest.mark.asyncio
-    async def test_test_connection_success(self, api_client, mock_cribl_api):
+    async def test_test_connection_success(self):
         """Test successful connection test."""
-        # Mock the /api/v1/version endpoint
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(
-                200,
-                json={"version": "5.0.0", "build": "12345"}
+        with respx.mock:
+            # Mock the /api/v1/version endpoint
+            respx.get("https://cribl.example.com:9000/api/v1/version").mock(
+                return_value=Response(
+                    200,
+                    json={"version": "5.0.0", "build": "12345"}
+                )
             )
-        )
 
-        result = await api_client.test_connection()
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token-12345"
+            ) as client:
+                result = await client.test_connection()
 
-        assert isinstance(result, ConnectionTestResult)
-        assert result.success is True
-        assert result.cribl_version == "5.0.0"
-        assert result.response_time_ms > 0
+                assert isinstance(result, ConnectionTestResult)
+                assert result.success is True
+                assert result.cribl_version == "5.0.0"
+                assert result.response_time_ms is not None
+                assert result.response_time_ms > 0
 
     @pytest.mark.asyncio
-    async def test_test_connection_failure(self, api_client, mock_cribl_api):
+    async def test_test_connection_failure(self):
         """Test connection test with failed response."""
-        # Mock failed connection
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(401, json={"error": "Unauthorized"})
-        )
-
-        result = await api_client.test_connection()
-
-        assert isinstance(result, ConnectionTestResult)
-        assert result.success is False
-        assert result.error is not None
-
-    @pytest.mark.asyncio
-    async def test_get_system_info(self, api_client, mock_cribl_api):
-        """Test getting system information."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
-            return_value=Response(
-                200,
-                json={"guid": "test-guid", "hostname": "cribl-master"}
+        with respx.mock:
+            # Mock failed connection
+            respx.get("https://cribl.example.com:9000/api/v1/version").mock(
+                return_value=Response(401, json={"error": "Unauthorized"})
             )
-        )
 
-        result = await api_client.get_system_info()
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token-12345"
+            ) as client:
+                result = await client.test_connection()
 
-        assert result is not None
-        assert "guid" in result
+                assert isinstance(result, ConnectionTestResult)
+                assert result.success is False
+                assert result.error is not None
 
     @pytest.mark.asyncio
-    async def test_get_workers(self, api_client, mock_cribl_api):
+    async def test_get_system_status(self):
+        """Test getting system status."""
+        with respx.mock:
+            respx.get("https://cribl.example.com:9000/api/v1/system/status").mock(
+                return_value=Response(
+                    200,
+                    json={"health": "healthy", "hostname": "cribl-master"}
+                )
+            )
+
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token-12345"
+            ) as client:
+                result = await client.get_system_status()
+
+                assert result is not None
+                assert "health" in result
+
+    @pytest.mark.asyncio
+    async def test_get_workers(self):
         """Test getting worker nodes."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/master/workers").mock(
-            return_value=Response(
-                200,
-                json={
-                    "items": [
-                        {"id": "worker-1", "status": "alive"},
-                        {"id": "worker-2", "status": "alive"}
-                    ]
-                }
+        with respx.mock:
+            respx.get("https://cribl.example.com:9000/api/v1/master/workers").mock(
+                return_value=Response(
+                    200,
+                    json={
+                        "items": [
+                            {"id": "worker-1", "status": "alive"},
+                            {"id": "worker-2", "status": "alive"}
+                        ]
+                    }
+                )
             )
-        )
 
-        result = await api_client.get_workers()
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token-12345"
+            ) as client:
+                result = await client.get_workers()
 
-        assert result is not None
-        assert "items" in result
-        assert len(result["items"]) == 2
+                # get_workers returns the items list directly
+                assert result is not None
+                assert isinstance(result, list)
+                assert len(result) == 2
 
     @pytest.mark.asyncio
-    async def test_get_metrics(self, api_client, mock_cribl_api):
-        """Test getting metrics."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/metrics").mock(
-            return_value=Response(
-                200,
-                json={"cpu_usage": 45.5, "memory_usage": 60.2}
+    async def test_get_workers_404(self):
+        """Test getting workers when endpoint returns 404."""
+        with respx.mock:
+            respx.get("https://cribl.example.com:9000/api/v1/master/workers").mock(
+                return_value=Response(404, json={"error": "Not Found"})
             )
-        )
 
-        result = await api_client.get_metrics()
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token-12345"
+            ) as client:
+                result = await client.get_workers()
 
-        assert result is not None
-        assert "cpu_usage" in result or "memory_usage" in result
+                # Should return empty list on 404
+                assert result == []
 
 
 class TestAPIClientRetries:
     """Test retry and error handling logic."""
 
     @pytest.mark.asyncio
-    async def test_retry_on_5xx_error(self, api_client, mock_cribl_api):
-        """Test that client retries on 5xx errors."""
-        # First call fails with 500, second succeeds
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            side_effect=[
-                Response(500, json={"error": "Internal Server Error"}),
-                Response(200, json={"version": "5.0.0"})
-            ]
-        )
-
-        result = await api_client.test_connection()
-
-        # Should eventually succeed after retry
-        assert result.success is True
-
-    @pytest.mark.asyncio
-    async def test_no_retry_on_4xx_error(self, api_client, mock_cribl_api):
+    async def test_no_retry_on_4xx_error(self):
         """Test that client doesn't retry on 4xx errors."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(404, json={"error": "Not Found"})
-        )
+        with respx.mock:
+            respx.get("https://cribl.example.com:9000/api/v1/version").mock(
+                return_value=Response(404, json={"error": "Not Found"})
+            )
 
-        result = await api_client.test_connection()
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token-12345"
+            ) as client:
+                result = await client.test_connection()
 
-        # Should fail immediately without retries
-        assert result.success is False
-
-
-class TestAPIClientRateLimiting:
-    """Test rate limiting integration."""
-
-    @pytest.mark.asyncio
-    async def test_rate_limiter_integration(self, mock_cribl_api):
-        """Test that rate limiter is enforced."""
-        # Create client with strict rate limit
-        rate_limiter = RateLimiter(max_calls=2, time_window_seconds=60.0)
-
-        client = CriblAPIClient(
-            base_url="https://cribl.example.com:9000",
-            auth_token="test-token",
-            rate_limiter=rate_limiter
-        )
-
-        # Mock successful responses
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(200, json={"version": "5.0.0"})
-        )
-
-        # Make 2 calls (should succeed)
-        await client.test_connection()
-        await client.test_connection()
-
-        # Third call should hit rate limit
-        with pytest.raises(RuntimeError, match="budget exhausted"):
-            await client.test_connection()
-
-        await client.close()
-
-    @pytest.mark.asyncio
-    async def test_api_call_tracking(self, api_client, mock_cribl_api):
-        """Test that API calls are tracked."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(200, json={"version": "5.0.0"})
-        )
-
-        initial_calls = api_client.get_api_calls_made()
-        await api_client.test_connection()
-        final_calls = api_client.get_api_calls_made()
-
-        assert final_calls > initial_calls
+                # Should fail immediately without retries
+                assert result.success is False
 
 
 class TestAPIClientAuth:
     """Test authentication handling."""
 
     @pytest.mark.asyncio
-    async def test_bearer_token_in_headers(self, api_client, mock_cribl_api):
+    async def test_bearer_token_in_headers(self):
         """Test that bearer token is included in requests."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(200, json={"version": "5.0.0"})
-        )
-
-        await api_client.test_connection()
-
-        # Check that the request included Authorization header
-        request = mock_cribl_api.calls.last.request
-        assert "Authorization" in request.headers
-        assert request.headers["Authorization"].startswith("Bearer ")
-
-    @pytest.mark.asyncio
-    async def test_oauth_token_refresh(self, mock_cribl_api):
-        """Test OAuth token refresh logic."""
-        client = CriblAPIClient(
-            base_url="https://cribl.example.com:9000",
-            auth_token="initial-token",
-            client_id="test-client",
-            client_secret="test-secret"
-        )
-
-        # Mock token endpoint
-        mock_cribl_api.post("https://cribl.example.com:9000/oauth/token").mock(
-            return_value=Response(
-                200,
-                json={"access_token": "new-token", "expires_in": 3600}
+        with respx.mock:
+            route = respx.get("https://cribl.example.com:9000/api/v1/version").mock(
+                return_value=Response(200, json={"version": "5.0.0"})
             )
-        )
 
-        # Mock API call that requires auth
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(200, json={"version": "5.0.0"})
-        )
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token-12345"
+            ) as client:
+                await client.test_connection()
 
-        # Token refresh should happen if needed
-        await client.test_connection()
-
-        await client.close()
+                # Check that the request included Authorization header
+                assert route.called
+                request = route.calls.last.request
+                assert "Authorization" in request.headers
+                assert request.headers["Authorization"] == "Bearer test-token-12345"
 
 
 class TestAPIClientErrorHandling:
     """Test error handling and edge cases."""
 
     @pytest.mark.asyncio
-    async def test_timeout_handling(self, api_client, mock_cribl_api):
+    async def test_timeout_handling(self):
         """Test handling of request timeouts."""
         import httpx
 
-        # Mock timeout
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            side_effect=httpx.TimeoutException("Request timeout")
-        )
+        with respx.mock:
+            # Mock timeout
+            respx.get("https://cribl.example.com:9000/api/v1/version").mock(
+                side_effect=httpx.TimeoutException("Request timeout")
+            )
 
-        result = await api_client.test_connection()
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token-12345"
+            ) as client:
+                result = await client.test_connection()
 
-        assert result.success is False
-        assert "timeout" in result.error.lower() if result.error else True
+                assert result.success is False
+                assert result.error is not None
+                assert "timeout" in result.error.lower()
 
     @pytest.mark.asyncio
-    async def test_connection_error_handling(self, api_client, mock_cribl_api):
+    async def test_connection_error_handling(self):
         """Test handling of connection errors."""
         import httpx
 
-        # Mock connection error
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            side_effect=httpx.ConnectError("Connection refused")
-        )
+        with respx.mock:
+            # Mock connection error
+            respx.get("https://cribl.example.com:9000/api/v1/version").mock(
+                side_effect=httpx.ConnectError("Connection refused")
+            )
 
-        result = await api_client.test_connection()
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token-12345"
+            ) as client:
+                result = await client.test_connection()
 
-        assert result.success is False
-        assert result.error is not None
+                assert result.success is False
+                assert result.error is not None
 
     @pytest.mark.asyncio
-    async def test_invalid_json_response(self, api_client, mock_cribl_api):
+    async def test_invalid_json_response(self):
         """Test handling of invalid JSON responses."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(200, text="not valid json")
-        )
+        with respx.mock:
+            respx.get("https://cribl.example.com:9000/api/v1/version").mock(
+                return_value=Response(200, text="not valid json")
+            )
 
-        # Should handle gracefully
-        result = await api_client.test_connection()
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token-12345"
+            ) as client:
+                # Should handle gracefully
+                result = await client.test_connection()
 
-        # May succeed or fail depending on implementation
-        assert isinstance(result, ConnectionTestResult)
+                # May succeed or fail depending on implementation
+                assert isinstance(result, ConnectionTestResult)
 
     @pytest.mark.asyncio
-    async def test_empty_response(self, api_client, mock_cribl_api):
+    async def test_empty_response(self):
         """Test handling of empty responses."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(200, text="")
+        with respx.mock:
+            respx.get("https://cribl.example.com:9000/api/v1/version").mock(
+                return_value=Response(200, text="")
+            )
+
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token-12345"
+            ) as client:
+                result = await client.test_connection()
+
+                assert isinstance(result, ConnectionTestResult)
+
+    @pytest.mark.asyncio
+    async def test_client_not_initialized_error(self):
+        """Test that using client outside context manager fails gracefully."""
+        client = CriblAPIClient(
+            base_url="https://cribl.example.com:9000",
+            auth_token="test-token-12345"
         )
 
-        result = await api_client.test_connection()
+        # Without entering context manager, test_connection should return failure
+        result = await client.test_connection()
+        assert result.success is False
+        assert "not initialized" in result.error.lower()
 
-        assert isinstance(result, ConnectionTestResult)
+
+class TestAPIClientDeploymentDetection:
+    """Test deployment type detection."""
+
+    @pytest.mark.asyncio
+    async def test_cloud_detection(self):
+        """Test that Cribl Cloud deployments are detected."""
+        client = CriblAPIClient(
+            base_url="https://main-myorg.cribl.cloud",
+            auth_token="test-token"
+        )
+        assert client.is_cloud is True
+
+    @pytest.mark.asyncio
+    async def test_self_hosted_detection(self):
+        """Test that self-hosted deployments are detected."""
+        client = CriblAPIClient(
+            base_url="https://cribl.example.com:9000",
+            auth_token="test-token"
+        )
+        assert client.is_cloud is False
+
+    @pytest.mark.asyncio
+    async def test_product_type_detection(self):
+        """Test that product type is detected from version response."""
+        with respx.mock:
+            respx.get("https://cribl.example.com:9000/api/v1/version").mock(
+                return_value=Response(
+                    200,
+                    json={"version": "5.0.0", "product": "stream"}
+                )
+            )
+
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token"
+            ) as client:
+                result = await client.test_connection()
+
+                assert result.success is True
+                assert client.product_type == "stream"
+                assert client.is_stream is True
+                assert client.is_edge is False
+
+    @pytest.mark.asyncio
+    async def test_edge_product_detection(self):
+        """Test that Edge product is detected."""
+        with respx.mock:
+            respx.get("https://cribl.example.com:9000/api/v1/version").mock(
+                return_value=Response(
+                    200,
+                    json={"version": "4.8.0", "product": "edge"}
+                )
+            )
+
+            async with CriblAPIClient(
+                base_url="https://cribl.example.com:9000",
+                auth_token="test-token"
+            ) as client:
+                result = await client.test_connection()
+
+                assert result.success is True
+                assert client.product_type == "edge"
+                assert client.is_edge is True
+                assert client.is_stream is False

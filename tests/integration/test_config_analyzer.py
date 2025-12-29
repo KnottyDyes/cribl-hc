@@ -53,24 +53,31 @@ def mock_valid_config(respx_mock):
         )
     )
 
-    # Mock routes endpoint
+    # Mock routes endpoint - API returns Routes objects (routing tables) with nested routes array
     respx_mock.get(f"{base_url}/api/v1/master/routes").mock(
         return_value=httpx.Response(
             200,
             json={
                 "items": [
                     {
-                        "id": "route-main",
-                        "filter": "source=='production'",
-                        "pipeline": "main",
-                        "output": "default",
-                    },
-                    {
-                        "id": "route-backup",
-                        "filter": "source=='backup'",
-                        "pipeline": "backup",
-                        "output": "s3",
-                    },
+                        "id": "default",
+                        "routes": [
+                            {
+                                "id": "route-main",
+                                "name": "route-main",
+                                "filter": "source=='production'",
+                                "pipeline": "main",
+                                "output": "default",
+                            },
+                            {
+                                "id": "route-backup",
+                                "name": "route-backup",
+                                "filter": "source=='backup'",
+                                "pipeline": "backup",
+                                "output": "s3",
+                            },
+                        ]
+                    }
                 ]
             },
         )
@@ -261,17 +268,23 @@ def mock_config_with_unused_components(respx_mock):
         )
     )
 
-    # Route only references one pipeline
+    # Route only references one pipeline - nested routes structure
     respx_mock.get(f"{base_url}/api/v1/master/routes").mock(
         return_value=httpx.Response(
             200,
             json={
                 "items": [
                     {
-                        "id": "route-1",
-                        "filter": "true",
-                        "pipeline": "used-pipeline",
-                        "output": "default",
+                        "id": "default",
+                        "routes": [
+                            {
+                                "id": "route-1",
+                                "name": "route-1",
+                                "filter": "true",
+                                "pipeline": "used-pipeline",
+                                "output": "default",
+                            }
+                        ]
                     }
                 ]
             },

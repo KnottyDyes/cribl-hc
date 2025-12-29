@@ -752,19 +752,33 @@ class CriblAPIClient:
         - Cloud: /api/v1/m/{group}/routes
         - Self-hosted: /api/v1/master/routes
 
+        Note:
+            The API returns a Routes object (routing table) containing a nested
+            'routes' array with individual RoutesRoute objects. This method
+            extracts and returns the individual routes from the default routing table.
+
         Returns:
-            List of route configurations
+            List of individual route configurations (RoutesRoute objects)
 
         Example:
             >>> routes = await client.get_routes()
             >>> for route in routes:
-            ...     print(f"{route['id']}: {route['output']}")
+            ...     print(f"{route['id']}: {route['pipeline']}")
         """
         endpoint = self._build_config_endpoint("routes")
         response = await self.get(endpoint)
         response.raise_for_status()
         data = response.json()
-        return data.get("items", [])
+
+        # API returns Routes objects (routing tables), each containing a 'routes' array
+        # Extract individual routes from all routing tables
+        items = data.get("items", [])
+        all_routes = []
+        for routing_table in items:
+            # Each routing table has a 'routes' array with individual route configs
+            routes = routing_table.get("routes", [])
+            all_routes.extend(routes)
+        return all_routes
 
     async def get_inputs(self) -> List[Dict[str, Any]]:
         """

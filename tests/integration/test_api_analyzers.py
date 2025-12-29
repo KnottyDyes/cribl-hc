@@ -28,13 +28,14 @@ class TestAnalyzersAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) > 0
+        assert "analyzers" in data
+        assert "total_count" in data
+        assert isinstance(data["analyzers"], list)
+        assert len(data["analyzers"]) > 0
 
         # Check analyzer structure
-        for analyzer in data:
+        for analyzer in data["analyzers"]:
             assert "name" in analyzer
-            assert "objective" in analyzer
             assert "description" in analyzer
 
     @pytest.mark.asyncio
@@ -42,7 +43,8 @@ class TestAnalyzersAPI:
         """Test getting specific analyzer information."""
         # First get list to find a valid analyzer name
         list_response = await async_client.get("/api/v1/analyzers")
-        analyzers = list_response.json()
+        data = list_response.json()
+        analyzers = data["analyzers"]
 
         if len(analyzers) > 0:
             analyzer_name = analyzers[0]["name"]
@@ -52,7 +54,6 @@ class TestAnalyzersAPI:
             assert response.status_code == 200
             data = response.json()
             assert data["name"] == analyzer_name
-            assert "objective" in data
             assert "description" in data
 
     @pytest.mark.asyncio
@@ -66,72 +67,55 @@ class TestAnalyzersAPI:
     async def test_analyzers_have_required_fields(self, async_client):
         """Test that all analyzers have required fields."""
         response = await async_client.get("/api/v1/analyzers")
-        analyzers = response.json()
+        data = response.json()
+        analyzers = data["analyzers"]
 
-        required_fields = ["name", "objective", "description"]
+        required_fields = ["name", "description", "api_calls", "permissions"]
 
         for analyzer in analyzers:
             for field in required_fields:
                 assert field in analyzer
                 assert analyzer[field] is not None
-                assert len(str(analyzer[field])) > 0
-
-    @pytest.mark.asyncio
-    async def test_analyzers_by_objective(self, async_client):
-        """Test filtering analyzers by objective."""
-        response = await async_client.get("/api/v1/analyzers?objective=health")
-
-        assert response.status_code == 200
-        data = response.json()
-
-        # All returned analyzers should be for health objective
-        for analyzer in data:
-            assert analyzer["objective"] == "health"
 
     @pytest.mark.asyncio
     async def test_analyzer_objectives(self, async_client):
         """Test that known objectives are present."""
         response = await async_client.get("/api/v1/analyzers")
-        analyzers = response.json()
+        data = response.json()
+        analyzers = data["analyzers"]
 
-        objectives = {analyzer["objective"] for analyzer in analyzers}
+        names = {analyzer["name"] for analyzer in analyzers}
 
         # Should have at least these core objectives
-        expected_objectives = {"health", "config", "resource"}
-        assert expected_objectives.issubset(objectives)
+        expected_names = {"health", "config", "resource"}
+        assert expected_names.issubset(names)
 
 
 class TestAnalyzerMetadata:
     """Test analyzer metadata and capabilities."""
 
     @pytest.mark.asyncio
-    async def test_analyzer_version_compatibility(self, async_client):
-        """Test that analyzers expose version compatibility info."""
-        list_response = await async_client.get("/api/v1/analyzers")
-        analyzers = list_response.json()
+    async def test_analyzer_api_calls(self, async_client):
+        """Test that analyzers expose API call estimates."""
+        response = await async_client.get("/api/v1/analyzers")
+        data = response.json()
 
-        if len(analyzers) > 0:
-            analyzer_name = analyzers[0]["name"]
-            response = await async_client.get(f"/api/v1/analyzers/{analyzer_name}")
-            data = response.json()
+        assert "total_api_calls" in data
+        assert data["total_api_calls"] > 0
 
-            # Should have version compatibility info (optional)
-            if "version_compatibility" in data:
-                assert isinstance(data["version_compatibility"], dict)
+        for analyzer in data["analyzers"]:
+            assert "api_calls" in analyzer
+            assert isinstance(analyzer["api_calls"], int)
+            assert analyzer["api_calls"] > 0
 
     @pytest.mark.asyncio
-    async def test_analyzer_capabilities(self, async_client):
-        """Test that analyzers expose their capabilities."""
-        list_response = await async_client.get("/api/v1/analyzers")
-        analyzers = list_response.json()
+    async def test_analyzer_permissions(self, async_client):
+        """Test that analyzers expose their required permissions."""
+        response = await async_client.get("/api/v1/analyzers")
+        data = response.json()
 
-        for analyzer in analyzers:
-            # Each analyzer should declare what it analyzes
-            assert "objective" in analyzer
-            assert analyzer["objective"] in [
-                "health",
-                "config",
-                "resource",
-                "security",
-                "performance"
-            ]
+        for analyzer in data["analyzers"]:
+            assert "permissions" in analyzer
+            assert isinstance(analyzer["permissions"], list)
+            # All analyzers should require at least one permission
+            assert len(analyzer["permissions"]) > 0
