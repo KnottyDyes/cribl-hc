@@ -896,3 +896,90 @@ class CriblAPIClient:
         response = await self.get(endpoint)
         response.raise_for_status()
         return response.json()
+
+    # -------------------------------------------------------------------------
+    # Cribl Search API Methods
+    # -------------------------------------------------------------------------
+
+    async def get_search_jobs(self, workspace: str = "default_search") -> dict:
+        """
+        Get Search jobs from workspace.
+
+        Uses workspace-scoped endpoint pattern:
+        /api/v1/m/{workspace}/search/jobs
+
+        Args:
+            workspace: Search workspace name (default: "default_search")
+
+        Returns:
+            Dict with "items" (list of search jobs) and "count"
+
+        Example:
+            >>> jobs = await client.get_search_jobs()
+            >>> for job in jobs["items"]:
+            ...     print(f"{job['id']}: {job['status']}")
+        """
+        endpoint = f"/api/v1/m/{workspace}/search/jobs"
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_datasets(self, workspace: str = "default_search") -> dict:
+        """
+        Get Search datasets from workspace.
+
+        Args:
+            workspace: Search workspace name (default: "default_search")
+
+        Returns:
+            Dict with "items" (list of search datasets) and "count"
+
+        Example:
+            >>> datasets = await client.get_search_datasets()
+            >>> for ds in datasets["items"]:
+            ...     print(f"{ds['id']}: {ds['provider']}")
+        """
+        endpoint = f"/api/v1/m/{workspace}/search/datasets"
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_dashboards(self, workspace: str = "default_search") -> dict:
+        """
+        Get Search dashboards from workspace.
+
+        Args:
+            workspace: Search workspace name (default: "default_search")
+
+        Returns:
+            Dict with "items" (list of dashboards) and "count"
+
+        Example:
+            >>> dashboards = await client.get_search_dashboards()
+            >>> for dash in dashboards["items"]:
+            ...     print(f"{dash['id']}: {dash['name']}")
+        """
+        endpoint = f"/api/v1/m/{workspace}/search/dashboards"
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_saved_searches(self, workspace: str = "default_search") -> dict:
+        """
+        Get saved searches from workspace.
+
+        Args:
+            workspace: Search workspace name (default: "default_search")
+
+        Returns:
+            Dict with "items" (list of saved searches) and "count"
+
+        Example:
+            >>> saved = await client.get_search_saved_searches()
+            >>> for s in saved["items"]:
+            ...     print(f"{s['id']}: {s['name']}")
+        """
+        endpoint = f"/api/v1/m/{workspace}/search/saved"
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        return response.json()
