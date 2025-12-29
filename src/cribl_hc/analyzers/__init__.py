@@ -18,6 +18,7 @@ Available Objectives:
 - lookup_health: Lookup table sizes, memory optimization, orphan detection
 - schema_quality: Parser analysis, regex optimization, schema mapping
 - dataflow_topology: Route validation, connectivity checking, data path analysis
+- alerting: Notification targets, alert configuration, alerting infrastructure health
 """
 
 from typing import Dict, List, Optional, Type
@@ -284,6 +285,7 @@ from cribl_hc.analyzers.pipeline_performance import PipelinePerformanceAnalyzer
 from cribl_hc.analyzers.lookup_health import LookupHealthAnalyzer
 from cribl_hc.analyzers.schema_quality import SchemaQualityAnalyzer
 from cribl_hc.analyzers.dataflow_topology import DataFlowTopologyAnalyzer
+from cribl_hc.analyzers.alerting import AlertingAnalyzer
 
 register_analyzer(HealthAnalyzer)
 register_analyzer(ConfigAnalyzer)
@@ -298,3 +300,4 @@ register_analyzer(PipelinePerformanceAnalyzer)
 register_analyzer(LookupHealthAnalyzer)
 register_analyzer(SchemaQualityAnalyzer)
 register_analyzer(DataFlowTopologyAnalyzer)
+register_analyzer(AlertingAnalyzer)
