@@ -38,16 +38,25 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 - **Cribl Edge (Health Monitoring)** - Edge Node health, Fleet support, unified API ✅
   - Phase 5C: Configuration validation and route analysis (planned)
 
-**🔮 Planned Support:**
-- **Cribl Lake** - Storage utilization and performance monitoring (Phase 6)
-- **Cribl Search** - Query performance and resource optimization (evaluating applicability)
+**✅ Lake Support (Complete - Phase 7):**
+- **Cribl Lake** - Dataset health, retention analysis, storage optimization ✅
+  - LakeHealthAnalyzer: Dataset monitoring, retention policies, lakehouse availability
+  - LakeStorageAnalyzer: JSON→Parquet recommendations, inactive dataset detection
 
-This tool is specifically designed for **Cribl Stream** deployments and analyzes:
-- Worker/node health and capacity
-- Pipeline and route configurations
+**✅ Search Support (Complete - Phase 8):**
+- **Cribl Search** - Query performance, job monitoring, cost analysis ✅
+  - SearchHealthAnalyzer: Job monitoring, dataset availability, dashboard validation
+  - SearchPerformanceAnalyzer: CPU cost analysis, query efficiency, optimization
+
+This tool analyzes **all Cribl products** including:
+- Worker/node health and capacity (Stream, Edge)
+- Pipeline and route configurations (Stream, Edge)
 - Resource utilization (CPU, memory, disk*)
-- Configuration best practices
-- Security and compliance posture
+- Configuration best practices and security posture
+- Lookup table optimization and schema quality
+- Data flow topology and route validation
+- Lake dataset health and storage optimization
+- Search job performance and cost analysis
 
 _*Disk metrics available on self-hosted deployments only. Cribl Cloud does not expose disk metrics via API._
 
@@ -404,68 +413,35 @@ mypy src/
 
 ## Roadmap
 
-### Phase 1: MVP (Current)
-- ✅ Project setup
-- ✅ P1: Quick Health Assessment
-  - Overall health score (0-100)
-  - Worker health monitoring
-  - Critical issue identification
-- ✅ Resource utilization monitoring
-  - CPU and memory capacity planning
-  - Disk metrics (self-hosted only)
-  - Cloud vs self-hosted detection
+### ✅ Phase 1-10: Core Analyzers (Complete)
 
-### Phase 2: Configuration & Optimization
-- ✅ **P2: Configuration Validation & Best Practices (Complete)**
-  - ✅ Phase 2A: Rule-Based Architecture (24 rules, YAML-driven)
-  - ✅ Phase 2B: Pipeline Efficiency Analysis (3 performance rules)
-  - ✅ Phase 2C: Route Conflict Detection (2 reliability rules)
-  - ✅ Phase 2D: Complexity Metrics (2 quality rules)
-  - ✅ Phase 2E: Advanced Security (PII field masking)
-  - 🔮 Phase 2F: RBAC/Teams Validation (Planned)
-    - User role assignment validation
-    - Team configuration checks (Enterprise)
-    - Audit logging verification
-    - Least privilege enforcement
-- P3: Sizing & Performance Optimization
-- P8: Interactive TUI (Terminal User Interface)
+**17 Analyzers Implemented:**
 
-### Phase 3: Security & Cost
-- P4: Security & Compliance Validation
-- P5: Cost & License Management
+| Category | Analyzers | Products |
+|----------|-----------|----------|
+| **Health** | HealthAnalyzer | Stream, Edge |
+| **Config** | ConfigAnalyzer | Stream, Edge |
+| **Resources** | ResourceAnalyzer, StorageAnalyzer | Stream, Edge |
+| **Security** | SecurityAnalyzer | Stream, Edge |
+| **Cost** | CostAnalyzer | Stream |
+| **Fleet** | FleetAnalyzer | All |
+| **Predictive** | PredictiveAnalyzer | All |
+| **Lake** | LakeHealthAnalyzer, LakeStorageAnalyzer | Lake |
+| **Search** | SearchHealthAnalyzer, SearchPerformanceAnalyzer | Search |
+| **Runtime** | BackpressureAnalyzer, PipelinePerformanceAnalyzer | Stream, Edge |
+| **Data Quality** | LookupHealthAnalyzer, SchemaQualityAnalyzer, DataFlowTopologyAnalyzer | Stream, Edge |
 
-### Phase 4: Advanced Features
-- P6: Disaster Recovery Assessment
-- P7: Fleet-Wide Analytics
+### 📋 Phase 11: Polish & Integration (Planned)
+- CLI refinement and report generation
+- Historical data tracking
+- Performance optimization
+- Documentation completion
 
-### Phase 5: Cribl Edge Support
-- ✅ **Phase 5A (Complete)**: Product detection foundation
-  - Automatic Stream vs Edge vs Lake detection
-  - Edge API endpoint mapping
-  - Product-aware API client
-- ✅ **Phase 5B (Complete)**: Edge Health Analyzer
-  - Edge Node health monitoring
-  - Edge Fleet support (nodes grouped by fleets)
-  - Unified analyzer works for both Stream and Edge
-  - Product-aware findings and messages
-  - Zero breaking changes to Stream functionality
-- 🔮 **Phase 5C (Planned)**: Edge Config & Resource Analyzers
-  - Edge-specific configuration validation
-  - Edge route and pipeline analysis
-  - Edge resource utilization monitoring
-
-### Phase 6: Cribl Lake Support
-- Storage bucket utilization monitoring
-- Data retention and lifecycle analysis
-- Query performance metrics
-- Cost optimization for storage
-- Lake-specific health indicators
-
-### Phase 7: Multi-Product Fleet Analytics
-- Unified health dashboard across Stream/Edge/Lake
-- Cross-product data flow visualization
-- Holistic capacity planning
-- Fleet-wide configuration compliance
+### 🔮 Future Phases
+- Real-time monitoring mode
+- Remediation automation
+- Integration hooks (Jira, Slack, PagerDuty)
+- Custom plugin architecture
 
 ## Contributing
 
