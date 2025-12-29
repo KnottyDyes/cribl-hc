@@ -1094,3 +1094,508 @@ class CriblAPIClient:
         response = await self.get(endpoint)
         response.raise_for_status()
         return response.json()
+
+    # -------------------------------------------------------------------------
+    # Cribl Core (Control Plane) API Methods
+    # -------------------------------------------------------------------------
+
+    async def get_worker_groups(self) -> List[Dict[str, Any]]:
+        """
+        Get worker group configurations from /master/groups.
+
+        Worker groups define configuration sets for groups of workers.
+        Useful for fleet management and config drift detection.
+
+        Returns:
+            List of worker group configurations
+
+        Example:
+            >>> groups = await client.get_worker_groups()
+            >>> for group in groups:
+            ...     print(f"{group['id']}: {group.get('configVersion', 'unknown')}")
+        """
+        try:
+            response = await self.get("/api/v1/master/groups")
+            if response.status_code == 404:
+                log.warning("worker_groups_not_available")
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("worker_groups_fetch_failed", error=str(e))
+            return []
+
+    async def get_worker_group_summary(self, group_id: str) -> Dict[str, Any]:
+        """
+        Get summary statistics for a worker group.
+
+        Args:
+            group_id: Worker group ID
+
+        Returns:
+            Summary data including worker counts, status, and metrics
+
+        Example:
+            >>> summary = await client.get_worker_group_summary("default")
+            >>> print(f"Workers: {summary.get('workerCount', 0)}")
+        """
+        try:
+            response = await self.get(f"/api/v1/products/stream/groups/{group_id}/summary")
+            if response.status_code == 404:
+                # Try legacy endpoint
+                response = await self.get(f"/api/v1/master/groups/{group_id}")
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            log.warning("worker_group_summary_failed", group=group_id, error=str(e))
+            return {}
+
+    async def get_master_summary(self) -> Dict[str, Any]:
+        """
+        Get aggregated summary of all workers from /master/summary.
+
+        Returns:
+            Fleet-wide summary including total workers, status counts, and metrics
+
+        Example:
+            >>> summary = await client.get_master_summary()
+            >>> print(f"Total workers: {summary.get('workerCount', 0)}")
+        """
+        try:
+            response = await self.get("/api/v1/master/summary")
+            if response.status_code == 404:
+                return {}
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            log.warning("master_summary_failed", error=str(e))
+            return {}
+
+    async def get_roles(self) -> List[Dict[str, Any]]:
+        """
+        Get RBAC role definitions from /system/roles.
+
+        Roles define permission sets that can be assigned to users.
+        Useful for security auditing.
+
+        Returns:
+            List of role configurations
+
+        Example:
+            >>> roles = await client.get_roles()
+            >>> for role in roles:
+            ...     print(f"{role['id']}: {len(role.get('permissions', []))} permissions")
+        """
+        try:
+            response = await self.get("/api/v1/system/roles")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("roles_fetch_failed", error=str(e))
+            return []
+
+    async def get_users(self) -> List[Dict[str, Any]]:
+        """
+        Get user accounts from /system/users.
+
+        Useful for security auditing and access control analysis.
+
+        Returns:
+            List of user configurations (sensitive fields redacted by API)
+
+        Example:
+            >>> users = await client.get_users()
+            >>> for user in users:
+            ...     print(f"{user['id']}: {user.get('roles', [])}")
+        """
+        try:
+            response = await self.get("/api/v1/system/users")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("users_fetch_failed", error=str(e))
+            return []
+
+    async def get_teams(self) -> List[Dict[str, Any]]:
+        """
+        Get team configurations from /system/teams.
+
+        Teams group users for access control purposes.
+
+        Returns:
+            List of team configurations
+
+        Example:
+            >>> teams = await client.get_teams()
+            >>> for team in teams:
+            ...     print(f"{team['id']}: {len(team.get('members', []))} members")
+        """
+        try:
+            response = await self.get("/api/v1/system/teams")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("teams_fetch_failed", error=str(e))
+            return []
+
+    async def get_policies(self) -> List[Dict[str, Any]]:
+        """
+        Get access policies from /system/policies.
+
+        Policies define fine-grained access control rules.
+
+        Returns:
+            List of policy configurations
+
+        Example:
+            >>> policies = await client.get_policies()
+            >>> for policy in policies:
+            ...     print(f"{policy['id']}: {policy.get('description', '')}")
+        """
+        try:
+            response = await self.get("/api/v1/system/policies")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("policies_fetch_failed", error=str(e))
+            return []
+
+    async def get_certificates(self) -> List[Dict[str, Any]]:
+        """
+        Get certificate configurations from /system/certificates.
+
+        Lists TLS certificates configured in the system.
+        Useful for security auditing and certificate expiry checks.
+
+        Returns:
+            List of certificate configurations (private keys redacted)
+
+        Example:
+            >>> certs = await client.get_certificates()
+            >>> for cert in certs:
+            ...     print(f"{cert['id']}: expires {cert.get('expiresAt', 'unknown')}")
+        """
+        try:
+            response = await self.get("/api/v1/system/certificates")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("certificates_fetch_failed", error=str(e))
+            return []
+
+    async def get_notification_targets(self) -> List[Dict[str, Any]]:
+        """
+        Get notification target configurations from /notification-targets.
+
+        Notification targets define where alerts are sent (Slack, email, etc.).
+        Useful for verifying alerting infrastructure is configured.
+
+        Returns:
+            List of notification target configurations
+
+        Example:
+            >>> targets = await client.get_notification_targets()
+            >>> for target in targets:
+            ...     print(f"{target['id']}: {target.get('type', 'unknown')}")
+        """
+        try:
+            response = await self.get("/api/v1/notification-targets")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("notification_targets_fetch_failed", error=str(e))
+            return []
+
+    async def get_notifications(self) -> List[Dict[str, Any]]:
+        """
+        Get active notification rules from /notifications.
+
+        Notifications define alerting rules and their conditions.
+
+        Returns:
+            List of notification rule configurations
+
+        Example:
+            >>> notifications = await client.get_notifications()
+            >>> for notif in notifications:
+            ...     print(f"{notif['id']}: enabled={notif.get('enabled', False)}")
+        """
+        try:
+            response = await self.get("/api/v1/notifications")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("notifications_fetch_failed", error=str(e))
+            return []
+
+    async def get_system_instance(self) -> Dict[str, Any]:
+        """
+        Get system instance information from /system/instance.
+
+        Returns deployment-level metadata about the Cribl instance.
+
+        Returns:
+            System instance data including deployment info
+
+        Example:
+            >>> instance = await client.get_system_instance()
+            >>> print(f"Instance ID: {instance.get('id', 'unknown')}")
+        """
+        try:
+            response = await self.get("/api/v1/system/instance")
+            if response.status_code == 404:
+                return {}
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            log.warning("system_instance_fetch_failed", error=str(e))
+            return {}
+
+    async def get_system_messages(self) -> List[Dict[str, Any]]:
+        """
+        Get system messages/alerts from /system/messages.
+
+        System messages include warnings, alerts, and notifications
+        generated by the Cribl system itself.
+
+        Returns:
+            List of system messages
+
+        Example:
+            >>> messages = await client.get_system_messages()
+            >>> for msg in messages:
+            ...     print(f"[{msg.get('severity', 'info')}] {msg.get('message', '')}")
+        """
+        try:
+            response = await self.get("/api/v1/system/messages")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("system_messages_fetch_failed", error=str(e))
+            return []
+
+    async def get_api_keys(self) -> List[Dict[str, Any]]:
+        """
+        Get API key configurations from /system/keys.
+
+        Lists API keys (tokens redacted) for security auditing.
+        Can help identify unused or over-privileged keys.
+
+        Returns:
+            List of API key configurations (secrets redacted)
+
+        Example:
+            >>> keys = await client.get_api_keys()
+            >>> for key in keys:
+            ...     print(f"{key['id']}: last_used={key.get('lastUsed', 'never')}")
+        """
+        try:
+            response = await self.get("/api/v1/system/keys")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("api_keys_fetch_failed", error=str(e))
+            return []
+
+    async def get_banners(self) -> List[Dict[str, Any]]:
+        """
+        Get system banner configurations from /system/banners.
+
+        Banners are UI messages displayed to users.
+
+        Returns:
+            List of banner configurations
+
+        Example:
+            >>> banners = await client.get_banners()
+            >>> for banner in banners:
+            ...     print(f"{banner.get('message', '')}: enabled={banner.get('enabled', False)}")
+        """
+        try:
+            response = await self.get("/api/v1/system/banners")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("banners_fetch_failed", error=str(e))
+            return []
+
+    async def get_scripts(self) -> List[Dict[str, Any]]:
+        """
+        Get script configurations from /system/scripts.
+
+        Scripts are custom code that can be executed in pipelines.
+        Useful for security auditing of custom code.
+
+        Returns:
+            List of script configurations
+
+        Example:
+            >>> scripts = await client.get_scripts()
+            >>> for script in scripts:
+            ...     print(f"{script['id']}: {len(script.get('code', ''))} chars")
+        """
+        try:
+            response = await self.get("/api/v1/system/scripts")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("scripts_fetch_failed", error=str(e))
+            return []
+
+    async def get_grok_patterns(self) -> List[Dict[str, Any]]:
+        """
+        Get grok pattern library from /lib/grok.
+
+        Grok patterns are reusable regex patterns for parsing.
+
+        Returns:
+            List of grok pattern configurations
+
+        Example:
+            >>> patterns = await client.get_grok_patterns()
+            >>> for pattern in patterns:
+            ...     print(f"{pattern['id']}: {pattern.get('pattern', '')[:50]}...")
+        """
+        try:
+            response = await self.get("/api/v1/lib/grok")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("grok_patterns_fetch_failed", error=str(e))
+            return []
+
+    async def get_regex_library(self) -> List[Dict[str, Any]]:
+        """
+        Get regex pattern library from /lib/regex.
+
+        Regex library contains reusable regex patterns.
+
+        Returns:
+            List of regex pattern configurations
+
+        Example:
+            >>> patterns = await client.get_regex_library()
+            >>> for pattern in patterns:
+            ...     print(f"{pattern['id']}: {pattern.get('lib', '')[:50]}...")
+        """
+        try:
+            response = await self.get("/api/v1/lib/regex")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("regex_library_fetch_failed", error=str(e))
+            return []
+
+    async def get_functions(self) -> List[Dict[str, Any]]:
+        """
+        Get available pipeline functions from /functions.
+
+        Returns list of functions available for use in pipelines.
+
+        Returns:
+            List of function definitions
+
+        Example:
+            >>> functions = await client.get_functions()
+            >>> print(f"Available functions: {len(functions)}")
+        """
+        try:
+            response = await self.get("/api/v1/functions")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("functions_fetch_failed", error=str(e))
+            return []
+
+    async def get_collectors(self) -> List[Dict[str, Any]]:
+        """
+        Get collector configurations from /collectors.
+
+        Collectors are scheduled data collection jobs.
+
+        Returns:
+            List of collector configurations
+
+        Example:
+            >>> collectors = await client.get_collectors()
+            >>> for collector in collectors:
+            ...     print(f"{collector['id']}: enabled={collector.get('enabled', False)}")
+        """
+        try:
+            response = await self.get("/api/v1/collectors")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("collectors_fetch_failed", error=str(e))
+            return []
+
+    async def get_executors(self) -> List[Dict[str, Any]]:
+        """
+        Get executor configurations from /executors.
+
+        Executors run scheduled tasks and collectors.
+
+        Returns:
+            List of executor configurations
+
+        Example:
+            >>> executors = await client.get_executors()
+            >>> for executor in executors:
+            ...     print(f"{executor['id']}: {executor.get('type', 'unknown')}")
+        """
+        try:
+            response = await self.get("/api/v1/executors")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("executors_fetch_failed", error=str(e))
+            return []
