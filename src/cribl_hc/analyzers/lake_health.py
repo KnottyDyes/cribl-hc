@@ -43,6 +43,11 @@ class LakeHealthAnalyzer(BaseAnalyzer):
         """Return the objective name for this analyzer."""
         return "lake"
 
+    @property
+    def supported_products(self) -> List[str]:
+        """Lake analyzer is specific to Cribl Lake."""
+        return ["lake"]
+
     def get_estimated_api_calls(self) -> int:
         """
         Estimate API calls: datasets(1) + stats(1) + lakehouses(1) = 3.

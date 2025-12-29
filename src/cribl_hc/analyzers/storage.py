@@ -60,6 +60,11 @@ class StorageAnalyzer(BaseAnalyzer):
         """Return the objective name for this analyzer."""
         return "storage"
 
+    @property
+    def supported_products(self) -> List[str]:
+        """Storage analyzer applies to Stream and Edge."""
+        return ["stream", "edge"]
+
     def get_estimated_api_calls(self) -> int:
         """
         Estimate API calls: routes(1) + outputs(1) + pipelines(1) + metrics(1) = 4.

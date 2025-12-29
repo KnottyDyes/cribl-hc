@@ -65,6 +65,11 @@ class ConfigAnalyzer(BaseAnalyzer):
         """Return the objective name for this analyzer."""
         return "config"
 
+    @property
+    def supported_products(self) -> List[str]:
+        """Config analyzer applies to Stream and Edge."""
+        return ["stream", "edge"]
+
     def get_estimated_api_calls(self) -> int:
         """
         Return estimated number of API calls.

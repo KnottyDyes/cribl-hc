@@ -57,6 +57,11 @@ class ResourceAnalyzer(BaseAnalyzer):
         """Return the objective name for this analyzer."""
         return "resource"
 
+    @property
+    def supported_products(self) -> List[str]:
+        """Resource analyzer applies to Stream and Edge."""
+        return ["stream", "edge"]
+
     def get_estimated_api_calls(self) -> int:
         """Estimate API calls: workers(1) + metrics(1) + system(1) = 3."""
         return 3

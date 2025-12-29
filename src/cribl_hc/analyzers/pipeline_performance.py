@@ -61,6 +61,11 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
         """Return the objective name for this analyzer."""
         return "pipeline_performance"
 
+    @property
+    def supported_products(self) -> List[str]:
+        """Pipeline performance analyzer applies to Stream and Edge."""
+        return ["stream", "edge"]
+
     def get_description(self) -> str:
         """Get human-readable description."""
         return "Analyzes pipeline function performance, regex complexity, and code patterns"

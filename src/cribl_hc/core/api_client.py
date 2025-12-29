@@ -131,6 +131,10 @@ class CriblAPIClient:
 
         Tries common worker group names ("default", "defaultGroup", "workers")
         and detects which one works by testing the pipelines endpoint.
+
+        Note:
+            This detection may fail for Search-only deployments that don't
+            have Stream worker groups. In that case, defaults to "default".
         """
         if not self._client:
             return
@@ -156,6 +160,7 @@ class CriblAPIClient:
                 continue
 
         # If no group found, default to "default"
+        # This is expected for Search-only deployments
         log.warning("worker_group_not_detected", using_default="default")
         self._worker_group = "default"
         self._deployment_detected = True
@@ -275,9 +280,14 @@ class CriblAPIClient:
 
         Example:
             Stream self-hosted: /api/v1/master/pipelines
-            Stream Cloud: /api/v1/m/default/pipelines
+            Stream Cloud: /api/v1/m/default/pipelines (or /system/outputs for some)
             Edge global: /api/v1/edge/pipelines
             Edge fleet-specific: /api/v1/e/{fleet}/pipelines
+
+        Note:
+            Cribl Cloud has inconsistent API paths:
+            - pipelines, routes: /api/v1/m/{group}/{resource}
+            - inputs, outputs: /api/v1/m/{group}/system/{resource}
         """
         if self.is_edge:
             # Edge deployment
@@ -286,9 +296,13 @@ class CriblAPIClient:
             else:
                 return f"/api/v1/edge/{resource}"
         elif self._is_cloud:
-            # Stream Cloud deployment
+            # Stream Cloud deployment - different paths for different resources
             group = self._worker_group or "default"
-            return f"/api/v1/m/{group}/{resource}"
+            # inputs and outputs require /system/ prefix on Cloud
+            if resource in ("inputs", "outputs"):
+                return f"/api/v1/m/{group}/system/{resource}"
+            else:
+                return f"/api/v1/m/{group}/{resource}"
         else:
             # Stream self-hosted deployment
             return f"/api/v1/master/{resource}"
@@ -584,18 +598,32 @@ class CriblAPIClient:
         """
         Get worker nodes from /api/v1/master/workers.
 
+        Works for both Cloud and self-hosted deployments.
+
         Returns:
-            List of worker node data with status and metrics
+            List of worker node data with status and metrics.
+            Returns empty list if workers endpoint is not available.
 
         Example:
             >>> workers = await client.get_workers()
             >>> for worker in workers:
             ...     print(f"{worker['id']}: {worker['status']}")
         """
-        response = await self.get("/api/v1/master/workers")
-        response.raise_for_status()
-        data = response.json()
-        return data.get("items", [])
+        try:
+            endpoint = "/api/v1/master/workers"
+            response = await self.get(endpoint)
+
+            # Handle 404 gracefully
+            if response.status_code == 404:
+                log.warning("workers_endpoint_not_available", endpoint=endpoint)
+                return []
+
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception as e:
+            log.warning("workers_fetch_failed", error=str(e))
+            return []
 
     async def get_edge_nodes(self, fleet: Optional[str] = None) -> List[Dict[str, Any]]:
         """
@@ -662,22 +690,37 @@ class CriblAPIClient:
 
     async def get_metrics(self, time_range: Optional[str] = None) -> Dict[str, Any]:
         """
-        Get metrics from /api/v1/metrics.
+        Get metrics from internal metrics endpoint.
 
         Args:
             time_range: Optional time range (e.g., "1h", "24h")
 
         Returns:
             Metrics data including throughput, CPU, memory, etc.
+            Returns empty dict if metrics endpoint is not available.
 
         Example:
             >>> metrics = await client.get_metrics(time_range="1h")
-            >>> print(metrics["throughput"]["bytes_in"])
+            >>> print(metrics.get("throughput", {}).get("bytes_in", 0))
+
+        Note:
+            The metrics endpoint may not be available on all deployments,
+            particularly Search-only instances.
         """
         params = {"timeRange": time_range} if time_range else {}
-        response = await self.get("/api/v1/metrics", params=params)
-        response.raise_for_status()
-        return response.json()
+        endpoint = "/api/v1/metrics"
+
+        try:
+            response = await self.get(endpoint, params=params)
+            if response.status_code == 404:
+                # Metrics endpoint not available - return empty dict
+                log.warning("metrics_endpoint_not_available", endpoint=endpoint)
+                return {}
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            log.warning("metrics_fetch_failed", endpoint=endpoint, error=str(e))
+            return {}
 
     async def get_pipelines(self) -> List[Dict[str, Any]]:
         """
@@ -728,7 +771,7 @@ class CriblAPIClient:
         Get input configurations.
 
         Automatically uses the correct endpoint for Cloud or self-hosted deployments:
-        - Cloud: /api/v1/m/{group}/inputs
+        - Cloud: /api/v1/m/{group}/system/inputs
         - Self-hosted: /api/v1/master/inputs
 
         Returns:
@@ -750,7 +793,7 @@ class CriblAPIClient:
         Get output/destination configurations.
 
         Automatically uses the correct endpoint for Cloud or self-hosted deployments:
-        - Cloud: /api/v1/m/{group}/outputs
+        - Cloud: /api/v1/m/{group}/system/outputs
         - Self-hosted: /api/v1/master/outputs
 
         Returns:

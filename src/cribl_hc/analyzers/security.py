@@ -71,6 +71,11 @@ class SecurityAnalyzer(BaseAnalyzer):
         """Return the objective name for this analyzer."""
         return "security"
 
+    @property
+    def supported_products(self) -> List[str]:
+        """Security analyzer applies to Stream and Edge."""
+        return ["stream", "edge"]
+
     def get_estimated_api_calls(self) -> int:
         """
         Estimate API calls: outputs(1) + inputs(1) + auth(1) + system(1) = 4.

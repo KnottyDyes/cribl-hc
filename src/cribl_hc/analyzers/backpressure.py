@@ -55,6 +55,11 @@ class BackpressureAnalyzer(BaseAnalyzer):
         """Return the objective name for this analyzer."""
         return "backpressure"
 
+    @property
+    def supported_products(self) -> List[str]:
+        """Backpressure analyzer applies to Stream and Edge."""
+        return ["stream", "edge"]
+
     def get_description(self) -> str:
         """Get human-readable description."""
         return "Analyzes destination backpressure, queue health, and retry patterns"

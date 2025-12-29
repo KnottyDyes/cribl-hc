@@ -56,6 +56,11 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         """Return the objective name for this analyzer."""
         return "search"
 
+    @property
+    def supported_products(self) -> List[str]:
+        """Search health analyzer is specific to Cribl Search."""
+        return ["search"]
+
     def get_estimated_api_calls(self) -> int:
         """
         Estimate API calls: jobs(1) + datasets(1) + dashboards(1) + saved(1) = 4.

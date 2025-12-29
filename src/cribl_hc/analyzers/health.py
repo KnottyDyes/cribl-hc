@@ -7,7 +7,7 @@ This analyzer focuses on:
 - Overall system health scoring
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -39,6 +39,11 @@ class HealthAnalyzer(BaseAnalyzer):
     def objective_name(self) -> str:
         """Return 'health' as the objective name."""
         return "health"
+
+    @property
+    def supported_products(self) -> List[str]:
+        """Health analyzer applies to Stream and Edge."""
+        return ["stream", "edge"]
 
     def get_description(self) -> str:
         """Get human-readable description."""
@@ -108,12 +113,19 @@ class HealthAnalyzer(BaseAnalyzer):
             result.metadata["unhealthy_workers"] = len(unhealthy_workers)
 
             # Calculate overall health score
-            health_score = self._calculate_health_score(workers, unhealthy_workers)
+            # For Cloud/Search-only deployments with no workers, use leader health
+            if workers:
+                health_score = self._calculate_health_score(workers, unhealthy_workers)
+            else:
+                # No workers available - use leader health as basis
+                health_score = self._calculate_health_score_from_leader(leader_health)
+                result.metadata["health_score_source"] = "leader_health"
+
             result.metadata["health_score"] = health_score
             result.metadata["health_status"] = self._get_health_status(health_score)
 
             # Add overall health finding
-            self._add_overall_health_finding(result, health_score, len(workers), len(unhealthy_workers))
+            self._add_overall_health_finding(result, health_score, len(workers), len(unhealthy_workers), leader_health)
 
             # Generate recommendations for unhealthy workers
             if unhealthy_workers:
@@ -441,7 +453,7 @@ class HealthAnalyzer(BaseAnalyzer):
         unhealthy_workers: List[Dict[str, Any]]
     ) -> float:
         """
-        Calculate overall health score (0-100).
+        Calculate overall health score (0-100) based on worker health.
 
         Scoring:
         - 100: All workers healthy
@@ -472,6 +484,39 @@ class HealthAnalyzer(BaseAnalyzer):
             base_score = max(0, base_score - penalty)
 
         return round(base_score, 2)
+
+    def _calculate_health_score_from_leader(
+        self,
+        leader_health: Dict[str, Any]
+    ) -> float:
+        """
+        Calculate health score based on leader health endpoint.
+
+        Used for Cloud/Search-only deployments where worker metrics
+        are not available.
+
+        Scoring:
+        - 100: Leader status is "healthy"
+        - 50: Leader status is unknown or other
+        - 0: Leader is unhealthy or no data
+
+        Returns:
+            Health score between 0 and 100
+        """
+        if not leader_health:
+            return 50.0  # Unknown - can't determine health
+
+        status = leader_health.get("status", "").lower()
+
+        if status == "healthy":
+            return 100.0
+        elif status in ("degraded", "warning"):
+            return 70.0
+        elif status in ("unhealthy", "critical", "error"):
+            return 30.0
+        else:
+            # Unknown status - return moderate score
+            return 50.0
 
     def _count_worker_issues(self, worker: Dict[str, Any]) -> int:
         """Count number of issues for a worker (not warnings)."""
@@ -519,42 +564,74 @@ class HealthAnalyzer(BaseAnalyzer):
         health_score: float,
         total_workers: int,
         unhealthy_count: int,
+        leader_health: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Add overall health summary finding."""
         status = self._get_health_status(health_score)
 
-        if status == "healthy":
-            severity = "info"
-            title = "System Health: Good"
-            description = f"All {total_workers} workers are operating normally with a health score of {health_score}/100"
-            remediation_steps = []
-        elif status == "degraded":
-            severity = "medium"
-            title = "System Health: Degraded"
-            description = f"{unhealthy_count}/{total_workers} workers have health issues (health score: {health_score}/100)"
-            remediation_steps = [
-                "Review worker health findings below",
-                "Address resource constraints on affected workers",
-                "Monitor system performance trends",
-            ]
-        elif status == "unhealthy":
-            severity = "high"
-            title = "System Health: Unhealthy"
-            description = f"{unhealthy_count}/{total_workers} workers require attention (health score: {health_score}/100)"
-            remediation_steps = [
-                "Immediately review worker health findings",
-                "Scale worker resources or add capacity",
-                "Investigate root cause of resource pressure",
-            ]
-        else:  # critical
-            severity = "critical"
-            title = "System Health: Critical"
-            description = f"{unhealthy_count}/{total_workers} workers in critical state (health score: {health_score}/100)"
-            remediation_steps = [
-                "Urgent: Review all worker health findings",
-                "Immediate action required to prevent service degradation",
-                "Consider emergency scaling or traffic reduction",
-            ]
+        # Check if this is a Cloud/Search deployment without workers
+        is_managed_deployment = total_workers == 0 and leader_health
+
+        if is_managed_deployment:
+            # Cloud/Search-only deployment - use leader-based messaging
+            leader_status = leader_health.get("status", "unknown")
+            if status == "healthy":
+                severity = "info"
+                title = "System Health: Good"
+                description = f"Managed deployment is operating normally (leader status: {leader_status}, health score: {health_score}/100)"
+                remediation_steps = []
+            elif status == "degraded":
+                severity = "medium"
+                title = "System Health: Degraded"
+                description = f"Managed deployment shows degraded health (leader status: {leader_status}, health score: {health_score}/100)"
+                remediation_steps = [
+                    "Review system logs for warnings",
+                    "Check for recent configuration changes",
+                    "Monitor system performance",
+                ]
+            else:
+                severity = "high"
+                title = "System Health: Needs Attention"
+                description = f"Managed deployment may need attention (leader status: {leader_status}, health score: {health_score}/100)"
+                remediation_steps = [
+                    "Review system health in Cribl UI",
+                    "Check for error messages in logs",
+                    "Contact Cribl support if issues persist",
+                ]
+        else:
+            # Traditional worker-based deployment
+            if status == "healthy":
+                severity = "info"
+                title = "System Health: Good"
+                description = f"All {total_workers} workers are operating normally with a health score of {health_score}/100"
+                remediation_steps = []
+            elif status == "degraded":
+                severity = "medium"
+                title = "System Health: Degraded"
+                description = f"{unhealthy_count}/{total_workers} workers have health issues (health score: {health_score}/100)"
+                remediation_steps = [
+                    "Review worker health findings below",
+                    "Address resource constraints on affected workers",
+                    "Monitor system performance trends",
+                ]
+            elif status == "unhealthy":
+                severity = "high"
+                title = "System Health: Unhealthy"
+                description = f"{unhealthy_count}/{total_workers} workers require attention (health score: {health_score}/100)"
+                remediation_steps = [
+                    "Immediately review worker health findings",
+                    "Scale worker resources or add capacity",
+                    "Investigate root cause of resource pressure",
+                ]
+            else:  # critical
+                severity = "critical"
+                title = "System Health: Critical"
+                description = f"{unhealthy_count}/{total_workers} workers in critical state (health score: {health_score}/100)"
+                remediation_steps = [
+                    "Urgent: Review all worker health findings",
+                    "Immediate action required to prevent service degradation",
+                    "Consider emergency scaling or traffic reduction",
+                ]
 
         result.add_finding(
             Finding(
@@ -572,6 +649,8 @@ class HealthAnalyzer(BaseAnalyzer):
                     "total_workers": total_workers,
                     "unhealthy_workers": unhealthy_count,
                     "status": status,
+                    "is_managed_deployment": is_managed_deployment,
+                    "leader_status": leader_health.get("status") if leader_health else None,
                 },
             )
         )

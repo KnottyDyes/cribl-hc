@@ -274,6 +274,8 @@ from cribl_hc.analyzers.security import SecurityAnalyzer
 from cribl_hc.analyzers.cost import CostAnalyzer
 from cribl_hc.analyzers.fleet import FleetAnalyzer
 from cribl_hc.analyzers.predictive import PredictiveAnalyzer
+from cribl_hc.analyzers.backpressure import BackpressureAnalyzer
+from cribl_hc.analyzers.pipeline_performance import PipelinePerformanceAnalyzer
 
 register_analyzer(HealthAnalyzer)
 register_analyzer(ConfigAnalyzer)
@@ -283,3 +285,5 @@ register_analyzer(SecurityAnalyzer)
 register_analyzer(CostAnalyzer)
 register_analyzer(FleetAnalyzer)
 register_analyzer(PredictiveAnalyzer)
+register_analyzer(BackpressureAnalyzer)
+register_analyzer(PipelinePerformanceAnalyzer)

@@ -68,8 +68,12 @@ class Finding(BaseModel):
         ..., description="Confidence level"
     )
     product_tags: List[Literal["stream", "edge", "lake", "search"]] = Field(
-        default_factory=lambda: ["stream", "edge", "lake", "search"],
-        description="Products this finding applies to"
+        default_factory=list,
+        description="Products this finding applies to (derived from source analyzer)"
+    )
+    source_analyzer: str = Field(
+        default="",
+        description="Name of the analyzer that generated this finding"
     )
     detected_at: datetime = Field(default_factory=datetime.utcnow)
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional context")

@@ -44,6 +44,8 @@ class AnalyzerResult:
         metadata: Optional[Dict[str, Any]] = None,
         success: bool = True,
         error: Optional[str] = None,
+        source_analyzer: Optional[str] = None,
+        default_product_tags: Optional[List[str]] = None,
     ):
         self.objective = objective
         self.findings = findings or []
@@ -51,6 +53,10 @@ class AnalyzerResult:
         self.metadata = metadata or {}
         self.success = success
         self.error = error
+
+        # Store analyzer context for auto-tagging findings
+        self._source_analyzer = source_analyzer or objective
+        self._default_product_tags = default_product_tags or self.PRODUCTS.copy()
 
         # Initialize product counters
         self._findings_by_product: Dict[str, int] = {p: 0 for p in self.PRODUCTS}
@@ -75,7 +81,22 @@ class AnalyzerResult:
                 self._recommendations_by_product[product] += 1
 
     def add_finding(self, finding: Finding) -> None:
-        """Add a finding to the results and update product counts."""
+        """
+        Add a finding to the results and update product counts.
+
+        If the finding has no source_analyzer set, it will be tagged with
+        this result's source analyzer. If it has no product_tags, it will
+        inherit the default product tags from this result.
+        """
+        # Auto-tag with source analyzer if not set
+        if not finding.source_analyzer:
+            # Create a new finding with source_analyzer set (Finding is immutable)
+            finding = finding.model_copy(update={"source_analyzer": self._source_analyzer})
+
+        # Auto-tag with product tags if empty
+        if not finding.product_tags:
+            finding = finding.model_copy(update={"product_tags": self._default_product_tags.copy()})
+
         self.findings.append(finding)
         self._increment_finding_counts(finding)
 
@@ -339,3 +360,52 @@ class BaseAnalyzer(ABC):
         This can be used to close resources, clear caches, etc.
         """
         pass
+
+    def create_result(self) -> "AnalyzerResult":
+        """
+        Create an AnalyzerResult bound to this analyzer.
+
+        The returned result will automatically tag findings with this
+        analyzer's name and supported products.
+
+        Returns:
+            AnalyzerResult configured for this analyzer
+        """
+        return AnalyzerResult(
+            objective=self.objective_name,
+            source_analyzer=self.objective_name,
+            default_product_tags=self.supported_products
+        )
+
+    def create_finding(self, **kwargs) -> Finding:
+        """
+        Create a Finding automatically tagged with this analyzer's info.
+
+        This is a convenience method that sets source_analyzer and product_tags
+        automatically based on this analyzer's configuration.
+
+        Args:
+            **kwargs: All Finding field arguments
+
+        Returns:
+            Finding with source_analyzer and product_tags set
+
+        Example:
+            >>> finding = self.create_finding(
+            ...     id="health-issue-1",
+            ...     category="health",
+            ...     severity="high",
+            ...     title="Worker CPU High",
+            ...     description="Worker has high CPU usage",
+            ...     confidence_level="high",
+            ... )
+        """
+        # Set source_analyzer if not provided
+        if "source_analyzer" not in kwargs:
+            kwargs["source_analyzer"] = self.objective_name
+
+        # Set product_tags if not provided
+        if "product_tags" not in kwargs:
+            kwargs["product_tags"] = self.supported_products.copy()
+
+        return Finding(**kwargs)

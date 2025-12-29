@@ -6,13 +6,14 @@ import { ResultsSummary } from '../components/results/ResultsSummary'
 import { FindingCard } from '../components/results/FindingCard'
 import { Button, Select, SkeletonFindingCard } from '../components/common'
 import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
-import type { AnalysisResultResponse } from '../api/types'
+import type { AnalysisResultResponse, CriblProduct } from '../api/types'
 
 export function ResultsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [severityFilter, setSeverityFilter] = useState<string>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [productFilter, setProductFilter] = useState<string>('all')
 
   const { data: results, isLoading, error } = useQuery({
     queryKey: ['analysis-results', id],
@@ -141,13 +142,25 @@ export function ResultsPage() {
     label: cat === 'all' ? 'All Categories' : cat,
   }))
 
+  const productOptions = [
+    { value: 'all', label: 'All Products' },
+    { value: 'stream', label: 'Stream' },
+    { value: 'edge', label: 'Edge' },
+    { value: 'lake', label: 'Lake' },
+    { value: 'search', label: 'Search' },
+  ]
+
   const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 }
 
   const filteredFindings = enrichedResults.findings
     .filter((finding) => {
       const matchesSeverity = severityFilter === 'all' || finding.severity === severityFilter
       const matchesCategory = categoryFilter === 'all' || finding.category === categoryFilter
-      return matchesSeverity && matchesCategory
+      // Product filter: match if 'all' or if product is in finding's product_tags
+      // Only match if product_tags includes the filter value (empty product_tags = no products)
+      const matchesProduct = productFilter === 'all' ||
+        (finding.product_tags && finding.product_tags.includes(productFilter as CriblProduct))
+      return matchesSeverity && matchesCategory && matchesProduct
     })
     .sort((a, b) => {
       // Sort by severity first (descending: critical → high → medium → low → info)
@@ -219,6 +232,13 @@ export function ResultsPage() {
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               options={categoryOptions}
+            />
+          </div>
+          <div className="flex-1">
+            <Select
+              value={productFilter}
+              onChange={(e) => setProductFilter(e.target.value)}
+              options={productOptions}
             />
           </div>
         </div>
