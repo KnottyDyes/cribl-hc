@@ -176,6 +176,21 @@ class CriblAPIClient:
         return self._is_cloud
 
     @property
+    def worker_group(self) -> Optional[str]:
+        """
+        Get the current worker group being used for API calls.
+
+        Returns:
+            Worker group name (e.g., "default", "production") or None if not set.
+            For self-hosted deployments, returns "default" unless explicitly configured.
+
+        Note:
+            This property is useful for including worker group context in findings
+            and reports, especially when configuration errors are discovered.
+        """
+        return self._worker_group or "default"
+
+    @property
     def product_type(self) -> Optional[str]:
         """
         Get the detected Cribl product type.
@@ -341,9 +356,9 @@ class CriblAPIClient:
                 error="Client not initialized",
             )
 
-        # Use system status endpoint for connection test
-        # This is a lightweight endpoint that doesn't require permissions
-        endpoint = "/api/v1/version"
+        # Use system/info endpoint for connection test
+        # This returns system information including the Cribl version in BUILD object
+        endpoint = "/api/v1/system/info"
         test_url = urljoin(self.base_url, endpoint)
 
         start_time = datetime.utcnow()
@@ -358,7 +373,16 @@ class CriblAPIClient:
             # Check response status
             if response.status_code == 200:
                 data = response.json()
-                version = data.get("version", "unknown")
+                # Extract version from BUILD object or items array
+                # Response format: {"items": [{"BUILD": {"version": "4.x.x"}, ...}]}
+                version = "unknown"
+                items = data.get("items", [])
+                if items and len(items) > 0:
+                    build_info = items[0].get("BUILD", {})
+                    version = build_info.get("version", "unknown")
+                # Fallback to top-level version if present
+                if version == "unknown":
+                    version = data.get("version", "unknown")
 
                 # Detect product type on first successful connection
                 if not self._product_type:

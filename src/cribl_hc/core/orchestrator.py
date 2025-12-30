@@ -12,6 +12,8 @@ from cribl_hc.analyzers import get_analyzer, get_global_registry, list_objective
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.models.finding import Finding
+from cribl_hc.models.health import HealthScore, ComponentScore
 from cribl_hc.utils.logger import get_logger
 
 
@@ -353,6 +355,9 @@ class AnalyzerOrchestrator:
         else:
             status = "failed"
 
+        # Calculate overall health score from findings and analyzer metadata
+        health_score = self._calculate_overall_health_score(results, all_findings)
+
         return AnalysisRun(
             deployment_id=deployment_id,
             status=status,
@@ -363,6 +368,135 @@ class AnalyzerOrchestrator:
             recommendations=all_recommendations,
             errors=all_errors,
             partial_completion=(failed_count > 0 and failed_count < len(results)),
+            health_score=health_score,
+        )
+
+    def _calculate_overall_health_score(
+        self,
+        results: Dict[str, AnalyzerResult],
+        findings: List[Finding],
+    ) -> HealthScore:
+        """
+        Calculate overall health score from analyzer results and findings.
+
+        Uses a combination of:
+        1. Per-analyzer health scores from metadata (if available)
+        2. Findings-based penalty calculation
+
+        Args:
+            results: Dictionary of analyzer results
+            findings: List of all findings
+
+        Returns:
+            HealthScore with overall score and component breakdown
+        """
+        # Severity penalties for findings
+        severity_penalties = {
+            "critical": 20,
+            "high": 10,
+            "medium": 3,
+            "low": 0.5,
+            "info": 0,
+        }
+
+        # Component weights (sum to 1.0)
+        component_weights = {
+            "health": 0.25,
+            "security": 0.20,
+            "config": 0.15,
+            "resource": 0.15,
+            "fleet": 0.10,
+            "alerting": 0.05,
+            "other": 0.10,
+        }
+
+        # Initialize component scores
+        component_scores: Dict[str, ComponentScore] = {}
+        components_found: Dict[str, Dict] = {}
+
+        # First, try to get scores from analyzer metadata
+        for objective, result in results.items():
+            # Map objective to component category
+            if objective in ("health",):
+                category = "health"
+            elif objective in ("security",):
+                category = "security"
+            elif objective in ("config", "schema_quality", "dataflow_topology"):
+                category = "config"
+            elif objective in ("resource", "storage", "backpressure", "pipeline_performance"):
+                category = "resource"
+            elif objective in ("fleet",):
+                category = "fleet"
+            elif objective in ("alerting",):
+                category = "alerting"
+            else:
+                category = "other"
+
+            # Get score from metadata if available
+            score = None
+            if result.metadata:
+                # Try various common score key names
+                for key in ("health_score", f"{objective}_health_score", "score", "overall_score"):
+                    if key in result.metadata:
+                        val = result.metadata[key]
+                        if isinstance(val, (int, float)):
+                            score = int(min(100, max(0, val)))
+                            break
+
+            # If no score in metadata, calculate from findings for this analyzer
+            if score is None:
+                objective_findings = [f for f in findings if f.source_analyzer == objective]
+                penalty = sum(
+                    severity_penalties.get(f.severity, 0)
+                    for f in objective_findings
+                )
+                score = int(max(0, 100 - penalty))
+
+            # Store component data
+            if category not in components_found:
+                components_found[category] = {
+                    "scores": [],
+                    "objectives": [],
+                    "weight": component_weights.get(category, 0.05),
+                }
+            components_found[category]["scores"].append(score)
+            components_found[category]["objectives"].append(objective)
+
+        # Build component scores
+        overall_weighted_sum = 0.0
+        total_weight = 0.0
+
+        for category, data in components_found.items():
+            avg_score = sum(data["scores"]) / len(data["scores"]) if data["scores"] else 100
+            weight = data["weight"]
+
+            component_scores[category] = ComponentScore(
+                name=category.replace("_", " ").title(),
+                score=int(avg_score),
+                weight=weight,
+                details=f"Based on: {', '.join(data['objectives'])}",
+            )
+
+            overall_weighted_sum += avg_score * weight
+            total_weight += weight
+
+        # Calculate overall score
+        if total_weight > 0:
+            overall_score = int(overall_weighted_sum / total_weight)
+        else:
+            # Fallback: calculate from all findings
+            total_penalty = sum(
+                severity_penalties.get(f.severity, 0)
+                for f in findings
+            )
+            overall_score = int(max(0, 100 - total_penalty))
+
+        # Ensure score is in valid range
+        overall_score = min(100, max(0, overall_score))
+
+        return HealthScore(
+            overall_score=overall_score,
+            components=component_scores,
         )
 
     def get_progress(self) -> Optional[AnalysisProgress]:
