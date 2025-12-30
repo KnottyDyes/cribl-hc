@@ -21,11 +21,8 @@ Available Objectives:
 - alerting: Notification targets, alert configuration, alerting infrastructure health
 """
 
-from typing import Dict, List, Optional, Type
-
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.utils.logger import get_logger
-
 
 log = get_logger(__name__)
 
@@ -50,9 +47,9 @@ class AnalyzerRegistry:
 
     def __init__(self):
         """Initialize empty analyzer registry."""
-        self._analyzers: Dict[str, Type[BaseAnalyzer]] = {}
+        self._analyzers: dict[str, type[BaseAnalyzer]] = {}
 
-    def register(self, analyzer_class: Type[BaseAnalyzer]) -> None:
+    def register(self, analyzer_class: type[BaseAnalyzer]) -> None:
         """
         Register an analyzer class.
 
@@ -115,7 +112,7 @@ class AnalyzerRegistry:
             return True
         return False
 
-    def get_analyzer(self, objective: str) -> Optional[BaseAnalyzer]:
+    def get_analyzer(self, objective: str) -> BaseAnalyzer | None:
         """
         Get an analyzer instance by objective name.
 
@@ -135,7 +132,7 @@ class AnalyzerRegistry:
             return analyzer_class()
         return None
 
-    def get_analyzer_class(self, objective: str) -> Optional[Type[BaseAnalyzer]]:
+    def get_analyzer_class(self, objective: str) -> type[BaseAnalyzer] | None:
         """
         Get an analyzer class (not instance) by objective name.
 
@@ -147,7 +144,7 @@ class AnalyzerRegistry:
         """
         return self._analyzers.get(objective)
 
-    def list_objectives(self) -> List[str]:
+    def list_objectives(self) -> list[str]:
         """
         Get list of all registered objective names.
 
@@ -160,7 +157,7 @@ class AnalyzerRegistry:
         """
         return sorted(self._analyzers.keys())
 
-    def list_analyzers(self) -> List[Type[BaseAnalyzer]]:
+    def list_analyzers(self) -> list[type[BaseAnalyzer]]:
         """
         Get list of all registered analyzer classes.
 
@@ -215,7 +212,7 @@ def get_global_registry() -> AnalyzerRegistry:
     return _global_registry
 
 
-def register_analyzer(analyzer_class: Type[BaseAnalyzer]) -> None:
+def register_analyzer(analyzer_class: type[BaseAnalyzer]) -> None:
     """
     Register an analyzer in the global registry.
 
@@ -229,7 +226,7 @@ def register_analyzer(analyzer_class: Type[BaseAnalyzer]) -> None:
     _global_registry.register(analyzer_class)
 
 
-def get_analyzer(objective: str) -> Optional[BaseAnalyzer]:
+def get_analyzer(objective: str) -> BaseAnalyzer | None:
     """
     Get an analyzer from the global registry.
 
@@ -246,7 +243,7 @@ def get_analyzer(objective: str) -> Optional[BaseAnalyzer]:
     return _global_registry.get_analyzer(objective)
 
 
-def list_objectives() -> List[str]:
+def list_objectives() -> list[str]:
     """
     List all available objectives from the global registry.
 
@@ -272,20 +269,20 @@ __all__ = [
 ]
 
 # Auto-register built-in analyzers
-from cribl_hc.analyzers.health import HealthAnalyzer
-from cribl_hc.analyzers.config import ConfigAnalyzer
-from cribl_hc.analyzers.resource import ResourceAnalyzer
-from cribl_hc.analyzers.storage import StorageAnalyzer
-from cribl_hc.analyzers.security import SecurityAnalyzer
-from cribl_hc.analyzers.cost import CostAnalyzer
-from cribl_hc.analyzers.fleet import FleetAnalyzer
-from cribl_hc.analyzers.predictive import PredictiveAnalyzer
-from cribl_hc.analyzers.backpressure import BackpressureAnalyzer
-from cribl_hc.analyzers.pipeline_performance import PipelinePerformanceAnalyzer
-from cribl_hc.analyzers.lookup_health import LookupHealthAnalyzer
-from cribl_hc.analyzers.schema_quality import SchemaQualityAnalyzer
-from cribl_hc.analyzers.dataflow_topology import DataFlowTopologyAnalyzer
-from cribl_hc.analyzers.alerting import AlertingAnalyzer
+from cribl_hc.analyzers.alerting import AlertingAnalyzer  # noqa: E402
+from cribl_hc.analyzers.backpressure import BackpressureAnalyzer  # noqa: E402
+from cribl_hc.analyzers.config import ConfigAnalyzer  # noqa: E402
+from cribl_hc.analyzers.cost import CostAnalyzer  # noqa: E402
+from cribl_hc.analyzers.dataflow_topology import DataFlowTopologyAnalyzer  # noqa: E402
+from cribl_hc.analyzers.fleet import FleetAnalyzer  # noqa: E402
+from cribl_hc.analyzers.health import HealthAnalyzer  # noqa: E402
+from cribl_hc.analyzers.lookup_health import LookupHealthAnalyzer  # noqa: E402
+from cribl_hc.analyzers.pipeline_performance import PipelinePerformanceAnalyzer  # noqa: E402
+from cribl_hc.analyzers.predictive import PredictiveAnalyzer  # noqa: E402
+from cribl_hc.analyzers.resource import ResourceAnalyzer  # noqa: E402
+from cribl_hc.analyzers.schema_quality import SchemaQualityAnalyzer  # noqa: E402
+from cribl_hc.analyzers.security import SecurityAnalyzer  # noqa: E402
+from cribl_hc.analyzers.storage import StorageAnalyzer  # noqa: E402
 
 register_analyzer(HealthAnalyzer)
 register_analyzer(ConfigAnalyzer)

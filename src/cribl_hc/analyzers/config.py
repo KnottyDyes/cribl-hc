@@ -5,14 +5,15 @@ Validates pipelines, routes, and configurations to detect errors and best practi
 """
 
 import re
-import structlog
-from typing import Any, Dict, List, Set
+from typing import Any
 
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
+import structlog
+
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
-from cribl_hc.rules.loader import RuleLoader, RuleEvaluator
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
+from cribl_hc.rules.loader import RuleEvaluator, RuleLoader
 
 
 class ConfigAnalyzer(BaseAnalyzer):
@@ -61,7 +62,7 @@ class ConfigAnalyzer(BaseAnalyzer):
         self._rules_cache = None
 
         # Track current worker group for context in findings
-        self._current_worker_group: str = "default"
+        self._current_worker_group: str | None = "default"
 
     def _worker_group_context(self) -> str:
         """
@@ -80,7 +81,7 @@ class ConfigAnalyzer(BaseAnalyzer):
         return "config"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Config analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -99,7 +100,7 @@ class ConfigAnalyzer(BaseAnalyzer):
         """
         return 5
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return list of required API permissions."""
         return [
             "read:pipelines",
@@ -261,7 +262,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _fetch_pipelines(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_pipelines(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         """
         Fetch all pipelines from Cribl API.
 
@@ -279,7 +280,7 @@ class ConfigAnalyzer(BaseAnalyzer):
             self.log.error("pipelines_fetch_failed", error=str(e))
             return []
 
-    async def _fetch_routes(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_routes(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         """
         Fetch all routes from Cribl API.
 
@@ -297,7 +298,7 @@ class ConfigAnalyzer(BaseAnalyzer):
             self.log.error("routes_fetch_failed", error=str(e))
             return []
 
-    async def _fetch_inputs(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_inputs(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         """
         Fetch all inputs from Cribl API.
 
@@ -315,7 +316,7 @@ class ConfigAnalyzer(BaseAnalyzer):
             self.log.error("inputs_fetch_failed", error=str(e))
             return []
 
-    async def _fetch_outputs(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_outputs(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         """
         Fetch all outputs from Cribl API.
 
@@ -335,7 +336,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _validate_pipeline_syntax(
         self,
-        pipelines: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -510,8 +511,8 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _validate_route_configuration(
         self,
-        routes: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]],
+        routes: list[dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -594,7 +595,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _check_deprecated_functions(
         self,
-        pipelines: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -661,10 +662,10 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _find_unused_components(
         self,
-        pipelines: List[Dict[str, Any]],
-        routes: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]],
-        outputs: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
+        routes: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        outputs: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -685,8 +686,8 @@ class ConfigAnalyzer(BaseAnalyzer):
         all_output_ids = {o.get("id") for o in outputs if o.get("id")}
 
         # Build sets of used components
-        used_pipeline_ids: Set[str] = set()
-        used_output_ids: Set[str] = set()
+        used_pipeline_ids: set[str] = set()
+        used_output_ids: set[str] = set()
 
         # Track which pipelines and outputs are referenced by routes
         for route in routes:
@@ -760,7 +761,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _check_security_misconfigurations(
         self,
-        outputs: List[Dict[str, Any]],
+        outputs: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -859,10 +860,10 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _evaluate_best_practice_rules(
         self,
-        pipelines: List[Dict[str, Any]],
-        routes: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]],
-        outputs: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
+        routes: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        outputs: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -1020,7 +1021,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _analyze_pipeline_efficiency(
         self,
-        pipelines: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -1077,7 +1078,7 @@ class ConfigAnalyzer(BaseAnalyzer):
             opportunities=performance_opportunities
         )
 
-    def _calculate_pipeline_efficiency_score(self, functions: List[Dict[str, Any]]) -> float:
+    def _calculate_pipeline_efficiency_score(self, functions: list[dict[str, Any]]) -> float:
         """
         Calculate efficiency score (0-100) for a pipeline based on function ordering.
 
@@ -1136,7 +1137,7 @@ class ConfigAnalyzer(BaseAnalyzer):
     def _check_function_ordering(
         self,
         pipeline_id: str,
-        functions: List[Dict[str, Any]],
+        functions: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -1204,7 +1205,7 @@ class ConfigAnalyzer(BaseAnalyzer):
     def _check_performance_antipatterns(
         self,
         pipeline_id: str,
-        functions: List[Dict[str, Any]],
+        functions: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> int:
         """
@@ -1295,8 +1296,8 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _analyze_route_conflicts(
         self,
-        routes: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]],
+        routes: list[dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -1547,7 +1548,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _analyze_complexity_metrics(
         self,
-        pipelines: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -1684,7 +1685,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
         result.metadata["duplicate_patterns_found"] = duplicate_count
 
-    def _calculate_pipeline_complexity(self, functions: List[Dict[str, Any]]) -> int:
+    def _calculate_pipeline_complexity(self, functions: list[dict[str, Any]]) -> int:
         """
         Calculate complexity score for a pipeline.
 
@@ -1734,7 +1735,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
         return min(complexity, 100)  # Cap at 100
 
-    def _get_pipeline_pattern(self, functions: List[Dict[str, Any]]) -> str:
+    def _get_pipeline_pattern(self, functions: list[dict[str, Any]]) -> str:
         """
         Generate a pattern signature for a pipeline based on function sequence.
 
@@ -1774,7 +1775,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     async def _check_advanced_security(
         self,
-        pipelines: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -2093,10 +2094,10 @@ class ConfigAnalyzer(BaseAnalyzer):
         self,
         result: AnalyzerResult,
         client: CriblAPIClient,
-        pipelines: List[Dict[str, Any]],
-        routes: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]],
-        outputs: List[Dict[str, Any]]
+        pipelines: list[dict[str, Any]],
+        routes: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        outputs: list[dict[str, Any]]
     ) -> None:
         """
         Add a positive finding when configuration passes all checks.

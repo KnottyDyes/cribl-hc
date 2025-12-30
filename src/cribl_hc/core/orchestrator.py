@@ -5,17 +5,17 @@ The orchestrator manages multiple analyzers, tracks API usage, and
 aggregates results into a comprehensive analysis report.
 """
 
+from collections.abc import Callable
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any
 
 from cribl_hc.analyzers import get_analyzer, get_global_registry, list_objectives
-from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
+from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.analysis import AnalysisRun
 from cribl_hc.models.finding import Finding
-from cribl_hc.models.health import HealthScore, ComponentScore
+from cribl_hc.models.health import ComponentScore, HealthScore
 from cribl_hc.utils.logger import get_logger
-
 
 log = get_logger(__name__)
 
@@ -35,7 +35,7 @@ class AnalysisProgress:
     def __init__(self, total_objectives: int, api_call_budget: int = 100):
         self.total_objectives = total_objectives
         self.completed_objectives = 0
-        self.current_objective: Optional[str] = None
+        self.current_objective: str | None = None
         self.api_calls_used = 0
         self.api_calls_remaining = api_call_budget
 
@@ -107,15 +107,15 @@ class AnalyzerOrchestrator:
         self.registry = get_global_registry()
 
         # Analysis state
-        self.progress: Optional[AnalysisProgress] = None
-        self.start_time: Optional[datetime] = None
-        self.end_time: Optional[datetime] = None
+        self.progress: AnalysisProgress | None = None
+        self.start_time: datetime | None = None
+        self.end_time: datetime | None = None
 
     async def run_analysis(
         self,
-        objectives: Optional[List[str]] = None,
-        progress_callback: Optional[callable] = None,
-    ) -> Dict[str, AnalyzerResult]:
+        objectives: list[str] | None = None,
+        progress_callback: Callable[[Any], None] | None = None,
+    ) -> dict[str, AnalyzerResult]:
         """
         Run health check analysis for specified objectives.
 
@@ -167,7 +167,7 @@ class AnalyzerOrchestrator:
             api_call_budget=self.max_api_calls,
         )
 
-        results: Dict[str, AnalyzerResult] = {}
+        results: dict[str, AnalyzerResult] = {}
 
         # Run each analyzer sequentially
         for objective in objectives:
@@ -310,7 +310,7 @@ class AnalyzerOrchestrator:
 
     def create_analysis_run(
         self,
-        results: Dict[str, AnalyzerResult],
+        results: dict[str, AnalyzerResult],
         deployment_id: str,
     ) -> AnalysisRun:
         """
@@ -373,8 +373,8 @@ class AnalyzerOrchestrator:
 
     def _calculate_overall_health_score(
         self,
-        results: Dict[str, AnalyzerResult],
-        findings: List[Finding],
+        results: dict[str, AnalyzerResult],
+        findings: list[Finding],
     ) -> HealthScore:
         """
         Calculate overall health score from analyzer results and findings.
@@ -411,8 +411,8 @@ class AnalyzerOrchestrator:
         }
 
         # Initialize component scores
-        component_scores: Dict[str, ComponentScore] = {}
-        components_found: Dict[str, Dict] = {}
+        component_scores: dict[str, ComponentScore] = {}
+        components_found: dict[str, dict] = {}
 
         # First, try to get scores from analyzer metadata
         for objective, result in results.items():
@@ -499,7 +499,7 @@ class AnalyzerOrchestrator:
             components=component_scores,
         )
 
-    def get_progress(self) -> Optional[AnalysisProgress]:
+    def get_progress(self) -> AnalysisProgress | None:
         """
         Get current analysis progress.
 
@@ -508,7 +508,7 @@ class AnalyzerOrchestrator:
         """
         return self.progress
 
-    def get_api_usage_summary(self) -> Dict[str, int]:
+    def get_api_usage_summary(self) -> dict[str, int]:
         """
         Get summary of API call usage.
 

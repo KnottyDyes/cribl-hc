@@ -9,13 +9,12 @@ Priority: P6 (Fleet management and multi-environment operations)
 
 import asyncio
 from collections import Counter, defaultdict
-from typing import Any, Dict, List, Optional, Set
-import structlog
+from typing import Any
 
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.utils.logger import get_logger
 
 log = get_logger(__name__)
@@ -48,7 +47,7 @@ class FleetAnalyzer(BaseAnalyzer):
     def __init__(self):
         """Initialize FleetAnalyzer."""
         super().__init__()
-        self._deployment_results: Dict[str, Dict[str, Any]] = {}
+        self._deployment_results: dict[str, dict[str, Any]] = {}
 
     @property
     def objective_name(self) -> str:
@@ -56,7 +55,7 @@ class FleetAnalyzer(BaseAnalyzer):
         return "fleet"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Fleet analyzer supports all products."""
         return ["stream", "edge", "lake", "search"]
 
@@ -70,7 +69,7 @@ class FleetAnalyzer(BaseAnalyzer):
         """
         return 5  # Per deployment
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return [
             "read:system",
@@ -129,8 +128,8 @@ class FleetAnalyzer(BaseAnalyzer):
     async def _analyze_config_drift(
         self,
         client: CriblAPIClient,
-        worker_groups: List[Dict[str, Any]],
-        workers: List[Dict[str, Any]],
+        worker_groups: list[dict[str, Any]],
+        workers: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -152,8 +151,8 @@ class FleetAnalyzer(BaseAnalyzer):
             return
 
         # Build lookup of expected config versions by group
-        group_config_versions: Dict[str, str] = {}
-        groups_deploying: List[Dict[str, Any]] = []
+        group_config_versions: dict[str, str] = {}
+        groups_deploying: list[dict[str, Any]] = []
 
         for group in worker_groups:
             group_id = group.get("id", "unknown")
@@ -193,8 +192,8 @@ class FleetAnalyzer(BaseAnalyzer):
                 ))
 
         # Check individual workers for config drift
-        workers_with_drift: List[Dict[str, Any]] = []
-        workers_by_group: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        workers_with_drift: list[dict[str, Any]] = []
+        workers_by_group: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
         for worker in workers:
             worker_id = worker.get("id", "unknown")
@@ -216,7 +215,7 @@ class FleetAnalyzer(BaseAnalyzer):
         # Report config drift
         if workers_with_drift:
             # Group by worker group for better reporting
-            drift_by_group: Dict[str, List[str]] = defaultdict(list)
+            drift_by_group: dict[str, list[str]] = defaultdict(list)
             for drift in workers_with_drift:
                 drift_by_group[drift["group"]].append(drift["worker_id"])
 
@@ -262,8 +261,8 @@ class FleetAnalyzer(BaseAnalyzer):
 
     def _analyze_worker_group_health(
         self,
-        worker_groups: List[Dict[str, Any]],
-        master_summary: Dict[str, Any],
+        worker_groups: list[dict[str, Any]],
+        master_summary: dict[str, Any],
         result: AnalyzerResult
     ) -> None:
         """
@@ -342,7 +341,7 @@ class FleetAnalyzer(BaseAnalyzer):
 
     def _analyze_single_deployment_patterns(
         self,
-        workers: List[Dict[str, Any]],
+        workers: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -356,7 +355,7 @@ class FleetAnalyzer(BaseAnalyzer):
             return
 
         # Group workers by status
-        status_counts: Dict[str, int] = Counter()
+        status_counts: dict[str, int] = Counter()
         for worker in workers:
             status = worker.get("status", "unknown")
             status_counts[status] += 1
@@ -386,7 +385,7 @@ class FleetAnalyzer(BaseAnalyzer):
 
     async def analyze_fleet(
         self,
-        deployments: Dict[str, CriblAPIClient]
+        deployments: dict[str, CriblAPIClient]
     ) -> AnalyzerResult:
         """
         Analyze multiple deployments and generate fleet-wide insights.
@@ -452,7 +451,7 @@ class FleetAnalyzer(BaseAnalyzer):
 
     async def _analyze_all_deployments(
         self,
-        deployments: Dict[str, CriblAPIClient],
+        deployments: dict[str, CriblAPIClient],
         result: AnalyzerResult
     ) -> None:
         """
@@ -487,7 +486,7 @@ class FleetAnalyzer(BaseAnalyzer):
         self,
         name: str,
         client: CriblAPIClient
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Analyze a single deployment.
 
@@ -500,7 +499,7 @@ class FleetAnalyzer(BaseAnalyzer):
         """
         self.log.info("analyzing_deployment", deployment=name)
 
-        deployment_data: Dict[str, Any] = {
+        deployment_data: dict[str, Any] = {
             "name": name,
             "environment": getattr(client, "environment", "unknown"),
             "base_url": getattr(client, "base_url", ""),
