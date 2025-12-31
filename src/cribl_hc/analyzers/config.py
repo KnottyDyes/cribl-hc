@@ -4,6 +4,8 @@ Configuration Analyzer for Cribl Stream Health Check.
 Validates pipelines, routes, and configurations to detect errors and best practice violations.
 """
 
+from __future__ import annotations
+
 import re
 from typing import Any
 

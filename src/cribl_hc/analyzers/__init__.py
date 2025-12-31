@@ -21,6 +21,8 @@ Available Objectives:
 - alerting: Notification targets, alert configuration, alerting infrastructure health
 """
 
+from __future__ import annotations
+
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.utils.logger import get_logger
 

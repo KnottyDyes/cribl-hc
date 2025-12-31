@@ -5,6 +5,8 @@ The orchestrator manages multiple analyzers, tracks API usage, and
 aggregates results into a comprehensive analysis report.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
