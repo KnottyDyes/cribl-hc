@@ -19,6 +19,7 @@ Available Objectives:
 - schema_quality: Parser analysis, regex optimization, schema mapping
 - dataflow_topology: Route validation, connectivity checking, data path analysis
 - alerting: Notification targets, alert configuration, alerting infrastructure health
+- version_control: Uncommitted changes, pending deployments, configuration drift
 """
 
 from __future__ import annotations
@@ -285,6 +286,7 @@ from cribl_hc.analyzers.resource import ResourceAnalyzer  # noqa: E402
 from cribl_hc.analyzers.schema_quality import SchemaQualityAnalyzer  # noqa: E402
 from cribl_hc.analyzers.security import SecurityAnalyzer  # noqa: E402
 from cribl_hc.analyzers.storage import StorageAnalyzer  # noqa: E402
+from cribl_hc.analyzers.version_control import VersionControlAnalyzer  # noqa: E402
 
 register_analyzer(HealthAnalyzer)
 register_analyzer(ConfigAnalyzer)
@@ -300,3 +302,4 @@ register_analyzer(LookupHealthAnalyzer)
 register_analyzer(SchemaQualityAnalyzer)
 register_analyzer(DataFlowTopologyAnalyzer)
 register_analyzer(AlertingAnalyzer)
+register_analyzer(VersionControlAnalyzer)
