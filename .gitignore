@@ -88,6 +88,7 @@ health-report.json
 health-report.md
 *-health-report.json
 *-health-report.md
+default_report.md
 
 # Internal development documentation (not for public release)
 docs/development/
