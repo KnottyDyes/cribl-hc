@@ -474,7 +474,7 @@ Claude
 ---
 
 **Status**: Production Ready - Phase 11 Complete
-**Version**: 1.0.0
+**Version**: 0.4.0
 **Python**: 3.11+
 **Cribl Stream**: 4.x (N through N-2 tested; older versions supported with best-effort compatibility)
 **Tests**: 258+ passing (unit + integration)
