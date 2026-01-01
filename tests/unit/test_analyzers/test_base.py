@@ -85,7 +85,13 @@ class TestAnalyzerResult:
         result.add_finding(finding)
 
         assert len(result.findings) == 1
-        assert result.findings[0] == finding
+        # Check that finding was added with auto-populated fields
+        added_finding = result.findings[0]
+        assert added_finding.id == finding.id
+        assert added_finding.title == finding.title
+        assert added_finding.severity == finding.severity
+        assert added_finding.source_analyzer == "health"  # Auto-populated from objective
+        assert added_finding.product_tags == ["stream", "edge", "lake", "search"]  # Default tags
 
     def test_add_recommendation(self):
         """Test adding recommendations to result."""
