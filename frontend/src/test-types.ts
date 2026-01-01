@@ -1,5 +1,5 @@
 // Test file to verify types are exported correctly
-import type { Credential, CredentialCreate, Analyzer } from './api/types'
+import type { Credential } from './api/types'
 
 const testCredential: Credential = {
   name: 'test',
