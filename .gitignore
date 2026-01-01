@@ -93,6 +93,7 @@ default_report.md
 # Internal development documentation (not for public release)
 docs/development/
 docs/reports/
+docs/wip/
 
 # Cribl API reference docs (proprietary - not for distribution)
 docs/cribl_api_reference/
