@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import './index.css'
 import App from './App.tsx'
+import { initializeApiClient } from './api/client'
 
 // Create a client with optimized caching strategy
 const queryClient = new QueryClient({
@@ -25,12 +26,15 @@ const queryClient = new QueryClient({
   },
 })
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-      {/* React Query Devtools - only included in development builds */}
-      <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
-  </StrictMode>,
-)
+// Initialize API client with correct backend URL (from Tauri or env)
+initializeApiClient().then(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <App />
+        {/* React Query Devtools - only included in development builds */}
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </StrictMode>,
+  )
+})

@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { credentialsApi } from '../../api/credentials'
 import { CredentialCard } from './CredentialCard'
 import { CredentialForm } from './CredentialForm'
-import { Button, Modal, SkeletonCredentialCard } from '../common'
+import { Button, Modal, SkeletonCredentialCard, Toast } from '../common'
+import type { ToastType } from '../common'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import type { Credential, CredentialCreate } from '../../api/types'
 
@@ -12,6 +13,16 @@ export function CredentialList() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCredential, setEditingCredential] = useState<Credential | null>(null)
   const [testingCredential, setTestingCredential] = useState<string | null>(null)
+  const [toast, setToast] = useState<{
+    show: boolean
+    type: ToastType
+    title: string
+    message?: string
+  }>({
+    show: false,
+    type: 'success',
+    title: '',
+  })
 
   const { data: credentials, isLoading } = useQuery({
     queryKey: ['credentials'],
@@ -48,14 +59,29 @@ export function CredentialList() {
     onSuccess: (result) => {
       setTestingCredential(null)
       if (result.success) {
-        alert(`Connection successful!\n${result.message}`)
+        setToast({
+          show: true,
+          type: 'success',
+          title: 'Connection successful!',
+          message: result.message,
+        })
       } else {
-        alert(`Connection failed!\n${result.message}`)
+        setToast({
+          show: true,
+          type: 'error',
+          title: 'Connection failed!',
+          message: result.message,
+        })
       }
     },
     onError: () => {
       setTestingCredential(null)
-      alert('Connection test failed!')
+      setToast({
+        show: true,
+        type: 'error',
+        title: 'Connection test failed!',
+        message: 'An error occurred while testing the connection.',
+      })
     },
   })
 
@@ -156,10 +182,21 @@ export function CredentialList() {
         <CredentialForm
           onSubmit={editingCredential ? handleUpdate : handleCreate}
           onCancel={handleCloseModal}
-          initialData={editingCredential || undefined}
+          initialData={editingCredential ? {
+            ...editingCredential,
+            client_id: editingCredential.client_id || undefined
+          } : undefined}
           isSubmitting={createMutation.isPending || updateMutation.isPending}
         />
       </Modal>
+
+      <Toast
+        show={toast.show}
+        type={toast.type}
+        title={toast.title}
+        message={toast.message}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
     </div>
   )
 }
