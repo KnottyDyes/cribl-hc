@@ -39,13 +39,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy wheels from builder
-COPY --from=builder /build/wheels /tmp/wheels
+# Copy dist from builder
 COPY --from=builder /build/dist /tmp/dist
 
-# Install cribl-hc and dependencies
-RUN pip install --no-cache-dir /tmp/wheels/*.whl /tmp/dist/*.whl && \
-    rm -rf /tmp/wheels /tmp/dist
+# Install cribl-hc
+RUN pip install --no-cache-dir /tmp/dist/*.whl && \
+    rm -rf /tmp/dist
 
 # Create directories for credentials and reports
 RUN mkdir -p /home/criblhc/.cribl-hc /app/reports && \
