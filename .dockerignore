@@ -51,20 +51,10 @@ docs/_build/
 # Credentials and reports (never include in image)
 .cribl-hc/
 *.json
-*.md
 reports/
 
 # Session files (temporary documentation)
-SESSION_SUMMARY.md
-OAUTH_*.md
-DOCKER_IMPLEMENTATION.md
-GUI_IMPLEMENTATION_PLAN.md
-PHASE_*.md
-API_PHASE1_COMPLETE.md
-MVP_COMPLETION_SUMMARY.md
-PERFORMANCE_VALIDATION.md
-QUICK_START_TESTING.md
-SUMMARY.md
+# All .md files except README.md are already excluded above
 
 # Development files
 .env
