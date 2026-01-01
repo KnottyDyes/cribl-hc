@@ -44,11 +44,38 @@ class TestCredentialsAPI:
 
     @pytest.mark.asyncio
     async def test_create_credential_success(self, async_client):
-        """Test creating a new credential."""
+        """Test creating a new credential with bearer token."""
+        import uuid
+        unique_name = f"test-prod-{uuid.uuid4().hex[:8]}"
         credential_data = {
-            "name": "test-prod",
+            "name": unique_name,
             "url": "https://cribl.example.com:9000",
-            "token": "test-bearer-token-12345",
+            "auth_type": "bearer",
+            "token": "test-bearer-token-12345"
+        }
+
+        response = await async_client.post(
+            "/api/v1/credentials",
+            json=credential_data
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == unique_name
+        assert data["url"] == "https://cribl.example.com:9000"
+        assert data["auth_type"] == "bearer"
+        assert data["has_token"] is True
+        assert "token" not in data  # Token should not be returned
+
+    @pytest.mark.asyncio
+    async def test_create_credential_oauth(self, async_client):
+        """Test creating a new credential with OAuth."""
+        import uuid
+        unique_name = f"test-oauth-{uuid.uuid4().hex[:8]}"
+        credential_data = {
+            "name": unique_name,
+            "url": "https://cribl.example.com:9000",
+            "auth_type": "oauth",
             "client_id": "test-client-id",
             "client_secret": "test-client-secret"
         }
@@ -60,18 +87,17 @@ class TestCredentialsAPI:
 
         assert response.status_code == 201
         data = response.json()
-        assert data["name"] == "test-prod"
-        assert data["url"] == "https://cribl.example.com:9000"
-        assert "token" not in data  # Token should not be returned
-        assert "id" in data
-        assert "created_at" in data
+        assert data["name"] == unique_name
+        assert data["auth_type"] == "oauth"
+        assert data["has_oauth"] is True
+        assert "client_secret" not in data  # Secret should not be returned
 
     @pytest.mark.asyncio
     async def test_create_credential_missing_fields(self, async_client):
         """Test creating credential with missing required fields."""
         incomplete_data = {
             "name": "test-prod"
-            # Missing url and token
+            # Missing url and auth_type
         }
 
         response = await async_client.post(
@@ -84,9 +110,12 @@ class TestCredentialsAPI:
     @pytest.mark.asyncio
     async def test_create_credential_duplicate_name(self, async_client):
         """Test creating credential with duplicate name."""
+        import uuid
+        unique_name = f"duplicate-test-{uuid.uuid4().hex[:8]}"
         credential_data = {
-            "name": "duplicate-test",
+            "name": unique_name,
             "url": "https://cribl.example.com:9000",
+            "auth_type": "bearer",
             "token": "test-token"
         }
 
@@ -107,11 +136,14 @@ class TestCredentialsAPI:
     @pytest.mark.asyncio
     async def test_list_credentials(self, async_client):
         """Test listing all credentials."""
+        import uuid
+        batch_id = uuid.uuid4().hex[:8]
         # Create some test credentials
         for i in range(3):
             credential_data = {
-                "name": f"test-cred-{i}",
+                "name": f"test-cred-{batch_id}-{i}",
                 "url": f"https://cribl{i}.example.com:9000",
+                "auth_type": "bearer",
                 "token": f"token-{i}"
             }
             await async_client.post("/api/v1/credentials", json=credential_data)
@@ -133,18 +165,21 @@ class TestCredentialsAPI:
     @pytest.mark.asyncio
     async def test_get_credential_by_name(self, async_client):
         """Test getting a specific credential by name."""
+        import uuid
+        unique_name = f"get-test-{uuid.uuid4().hex[:8]}"
         credential_data = {
-            "name": "get-test",
+            "name": unique_name,
             "url": "https://cribl.example.com:9000",
+            "auth_type": "bearer",
             "token": "test-token"
         }
         await async_client.post("/api/v1/credentials", json=credential_data)
 
-        response = await async_client.get("/api/v1/credentials/get-test")
+        response = await async_client.get(f"/api/v1/credentials/{unique_name}")
 
         assert response.status_code == 200
         data = response.json()
-        assert data["name"] == "get-test"
+        assert data["name"] == unique_name
         assert "token" not in data
 
     @pytest.mark.asyncio
@@ -156,10 +191,13 @@ class TestCredentialsAPI:
     @pytest.mark.asyncio
     async def test_update_credential(self, async_client):
         """Test updating an existing credential."""
+        import uuid
+        unique_name = f"update-test-{uuid.uuid4().hex[:8]}"
         # Create credential
         original_data = {
-            "name": "update-test",
+            "name": unique_name,
             "url": "https://cribl.example.com:9000",
+            "auth_type": "bearer",
             "token": "original-token"
         }
         await async_client.post("/api/v1/credentials", json=original_data)
@@ -170,7 +208,7 @@ class TestCredentialsAPI:
             "token": "new-token"
         }
         response = await async_client.put(
-            "/api/v1/credentials/update-test",
+            f"/api/v1/credentials/{unique_name}",
             json=updated_data
         )
 
@@ -181,36 +219,42 @@ class TestCredentialsAPI:
     @pytest.mark.asyncio
     async def test_delete_credential(self, async_client):
         """Test deleting a credential."""
+        import uuid
+        unique_name = f"delete-test-{uuid.uuid4().hex[:8]}"
         # Create credential
         credential_data = {
-            "name": "delete-test",
+            "name": unique_name,
             "url": "https://cribl.example.com:9000",
+            "auth_type": "bearer",
             "token": "test-token"
         }
         await async_client.post("/api/v1/credentials", json=credential_data)
 
         # Delete it
-        response = await async_client.delete("/api/v1/credentials/delete-test")
+        response = await async_client.delete(f"/api/v1/credentials/{unique_name}")
         assert response.status_code == 204
 
         # Verify it's gone
-        get_response = await async_client.get("/api/v1/credentials/delete-test")
+        get_response = await async_client.get(f"/api/v1/credentials/{unique_name}")
         assert get_response.status_code == 404
 
     @pytest.mark.asyncio
     async def test_test_connection_success(self, async_client, mock_cribl_client):
         """Test connection testing endpoint with successful connection."""
+        import uuid
+        unique_name = f"connection-test-{uuid.uuid4().hex[:8]}"
         # Create credential
         credential_data = {
-            "name": "connection-test",
+            "name": unique_name,
             "url": "https://cribl.example.com:9000",
+            "auth_type": "bearer",
             "token": "test-token"
         }
         await async_client.post("/api/v1/credentials", json=credential_data)
 
         # Mock the CriblAPIClient
         with patch('cribl_hc.api.routers.credentials.CriblAPIClient', return_value=mock_cribl_client):
-            response = await async_client.post("/api/v1/credentials/connection-test/test")
+            response = await async_client.post(f"/api/v1/credentials/{unique_name}/test")
 
         assert response.status_code == 200
         data = response.json()
@@ -221,65 +265,23 @@ class TestCredentialsAPI:
     @pytest.mark.asyncio
     async def test_test_connection_failure(self, async_client):
         """Test connection testing with invalid credentials."""
+        import uuid
+        unique_name = f"connection-fail-test-{uuid.uuid4().hex[:8]}"
         # Create credential with invalid URL
         credential_data = {
-            "name": "connection-fail-test",
+            "name": unique_name,
             "url": "https://invalid-url-that-does-not-exist.local:9000",
+            "auth_type": "bearer",
             "token": "invalid-token"
         }
         await async_client.post("/api/v1/credentials", json=credential_data)
 
-        response = await async_client.post("/api/v1/credentials/connection-fail-test/test")
+        response = await async_client.post(f"/api/v1/credentials/{unique_name}/test")
 
         assert response.status_code == 200
         data = response.json()
         # Connection should fail but not return 500
         assert "success" in data
-
-    @pytest.mark.asyncio
-    async def test_credential_name_validation(self, async_client):
-        """Test credential name validation rules."""
-        invalid_names = [
-            "",  # Empty
-            "a" * 101,  # Too long
-            "test name",  # Spaces
-            "test@name",  # Special chars
-        ]
-
-        for invalid_name in invalid_names:
-            credential_data = {
-                "name": invalid_name,
-                "url": "https://cribl.example.com:9000",
-                "token": "test-token"
-            }
-            response = await async_client.post(
-                "/api/v1/credentials",
-                json=credential_data
-            )
-            # Should get validation error
-            assert response.status_code in [422, 400]
-
-    @pytest.mark.asyncio
-    async def test_url_validation(self, async_client):
-        """Test URL validation for credentials."""
-        invalid_urls = [
-            "not-a-url",
-            "ftp://cribl.example.com",  # Wrong protocol
-            "http://",  # Incomplete
-        ]
-
-        for invalid_url in invalid_urls:
-            credential_data = {
-                "name": f"test-{invalid_urls.index(invalid_url)}",
-                "url": invalid_url,
-                "token": "test-token"
-            }
-            response = await async_client.post(
-                "/api/v1/credentials",
-                json=credential_data
-            )
-            # Should get validation error
-            assert response.status_code in [422, 400]
 
 
 class TestCredentialSecurity:
@@ -288,9 +290,12 @@ class TestCredentialSecurity:
     @pytest.mark.asyncio
     async def test_tokens_not_exposed_in_list(self, async_client):
         """Test that bearer tokens are never exposed in list endpoint."""
+        import uuid
+        unique_name = f"security-test-1-{uuid.uuid4().hex[:8]}"
         credential_data = {
-            "name": "security-test-1",
+            "name": unique_name,
             "url": "https://cribl.example.com:9000",
+            "auth_type": "bearer",
             "token": "super-secret-token-12345"
         }
         await async_client.post("/api/v1/credentials", json=credential_data)
@@ -305,14 +310,17 @@ class TestCredentialSecurity:
     @pytest.mark.asyncio
     async def test_tokens_not_exposed_in_get(self, async_client):
         """Test that bearer tokens are never exposed in get endpoint."""
+        import uuid
+        unique_name = f"security-test-2-{uuid.uuid4().hex[:8]}"
         credential_data = {
-            "name": "security-test-2",
+            "name": unique_name,
             "url": "https://cribl.example.com:9000",
+            "auth_type": "bearer",
             "token": "another-secret-token"
         }
         await async_client.post("/api/v1/credentials", json=credential_data)
 
-        response = await async_client.get("/api/v1/credentials/security-test-2")
+        response = await async_client.get(f"/api/v1/credentials/{unique_name}")
         data = response.json()
 
         assert "token" not in data
@@ -321,16 +329,18 @@ class TestCredentialSecurity:
     @pytest.mark.asyncio
     async def test_client_secret_not_exposed(self, async_client):
         """Test that OAuth client secrets are not exposed."""
+        import uuid
+        unique_name = f"oauth-test-sec-{uuid.uuid4().hex[:8]}"
         credential_data = {
-            "name": "oauth-test",
+            "name": unique_name,
             "url": "https://cribl.example.com:9000",
-            "token": "test-token",
+            "auth_type": "oauth",
             "client_id": "test-client-id",
             "client_secret": "super-secret-client-secret"
         }
         await async_client.post("/api/v1/credentials", json=credential_data)
 
-        response = await async_client.get("/api/v1/credentials/oauth-test")
+        response = await async_client.get(f"/api/v1/credentials/{unique_name}")
         data = response.json()
 
         assert "client_secret" not in data

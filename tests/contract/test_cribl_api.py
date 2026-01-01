@@ -392,17 +392,24 @@ class TestConfigEndpoints:
         """Test /api/v1/m/{group}/routes endpoint returns expected structure."""
         from cribl_hc.core.api_client import CriblAPIClient
 
+        # API returns Routes objects (routing tables) with nested routes array
         respx.get("https://cribl.example.com/api/v1/m/default/routes").mock(
             return_value=Response(
                 200,
                 json={
                     "items": [
                         {
-                            "id": "route-01",
-                            "name": "Production Route",
-                            "filter": "source=='production'",
-                            "output": "splunk-prod",
-                            "final": False,
+                            "id": "default",
+                            "routes": [
+                                {
+                                    "id": "route-01",
+                                    "name": "Production Route",
+                                    "filter": "source=='production'",
+                                    "pipeline": "main",
+                                    "output": "splunk-prod",
+                                    "final": False,
+                                }
+                            ]
                         }
                     ],
                     "count": 1,
@@ -420,9 +427,13 @@ class TestConfigEndpoints:
             assert "items" in data
             assert isinstance(data["items"], list)
             if data["items"]:
-                route = data["items"][0]
-                assert "id" in route
-                assert "filter" in route or "output" in route
+                routing_table = data["items"][0]
+                assert "id" in routing_table
+                # Routing tables contain a "routes" array
+                assert "routes" in routing_table
+                if routing_table["routes"]:
+                    route = routing_table["routes"][0]
+                    assert "filter" in route or "output" in route
 
     @pytest.mark.asyncio
     @respx.mock

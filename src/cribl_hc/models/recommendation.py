@@ -3,7 +3,7 @@ Recommendation model for actionable improvement suggestions.
 """
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -64,6 +64,7 @@ class Recommendation(BaseModel):
         impact_estimate: Estimated impact metrics
         implementation_effort: Effort required (low/medium/high)
         related_findings: Finding IDs this addresses
+        product_tags: Products this recommendation applies to (e.g., ["stream"], ["edge"], ["lake"], ["search"], or any combination)
         documentation_links: Cribl docs URLs
         created_at: When recommendation was created
 
@@ -98,6 +99,10 @@ class Recommendation(BaseModel):
     )
     related_findings: list[str] = Field(
         default_factory=list, description="Related finding IDs"
+    )
+    product_tags: List[Literal["stream", "edge", "lake", "search"]] = Field(
+        default_factory=lambda: ["stream", "edge", "lake", "search"],
+        description="Products this recommendation applies to"
     )
     documentation_links: list[str] = Field(
         default_factory=list, description="Documentation URLs"

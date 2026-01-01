@@ -4,28 +4,16 @@ import { useQuery } from '@tanstack/react-query'
 import { analysisApi } from '../api/analysis'
 import { ResultsSummary } from '../components/results/ResultsSummary'
 import { FindingCard } from '../components/results/FindingCard'
-import { Button, Select, SkeletonFindingCard, Toast } from '../components/common'
-import type { ToastType } from '../components/common'
+import { Button, Select, SkeletonFindingCard } from '../components/common'
 import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
-import type { AnalysisResultResponse } from '../api/types'
-import { invoke } from '@tauri-apps/api/core'
-import { isTauri } from '../utils/tauri'
+import type { AnalysisResultResponse, CriblProduct } from '../api/types'
 
 export function ResultsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [severityFilter, setSeverityFilter] = useState<string>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [toast, setToast] = useState<{
-    show: boolean
-    type: ToastType
-    title: string
-    message?: string
-  }>({
-    show: false,
-    type: 'success',
-    title: '',
-  })
+  const [productFilter, setProductFilter] = useState<string>('all')
 
   const { data: results, isLoading, error } = useQuery({
     queryKey: ['analysis-results', id],
@@ -85,62 +73,16 @@ export function ResultsPage() {
     if (!id) return
     try {
       const blob = await analysisApi.export(id, format)
-
-      // Create filename with deployment name
-      const deploymentName = enrichedResults?.deployment_name || 'unknown'
-      const sanitizedName = deploymentName.replace(/[^a-z0-9-_]/gi, '-')
-      const timestamp = new Date().toISOString().split('T')[0] // YYYY-MM-DD
-      const filename = `cribl-hc-${sanitizedName}-${timestamp}.${format}`
-
-      // Check if running in Tauri
-      if (isTauri()) {
-        // Use Tauri's file save dialog
-        console.log('Tauri detected, using save_file_with_dialog command')
-        console.log('Filename:', filename)
-        const arrayBuffer = await blob.arrayBuffer()
-        const uint8Array = new Uint8Array(arrayBuffer)
-        console.log('File size:', uint8Array.length, 'bytes')
-
-        const filePath = await invoke<string>('save_file_with_dialog', {
-          filename,
-          content: Array.from(uint8Array)
-        })
-
-        console.log('File saved to:', filePath)
-
-        setToast({
-          show: true,
-          type: 'success',
-          title: 'Export successful!',
-          message: `Saved to ${filePath}`,
-        })
-      } else {
-        // Use browser download for web version
-        console.log('Browser mode, using download')
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = filename
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-
-        setToast({
-          show: true,
-          type: 'success',
-          title: 'Export successful!',
-          message: `Downloaded ${filename}`,
-        })
-      }
-    } catch (error) {
-      console.error('Export error:', error)
-      setToast({
-        show: true,
-        type: 'error',
-        title: 'Export failed!',
-        message: error instanceof Error ? error.message : 'Failed to export results. Please try again.',
-      })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `health-check-${id}.${format}`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch {
+      alert('Failed to export results')
     }
   }
 
@@ -200,13 +142,25 @@ export function ResultsPage() {
     label: cat === 'all' ? 'All Categories' : cat,
   }))
 
+  const productOptions = [
+    { value: 'all', label: 'All Products' },
+    { value: 'stream', label: 'Stream' },
+    { value: 'edge', label: 'Edge' },
+    { value: 'lake', label: 'Lake' },
+    { value: 'search', label: 'Search' },
+  ]
+
   const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 }
 
   const filteredFindings = enrichedResults.findings
     .filter((finding) => {
       const matchesSeverity = severityFilter === 'all' || finding.severity === severityFilter
       const matchesCategory = categoryFilter === 'all' || finding.category === categoryFilter
-      return matchesSeverity && matchesCategory
+      // Product filter: match if 'all' or if product is in finding's product_tags
+      // Only match if product_tags includes the filter value (empty product_tags = no products)
+      const matchesProduct = productFilter === 'all' ||
+        (finding.product_tags && finding.product_tags.includes(productFilter as CriblProduct))
+      return matchesSeverity && matchesCategory && matchesProduct
     })
     .sort((a, b) => {
       // Sort by severity first (descending: critical → high → medium → low → info)
@@ -280,6 +234,13 @@ export function ResultsPage() {
               options={categoryOptions}
             />
           </div>
+          <div className="flex-1">
+            <Select
+              value={productFilter}
+              onChange={(e) => setProductFilter(e.target.value)}
+              options={productOptions}
+            />
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -293,14 +254,6 @@ export function ResultsPage() {
             ))
           )}
         </div>
-
-        <Toast
-          show={toast.show}
-          type={toast.type}
-          title={toast.title}
-          message={toast.message}
-          onClose={() => setToast({ ...toast, show: false })}
-        />
       </div>
     </div>
   )

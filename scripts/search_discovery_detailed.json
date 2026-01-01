@@ -1,0 +1,16 @@
+{
+  "base_url": "https://sandboxdev-serene-lovelace-dd6mau4.cribl.cloud",
+  "found_endpoints": [
+    {
+      "path": "/api/v1/jobs",
+      "status": 200,
+      "data": {
+        "items": [],
+        "count": 0,
+        "offset": 0,
+        "limit": 500
+      }
+    }
+  ],
+  "total_found": 1
+}

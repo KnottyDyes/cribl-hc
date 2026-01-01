@@ -14,7 +14,7 @@ export interface Credential {
   auth_type: AuthType
   has_token: boolean
   has_oauth: boolean
-  client_id?: string | null
+  client_id?: string
 }
 
 export interface CredentialCreate {
@@ -89,6 +89,8 @@ export interface AnalysisResponse {
   api_calls_used: number
 }
 
+export type CriblProduct = 'stream' | 'edge' | 'lake' | 'search'
+
 export interface Finding {
   id: string
   category: string
@@ -103,6 +105,8 @@ export interface Finding {
   impact_score?: number
   confidence_level?: 'high' | 'medium' | 'low'
   false_positive_risk?: boolean
+  product_tags?: CriblProduct[]
+  source_analyzer?: string
   detected_at?: string
   metadata?: Record<string, unknown>
 }

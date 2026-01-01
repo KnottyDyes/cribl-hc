@@ -1,0 +1,63 @@
+{"event": "credential_decrypted", "level": "debug", "timestamp": "2025-12-28T16:33:31.465045Z"}
+🔍 Comprehensive Search Discovery for: https://sandboxdev-serene-lovelace-dd6mau4.cribl.cloud
+
+Testing endpoint patterns...
+
+✅ FOUND (non-JSON): /search/api/v1/jobs
+   Status: 200
+
+✅ FOUND (non-JSON): /api/search/jobs
+   Status: 200
+
+✅ FOUND (non-JSON): /search/jobs
+   Status: 200
+
+✅ FOUND (non-JSON): /search/api/v1/datasets
+   Status: 200
+
+✅ FOUND (non-JSON): /api/search/datasets
+   Status: 200
+
+✅ FOUND (non-JSON): /search/datasets
+   Status: 200
+
+✅ FOUND (non-JSON): /search/api/v1/query
+   Status: 200
+
+✅ FOUND (non-JSON): /api/search/query
+   Status: 200
+
+✅ FOUND (non-JSON): /search/query
+   Status: 200
+
+✅ FOUND (non-JSON): /search/api/v1/saved
+   Status: 200
+
+✅ FOUND (non-JSON): /search/api/v1/dashboards
+   Status: 200
+
+✅ FOUND (non-JSON): /search/api/v1/metrics
+   Status: 200
+
+✅ FOUND (non-JSON): /search/api/v1/workspaces
+   Status: 200
+
+✅ FOUND (non-JSON): /search/health
+   Status: 200
+
+✅ FOUND: /api/v1/jobs
+   Status: 200
+   Keys: ['items', 'count', 'offset', 'limit']
+   Data: {
+  "items": [],
+  "count": 0,
+  "offset": 0,
+  "limit": 500
+}
+
+======================================================================
+📊 SUMMARY: Found 1 working endpoints
+======================================================================
+  ✅ /api/v1/jobs
+
+💾 Detailed results saved to: scripts/search_discovery_detailed.json

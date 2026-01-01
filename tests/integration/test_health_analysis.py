@@ -99,7 +99,8 @@ async def test_health_analysis_with_unhealthy_workers():
         )
     )
 
-    # Mock workers with high resource usage
+    # HealthAnalyzer checks status, disk space (>90%), low memory (<2GB), recent restarts
+    # NOT metrics.cpu/memory percentages - it uses info.totalDiskSpace/freeDiskSpace
     respx.get("https://cribl.example.com/api/v1/master/workers").mock(
         return_value=Response(
             200,
@@ -107,12 +108,13 @@ async def test_health_analysis_with_unhealthy_workers():
                 "items": [
                     {
                         "id": "worker-01",
-                        "status": "healthy",
-                        "info": {"hostname": "worker-01", "version": "4.7.0", "cpuCount": 8},
-                        "metrics": {
-                            "cpu": 95.0,  # High CPU
-                            "memory": {"used": 15.0, "total": 16.0},  # High memory
-                            "disk": {"used": 95.0, "total": 100.0},  # High disk
+                        "status": "unhealthy",  # Non-healthy status triggers finding
+                        "info": {
+                            "hostname": "worker-01.example.com",
+                            "cribl": {"version": "4.7.0"},
+                            "totalDiskSpace": 100000000000,  # 100GB
+                            "freeDiskSpace": 5000000000,     # Only 5GB free (95% used)
+                            "totalmem": 1073741824           # Only 1GB RAM (low memory)
                         },
                     }
                 ]
@@ -127,18 +129,15 @@ async def test_health_analysis_with_unhealthy_workers():
         analyzer = HealthAnalyzer()
         result = await analyzer.analyze(client)
 
-        # Should detect resource issues
+        # Should detect unhealthy worker status and resource issues
         assert len(result.findings) > 0
 
-        # Check for high resource usage findings
-        resource_findings = [
-            f
-            for f in result.findings
-            if "cpu" in f.title.lower()
-            or "memory" in f.title.lower()
-            or "disk" in f.title.lower()
+        # Should have findings for the unhealthy worker
+        unhealthy_findings = [
+            f for f in result.findings
+            if "unhealthy" in f.title.lower() or "worker" in f.title.lower()
         ]
-        assert len(resource_findings) > 0
+        assert len(unhealthy_findings) > 0
 
 
 @pytest.mark.asyncio

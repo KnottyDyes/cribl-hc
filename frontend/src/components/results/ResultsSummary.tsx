@@ -9,7 +9,11 @@ export function ResultsSummary({ results }: ResultsSummaryProps) {
   const summary = results.summary
 
   if (!summary) {
-    return null
+    return (
+      <div className="text-center text-gray-500 py-8">
+        No summary data available
+      </div>
+    )
   }
 
   return (

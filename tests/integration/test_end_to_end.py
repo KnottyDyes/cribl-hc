@@ -88,9 +88,9 @@ async def test_mvp_complete_workflow():
             assert finding.description
             assert len(finding.description) > 0
 
-            # Should have remediation or recommendation
-            if finding.remediation:
-                assert len(finding.remediation) > 0
+            # Should have remediation steps (Finding uses remediation_steps, not remediation)
+            if finding.remediation_steps:
+                assert len(finding.remediation_steps) > 0
 
         # Step 4: Verify API call budget not exceeded
         assert client.rate_limiter.total_calls_made < 100

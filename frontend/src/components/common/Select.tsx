@@ -1,5 +1,5 @@
-import { forwardRef } from 'react'
 import type { SelectHTMLAttributes } from 'react'
+import { forwardRef } from 'react'
 
 interface SelectOption {
   value: string

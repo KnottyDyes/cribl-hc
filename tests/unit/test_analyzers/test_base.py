@@ -85,7 +85,13 @@ class TestAnalyzerResult:
         result.add_finding(finding)
 
         assert len(result.findings) == 1
-        assert result.findings[0] == finding
+        # Check that finding was added with auto-populated fields
+        added_finding = result.findings[0]
+        assert added_finding.id == finding.id
+        assert added_finding.title == finding.title
+        assert added_finding.severity == finding.severity
+        assert added_finding.source_analyzer == "health"  # Auto-populated from objective
+        assert added_finding.product_tags == ["stream", "edge", "lake", "search"]  # Default tags
 
     def test_add_recommendation(self):
         """Test adding recommendations to result."""
@@ -206,6 +212,195 @@ class TestAnalyzerResult:
         assert "health" in repr_str
         assert "findings=1" in repr_str
         assert "success=True" in repr_str
+
+    def test_product_counting_on_add_finding(self):
+        """Test that product counts are updated when adding findings."""
+        result = AnalyzerResult(objective="test")
+
+        # Add a Stream-only finding
+        result.add_finding(
+            Finding(
+                id="stream-finding",
+                title="Stream issue",
+                description="Found in Stream",
+                severity="low",
+                category="test",
+                confidence_level="high",
+                product_tags=["stream"]
+            )
+        )
+
+        # Add a Lake-only finding
+        result.add_finding(
+            Finding(
+                id="lake-finding",
+                title="Lake issue",
+                description="Found in Lake",
+                severity="low",
+                category="test",
+                confidence_level="high",
+                product_tags=["lake"]
+            )
+        )
+
+        counts = result.get_findings_by_product()
+        assert counts["stream"] == 1
+        assert counts["lake"] == 1
+        assert counts["edge"] == 0
+        assert counts["search"] == 0
+
+    def test_product_counting_multi_product_finding(self):
+        """Test counting for findings that apply to multiple products."""
+        result = AnalyzerResult(objective="test")
+
+        # Add a finding that applies to Stream and Edge
+        result.add_finding(
+            Finding(
+                id="multi-product",
+                title="Multi-product issue",
+                description="Applies to Stream and Edge",
+                severity="low",
+                category="test",
+                confidence_level="high",
+                product_tags=["stream", "edge"]
+            )
+        )
+
+        counts = result.get_findings_by_product()
+        assert counts["stream"] == 1
+        assert counts["edge"] == 1
+        assert counts["lake"] == 0
+        assert counts["search"] == 0
+
+    def test_product_counting_on_add_recommendation(self):
+        """Test that product counts are updated when adding recommendations."""
+        result = AnalyzerResult(objective="test")
+
+        result.add_recommendation(
+            Recommendation(
+                id="search-rec",
+                type="optimization",
+                title="Search optimization",
+                description="Optimize Search queries",
+                priority="p2",
+                rationale="Reduce CPU costs",
+                implementation_steps=["Step 1"],
+                impact_estimate=ImpactEstimate(),
+                implementation_effort="low",
+                product_tags=["search"]
+            )
+        )
+
+        counts = result.get_recommendations_by_product()
+        assert counts["search"] == 1
+        assert counts["stream"] == 0
+
+    def test_get_product_summary(self):
+        """Test getting full product summary."""
+        result = AnalyzerResult(objective="test")
+
+        # Add findings for different products
+        result.add_finding(
+            Finding(
+                id="stream-1",
+                title="Stream issue 1",
+                description="Issue",
+                severity="low",
+                category="test",
+                confidence_level="high",
+                product_tags=["stream"]
+            )
+        )
+        result.add_finding(
+            Finding(
+                id="stream-2",
+                title="Stream issue 2",
+                description="Another issue",
+                severity="low",
+                category="test",
+                confidence_level="high",
+                product_tags=["stream"]
+            )
+        )
+        result.add_finding(
+            Finding(
+                id="search-1",
+                title="Search issue",
+                description="Search issue",
+                severity="low",
+                category="test",
+                confidence_level="high",
+                product_tags=["search"]
+            )
+        )
+
+        # Add a recommendation
+        result.add_recommendation(
+            Recommendation(
+                id="stream-rec",
+                type="optimization",
+                title="Stream rec",
+                description="Optimize",
+                priority="p2",
+                rationale="Performance",
+                implementation_steps=["Step 1"],
+                impact_estimate=ImpactEstimate(),
+                implementation_effort="low",
+                product_tags=["stream"]
+            )
+        )
+
+        summary = result.get_product_summary()
+
+        assert summary["stream"]["findings"] == 2
+        assert summary["stream"]["recommendations"] == 1
+        assert summary["search"]["findings"] == 1
+        assert summary["search"]["recommendations"] == 0
+        assert summary["edge"]["findings"] == 0
+        assert summary["lake"]["findings"] == 0
+
+    def test_product_counting_with_initial_findings(self):
+        """Test that initial findings are counted on creation."""
+        finding = Finding(
+            id="initial",
+            title="Initial finding",
+            description="Passed at creation",
+            severity="low",
+            category="test",
+            confidence_level="high",
+            product_tags=["lake"]
+        )
+
+        result = AnalyzerResult(
+            objective="test",
+            findings=[finding]
+        )
+
+        counts = result.get_findings_by_product()
+        assert counts["lake"] == 1
+
+    def test_product_counting_default_all_products(self):
+        """Test that findings with default product_tags count for all products."""
+        result = AnalyzerResult(objective="test")
+
+        # Finding with default product_tags (all products)
+        result.add_finding(
+            Finding(
+                id="all-products",
+                title="Universal issue",
+                description="Applies to all",
+                severity="low",
+                category="test",
+                confidence_level="high"
+                # No product_tags specified = defaults to all
+            )
+        )
+
+        counts = result.get_findings_by_product()
+        assert counts["stream"] == 1
+        assert counts["edge"] == 1
+        assert counts["lake"] == 1
+        assert counts["search"] == 1
 
 
 class MockAnalyzer(BaseAnalyzer):

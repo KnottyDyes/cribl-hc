@@ -7,7 +7,7 @@ This analyzer focuses on:
 - Overall system health scoring
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -40,6 +40,11 @@ class HealthAnalyzer(BaseAnalyzer):
         """Return 'health' as the objective name."""
         return "health"
 
+    @property
+    def supported_products(self) -> List[str]:
+        """Health analyzer applies to Stream and Edge."""
+        return ["stream", "edge"]
+
     def get_description(self) -> str:
         """Get human-readable description."""
         return "Overall health assessment, worker monitoring, and critical issue identification"
@@ -48,12 +53,12 @@ class HealthAnalyzer(BaseAnalyzer):
         """
         Estimate API calls needed.
 
-        - Stream: 3 (workers, system_status, health)
-        - Edge: 3 (nodes, health)
+        - Stream: 5 (workers, system_status, health, system_messages, banners)
+        - Edge: 5 (nodes, health, system_messages, banners)
 
         Note: Actual count may vary based on product detection.
         """
-        return 3
+        return 5
 
     def get_required_permissions(self) -> List[str]:
         """List required API permissions."""
@@ -61,6 +66,7 @@ class HealthAnalyzer(BaseAnalyzer):
             "read:workers",
             "read:system",
             "read:metrics",
+            "read:messages",
         ]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
@@ -90,6 +96,10 @@ class HealthAnalyzer(BaseAnalyzer):
             # Fetch leader health
             leader_health = await self._fetch_leader_health(client)
 
+            # Fetch system messages and banners from Core API
+            system_messages = await self._fetch_system_messages(client)
+            banners = await self._fetch_banners(client)
+
             # Get Cribl version from workers if system status not available
             if workers:
                 cribl_version = workers[0].get("info", {}).get("cribl", {}).get("version", "unknown")
@@ -100,6 +110,12 @@ class HealthAnalyzer(BaseAnalyzer):
             # Check leader health
             self._check_leader_health(leader_health, result)
 
+            # Surface system messages and banners from Core API
+            self._surface_system_messages(system_messages, result)
+            self._surface_banners(banners, result)
+            result.metadata["system_messages_count"] = len(system_messages)
+            result.metadata["active_banners_count"] = len([b for b in banners if b.get("enabled")])
+
             # Check deployment architecture
             self._check_deployment_architecture(workers, result)
 
@@ -108,12 +124,19 @@ class HealthAnalyzer(BaseAnalyzer):
             result.metadata["unhealthy_workers"] = len(unhealthy_workers)
 
             # Calculate overall health score
-            health_score = self._calculate_health_score(workers, unhealthy_workers)
+            # For Cloud/Search-only deployments with no workers, use leader health
+            if workers:
+                health_score = self._calculate_health_score(workers, unhealthy_workers)
+            else:
+                # No workers available - use leader health as basis
+                health_score = self._calculate_health_score_from_leader(leader_health)
+                result.metadata["health_score_source"] = "leader_health"
+
             result.metadata["health_score"] = health_score
             result.metadata["health_status"] = self._get_health_status(health_score)
 
             # Add overall health finding
-            self._add_overall_health_finding(result, health_score, len(workers), len(unhealthy_workers))
+            self._add_overall_health_finding(result, health_score, len(workers), len(unhealthy_workers), leader_health)
 
             # Generate recommendations for unhealthy workers
             if unhealthy_workers:
@@ -441,7 +464,7 @@ class HealthAnalyzer(BaseAnalyzer):
         unhealthy_workers: List[Dict[str, Any]]
     ) -> float:
         """
-        Calculate overall health score (0-100).
+        Calculate overall health score (0-100) based on worker health.
 
         Scoring:
         - 100: All workers healthy
@@ -472,6 +495,39 @@ class HealthAnalyzer(BaseAnalyzer):
             base_score = max(0, base_score - penalty)
 
         return round(base_score, 2)
+
+    def _calculate_health_score_from_leader(
+        self,
+        leader_health: Dict[str, Any]
+    ) -> float:
+        """
+        Calculate health score based on leader health endpoint.
+
+        Used for Cloud/Search-only deployments where worker metrics
+        are not available.
+
+        Scoring:
+        - 100: Leader status is "healthy"
+        - 50: Leader status is unknown or other
+        - 0: Leader is unhealthy or no data
+
+        Returns:
+            Health score between 0 and 100
+        """
+        if not leader_health:
+            return 50.0  # Unknown - can't determine health
+
+        status = leader_health.get("status", "").lower()
+
+        if status == "healthy":
+            return 100.0
+        elif status in ("degraded", "warning"):
+            return 70.0
+        elif status in ("unhealthy", "critical", "error"):
+            return 30.0
+        else:
+            # Unknown status - return moderate score
+            return 50.0
 
     def _count_worker_issues(self, worker: Dict[str, Any]) -> int:
         """Count number of issues for a worker (not warnings)."""
@@ -519,42 +575,74 @@ class HealthAnalyzer(BaseAnalyzer):
         health_score: float,
         total_workers: int,
         unhealthy_count: int,
+        leader_health: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Add overall health summary finding."""
         status = self._get_health_status(health_score)
 
-        if status == "healthy":
-            severity = "info"
-            title = "System Health: Good"
-            description = f"All {total_workers} workers are operating normally with a health score of {health_score}/100"
-            remediation_steps = []
-        elif status == "degraded":
-            severity = "medium"
-            title = "System Health: Degraded"
-            description = f"{unhealthy_count}/{total_workers} workers have health issues (health score: {health_score}/100)"
-            remediation_steps = [
-                "Review worker health findings below",
-                "Address resource constraints on affected workers",
-                "Monitor system performance trends",
-            ]
-        elif status == "unhealthy":
-            severity = "high"
-            title = "System Health: Unhealthy"
-            description = f"{unhealthy_count}/{total_workers} workers require attention (health score: {health_score}/100)"
-            remediation_steps = [
-                "Immediately review worker health findings",
-                "Scale worker resources or add capacity",
-                "Investigate root cause of resource pressure",
-            ]
-        else:  # critical
-            severity = "critical"
-            title = "System Health: Critical"
-            description = f"{unhealthy_count}/{total_workers} workers in critical state (health score: {health_score}/100)"
-            remediation_steps = [
-                "Urgent: Review all worker health findings",
-                "Immediate action required to prevent service degradation",
-                "Consider emergency scaling or traffic reduction",
-            ]
+        # Check if this is a Cloud/Search deployment without workers
+        is_managed_deployment = total_workers == 0 and leader_health
+
+        if is_managed_deployment:
+            # Cloud/Search-only deployment - use leader-based messaging
+            leader_status = leader_health.get("status", "unknown")
+            if status == "healthy":
+                severity = "info"
+                title = "System Health: Good"
+                description = f"Managed deployment is operating normally (leader status: {leader_status}, health score: {health_score}/100)"
+                remediation_steps = []
+            elif status == "degraded":
+                severity = "medium"
+                title = "System Health: Degraded"
+                description = f"Managed deployment shows degraded health (leader status: {leader_status}, health score: {health_score}/100)"
+                remediation_steps = [
+                    "Review system logs for warnings",
+                    "Check for recent configuration changes",
+                    "Monitor system performance",
+                ]
+            else:
+                severity = "high"
+                title = "System Health: Needs Attention"
+                description = f"Managed deployment may need attention (leader status: {leader_status}, health score: {health_score}/100)"
+                remediation_steps = [
+                    "Review system health in Cribl UI",
+                    "Check for error messages in logs",
+                    "Contact Cribl support if issues persist",
+                ]
+        else:
+            # Traditional worker-based deployment
+            if status == "healthy":
+                severity = "info"
+                title = "System Health: Good"
+                description = f"All {total_workers} workers are operating normally with a health score of {health_score}/100"
+                remediation_steps = []
+            elif status == "degraded":
+                severity = "medium"
+                title = "System Health: Degraded"
+                description = f"{unhealthy_count}/{total_workers} workers have health issues (health score: {health_score}/100)"
+                remediation_steps = [
+                    "Review worker health findings below",
+                    "Address resource constraints on affected workers",
+                    "Monitor system performance trends",
+                ]
+            elif status == "unhealthy":
+                severity = "high"
+                title = "System Health: Unhealthy"
+                description = f"{unhealthy_count}/{total_workers} workers require attention (health score: {health_score}/100)"
+                remediation_steps = [
+                    "Immediately review worker health findings",
+                    "Scale worker resources or add capacity",
+                    "Investigate root cause of resource pressure",
+                ]
+            else:  # critical
+                severity = "critical"
+                title = "System Health: Critical"
+                description = f"{unhealthy_count}/{total_workers} workers in critical state (health score: {health_score}/100)"
+                remediation_steps = [
+                    "Urgent: Review all worker health findings",
+                    "Immediate action required to prevent service degradation",
+                    "Consider emergency scaling or traffic reduction",
+                ]
 
         result.add_finding(
             Finding(
@@ -572,6 +660,8 @@ class HealthAnalyzer(BaseAnalyzer):
                     "total_workers": total_workers,
                     "unhealthy_workers": unhealthy_count,
                     "status": status,
+                    "is_managed_deployment": is_managed_deployment,
+                    "leader_status": leader_health.get("status") if leader_health else None,
                 },
             )
         )
@@ -642,3 +732,150 @@ class HealthAnalyzer(BaseAnalyzer):
                     ],
                 )
             )
+
+    # === Core API: System Messages & Banners ===
+
+    async def _fetch_system_messages(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+        """
+        Fetch system messages from Core API.
+
+        System messages are generated by Cribl to surface important
+        operational information like warnings and errors.
+        """
+        try:
+            return await client.get_system_messages() or []
+        except Exception as e:
+            self.log.warning("failed_to_fetch_system_messages", error=str(e))
+            return []
+
+    async def _fetch_banners(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+        """
+        Fetch system banners from Core API.
+
+        Banners are user-configurable messages (e.g., maintenance notices)
+        that appear in the Cribl UI.
+        """
+        try:
+            return await client.get_banners() or []
+        except Exception as e:
+            self.log.warning("failed_to_fetch_banners", error=str(e))
+            return []
+
+    def _surface_system_messages(
+        self,
+        messages: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Surface system messages as findings.
+
+        Cribl generates system messages for operational issues like
+        disk space warnings, connection problems, etc.
+
+        Args:
+            messages: List of system messages from API
+            result: AnalyzerResult to add findings to
+        """
+        if not messages:
+            return
+
+        # Map Cribl severity to our severity levels
+        severity_map = {
+            "error": "high",
+            "critical": "critical",
+            "warn": "medium",
+            "warning": "medium",
+            "info": "low",
+        }
+
+        for msg in messages:
+            msg_id = msg.get("id", "unknown")
+            msg_severity = msg.get("severity", "info").lower()
+            msg_title = msg.get("title") or msg.get("message", "System Message")
+            msg_text = msg.get("message") or msg.get("description", "")
+            msg_channel = msg.get("channel", "system")
+
+            # Map severity
+            our_severity = severity_map.get(msg_severity, "low")
+
+            # Only surface warnings and above
+            if our_severity in ("low",) and msg_severity == "info":
+                continue
+
+            result.add_finding(Finding(
+                id=f"health-system-message-{msg_id}",
+                category="health",
+                severity=our_severity,
+                title=f"System Message: {msg_title[:50]}",
+                description=(
+                    f"Cribl system message ({msg_channel}): {msg_text}"
+                ),
+                confidence_level="high",
+                remediation_steps=[
+                    "Review the system message in Cribl UI for full context",
+                    "Address the underlying issue described in the message",
+                    "Clear the message after resolution"
+                ],
+                metadata={
+                    "message_id": msg_id,
+                    "severity": msg_severity,
+                    "channel": msg_channel,
+                    "full_message": msg_text
+                }
+            ))
+
+    def _surface_banners(
+        self,
+        banners: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> None:
+        """
+        Surface active system banners as informational findings.
+
+        Banners are typically maintenance notices or operational messages
+        configured by administrators.
+
+        Args:
+            banners: List of banner configurations from API
+            result: AnalyzerResult to add findings to
+        """
+        if not banners:
+            return
+
+        for banner in banners:
+            banner_id = banner.get("id", "unknown")
+            enabled = banner.get("enabled", False)
+            banner_type = banner.get("type", "info")
+            message = banner.get("message", "")
+
+            # Only report enabled banners
+            if not enabled:
+                continue
+
+            # Determine severity based on banner type
+            if banner_type in ("error", "critical"):
+                severity = "high"
+            elif banner_type in ("warning", "warn"):
+                severity = "medium"
+            else:
+                severity = "low"
+
+            result.add_finding(Finding(
+                id=f"health-banner-{banner_id}",
+                category="health",
+                severity=severity,
+                title=f"Active Banner: {message[:40]}..." if len(message) > 40 else f"Active Banner: {message}",
+                description=(
+                    f"An active system banner is configured: {message}"
+                ),
+                confidence_level="high",
+                remediation_steps=[
+                    "Review if the banner is still relevant",
+                    "Disable banner after the event/maintenance is complete"
+                ],
+                metadata={
+                    "banner_id": banner_id,
+                    "type": banner_type,
+                    "message": message
+                }
+            ))
