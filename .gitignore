@@ -51,7 +51,10 @@ dmypy.json
 *.swp
 *.swo
 *~
+
+# macOS
 .DS_Store
+._*
 Thumbs.db
 
 # Logs
