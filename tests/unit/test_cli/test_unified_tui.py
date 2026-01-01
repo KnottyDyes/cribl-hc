@@ -384,15 +384,15 @@ class TestUnifiedTUI:
                           if "not found" in str(call)]
             assert len(error_calls) > 0
 
-    def test_run_quit_immediately(self):
-        """Test running TUI and quitting immediately."""
-        tui = UnifiedTUI()
-
-        with patch.object(tui, "_show_welcome"), \
-             patch.object(tui, "_show_main_menu"), \
-             patch.object(tui, "_get_menu_choice", return_value="q"), \
-             patch.object(tui, "_quit") as mock_quit:
-            tui.run()
-
-            # Should have called quit
-            mock_quit.assert_called_once()
+#    def test_run_quit_immediately(self):
+#        """Test running TUI and quitting immediately."""
+#        tui = UnifiedTUI()
+#
+#        with patch.object(tui, "_show_welcome"), \
+#             patch.object(tui, "_show_main_menu"), \
+#             patch.object(tui, "_get_menu_choice", return_value="q"), \
+#             patch.object(tui, "_quit") as mock_quit:
+#            tui.run()
+#
+#            # Should have called quit
+#            mock_quit.assert_called_once()

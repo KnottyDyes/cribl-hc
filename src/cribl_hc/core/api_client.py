@@ -176,6 +176,21 @@ class CriblAPIClient:
         return self._is_cloud
 
     @property
+    def worker_group(self) -> Optional[str]:
+        """
+        Get the current worker group being used for API calls.
+
+        Returns:
+            Worker group name (e.g., "default", "production") or None if not set.
+            For self-hosted deployments, returns "default" unless explicitly configured.
+
+        Note:
+            This property is useful for including worker group context in findings
+            and reports, especially when configuration errors are discovered.
+        """
+        return self._worker_group or "default"
+
+    @property
     def product_type(self) -> Optional[str]:
         """
         Get the detected Cribl product type.
@@ -341,9 +356,9 @@ class CriblAPIClient:
                 error="Client not initialized",
             )
 
-        # Use system status endpoint for connection test
-        # This is a lightweight endpoint that doesn't require permissions
-        endpoint = "/api/v1/version"
+        # Use system/info endpoint for connection test
+        # This returns system information including the Cribl version in BUILD object
+        endpoint = "/api/v1/system/info"
         test_url = urljoin(self.base_url, endpoint)
 
         start_time = datetime.utcnow()
@@ -358,7 +373,16 @@ class CriblAPIClient:
             # Check response status
             if response.status_code == 200:
                 data = response.json()
-                version = data.get("version", "unknown")
+                # Extract version from BUILD object or items array
+                # Response format: {"items": [{"BUILD": {"version": "4.x.x"}, ...}]}
+                version = "unknown"
+                items = data.get("items", [])
+                if items and len(items) > 0:
+                    build_info = items[0].get("BUILD", {})
+                    version = build_info.get("version", "unknown")
+                # Fallback to top-level version if present
+                if version == "unknown":
+                    version = data.get("version", "unknown")
 
                 # Detect product type on first successful connection
                 if not self._product_type:
@@ -1599,3 +1623,192 @@ class CriblAPIClient:
         except Exception as e:
             log.warning("executors_fetch_failed", error=str(e))
             return []
+
+    # -------------------------------------------------------------------------
+    # Version Control Methods
+    # -------------------------------------------------------------------------
+
+    async def get_version_info(self) -> Dict[str, Any]:
+        """
+        Get version control information including git remote configuration.
+
+        Returns information about whether git is configured for the deployment
+        and details about the remote repository if configured.
+
+        Returns:
+            Dictionary with version control info:
+            - remote: Git remote URL if configured
+            - branch: Current branch name
+            - enabled: Whether version control is enabled
+
+        Example:
+            >>> info = await client.get_version_info()
+            >>> if info.get("enabled"):
+            ...     print(f"Git remote: {info.get('remote')}")
+        """
+        try:
+            response = await self.get("/api/v1/version/info")
+            if response.status_code == 404:
+                return {"enabled": False}
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            log.warning("version_info_fetch_failed", error=str(e))
+            return {"enabled": False, "error": str(e)}
+
+    async def get_version_status(self) -> Dict[str, Any]:
+        """
+        Get version control status including uncommitted changes and pending deployments.
+
+        This is the primary method for detecting uncommitted configuration changes
+        in the Cribl UI that haven't been committed or deployed yet.
+
+        Returns:
+            Dictionary with version status:
+            - uncommittedChanges: Boolean indicating uncommitted changes exist
+            - undeployedCommits: Boolean indicating commits not yet deployed to workers
+            - commit: Current commit hash
+            - message: Latest commit message
+            - author: Latest commit author
+            - timestamp: Latest commit timestamp
+            - files: List of uncommitted files (if any)
+
+        Example:
+            >>> status = await client.get_version_status()
+            >>> if status.get("uncommittedChanges"):
+            ...     print("Warning: Uncommitted changes detected!")
+            ...     for file in status.get("files", []):
+            ...         print(f"  - {file}")
+        """
+        try:
+            response = await self.get("/api/v1/version/status")
+            if response.status_code == 404:
+                return {"uncommittedChanges": False, "undeployedCommits": False}
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            log.warning("version_status_fetch_failed", error=str(e))
+            return {"uncommittedChanges": False, "undeployedCommits": False, "error": str(e)}
+
+    async def get_uncommitted_files(self) -> List[Dict[str, Any]]:
+        """
+        Get list of uncommitted configuration files.
+
+        Returns detailed information about each file that has uncommitted changes,
+        including the type of change (added, modified, deleted).
+
+        Returns:
+            List of uncommitted file dictionaries:
+            - path: File path relative to config root
+            - status: Change type (A=added, M=modified, D=deleted)
+            - size: File size in bytes (for added/modified files)
+
+        Example:
+            >>> files = await client.get_uncommitted_files()
+            >>> for f in files:
+            ...     print(f"{f['status']} {f['path']}")
+        """
+        try:
+            response = await self.get("/api/v1/version/uncommittedFiles")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", data) if isinstance(data, dict) else data
+        except Exception as e:
+            log.warning("uncommitted_files_fetch_failed", error=str(e))
+            return []
+
+    async def get_commit_history(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Get recent commit history.
+
+        Returns:
+            List of recent commits with hash, message, author, timestamp
+
+        Example:
+            >>> history = await client.get_commit_history(limit=5)
+            >>> for commit in history:
+            ...     print(f"{commit['hash'][:8]}: {commit['message']}")
+        """
+        try:
+            response = await self.get(f"/api/v1/version/commits?limit={limit}")
+            if response.status_code == 404:
+                return []
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", data) if isinstance(data, dict) else data
+        except Exception as e:
+            log.warning("commit_history_fetch_failed", error=str(e))
+            return []
+
+    async def get_deployment_status(self) -> Dict[str, Any]:
+        """
+        Get deployment status across all worker groups.
+
+        Aggregates deployment status from all worker groups to provide
+        a comprehensive view of pending deployments.
+
+        Returns:
+            Dictionary with:
+            - groups: List of group deployment statuses
+            - pendingDeployments: Total count of pending deployments
+            - deployingWorkers: Count of workers currently receiving config
+            - configDrift: Boolean indicating if any workers have stale config
+
+        Example:
+            >>> status = await client.get_deployment_status()
+            >>> if status.get("pendingDeployments"):
+            ...     print(f"{status['pendingDeployments']} groups have pending deployments")
+        """
+        try:
+            groups = await self.get_worker_groups()
+            summary = await self.get_master_summary()
+
+            pending_deployments = 0
+            deploying_workers = 0
+            config_drift = False
+            group_statuses = []
+
+            for group in groups:
+                group_id = group.get("id", "unknown")
+                config_version = group.get("configVersion", "")
+                deploying_count = group.get("deployingWorkerCount", 0)
+                worker_count = group.get("workerCount", 0)
+                healthy_count = group.get("healthyWorkerCount", 0)
+
+                # Check for config version mismatches within the group
+                workers_on_version = group.get("workersOnConfigVersion", worker_count)
+                has_drift = workers_on_version < worker_count
+
+                if deploying_count > 0 or has_drift:
+                    pending_deployments += 1
+                    deploying_workers += deploying_count
+                    config_drift = config_drift or has_drift
+
+                group_statuses.append({
+                    "group": group_id,
+                    "configVersion": config_version,
+                    "workerCount": worker_count,
+                    "deployingCount": deploying_count,
+                    "healthyCount": healthy_count,
+                    "hasDrift": has_drift
+                })
+
+            return {
+                "groups": group_statuses,
+                "pendingDeployments": pending_deployments,
+                "deployingWorkers": deploying_workers,
+                "configDrift": config_drift,
+                "totalGroups": len(groups),
+                "summary": summary
+            }
+        except Exception as e:
+            log.warning("deployment_status_fetch_failed", error=str(e))
+            return {
+                "groups": [],
+                "pendingDeployments": 0,
+                "deployingWorkers": 0,
+                "configDrift": False,
+                "error": str(e)
+            }

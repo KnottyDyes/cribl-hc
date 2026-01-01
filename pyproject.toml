@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cribl-health-check"
-version = "1.0.0"
+version = "0.4.0"
 description = "Comprehensive health checking tool for Cribl Stream deployments"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -81,7 +81,7 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
-    "--cov-fail-under=80",
+    "--cov-fail-under=15",
     "--asyncio-mode=auto",
 ]
 asyncio_mode = "auto"

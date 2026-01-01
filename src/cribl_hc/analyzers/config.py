@@ -4,15 +4,18 @@ Configuration Analyzer for Cribl Stream Health Check.
 Validates pipelines, routes, and configurations to detect errors and best practice violations.
 """
 
-import re
-import structlog
-from typing import Any, Dict, List, Set
+from __future__ import annotations
 
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
+import re
+from typing import Any
+
+import structlog
+
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
-from cribl_hc.rules.loader import RuleLoader, RuleEvaluator
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
+from cribl_hc.rules.loader import RuleEvaluator, RuleLoader
 
 
 class ConfigAnalyzer(BaseAnalyzer):
@@ -60,13 +63,27 @@ class ConfigAnalyzer(BaseAnalyzer):
         self.rule_evaluator = RuleEvaluator()
         self._rules_cache = None
 
+        # Track current worker group for context in findings
+        self._current_worker_group: str | None = "default"
+
+    def _worker_group_context(self) -> str:
+        """
+        Get formatted worker group context for use in finding descriptions.
+
+        Returns:
+            Formatted string like " (Worker Group: production)" or empty string for default.
+        """
+        if self._current_worker_group and self._current_worker_group != "default":
+            return f" (Worker Group: {self._current_worker_group})"
+        return f" (Worker Group: {self._current_worker_group})" if self._current_worker_group else ""
+
     @property
     def objective_name(self) -> str:
         """Return the objective name for this analyzer."""
         return "config"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Config analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -85,7 +102,7 @@ class ConfigAnalyzer(BaseAnalyzer):
         """
         return 5
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return list of required API permissions."""
         return [
             "read:pipelines",
@@ -108,9 +125,12 @@ class ConfigAnalyzer(BaseAnalyzer):
         """
         result = AnalyzerResult(objective=self.objective_name)
 
+        # Track worker group for context in findings
+        self._current_worker_group = client.worker_group
+
         # Detect product type and log appropriately
         product_name = "Cribl Edge" if client.is_edge else "Cribl Stream"
-        self.log.info("config_analysis_started", product=client.product_type, product_name=product_name)
+        self.log.info("config_analysis_started", product=client.product_type, product_name=product_name, worker_group=self._current_worker_group)
 
         try:
             # Fetch configuration data
@@ -119,8 +139,9 @@ class ConfigAnalyzer(BaseAnalyzer):
             inputs = await self._fetch_inputs(client)
             outputs = await self._fetch_outputs(client)
 
-            # Store product type in metadata
+            # Store product type and worker group in metadata
             result.metadata["product_type"] = client.product_type
+            result.metadata["worker_group"] = self._current_worker_group
 
             # Run basic syntax validation (Phase 1)
             self._validate_pipeline_syntax(pipelines, result)
@@ -243,7 +264,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _fetch_pipelines(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_pipelines(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         """
         Fetch all pipelines from Cribl API.
 
@@ -261,7 +282,7 @@ class ConfigAnalyzer(BaseAnalyzer):
             self.log.error("pipelines_fetch_failed", error=str(e))
             return []
 
-    async def _fetch_routes(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_routes(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         """
         Fetch all routes from Cribl API.
 
@@ -279,7 +300,7 @@ class ConfigAnalyzer(BaseAnalyzer):
             self.log.error("routes_fetch_failed", error=str(e))
             return []
 
-    async def _fetch_inputs(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_inputs(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         """
         Fetch all inputs from Cribl API.
 
@@ -297,7 +318,7 @@ class ConfigAnalyzer(BaseAnalyzer):
             self.log.error("inputs_fetch_failed", error=str(e))
             return []
 
-    async def _fetch_outputs(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_outputs(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         """
         Fetch all outputs from Cribl API.
 
@@ -317,7 +338,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _validate_pipeline_syntax(
         self,
-        pipelines: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -342,8 +363,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                         id=f"config-syntax-missing-id-{hash(str(pipeline))}",
                         category="config",
                         severity="critical",
-                        title="Pipeline Missing Required 'id' Field",
-                        description="Pipeline configuration is missing required 'id' field",
+                        title=f"Pipeline Missing Required 'id' Field{self._worker_group_context()}",
+                        description=f"Pipeline configuration is missing required 'id' field{self._worker_group_context()}",
                         affected_components=[f"pipeline-{pipeline_id}"],
                         remediation_steps=[
                             "Add 'id' field to pipeline configuration",
@@ -355,7 +376,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                         ],
                         estimated_impact="Pipeline cannot be deployed or referenced",
                         confidence_level="high",
-                        metadata={"pipeline": pipeline}
+                        metadata={"pipeline": pipeline, "worker_group": self._current_worker_group}
                     )
                 )
                 continue
@@ -382,8 +403,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                         id=f"config-syntax-{pipeline_id}-missing-functions",
                         category="config",
                         severity="high",
-                        title=f"Pipeline Missing 'functions' Field: {pipeline_id}",
-                        description=f"Pipeline '{pipeline_id}' is missing required 'functions' field",
+                        title=f"Pipeline Missing 'functions' Field: {pipeline_id}{self._worker_group_context()}",
+                        description=f"Pipeline '{pipeline_id}' is missing required 'functions' field{self._worker_group_context()}",
                         affected_components=[f"pipeline-{pipeline_id}"],
                         remediation_steps=[
                             f"Add 'functions' array to pipeline '{pipeline_id}'",
@@ -397,7 +418,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                         ],
                         estimated_impact="Pipeline will not process data correctly",
                         confidence_level="high",
-                        metadata={"pipeline_id": pipeline_id}
+                        metadata={"pipeline_id": pipeline_id, "worker_group": self._current_worker_group}
                     )
                 )
                 continue
@@ -409,8 +430,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                         id=f"config-syntax-{pipeline_id}-invalid-functions-type",
                         category="config",
                         severity="critical",
-                        title=f"Pipeline 'functions' Must Be Array: {pipeline_id}",
-                        description=f"Pipeline '{pipeline_id}' has invalid 'functions' field (must be array)",
+                        title=f"Pipeline 'functions' Must Be Array: {pipeline_id}{self._worker_group_context()}",
+                        description=f"Pipeline '{pipeline_id}' has invalid 'functions' field (must be array){self._worker_group_context()}",
                         affected_components=[f"pipeline-{pipeline_id}"],
                         remediation_steps=[
                             f"Change 'functions' field to array in pipeline '{pipeline_id}'",
@@ -423,7 +444,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                         ],
                         estimated_impact="Pipeline will fail to load",
                         confidence_level="high",
-                        metadata={"pipeline_id": pipeline_id, "functions_type": type(functions).__name__}
+                        metadata={"pipeline_id": pipeline_id, "functions_type": type(functions).__name__, "worker_group": self._current_worker_group}
                     )
                 )
                 continue
@@ -436,8 +457,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                             id=f"config-syntax-{pipeline_id}-func-{func_idx}-invalid-type",
                             category="config",
                             severity="high",
-                            title=f"Invalid Function Type in Pipeline: {pipeline_id}",
-                            description=f"Function at index {func_idx} in pipeline '{pipeline_id}' is not an object",
+                            title=f"Invalid Function Type in Pipeline: {pipeline_id}{self._worker_group_context()}",
+                            description=f"Function at index {func_idx} in pipeline '{pipeline_id}' is not an object{self._worker_group_context()}",
                             affected_components=[f"pipeline-{pipeline_id}"],
                             remediation_steps=[
                                 f"Fix function at index {func_idx} in pipeline '{pipeline_id}'",
@@ -453,7 +474,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                             metadata={
                                 "pipeline_id": pipeline_id,
                                 "function_index": func_idx,
-                                "function_type": type(function).__name__
+                                "function_type": type(function).__name__,
+                                "worker_group": self._current_worker_group
                             }
                         )
                     )
@@ -466,8 +488,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                             id=f"config-syntax-{pipeline_id}-func-{func_idx}-missing-id",
                             category="config",
                             severity="medium",
-                            title=f"Function Missing 'id' Field: {pipeline_id}",
-                            description=f"Function at index {func_idx} in pipeline '{pipeline_id}' is missing 'id' field",
+                            title=f"Function Missing 'id' Field: {pipeline_id}{self._worker_group_context()}",
+                            description=f"Function at index {func_idx} in pipeline '{pipeline_id}' is missing 'id' field{self._worker_group_context()}",
                             affected_components=[f"pipeline-{pipeline_id}"],
                             remediation_steps=[
                                 f"Add 'id' field to function at index {func_idx}",
@@ -483,15 +505,16 @@ class ConfigAnalyzer(BaseAnalyzer):
                             metadata={
                                 "pipeline_id": pipeline_id,
                                 "function_index": func_idx,
-                                "function": function
+                                "function": function,
+                                "worker_group": self._current_worker_group
                             }
                         )
                     )
 
     def _validate_route_configuration(
         self,
-        routes: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]],
+        routes: list[dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -520,8 +543,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                         id=f"config-orphaned-route-{route_id}",
                         category="config",
                         severity="high",
-                        title=f"Route References Non-Existent Pipeline: {route_id}",
-                        description=f"Route '{route_id}' references pipeline '{pipeline_ref}' which does not exist",
+                        title=f"Route References Non-Existent Pipeline: {route_id}{self._worker_group_context()}",
+                        description=f"Route '{route_id}' references pipeline '{pipeline_ref}' which does not exist{self._worker_group_context()}",
                         affected_components=[f"route-{route_id}", f"pipeline-{pipeline_ref}"],
                         remediation_steps=[
                             f"Create missing pipeline '{pipeline_ref}' or update route to reference existing pipeline",
@@ -538,7 +561,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                         metadata={
                             "route_id": route_id,
                             "missing_pipeline": pipeline_ref,
-                            "available_pipelines": sorted(valid_pipeline_ids)
+                            "available_pipelines": sorted(valid_pipeline_ids),
+                            "worker_group": self._current_worker_group
                         }
                     )
                 )
@@ -550,8 +574,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                         id=f"config-missing-output-{route_id}",
                         category="config",
                         severity="medium",
-                        title=f"Route Missing Output Destination: {route_id}",
-                        description=f"Route '{route_id}' does not specify an output destination",
+                        title=f"Route Missing Output Destination: {route_id}{self._worker_group_context()}",
+                        description=f"Route '{route_id}' does not specify an output destination{self._worker_group_context()}",
                         affected_components=[f"route-{route_id}"],
                         remediation_steps=[
                             f"Add output destination to route '{route_id}'",
@@ -565,14 +589,15 @@ class ConfigAnalyzer(BaseAnalyzer):
                         estimated_impact="Data may not be routed correctly",
                         confidence_level="high",
                         metadata={
-                            "route_id": route_id
+                            "route_id": route_id,
+                            "worker_group": self._current_worker_group
                         }
                     )
                 )
 
     def _check_deprecated_functions(
         self,
-        pipelines: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -639,10 +664,10 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _find_unused_components(
         self,
-        pipelines: List[Dict[str, Any]],
-        routes: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]],
-        outputs: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
+        routes: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        outputs: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -663,8 +688,8 @@ class ConfigAnalyzer(BaseAnalyzer):
         all_output_ids = {o.get("id") for o in outputs if o.get("id")}
 
         # Build sets of used components
-        used_pipeline_ids: Set[str] = set()
-        used_output_ids: Set[str] = set()
+        used_pipeline_ids: set[str] = set()
+        used_output_ids: set[str] = set()
 
         # Track which pipelines and outputs are referenced by routes
         for route in routes:
@@ -738,7 +763,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _check_security_misconfigurations(
         self,
-        outputs: List[Dict[str, Any]],
+        outputs: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -837,10 +862,10 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _evaluate_best_practice_rules(
         self,
-        pipelines: List[Dict[str, Any]],
-        routes: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]],
-        outputs: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
+        routes: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        outputs: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -998,7 +1023,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _analyze_pipeline_efficiency(
         self,
-        pipelines: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -1055,7 +1080,7 @@ class ConfigAnalyzer(BaseAnalyzer):
             opportunities=performance_opportunities
         )
 
-    def _calculate_pipeline_efficiency_score(self, functions: List[Dict[str, Any]]) -> float:
+    def _calculate_pipeline_efficiency_score(self, functions: list[dict[str, Any]]) -> float:
         """
         Calculate efficiency score (0-100) for a pipeline based on function ordering.
 
@@ -1114,7 +1139,7 @@ class ConfigAnalyzer(BaseAnalyzer):
     def _check_function_ordering(
         self,
         pipeline_id: str,
-        functions: List[Dict[str, Any]],
+        functions: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -1182,7 +1207,7 @@ class ConfigAnalyzer(BaseAnalyzer):
     def _check_performance_antipatterns(
         self,
         pipeline_id: str,
-        functions: List[Dict[str, Any]],
+        functions: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> int:
         """
@@ -1273,8 +1298,8 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _analyze_route_conflicts(
         self,
-        routes: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]],
+        routes: list[dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -1525,7 +1550,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _analyze_complexity_metrics(
         self,
-        pipelines: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -1662,7 +1687,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
         result.metadata["duplicate_patterns_found"] = duplicate_count
 
-    def _calculate_pipeline_complexity(self, functions: List[Dict[str, Any]]) -> int:
+    def _calculate_pipeline_complexity(self, functions: list[dict[str, Any]]) -> int:
         """
         Calculate complexity score for a pipeline.
 
@@ -1712,7 +1737,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
         return min(complexity, 100)  # Cap at 100
 
-    def _get_pipeline_pattern(self, functions: List[Dict[str, Any]]) -> str:
+    def _get_pipeline_pattern(self, functions: list[dict[str, Any]]) -> str:
         """
         Generate a pattern signature for a pipeline based on function sequence.
 
@@ -1752,7 +1777,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     async def _check_advanced_security(
         self,
-        pipelines: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -2071,10 +2096,10 @@ class ConfigAnalyzer(BaseAnalyzer):
         self,
         result: AnalyzerResult,
         client: CriblAPIClient,
-        pipelines: List[Dict[str, Any]],
-        routes: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]],
-        outputs: List[Dict[str, Any]]
+        pipelines: list[dict[str, Any]],
+        routes: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        outputs: list[dict[str, Any]]
     ) -> None:
         """
         Add a positive finding when configuration passes all checks.

@@ -5,15 +5,19 @@ The orchestrator manages multiple analyzers, tracks API usage, and
 aggregates results into a comprehensive analysis report.
 """
 
+from __future__ import annotations
+
+from collections.abc import Callable
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any
 
 from cribl_hc.analyzers import get_analyzer, get_global_registry, list_objectives
-from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
+from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.models.finding import Finding
+from cribl_hc.models.health import ComponentScore, HealthScore
 from cribl_hc.utils.logger import get_logger
-
 
 log = get_logger(__name__)
 
@@ -33,7 +37,7 @@ class AnalysisProgress:
     def __init__(self, total_objectives: int, api_call_budget: int = 100):
         self.total_objectives = total_objectives
         self.completed_objectives = 0
-        self.current_objective: Optional[str] = None
+        self.current_objective: str | None = None
         self.api_calls_used = 0
         self.api_calls_remaining = api_call_budget
 
@@ -105,15 +109,15 @@ class AnalyzerOrchestrator:
         self.registry = get_global_registry()
 
         # Analysis state
-        self.progress: Optional[AnalysisProgress] = None
-        self.start_time: Optional[datetime] = None
-        self.end_time: Optional[datetime] = None
+        self.progress: AnalysisProgress | None = None
+        self.start_time: datetime | None = None
+        self.end_time: datetime | None = None
 
     async def run_analysis(
         self,
-        objectives: Optional[List[str]] = None,
-        progress_callback: Optional[callable] = None,
-    ) -> Dict[str, AnalyzerResult]:
+        objectives: list[str] | None = None,
+        progress_callback: Callable[[Any], None] | None = None,
+    ) -> dict[str, AnalyzerResult]:
         """
         Run health check analysis for specified objectives.
 
@@ -165,7 +169,7 @@ class AnalyzerOrchestrator:
             api_call_budget=self.max_api_calls,
         )
 
-        results: Dict[str, AnalyzerResult] = {}
+        results: dict[str, AnalyzerResult] = {}
 
         # Run each analyzer sequentially
         for objective in objectives:
@@ -308,7 +312,7 @@ class AnalyzerOrchestrator:
 
     def create_analysis_run(
         self,
-        results: Dict[str, AnalyzerResult],
+        results: dict[str, AnalyzerResult],
         deployment_id: str,
     ) -> AnalysisRun:
         """
@@ -353,6 +357,9 @@ class AnalyzerOrchestrator:
         else:
             status = "failed"
 
+        # Calculate overall health score from findings and analyzer metadata
+        health_score = self._calculate_overall_health_score(results, all_findings)
+
         return AnalysisRun(
             deployment_id=deployment_id,
             status=status,
@@ -363,9 +370,138 @@ class AnalyzerOrchestrator:
             recommendations=all_recommendations,
             errors=all_errors,
             partial_completion=(failed_count > 0 and failed_count < len(results)),
+            health_score=health_score,
         )
 
-    def get_progress(self) -> Optional[AnalysisProgress]:
+    def _calculate_overall_health_score(
+        self,
+        results: dict[str, AnalyzerResult],
+        findings: list[Finding],
+    ) -> HealthScore:
+        """
+        Calculate overall health score from analyzer results and findings.
+
+        Uses a combination of:
+        1. Per-analyzer health scores from metadata (if available)
+        2. Findings-based penalty calculation
+
+        Args:
+            results: Dictionary of analyzer results
+            findings: List of all findings
+
+        Returns:
+            HealthScore with overall score and component breakdown
+        """
+        # Severity penalties for findings
+        severity_penalties = {
+            "critical": 20,
+            "high": 10,
+            "medium": 3,
+            "low": 0.5,
+            "info": 0,
+        }
+
+        # Component weights (sum to 1.0)
+        component_weights = {
+            "health": 0.25,
+            "security": 0.20,
+            "config": 0.15,
+            "resource": 0.15,
+            "fleet": 0.10,
+            "alerting": 0.05,
+            "other": 0.10,
+        }
+
+        # Initialize component scores
+        component_scores: dict[str, ComponentScore] = {}
+        components_found: dict[str, dict] = {}
+
+        # First, try to get scores from analyzer metadata
+        for objective, result in results.items():
+            # Map objective to component category
+            if objective in ("health",):
+                category = "health"
+            elif objective in ("security",):
+                category = "security"
+            elif objective in ("config", "schema_quality", "dataflow_topology"):
+                category = "config"
+            elif objective in ("resource", "storage", "backpressure", "pipeline_performance"):
+                category = "resource"
+            elif objective in ("fleet",):
+                category = "fleet"
+            elif objective in ("alerting",):
+                category = "alerting"
+            else:
+                category = "other"
+
+            # Get score from metadata if available
+            score = None
+            if result.metadata:
+                # Try various common score key names
+                for key in ("health_score", f"{objective}_health_score", "score", "overall_score"):
+                    if key in result.metadata:
+                        val = result.metadata[key]
+                        if isinstance(val, (int, float)):
+                            score = int(min(100, max(0, val)))
+                            break
+
+            # If no score in metadata, calculate from findings for this analyzer
+            if score is None:
+                objective_findings = [f for f in findings if f.source_analyzer == objective]
+                penalty = sum(
+                    severity_penalties.get(f.severity, 0)
+                    for f in objective_findings
+                )
+                score = int(max(0, 100 - penalty))
+
+            # Store component data
+            if category not in components_found:
+                components_found[category] = {
+                    "scores": [],
+                    "objectives": [],
+                    "weight": component_weights.get(category, 0.05),
+                }
+            components_found[category]["scores"].append(score)
+            components_found[category]["objectives"].append(objective)
+
+        # Build component scores
+        overall_weighted_sum = 0.0
+        total_weight = 0.0
+
+        for category, data in components_found.items():
+            avg_score = sum(data["scores"]) / len(data["scores"]) if data["scores"] else 100
+            weight = data["weight"]
+
+            component_scores[category] = ComponentScore(
+                name=category.replace("_", " ").title(),
+                score=int(avg_score),
+                weight=weight,
+                details=f"Based on: {', '.join(data['objectives'])}",
+            )
+
+            overall_weighted_sum += avg_score * weight
+            total_weight += weight
+
+        # Calculate overall score
+        if total_weight > 0:
+            overall_score = int(overall_weighted_sum / total_weight)
+        else:
+            # Fallback: calculate from all findings
+            total_penalty = sum(
+                severity_penalties.get(f.severity, 0)
+                for f in findings
+            )
+            overall_score = int(max(0, 100 - total_penalty))
+
+        # Ensure score is in valid range
+        overall_score = min(100, max(0, overall_score))
+
+        return HealthScore(
+            overall_score=overall_score,
+            components=component_scores,
+        )
+
+    def get_progress(self) -> AnalysisProgress | None:
         """
         Get current analysis progress.
 
@@ -374,7 +510,7 @@ class AnalyzerOrchestrator:
         """
         return self.progress
 
-    def get_api_usage_summary(self) -> Dict[str, int]:
+    def get_api_usage_summary(self) -> dict[str, int]:
         """
         Get summary of API call usage.
 

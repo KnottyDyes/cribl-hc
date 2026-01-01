@@ -78,9 +78,10 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def get_estimated_api_calls(self) -> int:
         """
-        Estimate API calls: outputs(1) + inputs(1) + auth(1) + system(1) = 4.
+        Estimate API calls: outputs(1) + inputs(1) + auth(1) + system(1) +
+        certificates(1) + roles(1) + users(1) + api_keys(1) = 8.
         """
-        return 4
+        return 8
 
     def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
@@ -88,7 +89,11 @@ class SecurityAnalyzer(BaseAnalyzer):
             "read:outputs",
             "read:inputs",
             "read:auth",
-            "read:system"
+            "read:system",
+            "read:certificates",
+            "read:roles",
+            "read:users",
+            "read:keys"
         ]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
@@ -116,10 +121,21 @@ class SecurityAnalyzer(BaseAnalyzer):
             auth_config = await self._fetch_auth_config(client)
             system_settings = await self._fetch_system_settings(client)
 
+            # Fetch Core API security data
+            certificates = await self._fetch_certificates(client)
+            roles = await self._fetch_roles(client)
+            users = await self._fetch_users(client)
+            api_keys = await self._fetch_api_keys(client)
+
             # Analyze security aspects
             tls_issues = self._analyze_tls_configuration(outputs, inputs, result)
             secret_issues = self._analyze_secrets(outputs, inputs, result)
             auth_issues = self._analyze_authentication(auth_config, result)
+
+            # Analyze Core API security aspects
+            cert_issues = self._analyze_certificates(certificates, result)
+            rbac_issues = self._analyze_rbac(roles, users, result)
+            api_key_issues = self._analyze_api_keys(api_keys, result)
 
             # Calculate security posture score
             security_score = self._calculate_security_score(
@@ -140,6 +156,13 @@ class SecurityAnalyzer(BaseAnalyzer):
                 "tls_issues_count": len(tls_issues),
                 "secret_issues_count": len(secret_issues),
                 "auth_issues_count": len(auth_issues),
+                "cert_issues_count": len(cert_issues),
+                "rbac_issues_count": len(rbac_issues),
+                "api_key_issues_count": len(api_key_issues),
+                "certificates_analyzed": len(certificates),
+                "roles_analyzed": len(roles),
+                "users_analyzed": len(users),
+                "api_keys_analyzed": len(api_keys),
                 "total_bytes": 0,  # Required by base analyzer
                 "analyzed_at": datetime.utcnow().isoformat(),
             })
@@ -206,6 +229,38 @@ class SecurityAnalyzer(BaseAnalyzer):
         except Exception as e:
             log.warning("failed_to_fetch_system_settings", error=str(e))
             return {}
+
+    async def _fetch_certificates(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+        """Fetch certificate configurations from Core API."""
+        try:
+            return await client.get_certificates() or []
+        except Exception as e:
+            log.warning("failed_to_fetch_certificates", error=str(e))
+            return []
+
+    async def _fetch_roles(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+        """Fetch RBAC role definitions from Core API."""
+        try:
+            return await client.get_roles() or []
+        except Exception as e:
+            log.warning("failed_to_fetch_roles", error=str(e))
+            return []
+
+    async def _fetch_users(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+        """Fetch user accounts from Core API."""
+        try:
+            return await client.get_users() or []
+        except Exception as e:
+            log.warning("failed_to_fetch_users", error=str(e))
+            return []
+
+    async def _fetch_api_keys(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+        """Fetch API key configurations from Core API."""
+        try:
+            return await client.get_api_keys() or []
+        except Exception as e:
+            log.warning("failed_to_fetch_api_keys", error=str(e))
+            return []
 
     # === TLS Analysis ===
 
@@ -847,3 +902,515 @@ class SecurityAnalyzer(BaseAnalyzer):
                     after_state="Authentication required for all access",
                 )
             )
+
+    # === Certificate Analysis (Core API) ===
+
+    def _analyze_certificates(
+        self,
+        certificates: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> List[Dict[str, Any]]:
+        """
+        Analyze certificate configurations for expiration and security issues.
+
+        Checks:
+        - Certificates expiring within 30, 14, or 7 days
+        - Already expired certificates
+        - Certificates not in use (orphaned)
+
+        Args:
+            certificates: List of certificate configurations
+            result: AnalyzerResult to add findings to
+
+        Returns:
+            List of certificate issues found
+        """
+        cert_issues = []
+
+        if not certificates:
+            log.info("no_certificates_found_skipping_analysis")
+            return cert_issues
+
+        now = datetime.utcnow()
+
+        for cert in certificates:
+            cert_id = cert.get("id", "unknown")
+            expires_at_str = cert.get("expiresAt") or cert.get("notAfter")
+            in_use = cert.get("inUse", [])
+
+            # Parse expiration date
+            expires_at = None
+            if expires_at_str:
+                try:
+                    # Handle various date formats
+                    if isinstance(expires_at_str, str):
+                        # Try ISO format first
+                        expires_at_str = expires_at_str.replace("Z", "+00:00")
+                        expires_at = datetime.fromisoformat(expires_at_str.split("+")[0])
+                except Exception as e:
+                    log.warning("failed_to_parse_cert_expiry", cert=cert_id, error=str(e))
+
+            if expires_at:
+                days_until_expiry = (expires_at - now).days
+
+                if days_until_expiry < 0:
+                    # Already expired
+                    cert_issues.append({
+                        "cert_id": cert_id,
+                        "issue": "expired",
+                        "days": days_until_expiry
+                    })
+                    result.add_finding(Finding(
+                        id=f"security-cert-expired-{cert_id}",
+                        category="security",
+                        severity="critical",
+                        title=f"Certificate Expired: {cert_id}",
+                        description=(
+                            f"Certificate '{cert_id}' expired {abs(days_until_expiry)} days ago. "
+                            f"This may cause TLS connections to fail."
+                        ),
+                        confidence_level="high",
+                        estimated_impact="TLS connections using this certificate will fail",
+                        remediation_steps=[
+                            f"Immediately renew certificate '{cert_id}'",
+                            "Update all services using this certificate",
+                            "Test TLS connections after renewal"
+                        ],
+                        documentation_links=[
+                            "https://docs.cribl.io/stream/securing-tls/"
+                        ],
+                        metadata={
+                            "cert_id": cert_id,
+                            "expired_at": expires_at.isoformat(),
+                            "days_expired": abs(days_until_expiry),
+                            "in_use": in_use
+                        }
+                    ))
+
+                elif days_until_expiry <= 7:
+                    # Expires within 7 days - critical
+                    cert_issues.append({
+                        "cert_id": cert_id,
+                        "issue": "expiring_soon",
+                        "days": days_until_expiry
+                    })
+                    result.add_finding(Finding(
+                        id=f"security-cert-expiring-critical-{cert_id}",
+                        category="security",
+                        severity="critical",
+                        title=f"Certificate Expiring in {days_until_expiry} Days: {cert_id}",
+                        description=(
+                            f"Certificate '{cert_id}' expires in {days_until_expiry} days "
+                            f"({expires_at.strftime('%Y-%m-%d')}). Immediate action required."
+                        ),
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Renew certificate '{cert_id}' immediately",
+                            "Schedule certificate deployment",
+                            "Notify operations team"
+                        ],
+                        metadata={
+                            "cert_id": cert_id,
+                            "expires_at": expires_at.isoformat(),
+                            "days_until_expiry": days_until_expiry,
+                            "in_use": in_use
+                        }
+                    ))
+
+                elif days_until_expiry <= 14:
+                    # Expires within 14 days - high
+                    cert_issues.append({
+                        "cert_id": cert_id,
+                        "issue": "expiring_soon",
+                        "days": days_until_expiry
+                    })
+                    result.add_finding(Finding(
+                        id=f"security-cert-expiring-high-{cert_id}",
+                        category="security",
+                        severity="high",
+                        title=f"Certificate Expiring in {days_until_expiry} Days: {cert_id}",
+                        description=(
+                            f"Certificate '{cert_id}' expires in {days_until_expiry} days "
+                            f"({expires_at.strftime('%Y-%m-%d')}). Plan renewal soon."
+                        ),
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Plan renewal for certificate '{cert_id}'",
+                            "Generate new certificate",
+                            "Schedule deployment window"
+                        ],
+                        metadata={
+                            "cert_id": cert_id,
+                            "expires_at": expires_at.isoformat(),
+                            "days_until_expiry": days_until_expiry
+                        }
+                    ))
+
+                elif days_until_expiry <= 30:
+                    # Expires within 30 days - medium
+                    cert_issues.append({
+                        "cert_id": cert_id,
+                        "issue": "expiring_soon",
+                        "days": days_until_expiry
+                    })
+                    result.add_finding(Finding(
+                        id=f"security-cert-expiring-medium-{cert_id}",
+                        category="security",
+                        severity="medium",
+                        title=f"Certificate Expiring in {days_until_expiry} Days: {cert_id}",
+                        description=(
+                            f"Certificate '{cert_id}' expires in {days_until_expiry} days "
+                            f"({expires_at.strftime('%Y-%m-%d')}). Add to renewal queue."
+                        ),
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Add certificate '{cert_id}' to renewal queue",
+                            "Request new certificate from CA",
+                            "Plan deployment"
+                        ],
+                        metadata={
+                            "cert_id": cert_id,
+                            "expires_at": expires_at.isoformat(),
+                            "days_until_expiry": days_until_expiry
+                        }
+                    ))
+
+            # Check for orphaned certificates (not in use)
+            if not in_use:
+                result.add_finding(Finding(
+                    id=f"security-cert-orphaned-{cert_id}",
+                    category="security",
+                    severity="low",
+                    title=f"Unused Certificate: {cert_id}",
+                    description=(
+                        f"Certificate '{cert_id}' is not referenced by any configuration. "
+                        f"Consider removing if no longer needed."
+                    ),
+                    confidence_level="medium",
+                    remediation_steps=[
+                        f"Verify certificate '{cert_id}' is not needed",
+                        "Remove unused certificate to reduce management overhead",
+                        "Document reason if intentionally kept"
+                    ],
+                    metadata={"cert_id": cert_id}
+                ))
+
+        return cert_issues
+
+    # === RBAC Analysis (Core API) ===
+
+    def _analyze_rbac(
+        self,
+        roles: List[Dict[str, Any]],
+        users: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> List[Dict[str, Any]]:
+        """
+        Analyze RBAC configuration for security issues.
+
+        Checks:
+        - Overly permissive roles (wildcard permissions)
+        - Inactive user accounts (no login in 90 days)
+        - Users without roles
+        - Excessive admin accounts
+
+        Args:
+            roles: List of role configurations
+            users: List of user configurations
+            result: AnalyzerResult to add findings to
+
+        Returns:
+            List of RBAC issues found
+        """
+        rbac_issues = []
+
+        # Analyze roles
+        admin_roles = []
+        for role in roles:
+            role_id = role.get("id", "unknown")
+            permissions = role.get("permissions", [])
+
+            # Check for wildcard permissions
+            has_wildcard = False
+            for perm in permissions:
+                if isinstance(perm, str) and ("*" in perm or perm == "admin"):
+                    has_wildcard = True
+                    break
+
+            if has_wildcard:
+                admin_roles.append(role_id)
+                result.add_finding(Finding(
+                    id=f"security-rbac-wildcard-role-{role_id}",
+                    category="security",
+                    severity="medium",
+                    title=f"Overly Permissive Role: {role_id}",
+                    description=(
+                        f"Role '{role_id}' contains wildcard or admin permissions. "
+                        f"This violates the principle of least privilege."
+                    ),
+                    confidence_level="high",
+                    remediation_steps=[
+                        f"Review permissions for role '{role_id}'",
+                        "Replace wildcard permissions with specific ones",
+                        "Create granular roles for different use cases",
+                        "Apply least privilege principle"
+                    ],
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/roles/"
+                    ],
+                    metadata={
+                        "role_id": role_id,
+                        "permissions": permissions
+                    }
+                ))
+                rbac_issues.append({"type": "wildcard_role", "role": role_id})
+
+        # Analyze users
+        now = datetime.utcnow()
+        inactive_threshold_days = 90
+        admin_users = []
+
+        for user in users:
+            user_id = user.get("id", user.get("username", "unknown"))
+            user_roles = user.get("roles", [])
+            last_login_str = user.get("lastLogin") or user.get("last_login")
+
+            # Check for admin users
+            is_admin = any(r in admin_roles for r in user_roles)
+            if is_admin:
+                admin_users.append(user_id)
+
+            # Check for inactive users
+            if last_login_str:
+                try:
+                    if isinstance(last_login_str, str):
+                        last_login_str = last_login_str.replace("Z", "+00:00")
+                        last_login = datetime.fromisoformat(last_login_str.split("+")[0])
+                    elif isinstance(last_login_str, (int, float)):
+                        # Unix timestamp in milliseconds
+                        last_login = datetime.utcfromtimestamp(last_login_str / 1000)
+                    else:
+                        last_login = None
+
+                    if last_login:
+                        days_inactive = (now - last_login).days
+                        if days_inactive > inactive_threshold_days:
+                            result.add_finding(Finding(
+                                id=f"security-rbac-inactive-user-{user_id}",
+                                category="security",
+                                severity="low",
+                                title=f"Inactive User Account: {user_id}",
+                                description=(
+                                    f"User '{user_id}' has not logged in for {days_inactive} days. "
+                                    f"Inactive accounts pose a security risk."
+                                ),
+                                confidence_level="medium",
+                                remediation_steps=[
+                                    f"Verify if user '{user_id}' still requires access",
+                                    "Disable or remove inactive accounts",
+                                    "Implement regular access reviews"
+                                ],
+                                metadata={
+                                    "user_id": user_id,
+                                    "days_inactive": days_inactive,
+                                    "last_login": last_login.isoformat() if last_login else None
+                                }
+                            ))
+                            rbac_issues.append({"type": "inactive_user", "user": user_id})
+                except Exception as e:
+                    log.warning("failed_to_parse_last_login", user=user_id, error=str(e))
+
+            # Check for users without roles
+            if not user_roles:
+                result.add_finding(Finding(
+                    id=f"security-rbac-no-roles-{user_id}",
+                    category="security",
+                    severity="low",
+                    title=f"User Without Roles: {user_id}",
+                    description=(
+                        f"User '{user_id}' has no roles assigned. "
+                        f"This may indicate incomplete setup or an orphaned account."
+                    ),
+                    confidence_level="medium",
+                    remediation_steps=[
+                        f"Assign appropriate role to user '{user_id}'",
+                        "Or remove user if no longer needed"
+                    ],
+                    metadata={"user_id": user_id}
+                ))
+
+        # Check for excessive admin accounts
+        if len(admin_users) > 3:
+            result.add_finding(Finding(
+                id="security-rbac-excessive-admins",
+                category="security",
+                severity="medium",
+                title=f"Excessive Admin Accounts: {len(admin_users)} Found",
+                description=(
+                    f"Found {len(admin_users)} users with admin privileges. "
+                    f"Too many admin accounts increase security risk."
+                ),
+                confidence_level="high",
+                remediation_steps=[
+                    "Review necessity of each admin account",
+                    "Demote accounts that don't require admin access",
+                    "Implement just-in-time admin access if possible"
+                ],
+                affected_components=admin_users,
+                metadata={
+                    "admin_count": len(admin_users),
+                    "admin_users": admin_users
+                }
+            ))
+            rbac_issues.append({"type": "excessive_admins", "count": len(admin_users)})
+
+        return rbac_issues
+
+    # === API Key Analysis (Core API) ===
+
+    def _analyze_api_keys(
+        self,
+        api_keys: List[Dict[str, Any]],
+        result: AnalyzerResult
+    ) -> List[Dict[str, Any]]:
+        """
+        Analyze API key configurations for security issues.
+
+        Checks:
+        - Unused API keys (never used or not used in 90 days)
+        - API keys without expiration
+        - Excessive number of API keys
+
+        Args:
+            api_keys: List of API key configurations
+            result: AnalyzerResult to add findings to
+
+        Returns:
+            List of API key issues found
+        """
+        api_key_issues = []
+
+        if not api_keys:
+            return api_key_issues
+
+        now = datetime.utcnow()
+        inactive_threshold_days = 90
+        unused_keys = []
+        keys_without_expiry = []
+
+        for key in api_keys:
+            key_id = key.get("id", "unknown")
+            last_used_str = key.get("lastUsed") or key.get("last_used")
+            expires_at_str = key.get("expiresAt") or key.get("expires_at")
+
+            # Check for unused keys
+            if last_used_str is None:
+                unused_keys.append(key_id)
+                result.add_finding(Finding(
+                    id=f"security-apikey-never-used-{key_id}",
+                    category="security",
+                    severity="low",
+                    title=f"API Key Never Used: {key_id}",
+                    description=(
+                        f"API key '{key_id}' has never been used. "
+                        f"Unused keys should be removed to reduce attack surface."
+                    ),
+                    confidence_level="medium",
+                    remediation_steps=[
+                        f"Verify if API key '{key_id}' is needed",
+                        "Remove unused API keys",
+                        "Document purpose of retained keys"
+                    ],
+                    metadata={"key_id": key_id}
+                ))
+                api_key_issues.append({"type": "never_used", "key": key_id})
+            else:
+                # Check for stale keys
+                try:
+                    if isinstance(last_used_str, str):
+                        last_used_str = last_used_str.replace("Z", "+00:00")
+                        last_used = datetime.fromisoformat(last_used_str.split("+")[0])
+                    elif isinstance(last_used_str, (int, float)):
+                        last_used = datetime.utcfromtimestamp(last_used_str / 1000)
+                    else:
+                        last_used = None
+
+                    if last_used:
+                        days_unused = (now - last_used).days
+                        if days_unused > inactive_threshold_days:
+                            result.add_finding(Finding(
+                                id=f"security-apikey-stale-{key_id}",
+                                category="security",
+                                severity="low",
+                                title=f"Stale API Key: {key_id}",
+                                description=(
+                                    f"API key '{key_id}' has not been used in {days_unused} days. "
+                                    f"Consider rotating or removing stale keys."
+                                ),
+                                confidence_level="medium",
+                                remediation_steps=[
+                                    f"Verify if API key '{key_id}' is still needed",
+                                    "Rotate key if still in use",
+                                    "Remove if no longer needed"
+                                ],
+                                metadata={
+                                    "key_id": key_id,
+                                    "days_unused": days_unused,
+                                    "last_used": last_used.isoformat() if last_used else None
+                                }
+                            ))
+                            api_key_issues.append({"type": "stale_key", "key": key_id})
+                except Exception as e:
+                    log.warning("failed_to_parse_key_last_used", key=key_id, error=str(e))
+
+            # Check for keys without expiration
+            if not expires_at_str:
+                keys_without_expiry.append(key_id)
+
+        # Report keys without expiration if there are many
+        if len(keys_without_expiry) > 2:
+            result.add_finding(Finding(
+                id="security-apikeys-no-expiry",
+                category="security",
+                severity="medium",
+                title=f"API Keys Without Expiration: {len(keys_without_expiry)} Found",
+                description=(
+                    f"{len(keys_without_expiry)} API keys have no expiration date set. "
+                    f"Keys should have expiration dates to limit exposure if compromised."
+                ),
+                confidence_level="high",
+                remediation_steps=[
+                    "Set expiration dates on all API keys",
+                    "Implement key rotation policy",
+                    "Document key lifecycle management"
+                ],
+                affected_components=keys_without_expiry,
+                metadata={
+                    "count": len(keys_without_expiry),
+                    "keys": keys_without_expiry
+                }
+            ))
+            api_key_issues.append({"type": "no_expiry", "count": len(keys_without_expiry)})
+
+        # Check for excessive API keys
+        if len(api_keys) > 10:
+            result.add_finding(Finding(
+                id="security-apikeys-excessive",
+                category="security",
+                severity="low",
+                title=f"Large Number of API Keys: {len(api_keys)} Found",
+                description=(
+                    f"Found {len(api_keys)} API keys. A large number of keys "
+                    f"increases management complexity and security risk."
+                ),
+                confidence_level="medium",
+                remediation_steps=[
+                    "Audit all API keys for necessity",
+                    "Consolidate where possible",
+                    "Remove unused keys",
+                    "Document purpose of each key"
+                ],
+                metadata={"key_count": len(api_keys)}
+            ))
+
+        return api_key_issues
