@@ -107,8 +107,8 @@ class FleetAnalyzer(BaseAnalyzer):
             result.metadata["total_workers"] = len(workers)
             result.metadata["master_summary"] = master_summary
 
-            # Analyze config drift within worker groups
-            await self._analyze_config_drift(client, worker_groups, workers, result)
+            # Analyze config drift within worker groups and against leader
+            await self._analyze_config_drift(client, worker_groups, workers, master_summary, result)
 
             # Analyze worker group health
             self._analyze_worker_group_health(worker_groups, master_summary, result)
@@ -130,12 +130,14 @@ class FleetAnalyzer(BaseAnalyzer):
         client: CriblAPIClient,
         worker_groups: list[dict[str, Any]],
         workers: list[dict[str, Any]],
+        master_summary: dict[str, Any],
         result: AnalyzerResult
     ) -> None:
         """
-        Analyze configuration drift between worker groups and workers.
+        Analyze configuration drift between leader, worker groups, and workers.
 
         Detects:
+        - Worker groups running different config versions than the leader
         - Workers running different config versions than their group
         - Worker groups with deployments in progress
         - Workers that haven't received latest config
@@ -144,6 +146,7 @@ class FleetAnalyzer(BaseAnalyzer):
             client: API client for fetching group summaries
             worker_groups: List of worker group configurations
             workers: List of worker nodes
+            master_summary: Master summary containing leader version info
             result: AnalyzerResult to add findings to
         """
         if not worker_groups:
@@ -168,6 +171,65 @@ class FleetAnalyzer(BaseAnalyzer):
                     "deploying_count": deploying_count,
                     "config_version": config_version
                 })
+
+        leader_version = master_summary.get("currentVersion") if master_summary else None
+        if leader_version:
+            for group in worker_groups:
+                group_id = group.get("id", "unknown")
+                group_version = group.get("configVersion", "unknown")
+                worker_count = group.get("workerCount", 0)
+
+                if group_version == "unknown" or group_version == leader_version:
+                    continue
+
+                try:
+                    version_diff = int(leader_version) - int(group_version)
+                except ValueError:
+                    version_diff = 1
+
+                if version_diff <= 0:
+                    continue
+
+                if version_diff >= 3:
+                    severity = "critical"
+                elif version_diff >= 1:
+                    severity = "high"
+                else:
+                    continue
+
+                result.add_finding(Finding(
+                    id=f"fleet-leader-drift-{group_id}",
+                    category="fleet",
+                    severity=severity,
+                    title=f"Worker Group Behind Leader: {group_id}",
+                    description=(
+                        f"Worker group '{group_id}' is running config v{group_version}, "
+                        f"but leader is at v{leader_version} ({version_diff} version(s) behind). "
+                        f"This affects {worker_count} worker(s)."
+                    ),
+                    confidence_level="high",
+                    estimated_impact=(
+                        "Workers may process data with outdated configurations, "
+                        "causing inconsistent behavior across the fleet"
+                    ),
+                    remediation_steps=[
+                        f"Deploy latest configuration to worker group '{group_id}' from Cribl UI",
+                        "Navigate to Worker Groups > Select group > Deploy",
+                        "If deployment fails repeatedly, check worker connectivity",
+                        "Review deployment logs for errors"
+                    ],
+                    affected_components=[group_id],
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/deploy-workers/"
+                    ],
+                    metadata={
+                        "group_id": group_id,
+                        "group_version": group_version,
+                        "leader_version": leader_version,
+                        "versions_behind": version_diff,
+                        "worker_count": worker_count
+                    }
+                ))
 
         # Report deployments in progress
         if groups_deploying:

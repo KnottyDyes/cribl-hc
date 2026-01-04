@@ -313,3 +313,155 @@ class TestFleetAnalyzer:
         for finding in result.findings:
             # Check that finding has deployment context
             assert finding.metadata or finding.affected_components
+
+
+class TestLeaderVersionDrift:
+    """Tests for leader vs worker group version drift detection."""
+
+    @pytest.fixture
+    def fleet_analyzer(self):
+        return FleetAnalyzer()
+
+    @pytest.fixture
+    def mock_client(self):
+        client = AsyncMock(spec=CriblAPIClient)
+        client.deployment_name = "prod"
+        client.is_cloud = False
+        client.is_edge = False
+        client.product_type = "stream"
+        return client
+
+    @pytest.mark.asyncio
+    async def test_no_drift_when_versions_match(self, fleet_analyzer, mock_client):
+        """No findings when all worker groups match leader version."""
+        mock_client.get_worker_groups.return_value = [
+            {"id": "default", "configVersion": "10", "workerCount": 3, "deployingWorkerCount": 0}
+        ]
+        mock_client.get_master_summary.return_value = {"currentVersion": "10", "workerCount": 3, "healthyWorkerCount": 3}
+        mock_client.get_workers.return_value = [
+            {"id": "w1", "group": "default", "configVersion": "10", "status": "healthy"}
+        ]
+
+        result = await fleet_analyzer.analyze(mock_client)
+
+        leader_drift = [f for f in result.findings if "leader-drift" in f.id]
+        assert len(leader_drift) == 0
+
+    @pytest.mark.asyncio
+    async def test_high_severity_one_version_behind(self, fleet_analyzer, mock_client):
+        """HIGH severity when worker group is 1-2 versions behind leader."""
+        mock_client.get_worker_groups.return_value = [
+            {"id": "prod-workers", "configVersion": "9", "workerCount": 5, "deployingWorkerCount": 0}
+        ]
+        mock_client.get_master_summary.return_value = {"currentVersion": "10", "workerCount": 5, "healthyWorkerCount": 5}
+        mock_client.get_workers.return_value = []
+
+        result = await fleet_analyzer.analyze(mock_client)
+
+        leader_drift = [f for f in result.findings if "leader-drift" in f.id]
+        assert len(leader_drift) == 1
+        assert leader_drift[0].severity == "high"
+        assert "prod-workers" in leader_drift[0].title
+        assert "1 version" in leader_drift[0].description
+
+    @pytest.mark.asyncio
+    async def test_critical_severity_three_plus_versions_behind(self, fleet_analyzer, mock_client):
+        """CRITICAL severity when worker group is 3+ versions behind leader."""
+        mock_client.get_worker_groups.return_value = [
+            {"id": "lagging-group", "configVersion": "5", "workerCount": 8, "deployingWorkerCount": 0}
+        ]
+        mock_client.get_master_summary.return_value = {"currentVersion": "10", "workerCount": 8, "healthyWorkerCount": 8}
+        mock_client.get_workers.return_value = []
+
+        result = await fleet_analyzer.analyze(mock_client)
+
+        leader_drift = [f for f in result.findings if "leader-drift" in f.id]
+        assert len(leader_drift) == 1
+        assert leader_drift[0].severity == "critical"
+        assert "5 version" in leader_drift[0].description
+
+    @pytest.mark.asyncio
+    async def test_multiple_groups_different_drift_levels(self, fleet_analyzer, mock_client):
+        """Different severities for groups at different drift levels."""
+        mock_client.get_worker_groups.return_value = [
+            {"id": "in-sync", "configVersion": "10", "workerCount": 3, "deployingWorkerCount": 0},
+            {"id": "slightly-behind", "configVersion": "9", "workerCount": 5, "deployingWorkerCount": 0},
+            {"id": "way-behind", "configVersion": "5", "workerCount": 2, "deployingWorkerCount": 0},
+        ]
+        mock_client.get_master_summary.return_value = {"currentVersion": "10", "workerCount": 10, "healthyWorkerCount": 10}
+        mock_client.get_workers.return_value = []
+
+        result = await fleet_analyzer.analyze(mock_client)
+
+        leader_drift = [f for f in result.findings if "leader-drift" in f.id]
+        assert len(leader_drift) == 2
+
+        severities = {f.metadata["group_id"]: f.severity for f in leader_drift}
+        assert severities["slightly-behind"] == "high"
+        assert severities["way-behind"] == "critical"
+
+    @pytest.mark.asyncio
+    async def test_deployment_in_progress_warning(self, fleet_analyzer, mock_client):
+        """WARNING for groups with active deployments."""
+        mock_client.get_worker_groups.return_value = [
+            {"id": "deploying-group", "configVersion": "10", "workerCount": 5, "deployingWorkerCount": 2}
+        ]
+        mock_client.get_master_summary.return_value = {"currentVersion": "10", "workerCount": 5, "healthyWorkerCount": 5}
+        mock_client.get_workers.return_value = []
+
+        result = await fleet_analyzer.analyze(mock_client)
+
+        deploy_findings = [f for f in result.findings if "deployment-in-progress" in f.id]
+        assert len(deploy_findings) == 1
+        assert deploy_findings[0].severity == "low"
+        assert "2" in deploy_findings[0].description
+
+    @pytest.mark.asyncio
+    async def test_metadata_includes_version_info(self, fleet_analyzer, mock_client):
+        """Finding metadata includes all version information."""
+        mock_client.get_worker_groups.return_value = [
+            {"id": "test-group", "configVersion": "7", "workerCount": 4, "deployingWorkerCount": 0}
+        ]
+        mock_client.get_master_summary.return_value = {"currentVersion": "10", "workerCount": 4, "healthyWorkerCount": 4}
+        mock_client.get_workers.return_value = []
+
+        result = await fleet_analyzer.analyze(mock_client)
+
+        leader_drift = [f for f in result.findings if "leader-drift" in f.id]
+        assert len(leader_drift) == 1
+
+        metadata = leader_drift[0].metadata
+        assert metadata["group_id"] == "test-group"
+        assert metadata["group_version"] == "7"
+        assert metadata["leader_version"] == "10"
+        assert metadata["versions_behind"] == 3
+        assert metadata["worker_count"] == 4
+
+    @pytest.mark.asyncio
+    async def test_graceful_handling_no_master_summary(self, fleet_analyzer, mock_client):
+        """Graceful handling when master summary is unavailable."""
+        mock_client.get_worker_groups.return_value = [
+            {"id": "default", "configVersion": "10", "workerCount": 3, "deployingWorkerCount": 0}
+        ]
+        mock_client.get_master_summary.return_value = {}
+        mock_client.get_workers.return_value = []
+
+        result = await fleet_analyzer.analyze(mock_client)
+
+        leader_drift = [f for f in result.findings if "leader-drift" in f.id]
+        assert len(leader_drift) == 0
+
+    @pytest.mark.asyncio
+    async def test_non_numeric_versions_handled(self, fleet_analyzer, mock_client):
+        """Handle non-numeric version strings gracefully."""
+        mock_client.get_worker_groups.return_value = [
+            {"id": "default", "configVersion": "v1.2.3", "workerCount": 3, "deployingWorkerCount": 0}
+        ]
+        mock_client.get_master_summary.return_value = {"currentVersion": "v1.2.4", "workerCount": 3, "healthyWorkerCount": 3}
+        mock_client.get_workers.return_value = []
+
+        result = await fleet_analyzer.analyze(mock_client)
+
+        leader_drift = [f for f in result.findings if "leader-drift" in f.id]
+        assert len(leader_drift) == 1
+        assert leader_drift[0].severity == "high"
