@@ -127,6 +127,7 @@ class TestHealthAnalyzer:
         # Should have 1 finding (overall health summary)
         assert len(result.findings) == 1
         assert result.findings[0].category == "health"
+        assert len(result.findings) > 0
         assert result.findings[0].severity == "info"
 
     @pytest.mark.asyncio
@@ -204,6 +205,7 @@ class TestHealthAnalyzer:
         )
 
         # Should be high severity (1 issue)
+        assert worker_finding is not None
         assert worker_finding.severity == "high"
         assert "disk" in worker_finding.description.lower()
 
@@ -475,9 +477,10 @@ class TestHealthAnalyzer:
         result = await analyzer.analyze(mock_client)
 
         overall_finding = next(
-            (f for f in result.findings if "overall_health" in f.affected_components),
+            (f for f in result.findings if "overall_health" in str(f.affected_components or [])),
             None,
         )
+        assert overall_finding is not None
         assert overall_finding.severity == "info"
 
     @pytest.mark.asyncio
