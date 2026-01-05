@@ -59,9 +59,11 @@ class TestUnifiedTUI:
         # User selects option 1 (add), then back
         mock_prompt.side_effect = ["1", ""]
 
-        with patch.object(tui.config_tui, "_add_deployment") as mock_add, \
-             patch.object(tui.console, "clear"), \
-             patch.object(tui.console, "print"):
+        with (
+            patch.object(tui.config_tui, "_add_deployment") as mock_add,
+            patch.object(tui.console, "clear"),
+            patch.object(tui.console, "print"),
+        ):
             tui._manage_deployments()
             mock_add.assert_called_once()
 
@@ -73,8 +75,7 @@ class TestUnifiedTUI:
         # User selects back immediately
         mock_prompt.return_value = "b"
 
-        with patch.object(tui.console, "clear"), \
-             patch.object(tui.console, "print"):
+        with patch.object(tui.console, "clear"), patch.object(tui.console, "print"):
             tui._manage_deployments()
             # Should return without calling any config_tui methods
 
@@ -87,13 +88,13 @@ class TestUnifiedTUI:
         mock_load.return_value = {}  # No deployments
         mock_prompt.return_value = ""  # Press enter to continue
 
-        with patch.object(tui.console, "clear"), \
-             patch.object(tui.console, "print") as mock_print:
+        with patch.object(tui.console, "clear"), patch.object(tui.console, "print") as mock_print:
             tui._run_health_check()
 
             # Should show no deployments message
-            no_deps_calls = [call for call in mock_print.call_args_list
-                           if "No deployments" in str(call)]
+            no_deps_calls = [
+                call for call in mock_print.call_args_list if "No deployments" in str(call)
+            ]
             assert len(no_deps_calls) > 0
 
     @patch("cribl_hc.cli.unified_tui.Prompt.ask")
@@ -104,9 +105,7 @@ class TestUnifiedTUI:
         tui = UnifiedTUI()
 
         # Mock credentials
-        mock_load.return_value = {
-            "prod": {"url": "https://test.com", "token": "test-token"}
-        }
+        mock_load.return_value = {"prod": {"url": "https://test.com", "token": "test-token"}}
 
         # User selects prod deployment, then presses enter to continue
         mock_prompt.side_effect = ["prod", ""]
@@ -123,13 +122,15 @@ class TestUnifiedTUI:
             objectives_analyzed=["health"],
             findings=[],
             recommendations=[],
-            api_calls_used=10
+            api_calls_used=10,
         )
         mock_run.return_value = mock_analysis_run
 
-        with patch.object(tui.console, "clear"), \
-             patch.object(tui.console, "print"), \
-             patch.object(tui.results_tui, "display") as mock_display:
+        with (
+            patch.object(tui.console, "clear"),
+            patch.object(tui.console, "print"),
+            patch.object(tui.results_tui, "display") as mock_display,
+        ):
             tui._run_health_check()
 
             # Should display results
@@ -145,13 +146,15 @@ class TestUnifiedTUI:
         mock_load.side_effect = Exception("Failed to load")
         mock_prompt.return_value = ""  # Press enter to continue
 
-        with patch.object(tui.console, "clear"), \
-             patch.object(tui.console, "print") as mock_print:
+        with patch.object(tui.console, "clear"), patch.object(tui.console, "print") as mock_print:
             tui._run_health_check()
 
             # Should show error message
-            error_calls = [call for call in mock_print.call_args_list
-                          if "Error loading credentials" in str(call)]
+            error_calls = [
+                call
+                for call in mock_print.call_args_list
+                if "Error loading credentials" in str(call)
+            ]
             assert len(error_calls) > 0
 
     @pytest.mark.asyncio
@@ -169,11 +172,12 @@ class TestUnifiedTUI:
         mock_client.__aexit__.return_value = None
         mock_client.test_connection.return_value = mock_result
 
-        with patch("cribl_hc.cli.unified_tui.CriblAPIClient", return_value=mock_client), \
-             patch.object(tui.console, "print"):
+        with (
+            patch("cribl_hc.core.api_client.CriblAPIClient", return_value=mock_client),
+            patch.object(tui.console, "print"),
+        ):
             result = await tui._run_analysis_async("https://test.com", "token", "test-deploy")
 
-            # Should return None on connection failure
             assert result is None
 
     @pytest.mark.asyncio
@@ -208,16 +212,19 @@ class TestUnifiedTUI:
             objectives_analyzed=["health"],
             findings=[],
             recommendations=[],
-            api_calls_used=10
+            api_calls_used=10,
         )
         mock_orchestrator.create_analysis_run.return_value = mock_analysis_run
 
-        with patch("cribl_hc.cli.unified_tui.CriblAPIClient", return_value=mock_client), \
-             patch("cribl_hc.cli.unified_tui.AnalyzerOrchestrator", return_value=mock_orchestrator), \
-             patch.object(tui.console, "print"):
+        with (
+            patch("cribl_hc.core.api_client.CriblAPIClient", return_value=mock_client),
+            patch(
+                "cribl_hc.core.orchestrator.AnalyzerOrchestrator", return_value=mock_orchestrator
+            ),
+            patch.object(tui.console, "print"),
+        ):
             result = await tui._run_analysis_async("https://test.com", "token", "test-deploy")
 
-            # Should return analysis run
             assert result is not None
             assert result.deployment_id == "test-deploy"
 
@@ -228,8 +235,7 @@ class TestUnifiedTUI:
 
         mock_prompt.return_value = ""  # Press enter to continue
 
-        with patch.object(tui.console, "clear"), \
-             patch.object(tui.console, "print"):
+        with patch.object(tui.console, "clear"), patch.object(tui.console, "print"):
             tui._view_recent_results()
             # Just verify it doesn't crash - functionality is placeholder
 
@@ -240,8 +246,7 @@ class TestUnifiedTUI:
 
         mock_prompt.return_value = ""  # Press enter to continue
 
-        with patch.object(tui.console, "clear"), \
-             patch.object(tui.console, "print"):
+        with patch.object(tui.console, "clear"), patch.object(tui.console, "print"):
             tui._show_settings()
             # Just verify it doesn't crash - functionality is placeholder
 
@@ -249,8 +254,7 @@ class TestUnifiedTUI:
         """Test quit functionality."""
         tui = UnifiedTUI()
 
-        with patch.object(tui.console, "clear"), \
-             patch.object(tui.console, "print"):
+        with patch.object(tui.console, "clear"), patch.object(tui.console, "print"):
             tui._quit()
 
             # Should set running to False
@@ -284,13 +288,15 @@ class TestUnifiedTUI:
             objectives_analyzed=["health"],
             findings=[],
             recommendations=[],
-            api_calls_used=10
+            api_calls_used=10,
         )
         mock_run.return_value = mock_analysis_run
 
-        with patch.object(tui.console, "clear"), \
-             patch.object(tui.console, "print"), \
-             patch.object(tui.results_tui, "display") as mock_display:
+        with (
+            patch.object(tui.console, "clear"),
+            patch.object(tui.console, "print"),
+            patch.object(tui.results_tui, "display") as mock_display,
+        ):
             tui._run_health_check()
 
             # Should display results for "prod" (2nd in sorted list)
@@ -324,13 +330,15 @@ class TestUnifiedTUI:
             objectives_analyzed=["health"],
             findings=[],
             recommendations=[],
-            api_calls_used=10
+            api_calls_used=10,
         )
         mock_run.return_value = mock_analysis_run
 
-        with patch.object(tui.console, "clear"), \
-             patch.object(tui.console, "print"), \
-             patch.object(tui.results_tui, "display") as mock_display:
+        with (
+            patch.object(tui.console, "clear"),
+            patch.object(tui.console, "print"),
+            patch.object(tui.results_tui, "display") as mock_display,
+        ):
             tui._run_health_check()
 
             # Should display results for default deployment
@@ -343,21 +351,22 @@ class TestUnifiedTUI:
         tui = UnifiedTUI()
 
         # Mock credentials
-        mock_load.return_value = {
-            "prod": {"url": "https://prod.com", "token": "prod-token"}
-        }
+        mock_load.return_value = {"prod": {"url": "https://prod.com", "token": "prod-token"}}
 
         # User enters invalid number (5), then valid name (prod), then press enter
         mock_prompt.side_effect = ["5", "prod", ""]
 
-        with patch.object(tui.console, "clear"), \
-             patch.object(tui.console, "print") as mock_print, \
-             patch("cribl_hc.cli.unified_tui.asyncio.run"):
+        with (
+            patch.object(tui.console, "clear"),
+            patch.object(tui.console, "print") as mock_print,
+            patch("cribl_hc.cli.unified_tui.asyncio.run"),
+        ):
             tui._run_health_check()
 
             # Should show invalid number error
-            error_calls = [call for call in mock_print.call_args_list
-                          if "Invalid number" in str(call)]
+            error_calls = [
+                call for call in mock_print.call_args_list if "Invalid number" in str(call)
+            ]
             assert len(error_calls) > 0
 
     @patch("cribl_hc.cli.unified_tui.Prompt.ask")
@@ -367,22 +376,22 @@ class TestUnifiedTUI:
         tui = UnifiedTUI()
 
         # Mock credentials
-        mock_load.return_value = {
-            "prod": {"url": "https://prod.com", "token": "prod-token"}
-        }
+        mock_load.return_value = {"prod": {"url": "https://prod.com", "token": "prod-token"}}
 
         # User enters invalid name (staging), then valid name (prod), then press enter
         mock_prompt.side_effect = ["staging", "prod", ""]
 
-        with patch.object(tui.console, "clear"), \
-             patch.object(tui.console, "print") as mock_print, \
-             patch("cribl_hc.cli.unified_tui.asyncio.run"):
+        with (
+            patch.object(tui.console, "clear"),
+            patch.object(tui.console, "print") as mock_print,
+            patch("cribl_hc.cli.unified_tui.asyncio.run"),
+        ):
             tui._run_health_check()
 
             # Should show not found error
-            error_calls = [call for call in mock_print.call_args_list
-                          if "not found" in str(call)]
+            error_calls = [call for call in mock_print.call_args_list if "not found" in str(call)]
             assert len(error_calls) > 0
+
 
 #    def test_run_quit_immediately(self):
 #        """Test running TUI and quitting immediately."""

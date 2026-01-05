@@ -56,24 +56,22 @@ class Finding(BaseModel):
     )
     title: str = Field(..., description="Brief title", min_length=1, max_length=255)
     description: str = Field(..., description="Detailed description", min_length=1)
-    affected_components: list[str] = Field(
-        default_factory=list, description="Affected components"
-    )
-    remediation_steps: list[str] = Field(
-        default_factory=list, description="Fix instructions"
-    )
+    affected_components: list[str] = Field(default_factory=list, description="Affected components")
+    remediation_steps: list[str] = Field(default_factory=list, description="Fix instructions")
     documentation_links: list[str] = Field(default_factory=list, description="Cribl docs URLs")
     estimated_impact: str = Field(default="", description="Impact description")
-    confidence_level: Literal["high", "medium", "low"] = Field(
-        ..., description="Confidence level"
-    )
+    confidence_level: Literal["high", "medium", "low"] = Field(..., description="Confidence level")
     product_tags: List[Literal["stream", "edge", "lake", "search"]] = Field(
         default_factory=list,
-        description="Products this finding applies to (derived from source analyzer)"
+        description="Products this finding applies to (derived from source analyzer)",
+    )
+    worker_group: str | None = Field(
+        None,
+        description="Worker group this finding applies to (e.g., 'default', 'prod-group'). "
+        "None indicates finding applies to all groups or group context is not applicable.",
     )
     source_analyzer: str = Field(
-        default="",
-        description="Name of the analyzer that generated this finding"
+        default="", description="Name of the analyzer that generated this finding"
     )
     detected_at: datetime = Field(default_factory=datetime.utcnow)
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional context")
@@ -83,15 +81,11 @@ class Finding(BaseModel):
         """Validate remediation steps and impact based on severity."""
         # Validate remediation steps for critical/high/medium
         if self.severity in ["critical", "high", "medium"] and len(self.remediation_steps) == 0:
-            raise ValueError(
-                f"Remediation steps required for {self.severity} severity findings"
-            )
+            raise ValueError(f"Remediation steps required for {self.severity} severity findings")
 
         # Validate estimated impact for critical/high
         if self.severity in ["critical", "high"] and not self.estimated_impact:
-            raise ValueError(
-                f"Estimated impact required for {self.severity} severity findings"
-            )
+            raise ValueError(f"Estimated impact required for {self.severity} severity findings")
 
         return self
 
@@ -133,11 +127,13 @@ class Finding(BaseModel):
                 ],
                 "estimated_impact": "High risk of worker crash and data loss if memory exhaustion occurs",
                 "confidence_level": "high",
+                "worker_group": "default",
                 "detected_at": "2025-12-10T14:01:23Z",
                 "metadata": {
                     "current_memory_gb": 14.7,
                     "allocated_memory_gb": 16,
                     "utilization_percent": 92,
+                    "worker_group_id": "default",
                 },
             }
         }

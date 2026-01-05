@@ -147,7 +147,7 @@ class AnalyzerResult:
             recommendations=[r for r in self.recommendations if product in r.product_tags],
             metadata=self.metadata.copy(),
             success=self.success,
-            error=self.error
+            error=self.error,
         )
         return filtered_result
 
@@ -172,7 +172,7 @@ class AnalyzerResult:
         return {
             product: {
                 "findings": self._findings_by_product[product],
-                "recommendations": self._recommendations_by_product[product]
+                "recommendations": self._recommendations_by_product[product],
             }
             for product in self.PRODUCTS
         }
@@ -374,7 +374,7 @@ class BaseAnalyzer(ABC):
         return AnalyzerResult(
             objective=self.objective_name,
             source_analyzer=self.objective_name,
-            default_product_tags=self.supported_products
+            default_product_tags=self.supported_products,
         )
 
     def create_finding(self, **kwargs) -> Finding:
@@ -409,3 +409,48 @@ class BaseAnalyzer(ABC):
             kwargs["product_tags"] = self.supported_products.copy()
 
         return Finding(**kwargs)
+
+    def create_finding_with_context(
+        self, client: Optional["CriblAPIClient"] = None, **kwargs
+    ) -> Finding:
+        """
+        Create a Finding with automatic worker group context from API client.
+
+        This method enhances create_finding by automatically adding worker group
+        context when an API client is provided and worker group is available.
+
+        Args:
+            client: Optional CriblAPIClient instance for worker group context
+            **kwargs: All Finding field arguments
+
+        Returns:
+            Finding with source_analyzer, product_tags, and worker group context
+
+        Example:
+            >>> finding = self.create_finding_with_context(
+            ...     client=client,
+            ...     id="health-issue-1",
+            ...     category="health",
+            ...     severity="high",
+            ...     title="Worker CPU High",
+            ...     description="Worker has high CPU usage",
+            ...     confidence_level="high",
+            ... )
+        """
+        finding = self.create_finding(**kwargs)
+
+        # Add worker group context if client is provided and has worker group
+        if client and hasattr(client, "worker_group") and client.worker_group:
+            # Update finding with worker group context
+            finding = finding.model_copy(
+                update={
+                    "worker_group": client.worker_group,
+                    "metadata": {
+                        **finding.metadata,
+                        "worker_group_id": client.worker_group,
+                        "worker_group_source": "auto-detected",
+                    },
+                }
+            )
+
+        return finding

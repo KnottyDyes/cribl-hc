@@ -93,16 +93,14 @@ class TestConnectionTesting:
     async def test_successful_connection(self):
         """Test successful connection to Cribl API."""
         # Mock the version endpoint
-        respx.get("https://cribl.example.com/api/v1/version").mock(
+        respx.get("https://cribl.example.com/api/v1/system/info").mock(
             return_value=httpx.Response(
                 200,
                 json={"version": "4.5.2", "build": "12345"},
             )
         )
 
-        async with CriblAPIClient(
-            "https://cribl.example.com", "valid-token"
-        ) as client:
+        async with CriblAPIClient("https://cribl.example.com", "valid-token") as client:
             result = await client.test_connection()
 
             assert result.success is True
@@ -117,13 +115,11 @@ class TestConnectionTesting:
     @respx.mock
     async def test_connection_invalid_token(self):
         """Test connection failure with invalid authentication token."""
-        respx.get("https://cribl.example.com/api/v1/version").mock(
+        respx.get("https://cribl.example.com/api/v1/system/info").mock(
             return_value=httpx.Response(401, text="Unauthorized")
         )
 
-        async with CriblAPIClient(
-            "https://cribl.example.com", "invalid-token"
-        ) as client:
+        async with CriblAPIClient("https://cribl.example.com", "invalid-token") as client:
             result = await client.test_connection()
 
             assert result.success is False
@@ -138,13 +134,11 @@ class TestConnectionTesting:
     @respx.mock
     async def test_connection_forbidden(self):
         """Test connection failure with insufficient permissions."""
-        respx.get("https://cribl.example.com/api/v1/version").mock(
+        respx.get("https://cribl.example.com/api/v1/system/info").mock(
             return_value=httpx.Response(403, text="Forbidden")
         )
 
-        async with CriblAPIClient(
-            "https://cribl.example.com", "restricted-token"
-        ) as client:
+        async with CriblAPIClient("https://cribl.example.com", "restricted-token") as client:
             result = await client.test_connection()
 
             assert result.success is False
@@ -157,13 +151,11 @@ class TestConnectionTesting:
     @respx.mock
     async def test_connection_endpoint_not_found(self):
         """Test connection failure when endpoint doesn't exist."""
-        respx.get("https://cribl.example.com/api/v1/version").mock(
+        respx.get("https://cribl.example.com/api/v1/system/info").mock(
             return_value=httpx.Response(404, text="Not Found")
         )
 
-        async with CriblAPIClient(
-            "https://cribl.example.com", "valid-token"
-        ) as client:
+        async with CriblAPIClient("https://cribl.example.com", "valid-token") as client:
             result = await client.test_connection()
 
             assert result.success is False
@@ -176,13 +168,11 @@ class TestConnectionTesting:
     @respx.mock
     async def test_connection_server_error(self):
         """Test connection failure with server error."""
-        respx.get("https://cribl.example.com/api/v1/version").mock(
+        respx.get("https://cribl.example.com/api/v1/system/info").mock(
             return_value=httpx.Response(500, text="Internal Server Error")
         )
 
-        async with CriblAPIClient(
-            "https://cribl.example.com", "valid-token"
-        ) as client:
+        async with CriblAPIClient("https://cribl.example.com", "valid-token") as client:
             result = await client.test_connection()
 
             assert result.success is False
@@ -194,13 +184,11 @@ class TestConnectionTesting:
     @respx.mock
     async def test_connection_network_error(self):
         """Test connection failure with network/connection error."""
-        respx.get("https://cribl.example.com/api/v1/version").mock(
+        respx.get("https://cribl.example.com/api/v1/system/info").mock(
             side_effect=httpx.ConnectError("Connection refused")
         )
 
-        async with CriblAPIClient(
-            "https://cribl.example.com", "valid-token"
-        ) as client:
+        async with CriblAPIClient("https://cribl.example.com", "valid-token") as client:
             result = await client.test_connection()
 
             assert result.success is False
@@ -213,7 +201,7 @@ class TestConnectionTesting:
     @respx.mock
     async def test_connection_timeout(self):
         """Test connection failure with timeout."""
-        respx.get("https://cribl.example.com/api/v1/version").mock(
+        respx.get("https://cribl.example.com/api/v1/system/info").mock(
             side_effect=httpx.TimeoutException("Request timeout")
         )
 
@@ -248,13 +236,11 @@ class TestAPICallBudget:
     @respx.mock
     async def test_api_call_tracking(self):
         """Test that API calls are tracked correctly."""
-        respx.get("https://cribl.example.com/api/v1/version").mock(
+        respx.get("https://cribl.example.com/api/v1/system/info").mock(
             return_value=httpx.Response(200, json={"version": "4.5.2"})
         )
 
-        async with CriblAPIClient(
-            "https://cribl.example.com", "token"
-        ) as client:
+        async with CriblAPIClient("https://cribl.example.com", "token") as client:
             assert client.get_api_calls_used() == 0
 
             await client.test_connection()
@@ -271,9 +257,7 @@ class TestAPICallBudget:
             return_value=httpx.Response(200, json={})
         )
 
-        async with CriblAPIClient(
-            "https://cribl.example.com", "token"
-        ) as client:
+        async with CriblAPIClient("https://cribl.example.com", "token") as client:
             # Manually set calls to budget limit via rate_limiter
             client.rate_limiter.total_calls_made = 100
 
@@ -291,9 +275,7 @@ class TestAPICallBudget:
             return_value=httpx.Response(200, json={})
         )
 
-        async with CriblAPIClient(
-            "https://cribl.example.com", "token"
-        ) as client:
+        async with CriblAPIClient("https://cribl.example.com", "token") as client:
             # Manually set calls to budget limit via rate_limiter
             client.rate_limiter.total_calls_made = 100
 
@@ -334,9 +316,7 @@ class TestHTTPMethods:
             return_value=httpx.Response(200, json={"items": []})
         )
 
-        async with CriblAPIClient(
-            "https://cribl.example.com", "token"
-        ) as client:
+        async with CriblAPIClient("https://cribl.example.com", "token") as client:
             response = await client.get("/api/v1/workers")
 
             assert response.status_code == 200
@@ -350,9 +330,7 @@ class TestHTTPMethods:
             return_value=httpx.Response(201, json={"status": "created"})
         )
 
-        async with CriblAPIClient(
-            "https://cribl.example.com", "token"
-        ) as client:
+        async with CriblAPIClient("https://cribl.example.com", "token") as client:
             response = await client.post("/api/v1/test", json={"data": "test"})
 
             assert response.status_code == 201
@@ -444,10 +422,8 @@ class TestEdgeAPIMethods:
     async def test_get_nodes_routes_to_edge(self):
         """Test that get_nodes() calls Edge endpoint when is_edge=True."""
         # Mock version endpoint to detect Edge
-        respx.get("https://edge.example.com/api/v1/version").mock(
-            return_value=httpx.Response(
-                200, json={"version": "4.15.0", "product": "edge"}
-            )
+        respx.get("https://edge.example.com/api/v1/system/info").mock(
+            return_value=httpx.Response(200, json={"version": "4.15.0", "product": "edge"})
         )
 
         # Mock Edge nodes endpoint
@@ -483,10 +459,8 @@ class TestEdgeAPIMethods:
     async def test_get_nodes_routes_to_stream(self):
         """Test that get_nodes() calls Stream endpoint when is_stream=True."""
         # Mock version endpoint to detect Stream
-        respx.get("https://stream.example.com/api/v1/version").mock(
-            return_value=httpx.Response(
-                200, json={"version": "4.7.0", "product": "stream"}
-            )
+        respx.get("https://stream.example.com/api/v1/system/info").mock(
+            return_value=httpx.Response(200, json={"version": "4.7.0", "product": "stream"})
         )
 
         # Mock Stream workers endpoint
@@ -520,9 +494,7 @@ class TestEdgeAPIMethods:
     @pytest.mark.asyncio
     async def test_normalize_edge_node_data(self):
         """Test Edge node normalization."""
-        client = CriblAPIClient(
-            base_url="https://edge.example.com", auth_token="test-token"
-        )
+        client = CriblAPIClient(base_url="https://edge.example.com", auth_token="test-token")
         client._product_type = "edge"
 
         edge_node = {
@@ -547,9 +519,7 @@ class TestEdgeAPIMethods:
     @pytest.mark.asyncio
     async def test_normalize_edge_node_disconnected(self):
         """Test normalization of disconnected Edge node."""
-        client = CriblAPIClient(
-            base_url="https://edge.example.com", auth_token="test-token"
-        )
+        client = CriblAPIClient(base_url="https://edge.example.com", auth_token="test-token")
         client._product_type = "edge"
 
         edge_node = {
@@ -567,9 +537,7 @@ class TestEdgeAPIMethods:
     @pytest.mark.asyncio
     async def test_normalize_stream_node_is_noop(self):
         """Test that normalization is no-op for Stream workers."""
-        client = CriblAPIClient(
-            base_url="https://stream.example.com", auth_token="test-token"
-        )
+        client = CriblAPIClient(base_url="https://stream.example.com", auth_token="test-token")
         client._product_type = "stream"
 
         stream_worker = {
