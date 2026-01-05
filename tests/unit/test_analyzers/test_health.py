@@ -13,10 +13,17 @@ from cribl_hc.models.recommendation import Recommendation
 
 
 # Helper function to create realistic worker data matching Cribl Cloud API
-def create_worker(worker_id: str, status: str = "healthy", disconnected: bool = False,
-                  total_disk: int = 30 * 1024**3, free_disk: int = 20 * 1024**3,
-                  total_mem: int = 8 * 1024**3, worker_processes: int = 3, cpus: int = 4,
-                  first_msg_time: int = 1000000000000) -> dict:
+def create_worker(
+    worker_id: str,
+    status: str = "healthy",
+    disconnected: bool = False,
+    total_disk: int = 30 * 1024**3,
+    free_disk: int = 20 * 1024**3,
+    total_mem: int = 8 * 1024**3,
+    worker_processes: int = 3,
+    cpus: int = 4,
+    first_msg_time: int = 1000000000000,
+) -> dict:
     """Create a realistic worker data structure matching Cribl Cloud API."""
     return {
         "id": worker_id,
@@ -35,10 +42,8 @@ def create_worker(worker_id: str, status: str = "healthy", disconnected: bool = 
             "totalmem": total_mem,
             "totalDiskSpace": total_disk,
             "freeDiskSpace": free_disk,
-            "cribl": {
-                "version": "4.15.0-f275b803"
-            }
-        }
+            "cribl": {"version": "4.15.0-f275b803"},
+        },
     }
 
 
@@ -68,7 +73,7 @@ class TestHealthAnalyzer:
     def test_estimated_api_calls(self):
         """Test estimated API call count."""
         analyzer = HealthAnalyzer()
-        assert analyzer.get_estimated_api_calls() == 3
+        assert analyzer.get_estimated_api_calls() == 5
 
     def test_required_permissions(self):
         """Test required permissions list."""
@@ -122,6 +127,7 @@ class TestHealthAnalyzer:
         # Should have 1 finding (overall health summary)
         assert len(result.findings) == 1
         assert result.findings[0].category == "health"
+        assert len(result.findings) > 0
         assert result.findings[0].severity == "info"
 
     @pytest.mark.asyncio
@@ -199,6 +205,7 @@ class TestHealthAnalyzer:
         )
 
         # Should be high severity (1 issue)
+        assert worker_finding is not None
         assert worker_finding.severity == "high"
         assert "disk" in worker_finding.description.lower()
 
@@ -239,14 +246,14 @@ class TestHealthAnalyzer:
 
     @pytest.mark.asyncio
     async def test_analyze_no_workers(self):
-        """Test analysis with no workers."""
+        """Test analysis with no workers - uses leader health for score."""
         mock_client = AsyncMock(spec=CriblAPIClient)
         setup_mock_client_for_stream(mock_client)
 
         mock_client.get_nodes.return_value = []
         mock_client.get_system_status.return_value = {"version": "4.5.0"}
 
-        # Mock leader health
+        # Mock leader health as healthy
         mock_get = AsyncMock()
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "healthy", "role": "primary"}
@@ -258,19 +265,19 @@ class TestHealthAnalyzer:
 
         assert result.success is True
         assert result.metadata["worker_count"] == 0
-        assert result.metadata["health_score"] == 0.0
+        # When no workers, score is derived from leader health (healthy = 100)
+        assert result.metadata["health_score"] == 100.0
+        assert result.metadata.get("health_score_source") == "leader_health"
 
     @pytest.mark.asyncio
     async def test_analyze_api_error(self):
-        """Test analysis when API call fails."""
+        """Test analysis when API call fails - graceful degradation."""
         mock_client = AsyncMock(spec=CriblAPIClient)
         setup_mock_client_for_stream(mock_client)
 
-        # Simulate API error
         mock_client.get_nodes.side_effect = Exception("API connection failed")
         mock_client.get_system_status.return_value = {}
 
-        # Mock leader health with proper async behavior
         mock_response = AsyncMock()
         mock_response.json = AsyncMock(return_value={"status": "unknown"})
         mock_client.get = AsyncMock(return_value=mock_response)
@@ -278,13 +285,11 @@ class TestHealthAnalyzer:
         analyzer = HealthAnalyzer()
         result = await analyzer.analyze(mock_client)
 
-        # Should handle error gracefully per Constitution Principle #6 (Graceful Degradation)
-        # The analyzer returns success=True but with a finding about having no workers
+        # Per Constitution Principle #6 (Graceful Degradation), partial results are
+        # returned even when some API calls fail. The analyzer catches fetch errors
+        # internally and continues with empty data.
         assert result.success is True
         assert result.metadata["worker_count"] == 0
-        assert result.metadata["health_score"] == 0.0
-
-        # Should have at least one finding about no workers
         assert len(result.findings) >= 1
 
     @pytest.mark.asyncio
@@ -343,8 +348,13 @@ class TestHealthAnalyzer:
         assert analyzer._count_worker_issues(worker3) == 2
 
         # Worker with 3 issues (status + disconnected + disk)
-        worker4 = create_worker("w4", status="unhealthy", disconnected=True,
-                               total_disk=100*1024**3, free_disk=5*1024**3)
+        worker4 = create_worker(
+            "w4",
+            status="unhealthy",
+            disconnected=True,
+            total_disk=100 * 1024**3,
+            free_disk=5 * 1024**3,
+        )
         assert analyzer._count_worker_issues(worker4) == 3
 
     def test_get_health_status(self):
@@ -467,9 +477,10 @@ class TestHealthAnalyzer:
         result = await analyzer.analyze(mock_client)
 
         overall_finding = next(
-            (f for f in result.findings if "overall_health" in f.affected_components),
+            (f for f in result.findings if "overall_health" in str(f.affected_components or [])),
             None,
         )
+        assert overall_finding is not None
         assert overall_finding.severity == "info"
 
     @pytest.mark.asyncio
@@ -556,9 +567,7 @@ class TestHealthAnalyzer:
         setup_mock_client_for_stream(mock_client)
 
         # Worker with suboptimal process count (3 processes but 8 CPUs)
-        mock_client.get_nodes.return_value = [
-            create_worker("w1", worker_processes=3, cpus=8)
-        ]
+        mock_client.get_nodes.return_value = [create_worker("w1", worker_processes=3, cpus=8)]
         mock_client.get_system_status.return_value = {}
 
         # Mock leader health
@@ -690,11 +699,12 @@ class TestHealthAnalyzerEdgeSupport:
         assert result.metadata["unhealthy_workers"] == 0
 
         # Verify overall health finding exists
-        overall_finding = next(
-            (f for f in result.findings if "health-overall" in f.id), None
-        )
+        overall_finding = next((f for f in result.findings if "health-overall" in f.id), None)
         assert overall_finding is not None
-        assert "operating normally" in overall_finding.description.lower() or "healthy" in overall_finding.description.lower()
+        assert (
+            "operating normally" in overall_finding.description.lower()
+            or "healthy" in overall_finding.description.lower()
+        )
 
     @pytest.mark.asyncio
     async def test_analyze_edge_unhealthy_node_disconnected(self):

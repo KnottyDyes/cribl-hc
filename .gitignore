@@ -127,3 +127,9 @@ integration_test_report.json
 *.tmp
 *.temp
 .cache/
+
+# AI Connector Framework (development-only, not for production)
+demo_ai_connector.py
+src/cribl_hc/core/ai_connector.py
+tests/unit/test_ai_connector.py
+tests/integration/test_ai_connector.py

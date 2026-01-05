@@ -471,6 +471,22 @@ This project is provided as-is for use with Cribl Stream deployments.
 Cribl Health Check Project
 Sean Armstrong
 Claude
+
+---
+
+## 🤖 AI Development Assistance
+
+**Note**: This project includes AI-powered development tools for enhanced productivity during development, but AI features are **not yet integrated** into the main application for production use. The AI connector framework is available for development assistance only and leverages local Harbor/Ollama infrastructure for parallel task execution.
+
+Future roadmap includes AI-powered features such as:
+- Intelligent finding analysis and prioritization
+- Natural language health check queries
+- Automated remediation script generation
+- ML-based predictive analytics
+- Smart recommendations based on deployment patterns
+
+These features require additional infrastructure planning and are not yet implemented in the production application.
+
 ---
 
 **Status**: Production Ready - Phase 11 Complete
