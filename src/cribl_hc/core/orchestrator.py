@@ -153,8 +153,7 @@ class AnalyzerOrchestrator:
         for objective in objectives:
             if not self.registry.has_analyzer(objective):
                 raise ValueError(
-                    f"Unknown objective '{objective}'. "
-                    f"Available: {', '.join(list_objectives())}"
+                    f"Unknown objective '{objective}'. Available: {', '.join(list_objectives())}"
                 )
 
         # Initialize progress tracking
@@ -448,10 +447,7 @@ class AnalyzerOrchestrator:
             # If no score in metadata, calculate from findings for this analyzer
             if score is None:
                 objective_findings = [f for f in findings if f.source_analyzer == objective]
-                penalty = sum(
-                    severity_penalties.get(f.severity, 0)
-                    for f in objective_findings
-                )
+                penalty = sum(severity_penalties.get(f.severity, 0) for f in objective_findings)
                 score = int(max(0, 100 - penalty))
 
             # Store component data
@@ -468,9 +464,11 @@ class AnalyzerOrchestrator:
         overall_weighted_sum = 0.0
         total_weight = 0.0
 
+        raw_weight_sum = sum(data["weight"] for data in components_found.values())
+
         for category, data in components_found.items():
             avg_score = sum(data["scores"]) / len(data["scores"]) if data["scores"] else 100
-            weight = data["weight"]
+            weight = data["weight"] / raw_weight_sum if raw_weight_sum > 0 else 1.0
 
             component_scores[category] = ComponentScore(
                 name=category.replace("_", " ").title(),
@@ -487,10 +485,7 @@ class AnalyzerOrchestrator:
             overall_score = int(overall_weighted_sum / total_weight)
         else:
             # Fallback: calculate from all findings
-            total_penalty = sum(
-                severity_penalties.get(f.severity, 0)
-                for f in findings
-            )
+            total_penalty = sum(severity_penalties.get(f.severity, 0) for f in findings)
             overall_score = int(max(0, 100 - total_penalty))
 
         # Ensure score is in valid range

@@ -7,7 +7,7 @@ according to expected schemas for:
 - Worker endpoints (/api/v1/master/workers)
 - Metrics endpoints (/api/v1/metrics)
 - Health endpoints (/api/v1/health)
-- Version endpoints (/api/v1/version)
+- Version endpoints (/api/v1/system/info)
 
 These tests use respx to mock realistic Cribl API responses.
 """
@@ -30,26 +30,21 @@ def mock_cribl_api():
 async def api_client():
     """Create API client for testing."""
     async with CriblAPIClient(
-        base_url="https://cribl.example.com:9000",
-        auth_token="test-token-12345"
+        base_url="https://cribl.example.com:9000", auth_token="test-token-12345"
     ) as client:
         yield client
 
 
 class TestVersionEndpoint:
-    """Test /api/v1/version endpoint contract."""
+    """Test /api/v1/system/info endpoint contract."""
 
     @pytest.mark.asyncio
     async def test_version_endpoint_structure(self, api_client, mock_cribl_api):
         """Test version endpoint returns expected schema."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(
                 200,
-                json={
-                    "version": "5.0.0",
-                    "build": "abcd1234",
-                    "buildDate": "2024-01-15T10:30:00Z"
-                }
+                json={"version": "5.0.0", "build": "abcd1234", "buildDate": "2024-01-15T10:30:00Z"},
             )
         )
 
@@ -63,11 +58,8 @@ class TestVersionEndpoint:
     @pytest.mark.asyncio
     async def test_version_endpoint_minimal_response(self, api_client, mock_cribl_api):
         """Test version endpoint with minimal valid response."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(
-                200,
-                json={"version": "4.5.3"}
-            )
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
+            return_value=Response(200, json={"version": "4.5.3"})
         )
 
         result = await api_client.test_connection()
@@ -82,7 +74,7 @@ class TestSystemEndpoints:
     @pytest.mark.asyncio
     async def test_system_info_endpoint(self, api_client, mock_cribl_api):
         """Test system status endpoint returns expected fields."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
@@ -94,8 +86,8 @@ class TestSystemEndpoints:
                     "hostname": "cribl-leader-1",
                     "version": "5.0.0",
                     "product": "stream",
-                    "uptime": 86400
-                }
+                    "uptime": 86400,
+                },
             )
         )
 
@@ -107,7 +99,7 @@ class TestSystemEndpoints:
     @pytest.mark.asyncio
     async def test_system_status_endpoint(self, api_client, mock_cribl_api):
         """Test system status endpoint schema."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
@@ -119,8 +111,8 @@ class TestSystemEndpoints:
                     "status": "healthy",
                     "workerCount": 10,
                     "cpuUsage": 45.2,
-                    "memoryUsage": 60.5
-                }
+                    "memoryUsage": 60.5,
+                },
             )
         )
 
@@ -138,7 +130,7 @@ class TestWorkerEndpoints:
     @pytest.mark.asyncio
     async def test_workers_list_structure(self, api_client, mock_cribl_api):
         """Test workers endpoint returns expected structure."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
@@ -152,49 +144,30 @@ class TestWorkerEndpoints:
                             "id": "worker-1",
                             "guid": "worker-guid-1",
                             "info": {
-                                "cribl": {
-                                    "version": "5.0.0",
-                                    "distMode": "worker"
-                                },
-                                "os": {
-                                    "type": "Linux",
-                                    "platform": "linux",
-                                    "release": "5.15.0"
-                                },
-                                "cpu": {
-                                    "usage": 45.2,
-                                    "count": 4
-                                },
-                                "memory": {
-                                    "usage": 60.5,
-                                    "total": 16000000000
-                                },
-                                "disk": {
-                                    "usage": 50.3,
-                                    "total": 100000000000
-                                }
+                                "cribl": {"version": "5.0.0", "distMode": "worker"},
+                                "os": {"type": "Linux", "platform": "linux", "release": "5.15.0"},
+                                "cpu": {"usage": 45.2, "count": 4},
+                                "memory": {"usage": 60.5, "total": 16000000000},
+                                "disk": {"usage": 50.3, "total": 100000000000},
                             },
                             "status": "alive",
                             "connectedSince": "2024-01-15T10:30:00Z",
-                            "configVersion": 123
+                            "configVersion": 123,
                         },
                         {
                             "id": "worker-2",
                             "guid": "worker-guid-2",
                             "info": {
-                                "cribl": {
-                                    "version": "5.0.0",
-                                    "distMode": "worker"
-                                },
+                                "cribl": {"version": "5.0.0", "distMode": "worker"},
                                 "os": {"type": "Linux"},
                                 "cpu": {"usage": 50.0},
                                 "memory": {"usage": 55.0},
-                                "disk": {"usage": 45.0}
+                                "disk": {"usage": 45.0},
                             },
-                            "status": "alive"
-                        }
-                    ]
-                }
+                            "status": "alive",
+                        },
+                    ],
+                },
             )
         )
 
@@ -221,18 +194,12 @@ class TestWorkerEndpoints:
     @pytest.mark.asyncio
     async def test_workers_empty_list(self, api_client, mock_cribl_api):
         """Test workers endpoint with no workers."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
         mock_cribl_api.get("https://cribl.example.com:9000/api/v1/master/workers").mock(
-            return_value=Response(
-                200,
-                json={
-                    "count": 0,
-                    "items": []
-                }
-            )
+            return_value=Response(200, json={"count": 0, "items": []})
         )
 
         result = await api_client.get_workers()
@@ -244,7 +211,7 @@ class TestWorkerEndpoints:
     @pytest.mark.asyncio
     async def test_worker_dead_status(self, api_client, mock_cribl_api):
         """Test handling of dead worker status."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
@@ -259,12 +226,12 @@ class TestWorkerEndpoints:
                                 "cribl": {"version": "5.0.0"},
                                 "cpu": {"usage": 0.0},
                                 "memory": {"usage": 0.0},
-                                "disk": {"usage": 0.0}
+                                "disk": {"usage": 0.0},
                             },
-                            "status": "dead"
+                            "status": "dead",
                         }
                     ]
-                }
+                },
             )
         )
 
@@ -281,7 +248,7 @@ class TestHealthEndpoint:
     @pytest.mark.asyncio
     async def test_health_endpoint_healthy(self, api_client, mock_cribl_api):
         """Test health endpoint with healthy status."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
@@ -290,13 +257,9 @@ class TestHealthEndpoint:
                 200,
                 json={
                     "status": "healthy",
-                    "checks": {
-                        "database": "ok",
-                        "redis": "ok",
-                        "workers": "ok"
-                    },
-                    "version": "5.0.0"
-                }
+                    "checks": {"database": "ok", "redis": "ok", "workers": "ok"},
+                    "version": "5.0.0",
+                },
             )
         )
 
@@ -309,7 +272,7 @@ class TestHealthEndpoint:
     @pytest.mark.asyncio
     async def test_health_endpoint_unhealthy(self, api_client, mock_cribl_api):
         """Test health endpoint with unhealthy status."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
@@ -318,12 +281,8 @@ class TestHealthEndpoint:
                 503,
                 json={
                     "status": "unhealthy",
-                    "checks": {
-                        "database": "ok",
-                        "redis": "error",
-                        "workers": "degraded"
-                    }
-                }
+                    "checks": {"database": "ok", "redis": "error", "workers": "degraded"},
+                },
             )
         )
 
@@ -339,7 +298,7 @@ class TestMetricsEndpoint:
     @pytest.mark.asyncio
     async def test_metrics_endpoint_structure(self, api_client, mock_cribl_api):
         """Test metrics endpoint returns expected structure."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
@@ -351,16 +310,9 @@ class TestMetricsEndpoint:
                     "cpu_usage": 45.2,
                     "memory_usage": 60.5,
                     "disk_usage": 50.3,
-                    "network": {
-                        "bytes_in": 1000000,
-                        "bytes_out": 800000
-                    },
-                    "events": {
-                        "in": 10000,
-                        "out": 9500,
-                        "dropped": 50
-                    }
-                }
+                    "network": {"bytes_in": 1000000, "bytes_out": 800000},
+                    "events": {"in": 10000, "out": 9500, "dropped": 50},
+                },
             )
         )
 
@@ -372,18 +324,12 @@ class TestMetricsEndpoint:
     @pytest.mark.asyncio
     async def test_metrics_minimal_response(self, api_client, mock_cribl_api):
         """Test metrics with minimal valid response."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
         mock_cribl_api.get("https://cribl.example.com:9000/api/v1/metrics").mock(
-            return_value=Response(
-                200,
-                json={
-                    "cpu_usage": 30.0,
-                    "memory_usage": 40.0
-                }
-            )
+            return_value=Response(200, json={"cpu_usage": 30.0, "memory_usage": 40.0})
         )
 
         result = await api_client.get_metrics()
@@ -399,11 +345,8 @@ class TestErrorResponses:
     @pytest.mark.asyncio
     async def test_401_unauthorized(self, api_client, mock_cribl_api):
         """Test handling of 401 unauthorized response."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(
-                401,
-                json={"error": "Unauthorized", "message": "Invalid token"}
-            )
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
+            return_value=Response(401, json={"error": "Unauthorized", "message": "Invalid token"})
         )
 
         result = await api_client.test_connection()
@@ -414,14 +357,13 @@ class TestErrorResponses:
     @pytest.mark.asyncio
     async def test_403_forbidden(self, api_client, mock_cribl_api):
         """Test handling of 403 forbidden response."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
         mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/status").mock(
             return_value=Response(
-                403,
-                json={"error": "Forbidden", "message": "Insufficient permissions"}
+                403, json={"error": "Forbidden", "message": "Insufficient permissions"}
             )
         )
 
@@ -437,15 +379,12 @@ class TestErrorResponses:
     @pytest.mark.asyncio
     async def test_404_not_found(self, api_client, mock_cribl_api):
         """Test handling of 404 not found response."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
         mock_cribl_api.get("https://cribl.example.com:9000/api/v1/nonexistent").mock(
-            return_value=Response(
-                404,
-                json={"error": "Not Found"}
-            )
+            return_value=Response(404, json={"error": "Not Found"})
         )
 
         try:
@@ -458,11 +397,8 @@ class TestErrorResponses:
     @pytest.mark.asyncio
     async def test_500_internal_error(self, api_client, mock_cribl_api):
         """Test handling of 500 internal server error."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(
-                500,
-                json={"error": "Internal Server Error"}
-            )
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
+            return_value=Response(500, json={"error": "Internal Server Error"})
         )
 
         result = await api_client.test_connection()
@@ -473,11 +409,8 @@ class TestErrorResponses:
     @pytest.mark.asyncio
     async def test_503_service_unavailable(self, api_client, mock_cribl_api):
         """Test handling of 503 service unavailable."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
-            return_value=Response(
-                503,
-                json={"error": "Service Unavailable"}
-            )
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
+            return_value=Response(503, json={"error": "Service Unavailable"})
         )
 
         result = await api_client.test_connection()
@@ -491,15 +424,15 @@ class TestRateLimiting:
     @pytest.mark.asyncio
     async def test_rate_limit_header_handling(self, api_client, mock_cribl_api):
         """Test that rate limit headers are handled if present."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(
                 200,
                 json={"version": "5.0.0"},
                 headers={
                     "X-RateLimit-Limit": "100",
                     "X-RateLimit-Remaining": "95",
-                    "X-RateLimit-Reset": "1640000000"
-                }
+                    "X-RateLimit-Reset": "1640000000",
+                },
             )
         )
 
@@ -510,11 +443,9 @@ class TestRateLimiting:
     @pytest.mark.asyncio
     async def test_429_too_many_requests(self, api_client, mock_cribl_api):
         """Test handling of 429 rate limit exceeded."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(
-                429,
-                json={"error": "Too Many Requests"},
-                headers={"Retry-After": "60"}
+                429, json={"error": "Too Many Requests"}, headers={"Retry-After": "60"}
             )
         )
 
@@ -530,7 +461,7 @@ class TestAuthenticationHeaders:
     @pytest.mark.asyncio
     async def test_bearer_token_in_request(self, api_client, mock_cribl_api):
         """Test that bearer token is included in requests."""
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/version").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/info").mock(
             return_value=Response(200, json={"version": "5.0.0"})
         )
 

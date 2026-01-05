@@ -17,7 +17,7 @@ class TestConnectionWorkflow:
     def test_successful_connection_workflow(self):
         """Test complete successful connection workflow."""
         # Mock Cribl API version endpoint
-        respx.get("https://test-cribl.example.com/api/v1/version").mock(
+        respx.get("https://test-cribl.example.com/api/v1/system/info").mock(
             return_value=httpx.Response(
                 200,
                 json={"version": "4.5.2", "build": "12345", "product": "Stream"},
@@ -42,7 +42,7 @@ class TestConnectionWorkflow:
     @respx.mock
     def test_authentication_failure_workflow(self):
         """Test connection workflow with authentication failure."""
-        respx.get("https://test-cribl.example.com/api/v1/version").mock(
+        respx.get("https://test-cribl.example.com/api/v1/system/info").mock(
             return_value=httpx.Response(401, text="Unauthorized")
         )
 
@@ -61,7 +61,7 @@ class TestConnectionWorkflow:
     @respx.mock
     def test_network_error_workflow(self):
         """Test connection workflow with network connectivity issues."""
-        respx.get("https://unreachable.example.com/api/v1/version").mock(
+        respx.get("https://unreachable.example.com/api/v1/system/info").mock(
             side_effect=httpx.ConnectError("Connection refused")
         )
 
@@ -79,7 +79,7 @@ class TestConnectionWorkflow:
     @respx.mock
     def test_timeout_workflow(self):
         """Test connection workflow with timeout."""
-        respx.get("https://slow-cribl.example.com/api/v1/version").mock(
+        respx.get("https://slow-cribl.example.com/api/v1/system/info").mock(
             side_effect=httpx.TimeoutException("Request timeout")
         )
 
@@ -98,7 +98,7 @@ class TestConnectionWorkflow:
     @respx.mock
     def test_invalid_url_workflow(self):
         """Test connection workflow with malformed URL."""
-        respx.get("https://cribl.example.com/api/v1/version").mock(
+        respx.get("https://cribl.example.com/api/v1/system/info").mock(
             return_value=httpx.Response(404, text="Not Found")
         )
 
@@ -115,7 +115,7 @@ class TestConnectionWorkflow:
     @respx.mock
     def test_cloud_deployment_connection(self):
         """Test connection to Cribl Cloud deployment."""
-        respx.get("https://myorg.cribl.cloud/api/v1/version").mock(
+        respx.get("https://myorg.cribl.cloud/api/v1/system/info").mock(
             return_value=httpx.Response(
                 200,
                 json={"version": "4.6.0", "build": "67890", "product": "Cloud"},
@@ -136,7 +136,7 @@ class TestConnectionWorkflow:
     @respx.mock
     def test_self_hosted_deployment_connection(self):
         """Test connection to self-hosted Cribl deployment."""
-        respx.get("https://cribl.internal.company.com/api/v1/version").mock(
+        respx.get("https://cribl.internal.company.com/api/v1/system/info").mock(
             return_value=httpx.Response(
                 200,
                 json={"version": "4.4.5", "build": "11111"},
@@ -156,7 +156,7 @@ class TestConnectionWorkflow:
     @respx.mock
     def test_connection_with_trailing_slash(self):
         """Test that connection works with trailing slash in URL."""
-        respx.get("https://cribl.example.com/api/v1/version").mock(
+        respx.get("https://cribl.example.com/api/v1/system/info").mock(
             return_value=httpx.Response(200, json={"version": "4.5.2"})
         )
 
@@ -172,7 +172,7 @@ class TestConnectionWorkflow:
     @respx.mock
     def test_connection_response_time_tracking(self):
         """Test that response time is accurately tracked."""
-        respx.get("https://cribl.example.com/api/v1/version").mock(
+        respx.get("https://cribl.example.com/api/v1/system/info").mock(
             return_value=httpx.Response(200, json={"version": "4.5.2"})
         )
 
@@ -192,7 +192,7 @@ class TestConnectionWorkflow:
     @respx.mock
     def test_multiple_connection_attempts(self):
         """Test making multiple connection attempts."""
-        respx.get("https://cribl.example.com/api/v1/version").mock(
+        respx.get("https://cribl.example.com/api/v1/system/info").mock(
             return_value=httpx.Response(200, json={"version": "4.5.2"})
         )
 
