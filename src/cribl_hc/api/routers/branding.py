@@ -1,0 +1,227 @@
+"""Branding API endpoints for theme and customization settings."""
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from cribl_hc.core.branding_manager import get_branding_manager
+from cribl_hc.models.branding import (
+    BrandingConfig,
+    ClientBranding,
+    ReportBranding,
+    ServiceProviderBranding,
+    ThemeColors,
+    ThemeMode,
+    UITheme,
+)
+
+router = APIRouter()
+
+
+class ThemeColorsUpdate(BaseModel):
+    primary: str | None = None
+    primary_hover: str | None = None
+    primary_foreground: str | None = None
+    secondary: str | None = None
+    secondary_hover: str | None = None
+    secondary_foreground: str | None = None
+    accent: str | None = None
+    accent_hover: str | None = None
+    accent_foreground: str | None = None
+    background: str | None = None
+    background_secondary: str | None = None
+    background_tertiary: str | None = None
+    foreground: str | None = None
+    foreground_secondary: str | None = None
+    foreground_muted: str | None = None
+    border: str | None = None
+    border_focus: str | None = None
+    severity_critical: str | None = None
+    severity_high: str | None = None
+    severity_medium: str | None = None
+    severity_low: str | None = None
+    severity_info: str | None = None
+    success: str | None = None
+    warning: str | None = None
+    error: str | None = None
+
+
+class BrandingUpdateRequest(BaseModel):
+    provider: ServiceProviderBranding | None = None
+    client: ClientBranding | None = None
+    theme: UITheme | None = None
+    report: ReportBranding | None = None
+
+
+class ThemeModeRequest(BaseModel):
+    mode: ThemeMode
+
+
+@router.get("", response_model=BrandingConfig)
+async def get_branding():
+    """Get current branding configuration."""
+    manager = get_branding_manager()
+    return manager.load()
+
+
+@router.put("", response_model=BrandingConfig)
+async def update_branding(request: BrandingUpdateRequest):
+    """Update branding configuration (partial update supported)."""
+    manager = get_branding_manager()
+    current = manager.load()
+
+    update_data = current.model_dump()
+
+    if request.provider is not None:
+        update_data["provider"] = request.provider.model_dump()
+    if request.client is not None:
+        update_data["client"] = request.client.model_dump()
+    if request.theme is not None:
+        update_data["theme"] = request.theme.model_dump()
+    if request.report is not None:
+        update_data["report"] = request.report.model_dump()
+
+    updated = BrandingConfig.model_validate(update_data)
+    manager.save(updated)
+    return updated
+
+
+@router.post("/reset", response_model=BrandingConfig)
+async def reset_branding():
+    """Reset branding to default values."""
+    manager = get_branding_manager()
+    return manager.reset()
+
+
+@router.get("/theme", response_model=UITheme)
+async def get_theme():
+    """Get current UI theme settings."""
+    manager = get_branding_manager()
+    config = manager.load()
+    return config.theme
+
+
+@router.put("/theme", response_model=UITheme)
+async def update_theme(theme: UITheme):
+    """Update UI theme settings."""
+    manager = get_branding_manager()
+    current = manager.load()
+
+    update_data = current.model_dump()
+    update_data["theme"] = theme.model_dump()
+
+    updated = BrandingConfig.model_validate(update_data)
+    manager.save(updated)
+    return updated.theme
+
+
+@router.put("/theme/mode", response_model=UITheme)
+async def set_theme_mode(request: ThemeModeRequest):
+    """Set default theme mode (light, dark, or system)."""
+    manager = get_branding_manager()
+    current = manager.load()
+
+    new_theme = UITheme(
+        default_mode=request.mode,
+        light=current.theme.light,
+        dark=current.theme.dark,
+        font_family=current.theme.font_family,
+        font_family_mono=current.theme.font_family_mono,
+        border_radius=current.theme.border_radius,
+        border_radius_lg=current.theme.border_radius_lg,
+    )
+
+    update_data = current.model_dump()
+    update_data["theme"] = new_theme.model_dump()
+
+    updated = BrandingConfig.model_validate(update_data)
+    manager.save(updated)
+    return updated.theme
+
+
+@router.get("/theme/colors/{mode}", response_model=ThemeColors)
+async def get_theme_colors(mode: str):
+    """Get color palette for specific theme mode."""
+    manager = get_branding_manager()
+    config = manager.load()
+
+    try:
+        theme_mode = ThemeMode(mode)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid theme mode: {mode}. Must be 'light', 'dark', or 'system'",
+        )
+
+    return config.get_active_theme(theme_mode)
+
+
+@router.get("/provider", response_model=ServiceProviderBranding | None)
+async def get_provider_branding():
+    """Get service provider branding."""
+    manager = get_branding_manager()
+    config = manager.load()
+    return config.provider
+
+
+@router.put("/provider", response_model=BrandingConfig)
+async def update_provider_branding(provider: ServiceProviderBranding):
+    """Update service provider branding."""
+    manager = get_branding_manager()
+    current = manager.load()
+
+    update_data = current.model_dump()
+    update_data["provider"] = provider.model_dump()
+
+    updated = BrandingConfig.model_validate(update_data)
+    manager.save(updated)
+    return updated
+
+
+@router.delete("/provider", response_model=BrandingConfig)
+async def delete_provider_branding():
+    """Remove service provider branding."""
+    manager = get_branding_manager()
+    current = manager.load()
+
+    update_data = current.model_dump()
+    update_data["provider"] = None
+
+    updated = BrandingConfig.model_validate(update_data)
+    manager.save(updated)
+    return updated
+
+
+@router.get("/client", response_model=ClientBranding | None)
+async def get_client_branding():
+    """Get client branding."""
+    manager = get_branding_manager()
+    config = manager.load()
+    return config.client
+
+
+@router.put("/client", response_model=BrandingConfig)
+async def update_client_branding(client: ClientBranding):
+    """Update client branding."""
+    manager = get_branding_manager()
+    current = manager.load()
+
+    update_data = current.model_dump()
+    update_data["client"] = client.model_dump()
+
+    updated = BrandingConfig.model_validate(update_data)
+    manager.save(updated)
+    return updated
+
+
+@router.delete("/client", response_model=BrandingConfig)
+async def delete_client_branding():
+    """Remove client branding."""
+    manager = get_branding_manager()
+    current = manager.load()
+
+    update_data = current.model_dump()
+    update_data["client"] = None
+
+    updated = BrandingConfig.model_validate(update_data)
+    manager.save(updated)
+    return updated

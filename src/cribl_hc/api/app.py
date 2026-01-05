@@ -19,7 +19,7 @@ from cribl_hc import __version__
 from cribl_hc.utils.logger import get_logger
 
 # Import routers
-from cribl_hc.api.routers import credentials, analysis, analyzers, system
+from cribl_hc.api.routers import credentials, analysis, analyzers, system, branding
 
 log = get_logger(__name__)
 
@@ -73,25 +73,24 @@ app.include_router(system.router, prefix="/api/v1", tags=["system"])
 app.include_router(credentials.router, prefix="/api/v1/credentials", tags=["credentials"])
 app.include_router(analyzers.router, prefix="/api/v1/analyzers", tags=["analyzers"])
 app.include_router(analysis.router, prefix="/api/v1/analysis", tags=["analysis"])
+app.include_router(branding.router, prefix="/api/v1/branding", tags=["branding"])
 
 
 @app.get("/", include_in_schema=False)
 async def root():
     """Root endpoint - redirect to API docs."""
-    return JSONResponse({
-        "message": "Cribl Health Check API",
-        "version": __version__,
-        "docs": "/api/docs",
-        "health": "/api/v1/health"
-    })
+    return JSONResponse(
+        {
+            "message": "Cribl Health Check API",
+            "version": __version__,
+            "docs": "/api/docs",
+            "health": "/api/v1/health",
+        }
+    )
 
 
 @app.get("/health", include_in_schema=False)
 @app.get("/api/v1/health")
 async def health_check():
     """Health check endpoint for container orchestration."""
-    return {
-        "status": "healthy",
-        "version": __version__,
-        "service": "cribl-health-check"
-    }
+    return {"status": "healthy", "version": __version__, "service": "cribl-health-check"}

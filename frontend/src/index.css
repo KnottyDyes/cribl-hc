@@ -14,6 +14,34 @@
   --color-severity-info: #6B7280;
 }
 
+:root {
+  --bg: #FFFFFF;
+  --bg-secondary: #F9FAFB;
+  --bg-tertiary: #F3F4F6;
+  --fg: #111827;
+  --fg-secondary: #4B5563;
+  --fg-muted: #9CA3AF;
+  --border: #E5E7EB;
+  --border-focus: #00A3E0;
+}
+
+[data-theme="dark"] {
+  --bg: #111827;
+  --bg-secondary: #1F2937;
+  --bg-tertiary: #374151;
+  --fg: #F9FAFB;
+  --fg-secondary: #D1D5DB;
+  --fg-muted: #6B7280;
+  --border: #374151;
+  --border-focus: #00A3E0;
+}
+
 * {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
