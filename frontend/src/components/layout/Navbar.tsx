@@ -7,6 +7,7 @@ import {
   MoonIcon,
 } from '@heroicons/react/24/outline'
 import { useTheme } from '../../hooks/useTheme'
+import { Cog6ToothIcon } from '@heroicons/react/24/outline'
 
 export function Navbar() {
   const location = useLocation()
@@ -20,6 +21,7 @@ export function Navbar() {
     { path: '/credentials', label: 'Credentials', icon: KeyIcon },
     { path: '/analysis', label: 'Analysis', icon: BeakerIcon },
     { path: '/results', label: 'Results', icon: DocumentChartBarIcon },
+    { path: '/branding', label: 'Branding', icon: Cog6ToothIcon },
   ]
 
   const isDark = resolvedTheme === 'dark'

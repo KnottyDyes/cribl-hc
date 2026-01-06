@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 @theme {
   /* Cribl brand colors */
   --color-cribl-primary: #00A3E0;

@@ -121,8 +121,8 @@ export function CredentialList() {
       <div>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Credentials</h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Credentials</h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Loading credentials...
             </p>
           </div>
@@ -140,8 +140,8 @@ export function CredentialList() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Credentials</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Credentials</h2>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Manage your Cribl deployment credentials
           </p>
         </div>
@@ -152,8 +152,8 @@ export function CredentialList() {
       </div>
 
       {credentials && credentials.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <p className="text-gray-500">No credentials configured yet.</p>
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <p className="text-gray-500 dark:text-gray-400">No credentials configured yet.</p>
           <Button className="mt-4" onClick={() => setIsModalOpen(true)}>
             Add Your First Credential
           </Button>
