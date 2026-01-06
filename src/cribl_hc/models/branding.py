@@ -259,22 +259,16 @@ class ServiceProviderBranding(BaseModel):
     """Branding for the company running the health check (e.g., MSP)."""
 
     name: str = Field(..., description="Company name of the service provider.")
-    logo_path: Optional[str] = Field(None, description="Filesystem path to the provider's logo.")
-    logo_path_dark: Optional[str] = Field(
-        None, description="Alternative logo for dark mode (if different from light)."
-    )
-    logo_url: Optional[HttpUrl] = Field(None, description="URL to the provider's logo (remote).")
-    logo_url_dark: Optional[HttpUrl] = Field(
-        None, description="URL to the dark mode logo (remote)."
-    )
-    primary_color: Optional[str] = Field(
-        None, description="Primary brand color (hex code, e.g., '#1E88E5')."
-    )
-    secondary_color: Optional[str] = Field(None, description="Secondary brand color (hex code).")
-    contact_email: Optional[str] = Field(None, description="Support or contact email address.")
-    website: Optional[HttpUrl] = Field(None, description="Company website URL.")
-    footer_text: Optional[str] = Field(None, description="Custom footer text or legal disclaimer.")
-    tagline: Optional[str] = Field(None, description="Company tagline or slogan.")
+    logo_path: Optional[str] = None
+    logo_path_dark: Optional[str] = None
+    logo_url: Optional[HttpUrl] = None
+    logo_url_dark: Optional[HttpUrl] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
+    contact_email: Optional[str] = None
+    website: Optional[HttpUrl] = None
+    footer_text: Optional[str] = None
+    tagline: Optional[str] = None
 
 
 class ClientBranding(BaseModel):

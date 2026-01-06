@@ -14,12 +14,39 @@ from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.core.orchestrator import AnalyzerOrchestrator, AnalysisProgress
 from cribl_hc.cli.output import display_analysis_results
 from cribl_hc.utils.logger import get_logger, configure_logging
+from cribl_hc.models.branding import BrandingConfig, ServiceProviderBranding, ClientBranding
 
 
 console = Console()
 log = get_logger(__name__)
 
 app = typer.Typer(help="Run health check analysis")
+
+
+def build_branding_config(
+    provider_name: Optional[str],
+    provider_logo: Optional[str],
+    client_name: Optional[str],
+    client_logo: Optional[str],
+) -> Optional[BrandingConfig]:
+    if not any([provider_name, client_name]):
+        return None
+
+    provider = None
+    if provider_name:
+        provider = ServiceProviderBranding.model_construct(
+            name=provider_name,
+            logo_path=provider_logo,
+        )
+
+    client = None
+    if client_name:
+        client = ClientBranding.model_construct(
+            name=client_name,
+            logo_path=client_logo,
+        )
+
+    return BrandingConfig(provider=provider, client=client)
 
 
 @app.command()
@@ -85,6 +112,26 @@ def run(
         "--debug",
         help="Enable debug mode (DEBUG level logging with detailed traces)",
     ),
+    provider_name: Optional[str] = typer.Option(
+        None,
+        "--provider-name",
+        help="Service provider company name (e.g., 'Acme Consulting')",
+    ),
+    provider_logo: Optional[str] = typer.Option(
+        None,
+        "--provider-logo",
+        help="Path to provider logo file",
+    ),
+    client_name: Optional[str] = typer.Option(
+        None,
+        "--client-name",
+        help="Client company name (e.g., 'Example Corp')",
+    ),
+    client_logo: Optional[str] = typer.Option(
+        None,
+        "--client-logo",
+        help="Path to client logo file",
+    ),
 ):
     """
     Run health check analysis on a Cribl Stream deployment.
@@ -107,6 +154,9 @@ def run(
 
         # Save results to file
         cribl-hc analyze run -p prod --output report.json --markdown
+
+        # With branding
+        cribl-hc analyze run -p prod --provider-name "Acme Consulting" --client-name "Example Corp" --markdown
     """
     # Load credentials from stored profile if deployment specified
     if deployment:
@@ -156,6 +206,14 @@ def run(
         configure_logging(level="INFO", json_output=False)
         console.print("[cyan]ℹ️  Verbose mode enabled[/cyan]")
 
+    # Build branding config from flags
+    branding = build_branding_config(
+        provider_name=provider_name,
+        provider_logo=provider_logo,
+        client_name=client_name,
+        client_logo=client_logo,
+    )
+
     # Run async analysis
     asyncio.run(
         run_analysis_async(
@@ -168,6 +226,7 @@ def run(
             max_api_calls=max_api_calls,
             verbose=verbose,
             debug=debug,
+            branding=branding,
         )
     )
 
@@ -182,6 +241,7 @@ async def run_analysis_async(
     max_api_calls: int,
     verbose: bool = False,
     debug: bool = False,
+    branding: Optional[BrandingConfig] = None,
 ):
     """
     Run analysis asynchronously.
@@ -194,6 +254,7 @@ async def run_analysis_async(
         markdown: Whether to generate Markdown report
         deployment_id: Deployment identifier
         max_api_calls: Maximum API calls allowed
+        branding: Optional branding configuration
     """
     console.print(f"\n[cyan]Cribl Stream Health Check[/cyan]")
     console.print(f"[dim]Target:[/dim] {url}")
@@ -316,7 +377,7 @@ async def run_analysis_async(
 
             if debug:
                 log.debug("saving_markdown_report", output_file=str(markdown_path))
-            save_markdown_report(analysis_run, results, markdown_path)
+            save_markdown_report(analysis_run, results, markdown_path, branding)
             console.print(f"[green]✓ Markdown report saved to:[/green] {markdown_path}")
 
         # Exit with appropriate code
@@ -340,13 +401,12 @@ def save_json_report(analysis_run, output_path: Path):
         json.dump(analysis_run.model_dump(mode="json"), f, indent=2, default=str)
 
 
-def save_markdown_report(analysis_run, results, output_path: Path):
-    """Save analysis results as Markdown."""
+def save_markdown_report(analysis_run, results, output_path: Path, branding: Optional[BrandingConfig] = None):
     from cribl_hc.core.report_generator import MarkdownReportGenerator
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    generator = MarkdownReportGenerator()
+    generator = MarkdownReportGenerator(branding=branding)
     markdown_content = generator.generate(analysis_run, results)
 
     output_path.write_text(markdown_content)
