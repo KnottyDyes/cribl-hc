@@ -13,11 +13,38 @@ from cribl_hc.cli.output import display_analysis_results
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.core.orchestrator import AnalysisProgress, AnalyzerOrchestrator
 from cribl_hc.utils.logger import configure_logging, get_logger
+from cribl_hc.models.branding import BrandingConfig, ServiceProviderBranding, ClientBranding
 
 console = Console()
 log = get_logger(__name__)
 
 app = typer.Typer(help="Run health check analysis")
+
+
+def build_branding_config(
+    provider_name: Optional[str],
+    provider_logo: Optional[str],
+    client_name: Optional[str],
+    client_logo: Optional[str],
+) -> Optional[BrandingConfig]:
+    if not any([provider_name, client_name]):
+        return None
+
+    provider = None
+    if provider_name:
+        provider = ServiceProviderBranding.model_construct(
+            name=provider_name,
+            logo_path=provider_logo,
+        )
+
+    client = None
+    if client_name:
+        client = ClientBranding.model_construct(
+            name=client_name,
+            logo_path=client_logo,
+        )
+
+    return BrandingConfig(provider=provider, client=client)
 
 
 @app.command()
@@ -83,6 +110,26 @@ def run(
         "--debug",
         help="Enable debug mode (DEBUG level logging with detailed traces)",
     ),
+    provider_name: Optional[str] = typer.Option(
+        None,
+        "--provider-name",
+        help="Service provider company name (e.g., 'Acme Consulting')",
+    ),
+    provider_logo: Optional[str] = typer.Option(
+        None,
+        "--provider-logo",
+        help="Path to provider logo file",
+    ),
+    client_name: Optional[str] = typer.Option(
+        None,
+        "--client-name",
+        help="Client company name (e.g., 'Example Corp')",
+    ),
+    client_logo: Optional[str] = typer.Option(
+        None,
+        "--client-logo",
+        help="Path to client logo file",
+    ),
 ):
     """
     Run health check analysis on a Cribl Stream deployment.
@@ -105,6 +152,9 @@ def run(
 
         # Save results to file
         cribl-hc analyze run -p prod --output report.json --markdown
+
+        # With branding
+        cribl-hc analyze run -p prod --provider-name "Acme Consulting" --client-name "Example Corp" --markdown
     """
     # Load credentials from stored profile if deployment specified
     if deployment:
@@ -114,8 +164,12 @@ def run(
             credentials = load_credentials()
             if deployment not in credentials:
                 console.print(f"[red]✗ No credentials found for deployment:[/red] {deployment}")
-                console.print(f"[dim]Use 'cribl-hc config set {deployment}' to add credentials[/dim]")
-                console.print("[dim]Or use 'cribl-hc config list' to see available deployments[/dim]")
+                console.print(
+                    f"[dim]Use 'cribl-hc config set {deployment}' to add credentials[/dim]"
+                )
+                console.print(
+                    "[dim]Or use 'cribl-hc config list' to see available deployments[/dim]"
+                )
                 raise typer.Exit(code=1)
 
             cred = credentials[deployment]
@@ -154,6 +208,14 @@ def run(
         configure_logging(level="INFO", json_output=False)
         console.print("[cyan]ℹ️  Verbose mode enabled[/cyan]")
 
+    # Build branding config from flags
+    branding = build_branding_config(
+        provider_name=provider_name,
+        provider_logo=provider_logo,
+        client_name=client_name,
+        client_logo=client_logo,
+    )
+
     # Run async analysis
     asyncio.run(
         run_analysis_async(
@@ -166,6 +228,7 @@ def run(
             max_api_calls=max_api_calls,
             verbose=verbose,
             debug=debug,
+            branding=branding,
         )
     )
 
@@ -180,6 +243,7 @@ async def run_analysis_async(
     max_api_calls: int,
     verbose: bool = False,
     debug: bool = False,
+    branding: Optional[BrandingConfig] = None,
 ):
     """
     Run analysis asynchronously.
@@ -192,14 +256,20 @@ async def run_analysis_async(
         markdown: Whether to generate Markdown report
         deployment_id: Deployment identifier
         max_api_calls: Maximum API calls allowed
+        branding: Optional branding configuration
     """
     console.print("\n[cyan]Cribl Stream Health Check[/cyan]")
     console.print(f"[dim]Target:[/dim] {url}")
     console.print(f"[dim]Deployment:[/dim] {deployment_id}\n")
 
     if debug:
-        log.debug("analysis_starting", url=url, deployment_id=deployment_id,
-                  max_api_calls=max_api_calls, objectives=objectives)
+        log.debug(
+            "analysis_starting",
+            url=url,
+            deployment_id=deployment_id,
+            max_api_calls=max_api_calls,
+            objectives=objectives,
+        )
         console.print(f"[dim]Debug: Max API calls: {max_api_calls}[/dim]")
         console.print(f"[dim]Debug: Objectives: {objectives or 'all registered'}[/dim]")
 
@@ -222,15 +292,17 @@ async def run_analysis_async(
         console.print(f"[dim]Cribl version:[/dim] {connection_result.cribl_version}\n")
 
         if debug:
-            log.debug("connection_successful",
-                     response_time_ms=connection_result.response_time_ms,
-                     cribl_version=connection_result.cribl_version)
+            log.debug(
+                "connection_successful",
+                response_time_ms=connection_result.response_time_ms,
+                cribl_version=connection_result.cribl_version,
+            )
 
         # Initialize orchestrator
         if verbose or debug:
-            log.info("initializing_orchestrator",
-                    max_api_calls=max_api_calls,
-                    continue_on_error=True)
+            log.info(
+                "initializing_orchestrator", max_api_calls=max_api_calls, continue_on_error=True
+            )
 
         orchestrator = AnalyzerOrchestrator(
             client=client,
@@ -246,7 +318,6 @@ async def run_analysis_async(
             TaskProgressColumn(),
             console=console,
         ) as progress:
-
             # Create progress task
             task_id = progress.add_task("Running analysis...", total=100)
 
@@ -260,11 +331,13 @@ async def run_analysis_async(
                 )
 
                 if debug:
-                    log.debug("analysis_progress",
-                             current_objective=analysis_progress.current_objective,
-                             completed_objectives=analysis_progress.completed_objectives,
-                             total_objectives=analysis_progress.total_objectives,
-                             percentage=percentage)
+                    log.debug(
+                        "analysis_progress",
+                        current_objective=analysis_progress.current_objective,
+                        completed_objectives=analysis_progress.completed_objectives,
+                        total_objectives=analysis_progress.total_objectives,
+                        percentage=percentage,
+                    )
 
             # Run the analysis
             results = await orchestrator.run_analysis(
@@ -278,13 +351,15 @@ async def run_analysis_async(
         analysis_run = orchestrator.create_analysis_run(results, deployment_id)
 
         if debug:
-            log.debug("analysis_complete",
-                     deployment_id=deployment_id,
-                     status=analysis_run.status,
-                     findings_count=len(analysis_run.findings),
-                     recommendations_count=len(analysis_run.recommendations),
-                     api_calls_used=analysis_run.api_calls_used,
-                     duration_seconds=analysis_run.duration_seconds)
+            log.debug(
+                "analysis_complete",
+                deployment_id=deployment_id,
+                status=analysis_run.status,
+                findings_count=len(analysis_run.findings),
+                recommendations_count=len(analysis_run.recommendations),
+                api_calls_used=analysis_run.api_calls_used,
+                duration_seconds=analysis_run.duration_seconds,
+            )
 
         # Validate performance targets
         _check_performance_targets(analysis_run, console, verbose or debug)
@@ -292,9 +367,11 @@ async def run_analysis_async(
         # Display results
         console.print()
         if verbose:
-            log.info("displaying_results",
-                    findings_count=len(analysis_run.findings),
-                    recommendations_count=len(analysis_run.recommendations))
+            log.info(
+                "displaying_results",
+                findings_count=len(analysis_run.findings),
+                recommendations_count=len(analysis_run.recommendations),
+            )
 
         # Display standard terminal output
         display_analysis_results(results, analysis_run, console)
@@ -314,7 +391,7 @@ async def run_analysis_async(
 
             if debug:
                 log.debug("saving_markdown_report", output_file=str(markdown_path))
-            save_markdown_report(analysis_run, results, markdown_path)
+            save_markdown_report(analysis_run, results, markdown_path, branding)
             console.print(f"[green]✓ Markdown report saved to:[/green] {markdown_path}")
 
         # Exit with appropriate code
@@ -338,13 +415,14 @@ def save_json_report(analysis_run, output_path: Path):
         json.dump(analysis_run.model_dump(mode="json"), f, indent=2, default=str)
 
 
-def save_markdown_report(analysis_run, results, output_path: Path):
-    """Save analysis results as Markdown."""
+def save_markdown_report(
+    analysis_run, results, output_path: Path, branding: Optional[BrandingConfig] = None
+):
     from cribl_hc.core.report_generator import MarkdownReportGenerator
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    generator = MarkdownReportGenerator()
+    generator = MarkdownReportGenerator(branding=branding)
     markdown_content = generator.generate(analysis_run, results)
 
     output_path.write_text(markdown_content)
@@ -376,9 +454,11 @@ def _check_performance_targets(analysis_run, console: Console, verbose: bool = F
 
     # Display warnings if targets are at risk or exceeded
     if not duration_ok:
-        log.warning("performance_duration_exceeded",
-                   duration_seconds=duration,
-                   target_seconds=DURATION_TARGET)
+        log.warning(
+            "performance_duration_exceeded",
+            duration_seconds=duration,
+            target_seconds=DURATION_TARGET,
+        )
         console.print(
             f"\n[red]⚠ Performance Warning:[/red] "
             f"Analysis took {duration:.1f}s (target: <{DURATION_TARGET}s)"
@@ -390,9 +470,11 @@ def _check_performance_targets(analysis_run, console: Console, verbose: bool = F
         )
 
     if not api_calls_ok:
-        log.warning("performance_api_budget_exceeded",
-                   api_calls_used=api_calls,
-                   api_call_target=API_CALL_TARGET)
+        log.warning(
+            "performance_api_budget_exceeded",
+            api_calls_used=api_calls,
+            api_call_target=API_CALL_TARGET,
+        )
         console.print(
             f"[red]⚠ Performance Warning:[/red] "
             f"Used {api_calls} API calls (budget: {API_CALL_TARGET})"
@@ -405,10 +487,12 @@ def _check_performance_targets(analysis_run, console: Console, verbose: bool = F
 
     # Log performance metrics for analysis
     if verbose:
-        log.info("performance_metrics",
-                duration_seconds=duration,
-                duration_target=DURATION_TARGET,
-                duration_ok=duration_ok,
-                api_calls_used=api_calls,
-                api_call_target=API_CALL_TARGET,
-                api_calls_ok=api_calls_ok)
+        log.info(
+            "performance_metrics",
+            duration_seconds=duration,
+            duration_target=DURATION_TARGET,
+            duration_ok=duration_ok,
+            api_calls_used=api_calls,
+            api_call_target=API_CALL_TARGET,
+            api_calls_ok=api_calls_ok,
+        )

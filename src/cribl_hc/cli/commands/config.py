@@ -12,6 +12,8 @@ from rich.table import Table
 from cribl_hc.utils.crypto import CredentialEncryptor, generate_master_key
 from cribl_hc.utils.logger import get_logger
 
+from cribl_hc.cli.commands.branding import app as branding_app
+
 console = Console()
 log = get_logger(__name__)
 
@@ -244,7 +246,7 @@ def export_key(
     """
     try:
         key = get_or_create_key()
-        key_str = key.decode('utf-8')
+        key_str = key.decode("utf-8")
 
         if output:
             output.write_text(key_str)
@@ -257,3 +259,6 @@ def export_key(
     except Exception as e:
         console.print(f"[red]✗ Failed to export key:[/red] {str(e)}")
         raise typer.Exit(code=1)
+
+
+app.add_typer(branding_app, name="branding", help="Manage branding configuration")
