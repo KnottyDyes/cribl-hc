@@ -1,6 +1,10 @@
 """Branding API endpoints for theme and customization settings."""
 
-from fastapi import APIRouter, HTTPException
+import base64
+import io
+
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from PIL import Image
 from pydantic import BaseModel
 
 from cribl_hc.core.branding_manager import get_branding_manager
@@ -225,3 +229,88 @@ async def delete_client_branding():
     updated = BrandingConfig.model_validate(update_data)
     manager.save(updated)
     return updated
+
+
+def optimize_logo(image_data: bytes, max_height: int = 128) -> str:
+    """Optimize logo image and return as base64 data URI."""
+    img = Image.open(io.BytesIO(image_data))
+
+    # Convert to RGB if necessary (e.g. for JPEG) or keep RGBA for PNG
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGBA")
+    else:
+        img = img.convert("RGB")
+
+    # Resize if height is too large
+    if img.height > max_height:
+        ratio = max_height / img.height
+        new_width = int(img.width * ratio)
+        img = img.resize((new_width, max_height), Image.Resampling.LANCZOS)
+
+    # Save as PNG
+    out_buf = io.BytesIO()
+    img.save(out_buf, format="PNG", optimize=True)
+    base64_data = base64.b64encode(out_buf.getvalue()).decode("utf-8")
+
+    return f"data:image/png;base64,{base64_data}"
+
+
+@router.post("/logo/{logo_type}", response_model=BrandingConfig)
+async def upload_logo(logo_type: str, file: UploadFile = File(...)):
+    """Upload and optimize a logo image."""
+    if logo_type not in ("provider", "provider_dark", "client", "client_dark"):
+        raise HTTPException(status_code=400, detail="Invalid logo type")
+
+    content = await file.read()
+    try:
+        base64_logo = optimize_logo(content)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image file: {str(e)}")
+
+    manager = get_branding_manager()
+    config = manager.load()
+
+    if logo_type.startswith("provider"):
+        if not config.provider:
+            # Create default provider if doesn't exist
+            config.provider = ServiceProviderBranding(name="My Organization")
+
+        if logo_type == "provider":
+            config.provider.logo_base64 = base64_logo
+        else:
+            config.provider.logo_dark_base64 = base64_logo
+    else:
+        if not config.client:
+            config.client = ClientBranding(name="Default Client")
+
+        if logo_type == "client":
+            config.client.logo_base64 = base64_logo
+        else:
+            config.client.logo_dark_base64 = base64_logo
+
+    manager.save(config)
+    return config
+
+
+@router.delete("/logo/{logo_type}", response_model=BrandingConfig)
+async def delete_logo(logo_type: str):
+    """Remove a logo image."""
+    if logo_type not in ("provider", "provider_dark", "client", "client_dark"):
+        raise HTTPException(status_code=400, detail="Invalid logo type")
+
+    manager = get_branding_manager()
+    config = manager.load()
+
+    if logo_type.startswith("provider") and config.provider:
+        if logo_type == "provider":
+            config.provider.logo_base64 = None
+        else:
+            config.provider.logo_dark_base64 = None
+    elif logo_type.startswith("client") and config.client:
+        if logo_type == "client":
+            config.client.logo_base64 = None
+        else:
+            config.client.logo_dark_base64 = None
+
+    manager.save(config)
+    return config

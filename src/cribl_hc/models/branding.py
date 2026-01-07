@@ -7,7 +7,6 @@ and the web UI (supporting dark/light mode themes).
 """
 
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
@@ -236,11 +235,11 @@ class UITheme(BaseModel):
         description="Color palette for dark mode.",
     )
     # Typography customization
-    font_family: Optional[str] = Field(
+    font_family: str | None = Field(
         None,
         description="Custom font family CSS value. Uses system fonts if not specified.",
     )
-    font_family_mono: Optional[str] = Field(
+    font_family_mono: str | None = Field(
         None,
         description="Custom monospace font family for code blocks.",
     )
@@ -259,34 +258,38 @@ class ServiceProviderBranding(BaseModel):
     """Branding for the company running the health check (e.g., MSP)."""
 
     name: str = Field(..., description="Company name of the service provider.")
-    logo_path: Optional[str] = None
-    logo_path_dark: Optional[str] = None
-    logo_url: Optional[HttpUrl] = None
-    logo_url_dark: Optional[HttpUrl] = None
-    primary_color: Optional[str] = None
-    secondary_color: Optional[str] = None
-    contact_email: Optional[str] = None
-    website: Optional[HttpUrl] = None
-    footer_text: Optional[str] = None
-    tagline: Optional[str] = None
+    logo_path: str | None = None
+    logo_path_dark: str | None = None
+    logo_url: HttpUrl | None = None
+    logo_url_dark: HttpUrl | None = None
+    logo_base64: str | None = Field(None, description="Base64 encoded logo image.")
+    logo_dark_base64: str | None = Field(None, description="Base64 encoded dark mode logo.")
+    primary_color: str | None = None
+    secondary_color: str | None = None
+    contact_email: str | None = None
+    website: HttpUrl | None = None
+    footer_text: str | None = None
+    tagline: str | None = None
 
 
 class ClientBranding(BaseModel):
     """Branding for the end customer receiving the report."""
 
     name: str = Field(..., description="Company name of the client.")
-    logo_path: Optional[str] = Field(None, description="Filesystem path to the client's logo.")
-    logo_path_dark: Optional[str] = Field(
+    logo_path: str | None = Field(None, description="Filesystem path to the client's logo.")
+    logo_path_dark: str | None = Field(
         None, description="Alternative logo for dark mode (if different)."
     )
-    logo_url: Optional[HttpUrl] = Field(None, description="URL to the client's logo (remote).")
-    logo_url_dark: Optional[HttpUrl] = Field(
+    logo_url: HttpUrl | None = Field(None, description="URL to the client's logo (remote).")
+    logo_url_dark: HttpUrl | None = Field(
         None, description="URL to the dark mode logo (remote)."
     )
-    identifier: Optional[str] = Field(
+    logo_base64: str | None = Field(None, description="Base64 encoded logo image.")
+    logo_dark_base64: str | None = Field(None, description="Base64 encoded dark mode logo.")
+    identifier: str | None = Field(
         None, description="Client identifier (e.g., account number, department)."
     )
-    report_title: Optional[str] = Field(None, description="Custom title for the report.")
+    report_title: str | None = Field(None, description="Custom title for the report.")
 
 
 class ReportBranding(BaseModel):
@@ -296,14 +299,14 @@ class ReportBranding(BaseModel):
     show_client_logo: bool = Field(True, description="Include client logo in reports.")
     show_footer: bool = Field(True, description="Include branded footer in reports.")
     show_watermark: bool = Field(False, description="Add watermark to report pages.")
-    watermark_text: Optional[str] = Field(
+    watermark_text: str | None = Field(
         None, description="Custom watermark text (e.g., 'CONFIDENTIAL')."
     )
-    custom_css: Optional[str] = Field(None, description="Custom CSS to inject into HTML reports.")
-    header_template: Optional[str] = Field(
+    custom_css: str | None = Field(None, description="Custom CSS to inject into HTML reports.")
+    header_template: str | None = Field(
         None, description="Custom HTML template for report header."
     )
-    footer_template: Optional[str] = Field(
+    footer_template: str | None = Field(
         None, description="Custom HTML template for report footer."
     )
 
@@ -318,10 +321,10 @@ class BrandingConfig(BaseModel):
     - Report-specific branding options
     """
 
-    provider: Optional[ServiceProviderBranding] = Field(
+    provider: ServiceProviderBranding | None = Field(
         None, description="Service provider branding details."
     )
-    client: Optional[ClientBranding] = Field(None, description="Client-specific branding details.")
+    client: ClientBranding | None = Field(None, description="Client-specific branding details.")
     theme: UITheme = Field(
         default_factory=lambda: UITheme(),
         description="UI theme configuration (dark/light mode, colors).",

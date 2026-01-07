@@ -2,15 +2,13 @@
 Branding configuration management CLI commands.
 """
 
-from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from cribl_hc.models.branding import BrandingConfig, ServiceProviderBranding, ClientBranding
 from cribl_hc.core.branding_manager import get_branding_manager
+from cribl_hc.models.branding import BrandingConfig, ClientBranding, ServiceProviderBranding
 
 console = Console()
 app = typer.Typer(help="Manage branding configuration")
@@ -18,24 +16,24 @@ app = typer.Typer(help="Manage branding configuration")
 
 @app.command("set")
 def set_branding(
-    provider_name: Optional[str] = typer.Option(
+    provider_name: str | None = typer.Option(
         None,
         "--provider-name",
         "-p",
         help="Service provider company name",
     ),
-    provider_logo: Optional[str] = typer.Option(
+    provider_logo: str | None = typer.Option(
         None,
         "--provider-logo",
         help="Path to provider logo file",
     ),
-    client_name: Optional[str] = typer.Option(
+    client_name: str | None = typer.Option(
         None,
         "--client-name",
         "-c",
         help="Client company name",
     ),
-    client_logo: Optional[str] = typer.Option(
+    client_logo: str | None = typer.Option(
         None,
         "--client-logo",
         help="Path to client logo file",

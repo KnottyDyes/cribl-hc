@@ -402,6 +402,37 @@ Response:
 }
 ```
 
+**POST /api/v1/branding/logo/{logo_type}**
+
+Upload and optimize a logo image. Supports PNG, JPG, and SVG.
+`logo_type` can be `provider`, `provider_dark`, `client`, or `client_dark`.
+
+Request:
+- Multipart form data with `file` field.
+
+Response:
+```json
+{
+  "provider": {
+    "logo_base64": "data:image/png;base64,..."
+  },
+  "client": { ... },
+  "theme": { ... },
+  "report": { ... }
+}
+```
+
+**DELETE /api/v1/branding/logo/{logo_type}**
+
+Remove a logo image.
+
+Response:
+```json
+{
+  "message": "Logo removed successfully"
+}
+```
+
 #### Analysis
 
 **POST /api/v1/analysis/run**

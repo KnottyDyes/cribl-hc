@@ -3,7 +3,6 @@ Analyze command for running health check analysis.
 """
 
 import asyncio
-from typing import List, Optional
 from pathlib import Path
 
 import typer
@@ -13,8 +12,8 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn
 from cribl_hc.cli.output import display_analysis_results
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.core.orchestrator import AnalysisProgress, AnalyzerOrchestrator
+from cribl_hc.models.branding import BrandingConfig, ClientBranding, ServiceProviderBranding
 from cribl_hc.utils.logger import configure_logging, get_logger
-from cribl_hc.models.branding import BrandingConfig, ServiceProviderBranding, ClientBranding
 
 console = Console()
 log = get_logger(__name__)
@@ -23,11 +22,11 @@ app = typer.Typer(help="Run health check analysis")
 
 
 def build_branding_config(
-    provider_name: Optional[str],
-    provider_logo: Optional[str],
-    client_name: Optional[str],
-    client_logo: Optional[str],
-) -> Optional[BrandingConfig]:
+    provider_name: str | None,
+    provider_logo: str | None,
+    client_name: str | None,
+    client_logo: str | None,
+) -> BrandingConfig | None:
     if not any([provider_name, client_name]):
         return None
 
@@ -111,22 +110,22 @@ def run(
         "--debug",
         help="Enable debug mode (DEBUG level logging with detailed traces)",
     ),
-    provider_name: Optional[str] = typer.Option(
+    provider_name: str | None = typer.Option(
         None,
         "--provider-name",
         help="Service provider company name (e.g., 'Acme Consulting')",
     ),
-    provider_logo: Optional[str] = typer.Option(
+    provider_logo: str | None = typer.Option(
         None,
         "--provider-logo",
         help="Path to provider logo file",
     ),
-    client_name: Optional[str] = typer.Option(
+    client_name: str | None = typer.Option(
         None,
         "--client-name",
         help="Client company name (e.g., 'Example Corp')",
     ),
-    client_logo: Optional[str] = typer.Option(
+    client_logo: str | None = typer.Option(
         None,
         "--client-logo",
         help="Path to client logo file",
@@ -244,7 +243,7 @@ async def run_analysis_async(
     max_api_calls: int,
     verbose: bool = False,
     debug: bool = False,
-    branding: Optional[BrandingConfig] = None,
+    branding: BrandingConfig | None = None,
 ):
     """
     Run analysis asynchronously.
@@ -417,7 +416,7 @@ def save_json_report(analysis_run, output_path: Path):
 
 
 def save_markdown_report(
-    analysis_run, results, output_path: Path, branding: Optional[BrandingConfig] = None
+    analysis_run, results, output_path: Path, branding: BrandingConfig | None = None
 ):
     from cribl_hc.core.report_generator import MarkdownReportGenerator
 

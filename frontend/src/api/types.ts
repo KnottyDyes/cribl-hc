@@ -264,6 +264,8 @@ export interface ServiceProviderBranding {
   logo_path_dark?: string
   logo_url?: string
   logo_url_dark?: string
+  logo_base64?: string
+  logo_dark_base64?: string
   primary_color?: string
   secondary_color?: string
   contact_email?: string
@@ -278,6 +280,8 @@ export interface ClientBranding {
   logo_path_dark?: string
   logo_url?: string
   logo_url_dark?: string
+  logo_base64?: string
+  logo_dark_base64?: string
   identifier?: string
   report_title?: string
 }

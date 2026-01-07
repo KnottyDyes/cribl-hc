@@ -2,9 +2,6 @@
 Report generation for analysis results in multiple formats.
 """
 
-import json
-from datetime import datetime
-from typing import Dict, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.models.analysis import AnalysisRun
@@ -21,7 +18,7 @@ class MarkdownReportGenerator:
         >>> Path("report.md").write_text(markdown)
     """
 
-    def __init__(self, branding: Optional[BrandingConfig] = None):
+    def __init__(self, branding: BrandingConfig | None = None):
         self.branding = branding or BrandingConfig.default()
 
     def generate(
@@ -263,7 +260,7 @@ class HTMLReportGenerator:
 
     def __init__(
         self,
-        branding: Optional[BrandingConfig] = None,
+        branding: BrandingConfig | None = None,
         theme_mode: ThemeMode = ThemeMode.LIGHT,
     ):
         self.branding = branding or BrandingConfig.default()
@@ -273,7 +270,7 @@ class HTMLReportGenerator:
     def generate(
         self,
         analysis_run: AnalysisRun,
-        results: Dict[str, AnalyzerResult],
+        results: dict[str, AnalyzerResult],
     ) -> str:
         return f"""<!DOCTYPE html>
 <html lang="en">
@@ -451,10 +448,14 @@ class HTMLReportGenerator:
     def _generate_header_html(self, analysis_run: AnalysisRun) -> str:
         logo_html = ""
         if self.branding.report.show_provider_logo and self.branding.provider:
-            logo_path = self.branding.provider.logo_url or self.branding.provider.logo_path
-            if logo_path:
+            logo_src = (
+                self.branding.provider.logo_base64
+                or self.branding.provider.logo_url
+                or self.branding.provider.logo_path
+            )
+            if logo_src:
                 logo_html = (
-                    f'<img src="{logo_path}" alt="{self.branding.provider.name}" class="logo">'
+                    f'<img src="{logo_src}" alt="{self.branding.provider.name}" class="logo">'
                 )
 
         provider_info = ""
@@ -464,6 +465,17 @@ class HTMLReportGenerator:
         client_info = ""
         if self.branding.client:
             client_info = f"<span>Prepared for: {self.branding.client.name}</span>"
+            if self.branding.report.show_client_logo:
+                client_logo_src = (
+                    self.branding.client.logo_base64
+                    or self.branding.client.logo_url
+                    or self.branding.client.logo_path
+                )
+                if client_logo_src:
+                    client_info = (
+                        f'<span><img src="{client_logo_src}" alt="{self.branding.client.name}" style="max-height: 24px; vertical-align: middle; margin-right: 8px;">'
+                        f"Prepared for: {self.branding.client.name}</span>"
+                    )
 
         return f"""
     <div class="header">
@@ -518,7 +530,7 @@ class HTMLReportGenerator:
     </section>
         """
 
-    def _generate_findings_html(self, results: Dict[str, AnalyzerResult]) -> str:
+    def _generate_findings_html(self, results: dict[str, AnalyzerResult]) -> str:
         sections = []
         severity_order = ["critical", "high", "medium", "low", "info"]
 

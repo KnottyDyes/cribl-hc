@@ -1,8 +1,6 @@
 """Branding configuration storage and management."""
 
-import json
 from pathlib import Path
-from typing import Optional
 
 from cribl_hc.models.branding import BrandingConfig
 from cribl_hc.utils.logger import get_logger
@@ -16,9 +14,9 @@ BRANDING_FILE = CONFIG_DIR / "branding.json"
 class BrandingManager:
     """Manages branding configuration storage and retrieval."""
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         self._config_path = config_path or BRANDING_FILE
-        self._config: Optional[BrandingConfig] = None
+        self._config: BrandingConfig | None = None
 
     @property
     def config_path(self) -> Path:
@@ -92,7 +90,7 @@ class BrandingManager:
         return self.load()
 
 
-_default_manager: Optional[BrandingManager] = None
+_default_manager: BrandingManager | None = None
 
 
 def get_branding_manager() -> BrandingManager:

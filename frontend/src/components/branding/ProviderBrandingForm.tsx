@@ -5,9 +5,20 @@ import { Button, Input } from '../common'
 import type { ServiceProviderBranding } from '../../api/types'
 import { serviceProviderBrandingSchema } from '../../lib/validation'
 import { useBranding } from '../../hooks/useBranding'
+import { LogoUpload } from './LogoUpload'
 
 export function ProviderBrandingForm() {
-  const { branding, updateProvider, deleteProvider, isUpdatingProvider, isDeletingProvider } = useBranding()
+  const {
+    branding,
+    updateProvider,
+    deleteProvider,
+    uploadLogo,
+    deleteLogo,
+    isUpdatingProvider,
+    isDeletingProvider,
+    isUploadingLogo,
+    isDeletingLogo,
+  } = useBranding()
 
   const {
     register,
@@ -26,13 +37,15 @@ export function ProviderBrandingForm() {
   })
 
   useEffect(() => {
-    reset(branding.provider || {
-      name: '',
-      contact_email: '',
-      website: '',
-      tagline: '',
-      footer_text: '',
-    })
+    reset(
+      branding.provider || {
+        name: '',
+        contact_email: '',
+        website: '',
+        tagline: '',
+        footer_text: '',
+      }
+    )
   }, [branding.provider, reset])
 
   const onSubmit = (data: ServiceProviderBranding) => {
@@ -47,32 +60,46 @@ export function ProviderBrandingForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Input
-          label="Organization Name"
-          {...register('name')}
-          error={errors.name?.message}
-          required
-        />
-        <Input
-          label="Contact Email"
-          type="email"
-          {...register('contact_email')}
-          error={errors.contact_email?.message}
-        />
-        <Input
-          label="Website"
-          type="url"
-          placeholder="https://example.com"
-          {...register('website')}
-          error={errors.website?.message}
-        />
-        <Input
-          label="Tagline"
-          placeholder="Your company tagline"
-          {...register('tagline')}
-          error={errors.tagline?.message}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          <Input label="Organization Name" {...register('name')} error={errors.name?.message} required />
+          <Input
+            label="Contact Email"
+            type="email"
+            {...register('contact_email')}
+            error={errors.contact_email?.message}
+          />
+          <Input
+            label="Website"
+            type="url"
+            placeholder="https://example.com"
+            {...register('website')}
+            error={errors.website?.message}
+          />
+          <Input
+            label="Tagline"
+            placeholder="Your company tagline"
+            {...register('tagline')}
+            error={errors.tagline?.message}
+          />
+        </div>
+
+        <div className="space-y-6">
+          <LogoUpload
+            label="Organization Logo"
+            value={branding.provider?.logo_base64}
+            onChange={(file) => uploadLogo('provider', file)}
+            onRemove={() => deleteLogo('provider')}
+            loading={isUploadingLogo || isDeletingLogo}
+          />
+          <LogoUpload
+            label="Dark Mode Logo (Optional)"
+            value={branding.provider?.logo_dark_base64}
+            onChange={(file) => uploadLogo('provider_dark', file)}
+            onRemove={() => deleteLogo('provider_dark')}
+            loading={isUploadingLogo || isDeletingLogo}
+          />
+        </div>
       </div>
 
       <div>
@@ -90,12 +117,7 @@ export function ProviderBrandingForm() {
 
       <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
         {branding.provider && (
-          <Button
-            type="button"
-            variant="danger"
-            onClick={handleDelete}
-            loading={isDeletingProvider}
-          >
+          <Button type="button" variant="danger" onClick={handleDelete} loading={isDeletingProvider}>
             Remove
           </Button>
         )}

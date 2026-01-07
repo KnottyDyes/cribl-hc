@@ -158,6 +158,27 @@ export function useBranding() {
     },
   })
 
+  const uploadLogoMutation = useMutation({
+    mutationFn: ({
+      type,
+      file,
+    }: {
+      type: 'provider' | 'provider_dark' | 'client' | 'client_dark'
+      file: File
+    }) => brandingApi.uploadLogo(type, file),
+    onSuccess: (updatedBranding) => {
+      queryClient.setQueryData(['branding'], updatedBranding)
+    },
+  })
+
+  const deleteLogoMutation = useMutation({
+    mutationFn: (type: 'provider' | 'provider_dark' | 'client' | 'client_dark') =>
+      brandingApi.deleteLogo(type),
+    onSuccess: (updatedBranding) => {
+      queryClient.setQueryData(['branding'], updatedBranding)
+    },
+  })
+
   const updateBranding = useCallback(
     (data: Partial<BrandingConfig>) => {
       return updateMutation.mutate(data)
@@ -205,6 +226,20 @@ export function useBranding() {
     return deleteClientMutation.mutate()
   }, [deleteClientMutation])
 
+  const uploadLogo = useCallback(
+    (type: 'provider' | 'provider_dark' | 'client' | 'client_dark', file: File) => {
+      return uploadLogoMutation.mutate({ type, file })
+    },
+    [uploadLogoMutation]
+  )
+
+  const deleteLogo = useCallback(
+    (type: 'provider' | 'provider_dark' | 'client' | 'client_dark') => {
+      return deleteLogoMutation.mutate(type)
+    },
+    [deleteLogoMutation]
+  )
+
   return {
     branding: branding || DEFAULT_BRANDING,
     isLoading,
@@ -217,6 +252,8 @@ export function useBranding() {
     setThemeMode,
     deleteProvider,
     deleteClient,
+    uploadLogo,
+    deleteLogo,
     isUpdating: updateMutation.isPending,
     isResetting: resetMutation.isPending,
     isUpdatingProvider: updateProviderMutation.isPending,
@@ -225,5 +262,7 @@ export function useBranding() {
     isSettingThemeMode: setThemeModeMutation.isPending,
     isDeletingProvider: deleteProviderMutation.isPending,
     isDeletingClient: deleteClientMutation.isPending,
+    isUploadingLogo: uploadLogoMutation.isPending,
+    isDeletingLogo: deleteLogoMutation.isPending,
   }
 }

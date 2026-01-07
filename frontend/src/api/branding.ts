@@ -111,4 +111,23 @@ export const brandingApi = {
   updateReport: async (report: ReportBranding): Promise<BrandingConfig> => {
     return apiClient.put('/api/v1/branding/report', { report })
   },
+
+  uploadLogo: async (
+    logoType: 'provider' | 'provider_dark' | 'client' | 'client_dark',
+    file: File
+  ): Promise<BrandingConfig> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiClient.post(`/api/v1/branding/logo/${logoType}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+  },
+
+  deleteLogo: async (
+    logoType: 'provider' | 'provider_dark' | 'client' | 'client_dark'
+  ): Promise<BrandingConfig> => {
+    return apiClient.delete(`/api/v1/branding/logo/${logoType}`)
+  },
 }

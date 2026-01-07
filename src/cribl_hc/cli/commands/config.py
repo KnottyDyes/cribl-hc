@@ -9,10 +9,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from cribl_hc.cli.commands.branding import app as branding_app
 from cribl_hc.utils.crypto import CredentialEncryptor, generate_master_key
 from cribl_hc.utils.logger import get_logger
-
-from cribl_hc.cli.commands.branding import app as branding_app
 
 console = Console()
 log = get_logger(__name__)

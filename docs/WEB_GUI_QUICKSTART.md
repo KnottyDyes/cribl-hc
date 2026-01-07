@@ -131,12 +131,18 @@ npm run dev
    - **Contact Information**: Email, phone, and website
    - **Tagline**: Short tagline or slogan
    - **Footer Text**: Custom footer for reports
-3. Upload organization logo (PNG/JPG/SVG supported)
+3. **Logo Upload**:
+   - Drag and drop or click to upload your organization logo
+   - Supports PNG, JPG, and SVG
+   - Supports separate logos for light and dark modes
+   - Images are automatically optimized and stored in the configuration
 
 **Customize Client Branding:**
 1. Client name and identifier
 2. Custom report title for client-specific reports
-3. Upload client logo
+3. **Client Logo**:
+   - Upload a client-specific logo for the report
+   - Displays alongside the provider branding for a professional look
 
 **Customize Theme Colors:**
 1. Navigate to "Theme" tab
