@@ -4,17 +4,15 @@ Analyze command for running health check analysis.
 
 import asyncio
 from pathlib import Path
-from typing import List, Optional
 
 import typer
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 
-from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.core.orchestrator import AnalyzerOrchestrator, AnalysisProgress
 from cribl_hc.cli.output import display_analysis_results
-from cribl_hc.utils.logger import get_logger, configure_logging
-
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalysisProgress, AnalyzerOrchestrator
+from cribl_hc.utils.logger import configure_logging, get_logger
 
 console = Console()
 log = get_logger(__name__)
@@ -24,20 +22,20 @@ app = typer.Typer(help="Run health check analysis")
 
 @app.command()
 def run(
-    deployment: Optional[str] = typer.Option(
+    deployment: str | None = typer.Option(
         None,
         "--deployment",
         "-p",
         help="Use stored credentials for this deployment (from 'cribl-hc config set')",
     ),
-    url: Optional[str] = typer.Option(
+    url: str | None = typer.Option(
         None,
         "--url",
         "-u",
         help="Cribl Stream leader URL (e.g., https://cribl.example.com)",
         envvar="CRIBL_URL",
     ),
-    token: Optional[str] = typer.Option(
+    token: str | None = typer.Option(
         None,
         "--token",
         "-t",
@@ -45,13 +43,13 @@ def run(
         envvar="CRIBL_TOKEN",
         hide_input=True,
     ),
-    objectives: Optional[List[str]] = typer.Option(
+    objectives: list[str] | None = typer.Option(
         None,
         "--objective",
         "-o",
         help="Objectives to analyze (default: all registered)",
     ),
-    output_file: Optional[Path] = typer.Option(
+    output_file: Path | None = typer.Option(
         None,
         "--output",
         "-f",
@@ -117,7 +115,7 @@ def run(
             if deployment not in credentials:
                 console.print(f"[red]✗ No credentials found for deployment:[/red] {deployment}")
                 console.print(f"[dim]Use 'cribl-hc config set {deployment}' to add credentials[/dim]")
-                console.print(f"[dim]Or use 'cribl-hc config list' to see available deployments[/dim]")
+                console.print("[dim]Or use 'cribl-hc config list' to see available deployments[/dim]")
                 raise typer.Exit(code=1)
 
             cred = credentials[deployment]
@@ -175,8 +173,8 @@ def run(
 async def run_analysis_async(
     url: str,
     token: str,
-    objectives: Optional[List[str]],
-    output_file: Optional[Path],
+    objectives: list[str] | None,
+    output_file: Path | None,
     markdown: bool,
     deployment_id: str,
     max_api_calls: int,
@@ -195,7 +193,7 @@ async def run_analysis_async(
         deployment_id: Deployment identifier
         max_api_calls: Maximum API calls allowed
     """
-    console.print(f"\n[cyan]Cribl Stream Health Check[/cyan]")
+    console.print("\n[cyan]Cribl Stream Health Check[/cyan]")
     console.print(f"[dim]Target:[/dim] {url}")
     console.print(f"[dim]Deployment:[/dim] {deployment_id}\n")
 

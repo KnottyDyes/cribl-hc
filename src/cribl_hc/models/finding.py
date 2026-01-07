@@ -3,9 +3,9 @@ Finding model for identified problems and improvement opportunities.
 """
 
 from datetime import datetime
-from typing import Any, List, Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class Finding(BaseModel):
@@ -61,7 +61,7 @@ class Finding(BaseModel):
     documentation_links: list[str] = Field(default_factory=list, description="Cribl docs URLs")
     estimated_impact: str = Field(default="", description="Impact description")
     confidence_level: Literal["high", "medium", "low"] = Field(..., description="Confidence level")
-    product_tags: List[Literal["stream", "edge", "lake", "search"]] = Field(
+    product_tags: list[Literal["stream", "edge", "lake", "search"]] = Field(
         default_factory=list,
         description="Products this finding applies to (derived from source analyzer)",
     )

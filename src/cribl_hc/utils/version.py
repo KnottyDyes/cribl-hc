@@ -5,12 +5,10 @@ Supports Cribl Stream versions N (current), N-1, and N-2.
 """
 
 import re
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
 from cribl_hc.utils.logger import get_logger
-
 
 log = get_logger(__name__)
 
@@ -30,7 +28,7 @@ class CriblVersion(BaseModel):
     major: int = Field(..., description="Major version", ge=0)
     minor: int = Field(..., description="Minor version", ge=0)
     patch: int = Field(..., description="Patch version", ge=0)
-    build: Optional[str] = Field(None, description="Build number")
+    build: str | None = Field(None, description="Build number")
     raw: str = Field(..., description="Raw version string")
 
     @field_validator("raw")
@@ -123,7 +121,7 @@ def parse_version(version_string: str) -> CriblVersion:
     )
 
 
-def detect_version(version_data: dict) -> Optional[CriblVersion]:
+def detect_version(version_data: dict) -> CriblVersion | None:
     """
     Detect Cribl version from API response data.
 
@@ -163,7 +161,7 @@ def detect_version(version_data: dict) -> Optional[CriblVersion]:
         return None
 
 
-def is_version_supported(version: CriblVersion, current_version: Optional[CriblVersion] = None) -> bool:
+def is_version_supported(version: CriblVersion, current_version: CriblVersion | None = None) -> bool:
     """
     Check if a Cribl version is supported (N, N-1, or N-2).
 
@@ -228,7 +226,7 @@ def is_version_supported(version: CriblVersion, current_version: Optional[CriblV
     return True
 
 
-def get_version_compatibility_message(version: CriblVersion, current_version: Optional[CriblVersion] = None) -> str:
+def get_version_compatibility_message(version: CriblVersion, current_version: CriblVersion | None = None) -> str:
     """
     Get a human-readable compatibility message for a version.
 

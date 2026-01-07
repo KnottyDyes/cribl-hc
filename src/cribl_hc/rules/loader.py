@@ -7,14 +7,13 @@ from YAML configuration files.
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 
 from cribl_hc.models.rule import BestPracticeRule
 from cribl_hc.utils.logger import get_logger
 from cribl_hc.utils.version import parse_version
-
 
 log = get_logger(__name__)
 
@@ -29,7 +28,7 @@ class RuleLoader:
         >>> filtered = loader.filter_by_version(rules, "4.5.0")
     """
 
-    def __init__(self, rules_dir: Optional[Path] = None):
+    def __init__(self, rules_dir: Path | None = None):
         """
         Initialize the rule loader.
 
@@ -42,9 +41,9 @@ class RuleLoader:
             rules_dir = Path(__file__).parent
 
         self.rules_dir = Path(rules_dir)
-        self._rules_cache: Optional[List[BestPracticeRule]] = None
+        self._rules_cache: list[BestPracticeRule] | None = None
 
-    def load_rules_from_yaml(self, filename: str = "cribl_rules.yaml") -> List[BestPracticeRule]:
+    def load_rules_from_yaml(self, filename: str = "cribl_rules.yaml") -> list[BestPracticeRule]:
         """
         Load best practice rules from a YAML file.
 
@@ -66,7 +65,7 @@ class RuleLoader:
             return []
 
         try:
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 data = yaml.safe_load(f)
 
             if not data or "rules" not in data:
@@ -97,7 +96,7 @@ class RuleLoader:
             log.error("rules_load_failed", filepath=str(filepath), error=str(e))
             raise
 
-    def load_all_rules(self, cache: bool = True) -> List[BestPracticeRule]:
+    def load_all_rules(self, cache: bool = True) -> list[BestPracticeRule]:
         """
         Load all rules from default cribl_rules.yaml file.
 
@@ -120,9 +119,9 @@ class RuleLoader:
 
     def filter_by_version(
         self,
-        rules: List[BestPracticeRule],
+        rules: list[BestPracticeRule],
         cribl_version: str
-    ) -> List[BestPracticeRule]:
+    ) -> list[BestPracticeRule]:
         """
         Filter rules applicable to a specific Cribl version.
 
@@ -172,9 +171,9 @@ class RuleLoader:
 
     def filter_by_category(
         self,
-        rules: List[BestPracticeRule],
-        categories: List[str]
-    ) -> List[BestPracticeRule]:
+        rules: list[BestPracticeRule],
+        categories: list[str]
+    ) -> list[BestPracticeRule]:
         """
         Filter rules by category.
 
@@ -195,7 +194,7 @@ class RuleLoader:
         )
         return filtered
 
-    def filter_enabled_only(self, rules: List[BestPracticeRule]) -> List[BestPracticeRule]:
+    def filter_enabled_only(self, rules: list[BestPracticeRule]) -> list[BestPracticeRule]:
         """
         Filter to only enabled rules.
 
@@ -220,8 +219,8 @@ class RuleEvaluator:
     def evaluate_rule(
         self,
         rule: BestPracticeRule,
-        config: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None
+        config: dict[str, Any],
+        context: dict[str, Any] | None = None
     ) -> bool:
         """
         Evaluate a single rule against a configuration.
@@ -261,7 +260,7 @@ class RuleEvaluator:
     def evaluate_config_pattern(
         self,
         rule: BestPracticeRule,
-        config: Dict[str, Any]
+        config: dict[str, Any]
     ) -> bool:
         """
         Evaluate a config_pattern rule.
@@ -410,7 +409,7 @@ class RuleEvaluator:
     def evaluate_metric_threshold(
         self,
         rule: BestPracticeRule,
-        metrics: Dict[str, Any]
+        metrics: dict[str, Any]
     ) -> bool:
         """
         Evaluate a metric_threshold rule.
@@ -459,8 +458,8 @@ class RuleEvaluator:
     def evaluate_relationship(
         self,
         rule: BestPracticeRule,
-        config: Dict[str, Any],
-        context: Dict[str, Any]
+        config: dict[str, Any],
+        context: dict[str, Any]
     ) -> bool:
         """
         Evaluate a relationship rule.
@@ -489,7 +488,7 @@ class RuleEvaluator:
 
         return False
 
-    def _field_exists(self, obj: Dict[str, Any], path: str) -> bool:
+    def _field_exists(self, obj: dict[str, Any], path: str) -> bool:
         """
         Check if a nested field exists.
 
@@ -506,7 +505,7 @@ class RuleEvaluator:
         except Exception:
             return False
 
-    def _get_field(self, obj: Dict[str, Any], path: str) -> Any:
+    def _get_field(self, obj: dict[str, Any], path: str) -> Any:
         """
         Get a nested field value.
 

@@ -4,7 +4,6 @@ Config command for managing credentials and settings.
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -12,7 +11,6 @@ from rich.table import Table
 
 from cribl_hc.utils.crypto import CredentialEncryptor, generate_master_key
 from cribl_hc.utils.logger import get_logger
-
 
 console = Console()
 log = get_logger(__name__)
@@ -43,7 +41,7 @@ def get_or_create_key() -> bytes:
     key = generate_master_key()
     KEY_FILE.write_bytes(key)
     KEY_FILE.chmod(0o600)  # Restrictive permissions
-    console.print(f"[green]✓ Created new encryption key[/green]")
+    console.print("[green]✓ Created new encryption key[/green]")
     return key
 
 
@@ -226,7 +224,7 @@ def delete_credential(
 
 @app.command("export-key")
 def export_key(
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None,
         "--output",
         "-o",

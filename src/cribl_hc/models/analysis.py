@@ -3,7 +3,7 @@ Analysis run model for tracking health check execution and results.
 """
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
@@ -58,8 +58,8 @@ class AnalysisRun(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid4()), description="Analysis run UUID")
     deployment_id: str = Field(..., description="Deployment ID", min_length=1)
     started_at: datetime = Field(default_factory=datetime.utcnow)
-    completed_at: Optional[datetime] = Field(None, description="Completion timestamp")
-    duration_seconds: Optional[float] = Field(
+    completed_at: datetime | None = Field(None, description="Completion timestamp")
+    duration_seconds: float | None = Field(
         None, description="Duration in seconds", ge=0, le=300
     )
     status: Literal["running", "completed", "partial", "failed"] = Field(
@@ -67,7 +67,7 @@ class AnalysisRun(BaseModel):
     )
     objectives_analyzed: list[str] = Field(..., description="Analyzed objectives", min_items=1)
     api_calls_used: int = Field(..., description="API calls made", ge=0, le=100)
-    health_score: Optional[HealthScore] = Field(None, description="Overall health score")
+    health_score: HealthScore | None = Field(None, description="Overall health score")
     findings: list[Finding] = Field(default_factory=list, description="Identified issues")
     recommendations: list[Recommendation] = Field(
         default_factory=list, description="Improvement suggestions"
@@ -88,7 +88,7 @@ class AnalysisRun(BaseModel):
 
     @field_validator("duration_seconds")
     @classmethod
-    def validate_duration_limit(cls, v: Optional[float]) -> Optional[float]:
+    def validate_duration_limit(cls, v: float | None) -> float | None:
         """Validate duration is within target (≤ 300 seconds / 5 minutes)."""
         if v is not None and v > 300:
             # This is a warning, not a hard error - log but don't reject
@@ -98,7 +98,7 @@ class AnalysisRun(BaseModel):
 
     @field_validator("completed_at")
     @classmethod
-    def validate_completed_after_started(cls, v: Optional[datetime], info) -> Optional[datetime]:
+    def validate_completed_after_started(cls, v: datetime | None, info) -> datetime | None:
         """Validate completion timestamp is after start timestamp."""
         if v is not None:
             started_at = info.data.get("started_at")

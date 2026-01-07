@@ -2,8 +2,6 @@
 Report generation for analysis results in multiple formats.
 """
 
-from datetime import datetime
-from typing import Dict
 
 from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.models.analysis import AnalysisRun
@@ -22,7 +20,7 @@ class MarkdownReportGenerator:
     def generate(
         self,
         analysis_run: AnalysisRun,
-        results: Dict[str, AnalyzerResult],
+        results: dict[str, AnalyzerResult],
     ) -> str:
         """
         Generate Markdown report.

@@ -6,14 +6,12 @@ This module provides encryption/decryption for bearer tokens and other sensitive
 
 import base64
 import os
-from typing import Optional
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from cribl_hc.utils.logger import get_logger
-
 
 log = get_logger(__name__)
 
@@ -25,7 +23,7 @@ class CredentialEncryptor:
     Uses PBKDF2 key derivation from a master password/key for enhanced security.
     """
 
-    def __init__(self, master_key: Optional[bytes] = None):
+    def __init__(self, master_key: bytes | None = None):
         """
         Initialize credential encryptor.
 
@@ -124,7 +122,7 @@ class CredentialEncryptor:
         return Fernet.generate_key()
 
     @staticmethod
-    def derive_key_from_password(password: str, salt: Optional[bytes] = None) -> tuple[bytes, bytes]:
+    def derive_key_from_password(password: str, salt: bytes | None = None) -> tuple[bytes, bytes]:
         """
         Derive an encryption key from a password using PBKDF2.
 
@@ -156,7 +154,7 @@ class CredentialEncryptor:
 
 # Convenience functions for simple use cases
 
-_default_encryptor: Optional[CredentialEncryptor] = None
+_default_encryptor: CredentialEncryptor | None = None
 
 
 def get_default_encryptor() -> CredentialEncryptor:

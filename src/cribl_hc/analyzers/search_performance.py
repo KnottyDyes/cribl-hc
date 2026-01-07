@@ -7,9 +7,8 @@ Priority: P2 (Important - cost optimization)
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
 from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
@@ -52,7 +51,7 @@ class SearchPerformanceAnalyzer(BaseAnalyzer):
         return "search"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Search performance analyzer is specific to Cribl Search."""
         return ["search"]
 
@@ -60,7 +59,7 @@ class SearchPerformanceAnalyzer(BaseAnalyzer):
         """Estimate API calls: jobs(1) + dashboards(1) = 2."""
         return 2
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return ["read:search:jobs", "read:search:dashboards"]
 
@@ -182,7 +181,7 @@ class SearchPerformanceAnalyzer(BaseAnalyzer):
 
         return result
 
-    def _analyze_cpu_costs(self, jobs: List[SearchJob], result: AnalyzerResult) -> None:
+    def _analyze_cpu_costs(self, jobs: list[SearchJob], result: AnalyzerResult) -> None:
         """Analyze CPU costs across jobs."""
         high_cpu_jobs = []
         very_high_cpu_jobs = []
@@ -258,7 +257,7 @@ class SearchPerformanceAnalyzer(BaseAnalyzer):
                     )
                 )
 
-    def _analyze_efficiency(self, jobs: List[SearchJob], result: AnalyzerResult) -> None:
+    def _analyze_efficiency(self, jobs: list[SearchJob], result: AnalyzerResult) -> None:
         """Analyze query efficiency (billable vs total CPU)."""
         inefficient_jobs = []
 
@@ -312,7 +311,7 @@ class SearchPerformanceAnalyzer(BaseAnalyzer):
                 )
 
     def _identify_optimization_opportunities(
-        self, jobs: List[SearchJob], result: AnalyzerResult
+        self, jobs: list[SearchJob], result: AnalyzerResult
     ) -> None:
         """Identify query optimization opportunities."""
         # Analyze query patterns for common anti-patterns
@@ -390,7 +389,7 @@ class SearchPerformanceAnalyzer(BaseAnalyzer):
     def _add_cost_summary_recommendation(
         self,
         total_billable_cpu: float,
-        jobs: List[SearchJob],
+        jobs: list[SearchJob],
         result: AnalyzerResult
     ) -> None:
         """Add summary recommendation for overall cost optimization."""
@@ -439,7 +438,7 @@ class SearchPerformanceAnalyzer(BaseAnalyzer):
         )
 
     def _analyze_dashboard_queries(
-        self, dashboards: List[Dashboard], result: AnalyzerResult
+        self, dashboards: list[Dashboard], result: AnalyzerResult
     ) -> None:
         """Analyze dashboard element queries for efficiency issues."""
         dashboards_with_wildcards = []

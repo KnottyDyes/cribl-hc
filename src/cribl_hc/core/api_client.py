@@ -2,9 +2,8 @@
 Cribl API client with rate limiting, error handling, and connection testing.
 """
 
-import asyncio
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import urljoin
 
 import httpx
@@ -12,7 +11,6 @@ from pydantic import BaseModel, Field
 
 from cribl_hc.utils.logger import get_logger
 from cribl_hc.utils.rate_limiter import RateLimiter
-
 
 log = get_logger(__name__)
 
@@ -33,10 +31,10 @@ class ConnectionTestResult(BaseModel):
 
     success: bool = Field(..., description="Connection test success status")
     message: str = Field(..., description="Human-readable status message")
-    response_time_ms: Optional[float] = Field(None, description="API response time in milliseconds")
-    cribl_version: Optional[str] = Field(None, description="Detected Cribl version")
+    response_time_ms: float | None = Field(None, description="API response time in milliseconds")
+    cribl_version: str | None = Field(None, description="Detected Cribl version")
     api_url: str = Field(..., description="API URL tested")
-    error: Optional[str] = Field(None, description="Error details if failed")
+    error: str | None = Field(None, description="Error details if failed")
     tested_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -64,8 +62,8 @@ class CriblAPIClient:
         auth_token: str,
         timeout: float = 30.0,
         max_retries: int = 3,
-        rate_limiter: Optional[RateLimiter] = None,
-        worker_group: Optional[str] = None,
+        rate_limiter: RateLimiter | None = None,
+        worker_group: str | None = None,
     ):
         """
         Initialize Cribl API client.
@@ -84,7 +82,7 @@ class CriblAPIClient:
         self.max_retries = max_retries
 
         # HTTP client will be initialized in __aenter__
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
         # Deployment type detection
         self._is_cloud = "cribl.cloud" in base_url.lower()
@@ -92,8 +90,8 @@ class CriblAPIClient:
         self._deployment_detected = False
 
         # Product type detection (stream, edge, lake)
-        self._product_type: Optional[str] = None  # Will be detected on first API call
-        self._product_version: Optional[str] = None
+        self._product_type: str | None = None  # Will be detected on first API call
+        self._product_version: str | None = None
 
         # Rate limiter for API call budget enforcement
         self.rate_limiter = rate_limiter or RateLimiter(
@@ -174,7 +172,7 @@ class CriblAPIClient:
         return self._is_cloud
 
     @property
-    def worker_group(self) -> Optional[str]:
+    def worker_group(self) -> str | None:
         """
         Get the current worker group being used for API calls.
 
@@ -189,7 +187,7 @@ class CriblAPIClient:
         return self._worker_group or "default"
 
     @property
-    def product_type(self) -> Optional[str]:
+    def product_type(self) -> str | None:
         """
         Get the detected Cribl product type.
 
@@ -217,7 +215,7 @@ class CriblAPIClient:
         return self._product_type == "lake"
 
     @property
-    def product_version(self) -> Optional[str]:
+    def product_version(self) -> str | None:
         """
         Get the detected Cribl product version.
 
@@ -226,7 +224,7 @@ class CriblAPIClient:
         """
         return self._product_version
 
-    async def _detect_product_type(self, version_info: Dict[str, Any]) -> None:
+    async def _detect_product_type(self, version_info: dict[str, Any]) -> None:
         """
         Detect Cribl product type from version endpoint response.
 
@@ -280,7 +278,7 @@ class CriblAPIClient:
         self._product_version = version_info.get("version")
         log.info("product_defaulted", product="stream", version=self._product_version)
 
-    def _build_config_endpoint(self, resource: str, fleet: Optional[str] = None) -> str:
+    def _build_config_endpoint(self, resource: str, fleet: str | None = None) -> str:
         """
         Build the correct API endpoint based on deployment type and product.
 
@@ -398,7 +396,7 @@ class CriblAPIClient:
 
                 # Add version compatibility warning if needed
                 try:
-                    from cribl_hc.utils.version import parse_version, is_version_supported
+                    from cribl_hc.utils.version import is_version_supported, parse_version
 
                     parsed_version = parse_version(version)
                     if parsed_version and not is_version_supported(parsed_version):
@@ -547,7 +545,7 @@ class CriblAPIClient:
             )
             return response
 
-    def _normalize_node_data(self, node: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize_node_data(self, node: dict[str, Any]) -> dict[str, Any]:
         """
         Normalize Edge node data to match Stream worker structure.
 
@@ -603,150 +601,52 @@ class CriblAPIClient:
 
     # High-level endpoint methods for common operations
 
-    async def get_system_status(self) -> Dict[str, Any]:
+    async def get_system_status(self) -> dict[str, Any]:
         """
-        Get system status from /api/v1/system/status.
+        Get system status from /system/status.
 
         Returns:
-            System status data including health and component status
-
-        Example:
-            >>> status = await client.get_system_status()
-            >>> print(status["health"])
-        """
-        response = await self.get("/api/v1/system/status")
-        response.raise_for_status()
-        return response.json()
-
-    async def get_workers(self) -> List[Dict[str, Any]]:
-        """
-        Get worker nodes from /api/v1/master/workers.
-
-        Works for both Cloud and self-hosted deployments.
-
-        Returns:
-            List of worker node data with status and metrics.
-            Returns empty list if workers endpoint is not available.
-
-        Example:
-            >>> workers = await client.get_workers()
-            >>> for worker in workers:
-            ...     print(f"{worker['id']}: {worker['status']}")
+            System status information
         """
         try:
-            endpoint = "/api/v1/master/workers"
-            response = await self.get(endpoint)
-
-            # Handle 404 gracefully
-            if response.status_code == 404:
-                log.warning("workers_endpoint_not_available", endpoint=endpoint)
-                return []
-
-            response.raise_for_status()
-            data = response.json()
-            return data.get("items", [])
-        except Exception as e:
-            log.warning("workers_fetch_failed", error=str(e))
-            return []
-
-    async def get_edge_nodes(self, fleet: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        Get Edge node instances from /api/v1/edge/nodes.
-
-        Args:
-            fleet: Optional fleet name to filter nodes
-
-        Returns:
-            List of Edge node data with status and metrics
-
-        Example:
-            >>> nodes = await client.get_edge_nodes()
-            >>> for node in nodes:
-            ...     print(f"{node['id']}: {node['status']}")
-        """
-        if fleet:
-            endpoint = f"/api/v1/e/{fleet}/nodes"
-        else:
-            endpoint = "/api/v1/edge/nodes"
-
-        response = await self.get(endpoint)
-        response.raise_for_status()
-        data = response.json()
-        return data.get("items", [])
-
-    async def get_edge_fleets(self) -> List[Dict[str, Any]]:
-        """
-        Get Edge fleet configurations from /api/v1/edge/fleets.
-
-        Returns:
-            List of Edge fleet data
-
-        Example:
-            >>> fleets = await client.get_edge_fleets()
-            >>> for fleet in fleets:
-            ...     print(f"{fleet['id']}: {fleet['name']}")
-        """
-        response = await self.get("/api/v1/edge/fleets")
-        response.raise_for_status()
-        data = response.json()
-        return data.get("items", [])
-
-    async def get_nodes(self) -> List[Dict[str, Any]]:
-        """
-        Get worker nodes (Stream) or Edge nodes (Edge) based on detected product.
-
-        This is a unified method that abstracts the difference between products.
-        Product type is automatically detected during connection test.
-
-        Returns:
-            List of node data (workers for Stream, nodes for Edge)
-
-        Example:
-            >>> nodes = await client.get_nodes()  # Works for both Stream and Edge
-            >>> for node in nodes:
-            ...     print(f"{node['id']}: {node['status']}")
-        """
-        if self.is_edge:
-            return await self.get_edge_nodes()
-        else:
-            # Default to Stream (includes is_stream and fallback)
-            return await self.get_workers()
-
-    async def get_metrics(self, time_range: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Get metrics from internal metrics endpoint.
-
-        Args:
-            time_range: Optional time range (e.g., "1h", "24h")
-
-        Returns:
-            Metrics data including throughput, CPU, memory, etc.
-            Returns empty dict if metrics endpoint is not available.
-
-        Example:
-            >>> metrics = await client.get_metrics(time_range="1h")
-            >>> print(metrics.get("throughput", {}).get("bytes_in", 0))
-
-        Note:
-            The metrics endpoint may not be available on all deployments,
-            particularly Search-only instances.
-        """
-        params = {"timeRange": time_range} if time_range else {}
-        endpoint = "/api/v1/metrics"
-
-        try:
-            response = await self.get(endpoint, params=params)
-            if response.status_code == 404:
-                # Metrics endpoint not available - return empty dict
-                log.warning("metrics_endpoint_not_available", endpoint=endpoint)
-                return {}
+            response = await self.get("/api/v1/system/status")
             response.raise_for_status()
             return response.json()
         except Exception as e:
-            log.warning("metrics_fetch_failed", endpoint=endpoint, error=str(e))
+            log.warning("system_status_fetch_failed", error=str(e))
             return {}
 
-    async def get_pipelines(self) -> List[Dict[str, Any]]:
+    async def get_auth_config(self) -> dict[str, Any]:
+        """
+        Get authentication configuration from /system/auth.
+
+        Returns:
+            Auth configuration details
+        """
+        try:
+            response = await self.get("/api/v1/system/auth")
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            log.warning("auth_config_fetch_failed", error=str(e))
+            return {}
+
+    async def get_system_settings(self) -> dict[str, Any]:
+        """
+        Get system settings from /system/settings.
+
+        Returns:
+            System settings
+        """
+        try:
+            response = await self.get("/api/v1/system/settings")
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            log.warning("system_settings_fetch_failed", error=str(e))
+            return {}
+
+    async def get_pipelines(self) -> list[dict[str, Any]]:
         """
         Get pipeline configurations.
 
@@ -768,7 +668,7 @@ class CriblAPIClient:
         data = response.json()
         return data.get("items", [])
 
-    async def get_routes(self) -> List[Dict[str, Any]]:
+    async def get_routes(self) -> list[dict[str, Any]]:
         """
         Get route configurations.
 
@@ -804,7 +704,7 @@ class CriblAPIClient:
             all_routes.extend(routes)
         return all_routes
 
-    async def get_inputs(self) -> List[Dict[str, Any]]:
+    async def get_inputs(self) -> list[dict[str, Any]]:
         """
         Get input configurations.
 
@@ -826,7 +726,7 @@ class CriblAPIClient:
         data = response.json()
         return data.get("items", [])
 
-    async def get_outputs(self) -> List[Dict[str, Any]]:
+    async def get_outputs(self) -> list[dict[str, Any]]:
         """
         Get output/destination configurations.
 
@@ -848,7 +748,7 @@ class CriblAPIClient:
         data = response.json()
         return data.get("items", [])
 
-    async def get_lookups(self) -> List[Dict[str, Any]]:
+    async def get_lookups(self) -> list[dict[str, Any]]:
         """
         Get lookup table configurations.
 
@@ -880,7 +780,7 @@ class CriblAPIClient:
             log.warning("lookups_fetch_failed", error=str(e), endpoint=endpoint)
             return []
 
-    async def get_parsers(self) -> List[Dict[str, Any]]:
+    async def get_parsers(self) -> list[dict[str, Any]]:
         """
         Get parser library configurations.
 
@@ -962,7 +862,7 @@ class CriblAPIClient:
         self,
         lake_name: str = "default",
         include_metrics: bool = False,
-        storage_location_id: Optional[str] = None,
+        storage_location_id: str | None = None,
     ) -> dict:
         """
         Get Lake datasets.
@@ -1206,7 +1106,7 @@ class CriblAPIClient:
     # Cribl Core (Control Plane) API Methods
     # -------------------------------------------------------------------------
 
-    async def get_worker_groups(self) -> List[Dict[str, Any]]:
+    async def get_worker_groups(self) -> list[dict[str, Any]]:
         """
         Get worker group configurations from /master/groups.
 
@@ -1233,7 +1133,7 @@ class CriblAPIClient:
             log.warning("worker_groups_fetch_failed", error=str(e))
             return []
 
-    async def get_worker_group_summary(self, group_id: str) -> Dict[str, Any]:
+    async def get_worker_group_summary(self, group_id: str) -> dict[str, Any]:
         """
         Get summary statistics for a worker group.
 
@@ -1258,7 +1158,7 @@ class CriblAPIClient:
             log.warning("worker_group_summary_failed", group=group_id, error=str(e))
             return {}
 
-    async def get_master_summary(self) -> Dict[str, Any]:
+    async def get_master_summary(self) -> dict[str, Any]:
         """
         Get aggregated summary of all workers from /master/summary.
 
@@ -1279,7 +1179,7 @@ class CriblAPIClient:
             log.warning("master_summary_failed", error=str(e))
             return {}
 
-    async def get_roles(self) -> List[Dict[str, Any]]:
+    async def get_roles(self) -> list[dict[str, Any]]:
         """
         Get RBAC role definitions from /system/roles.
 
@@ -1305,7 +1205,7 @@ class CriblAPIClient:
             log.warning("roles_fetch_failed", error=str(e))
             return []
 
-    async def get_users(self) -> List[Dict[str, Any]]:
+    async def get_users(self) -> list[dict[str, Any]]:
         """
         Get user accounts from /system/users.
 
@@ -1330,7 +1230,7 @@ class CriblAPIClient:
             log.warning("users_fetch_failed", error=str(e))
             return []
 
-    async def get_teams(self) -> List[Dict[str, Any]]:
+    async def get_teams(self) -> list[dict[str, Any]]:
         """
         Get team configurations from /system/teams.
 
@@ -1355,7 +1255,7 @@ class CriblAPIClient:
             log.warning("teams_fetch_failed", error=str(e))
             return []
 
-    async def get_policies(self) -> List[Dict[str, Any]]:
+    async def get_policies(self) -> list[dict[str, Any]]:
         """
         Get access policies from /system/policies.
 
@@ -1380,7 +1280,7 @@ class CriblAPIClient:
             log.warning("policies_fetch_failed", error=str(e))
             return []
 
-    async def get_certificates(self) -> List[Dict[str, Any]]:
+    async def get_certificates(self) -> list[dict[str, Any]]:
         """
         Get certificate configurations from /system/certificates.
 
@@ -1406,7 +1306,7 @@ class CriblAPIClient:
             log.warning("certificates_fetch_failed", error=str(e))
             return []
 
-    async def get_notification_targets(self) -> List[Dict[str, Any]]:
+    async def get_notification_targets(self) -> list[dict[str, Any]]:
         """
         Get notification target configurations from /notification-targets.
 
@@ -1432,7 +1332,7 @@ class CriblAPIClient:
             log.warning("notification_targets_fetch_failed", error=str(e))
             return []
 
-    async def get_notifications(self) -> List[Dict[str, Any]]:
+    async def get_notifications(self) -> list[dict[str, Any]]:
         """
         Get active notification rules from /notifications.
 
@@ -1457,7 +1357,7 @@ class CriblAPIClient:
             log.warning("notifications_fetch_failed", error=str(e))
             return []
 
-    async def get_system_instance(self) -> Dict[str, Any]:
+    async def get_system_instance(self) -> dict[str, Any]:
         """
         Get system instance information from /system/instance.
 
@@ -1480,7 +1380,7 @@ class CriblAPIClient:
             log.warning("system_instance_fetch_failed", error=str(e))
             return {}
 
-    async def get_system_messages(self) -> List[Dict[str, Any]]:
+    async def get_system_messages(self) -> list[dict[str, Any]]:
         """
         Get system messages/alerts from /system/messages.
 
@@ -1506,7 +1406,7 @@ class CriblAPIClient:
             log.warning("system_messages_fetch_failed", error=str(e))
             return []
 
-    async def get_api_keys(self) -> List[Dict[str, Any]]:
+    async def get_api_keys(self) -> list[dict[str, Any]]:
         """
         Get API key configurations from /system/keys.
 
@@ -1532,7 +1432,7 @@ class CriblAPIClient:
             log.warning("api_keys_fetch_failed", error=str(e))
             return []
 
-    async def get_banners(self) -> List[Dict[str, Any]]:
+    async def get_banners(self) -> list[dict[str, Any]]:
         """
         Get system banner configurations from /system/banners.
 
@@ -1557,7 +1457,7 @@ class CriblAPIClient:
             log.warning("banners_fetch_failed", error=str(e))
             return []
 
-    async def get_scripts(self) -> List[Dict[str, Any]]:
+    async def get_scripts(self) -> list[dict[str, Any]]:
         """
         Get script configurations from /system/scripts.
 
@@ -1583,7 +1483,7 @@ class CriblAPIClient:
             log.warning("scripts_fetch_failed", error=str(e))
             return []
 
-    async def get_grok_patterns(self) -> List[Dict[str, Any]]:
+    async def get_grok_patterns(self) -> list[dict[str, Any]]:
         """
         Get grok pattern library from /lib/grok.
 
@@ -1608,7 +1508,7 @@ class CriblAPIClient:
             log.warning("grok_patterns_fetch_failed", error=str(e))
             return []
 
-    async def get_regex_library(self) -> List[Dict[str, Any]]:
+    async def get_regex_library(self) -> list[dict[str, Any]]:
         """
         Get regex pattern library from /lib/regex.
 
@@ -1633,7 +1533,7 @@ class CriblAPIClient:
             log.warning("regex_library_fetch_failed", error=str(e))
             return []
 
-    async def get_functions(self) -> List[Dict[str, Any]]:
+    async def get_functions(self) -> list[dict[str, Any]]:
         """
         Get available pipeline functions from /functions.
 
@@ -1657,7 +1557,7 @@ class CriblAPIClient:
             log.warning("functions_fetch_failed", error=str(e))
             return []
 
-    async def get_collectors(self) -> List[Dict[str, Any]]:
+    async def get_collectors(self) -> list[dict[str, Any]]:
         """
         Get collector configurations from /collectors.
 
@@ -1682,7 +1582,7 @@ class CriblAPIClient:
             log.warning("collectors_fetch_failed", error=str(e))
             return []
 
-    async def get_executors(self) -> List[Dict[str, Any]]:
+    async def get_executors(self) -> list[dict[str, Any]]:
         """
         Get executor configurations from /executors.
 
@@ -1711,7 +1611,7 @@ class CriblAPIClient:
     # Version Control Methods
     # -------------------------------------------------------------------------
 
-    async def get_version_info(self) -> Dict[str, Any]:
+    async def get_version_info(self) -> dict[str, Any]:
         """
         Get version control information including git remote configuration.
 
@@ -1739,7 +1639,7 @@ class CriblAPIClient:
             log.warning("version_info_fetch_failed", error=str(e))
             return {"enabled": False, "error": str(e)}
 
-    async def get_version_status(self) -> Dict[str, Any]:
+    async def get_version_status(self) -> dict[str, Any]:
         """
         Get version control status including uncommitted changes and pending deployments.
 
@@ -1773,7 +1673,7 @@ class CriblAPIClient:
             log.warning("version_status_fetch_failed", error=str(e))
             return {"uncommittedChanges": False, "undeployedCommits": False, "error": str(e)}
 
-    async def get_uncommitted_files(self) -> List[Dict[str, Any]]:
+    async def get_uncommitted_files(self) -> list[dict[str, Any]]:
         """
         Get list of uncommitted configuration files.
 
@@ -1802,7 +1702,7 @@ class CriblAPIClient:
             log.warning("uncommitted_files_fetch_failed", error=str(e))
             return []
 
-    async def get_commit_history(self, limit: int = 10) -> List[Dict[str, Any]]:
+    async def get_commit_history(self, limit: int = 10) -> list[dict[str, Any]]:
         """
         Get recent commit history.
 
@@ -1825,7 +1725,7 @@ class CriblAPIClient:
             log.warning("commit_history_fetch_failed", error=str(e))
             return []
 
-    async def get_deployment_status(self) -> Dict[str, Any]:
+    async def get_deployment_status(self) -> dict[str, Any]:
         """
         Get deployment status across all worker groups.
 

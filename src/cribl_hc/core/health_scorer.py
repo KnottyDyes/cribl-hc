@@ -7,10 +7,9 @@ Provides consistent scoring algorithms for:
 - Overall deployment health
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from cribl_hc.utils.logger import get_logger
-
 
 log = get_logger(__name__)
 
@@ -32,8 +31,8 @@ class ComponentHealth:
         name: str,
         score: float,
         status: str,
-        issues: Optional[List[str]] = None,
-        metrics: Optional[Dict[str, Any]] = None,
+        issues: list[str] | None = None,
+        metrics: dict[str, Any] | None = None,
     ):
         self.name = name
         self.score = score
@@ -154,7 +153,7 @@ class HealthScorer:
 
     def score_overall_health(
         self,
-        component_healths: List[ComponentHealth]
+        component_healths: list[ComponentHealth]
     ) -> ComponentHealth:
         """
         Calculate overall health score from component scores.

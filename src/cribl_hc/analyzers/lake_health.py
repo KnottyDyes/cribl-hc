@@ -8,12 +8,11 @@ Priority: P2 (Important)
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
-from cribl_hc.models.lake import LakeDataset, LakeDatasetList, Lakehouse, LakehouseList
+from cribl_hc.models.lake import LakeDataset, LakeDatasetList, LakehouseList
 from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.utils.logger import get_logger
 
@@ -29,14 +28,15 @@ class LakeHealthAnalyzer(BaseAnalyzer):
     - Datasets using inefficient formats (JSON vs Parquet)
     - Lakehouse availability for query optimization
     - Retention policy optimization opportunities
+    - Storage location health and organization
 
     Priority: P2 (Important - prevents data loss, optimizes storage)
     """
 
     # Retention thresholds (days)
-    VERY_SHORT_RETENTION = 7  # Less than 1 week is concerning
-    SHORT_RETENTION = 14  # Less than 2 weeks is worth noting
-    RECOMMENDED_MIN_RETENTION = 30  # Industry standard minimum
+    VERY_SHORT_RETENTION = 7
+    SHORT_RETENTION = 14
+    RECOMMENDED_MIN_RETENTION = 30
 
     @property
     def objective_name(self) -> str:
@@ -44,7 +44,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
         return "lake"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Lake analyzer is specific to Cribl Lake."""
         return ["lake"]
 
@@ -54,7 +54,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
         """
         return 4
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return [
             "read:lake:datasets",
@@ -73,24 +73,20 @@ class LakeHealthAnalyzer(BaseAnalyzer):
         Returns:
             AnalyzerResult with Lake health findings and recommendations
         """
-        result = AnalyzerResult(objective=self.objective_name)
+        result = self.create_result()
 
         try:
             log.info("lake_health_analysis_started")
 
             # Fetch Lake data
             datasets_response = await client.get_lake_datasets(include_metrics=True)
-            stats_response = await client.get_lake_dataset_stats()
             lakehouses_response = await client.get_lake_lakehouses()
             storage_locations_response = await client.get_lake_storage_locations()
 
             # Parse responses
             dataset_list = LakeDatasetList(**datasets_response)
             lakehouse_list = LakehouseList(**lakehouses_response)
-            storage_locations_response = await client.get_lake_storage_locations()
             storage_locations = storage_locations_response.get("items", [])
-            dataset_list = LakeDatasetList(**datasets_response)
-            lakehouse_list = LakehouseList(**lakehouses_response)
 
             datasets = dataset_list.items
             lakehouses = lakehouse_list.items
@@ -100,6 +96,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                 {
                     "total_datasets": len(datasets),
                     "lakehouse_count": len(lakehouses),
+                    "storage_location_count": len(storage_locations),
                     "json_datasets": sum(1 for d in datasets if d.format == "json"),
                     "parquet_datasets": sum(1 for d in datasets if d.format == "parquet"),
                     "datasets_with_short_retention": sum(
@@ -117,7 +114,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
             # Handle empty datasets
             if not datasets:
                 result.add_finding(
-                    Finding(
+                    self.create_finding(
                         id="lake-no-datasets",
                         category="lake",
                         severity="info",
@@ -153,7 +150,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
             result.success = False
             result.metadata["error"] = str(e)
             result.add_finding(
-                Finding(
+                self.create_finding(
                     id="lake-analysis-error",
                     category="lake",
                     severity="critical",
@@ -173,18 +170,16 @@ class LakeHealthAnalyzer(BaseAnalyzer):
         """Analyze dataset retention policy."""
         retention_days = dataset.retention_period_in_days
 
-        # Check for very short retention (< 1 week)
         if retention_days < self.VERY_SHORT_RETENTION:
             result.add_finding(
-                Finding(
+                self.create_finding(
                     id=f"lake-short-retention-{dataset.id}",
                     category="lake",
                     severity="high",
                     title=f"Very Short Retention Period: {dataset.id}",
                     description=(
                         f"Dataset '{dataset.id}' has a very short retention period "
-                        f"of {retention_days} days (< {self.VERY_SHORT_RETENTION} days). "
-                        "This may lead to data loss."
+                        f"of {retention_days} days. This may lead to data loss."
                     ),
                     affected_components=["Lake", dataset.id],
                     remediation_steps=[
@@ -201,22 +196,20 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                     },
                 )
             )
-
-            # Add recommendation
             self._add_retention_recommendation(dataset, result)
 
     def _analyze_storage_format(self, dataset: LakeDataset, result: AnalyzerResult) -> None:
         """Analyze dataset storage format efficiency."""
         if dataset.format == "json":
             result.add_finding(
-                Finding(
+                self.create_finding(
                     id=f"lake-json-format-{dataset.id}",
                     category="lake",
                     severity="info",
                     title=f"Inefficient Storage Format: {dataset.id}",
                     description=(
                         f"Dataset '{dataset.id}' uses JSON format. Parquet format "
-                        "offers better compression (60-80% smaller) and faster queries."
+                        "offers better compression and faster queries."
                     ),
                     affected_components=["Lake", dataset.id],
                     confidence_level="high",
@@ -227,8 +220,6 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                     },
                 )
             )
-
-            # Add Parquet recommendation
             self._add_parquet_recommendation(dataset, result)
 
     def _add_retention_recommendation(self, dataset: LakeDataset, result: AnalyzerResult) -> None:
@@ -246,20 +237,19 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                     f"Increase retention period from {current_retention} to "
                     f"{recommended_retention} days to prevent data loss."
                 ),
-                rationale=(
-                    f"Current {current_retention}-day retention is very short. "
-                    "Standard practice is 30+ days for operational data."
-                ),
+                rationale="Current retention is short. Standard practice is 30+ days.",
                 implementation_steps=[
                     f"Navigate to Lake > Datasets > {dataset.id}",
                     "Edit dataset configuration",
                     f"Update 'Retention Period' to {recommended_retention} days",
-                    "Save changes",
                 ],
                 before_state=f"{dataset.id} retention: {current_retention} days",
                 after_state=f"{dataset.id} retention: {recommended_retention} days",
                 impact_estimate=ImpactEstimate(
-                    performance_improvement="Prevents accidental data loss for historical queries"
+                    performance_improvement="Prevents accidental data loss for historical queries",
+                    cost_savings_annual=0.0,
+                    storage_reduction_gb=0.0,
+                    time_to_implement="10 minutes",
                 ),
                 implementation_effort="low",
                 product_tags=["lake"],
@@ -274,125 +264,78 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                 type="optimization",
                 priority="p2",
                 title=f"Convert {dataset.id} to Parquet Format",
-                description=(
-                    "Convert dataset from JSON to Parquet for 60-80% storage reduction "
-                    "and faster query performance."
-                ),
-                rationale=(
-                    "Parquet is a columnar format optimized for analytics workloads. "
-                    "It provides better compression, faster queries, and lower costs."
-                ),
+                description="Convert dataset from JSON to Parquet for storage reduction and faster queries.",
+                rationale="Parquet is optimized for analytics workloads.",
                 implementation_steps=[
                     f"Create new Parquet dataset: {dataset.id}_parquet",
                     "Configure pipeline to route data to new dataset",
-                    "Monitor both datasets during transition",
-                    "Update queries to use new dataset"
                 ],
-                before_state=f"{dataset.id} using JSON format (inefficient compression)",
-                after_state=f"{dataset.id} using Parquet format (60-80% storage reduction)",
+                before_state=f"{dataset.id} using JSON format",
+                after_state=f"{dataset.id} using Parquet format",
                 impact_estimate=ImpactEstimate(
-                    storage_reduction_gb=None,
-                    performance_improvement="Faster query performance with columnar storage",
-                    time_to_implement="2-4 hours"
+                    performance_improvement="Faster query performance",
+                    cost_savings_annual=0.0,
+                    storage_reduction_gb=0.0,
+                    time_to_implement="2-4 hours",
                 ),
                 implementation_effort="medium",
-                product_tags=["lake"]
+                product_tags=["lake"],
             )
         )
 
     def _analyze_storage_locations(
-        self, storage_locations: List[Dict[str, Any]], datasets: List[LakeDataset], result: AnalyzerResult
+        self,
+        storage_locations: list[dict[str, Any]],
+        datasets: list[LakeDataset],
+        result: AnalyzerResult,
     ) -> None:
-        """
-        Analyze Lake storage locations for issues.
-
-        Checks:
-        - Storage locations without datasets (orphaned locations)
-        - Storage locations with health issues
-        - Multiple datasets using same storage location (potential performance impact)
-
-        Args:
-            storage_locations: List of storage location configurations
-            datasets: List of Lake datasets
-            result: AnalyzerResult to add findings to
-        """
+        """Analyze Lake storage locations for issues."""
         if not storage_locations:
             return
 
-        # Build set of dataset storage locations
-        dataset_locations = {d.storage_location for d in datasets if d.storage_location}
-        dataset_locations.discard(None)
-
-        # Check for orphaned storage locations (no datasets)
         for location in storage_locations:
             location_id = location.get("id", "unknown")
             location_type = location.get("type", "unknown")
 
-            # Check if storage location has no datasets
             datasets_using = [d.id for d in datasets if d.storage_location == location_id]
             if not datasets_using:
                 result.add_finding(
-                    Finding(
+                    self.create_finding(
                         id=f"lake-storage-orphaned-{location_id}",
                         category="lake",
                         severity="low",
                         title=f"Unused Storage Location: {location_id}",
-                        description=(
-                            f"Storage location '{location_id}' ({location_type}) is not used by any dataset. "
-                            "Consider removing to reduce management overhead."
-                        ),
+                        description=f"Storage location '{location_id}' is not used by any dataset.",
                         affected_components=["Lake", f"storage:{location_id}"],
                         confidence_level="medium",
                         remediation_steps=[
                             f"Verify if storage location '{location_id}' is no longer needed",
                             "Remove unused storage locations",
-                            "Document reason if intentionally kept"
                         ],
-                        metadata={
-                            "location_id": location_id,
-                            "location_type": location_type,
-                        }
+                        metadata={"location_id": location_id, "location_type": location_type},
                     )
                 )
 
-        # Check for storage locations with many datasets (potential hot spot)
         location_usage = {}
         for d in datasets:
             if d.storage_location:
-                location_id = d.storage_location
-                location_usage[location_id] = location_usage.get(location_id, 0) + 1
+                loc_id = d.storage_location
+                location_usage[loc_id] = location_usage.get(loc_id, 0) + 1
 
-        overutilized_locations = [
-            (loc_id, count) for loc_id, count in location_usage.items() if count > 10
-        ]
-
-        if overutilized_locations:
-            for loc_id, count in overutilized_locations[:3]:
-                location_type = next(
-                    (l.get("type", "unknown") for l in storage_locations if l.get("id") == loc_id),
-                    "unknown"
-                )
+        for loc_id, count in location_usage.items():
+            if count > 10:
                 result.add_finding(
-                    Finding(
+                    self.create_finding(
                         id=f"lake-storage-heavy-{loc_id}",
                         category="lake",
                         severity="medium",
                         title=f"Heavily Used Storage: {loc_id}",
-                        description=(
-                            f"Storage location '{loc_id}' ({location_type}) is used by {count} datasets. "
-                            "Consider reorganizing to balance load."
-                        ),
+                        description=f"Storage location '{loc_id}' is used by {count} datasets.",
                         affected_components=["Lake", f"storage:{loc_id}"],
                         confidence_level="high",
                         remediation_steps=[
-                            f"Review distribution of datasets across storage locations",
-                            f"Consider migrating some datasets from '{loc_id}' to other locations",
-                            "Monitor storage location performance metrics"
+                            "Review distribution of datasets across storage locations",
                         ],
-                        metadata={
-                            "location_id": loc_id,
-                            "dataset_count": count,
-                        }
+                        metadata={"location_id": loc_id, "dataset_count": count},
                     )
                 )
-        )

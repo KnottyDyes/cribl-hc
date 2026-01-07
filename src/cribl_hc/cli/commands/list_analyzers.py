@@ -6,8 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from cribl_hc.analyzers import list_objectives, get_analyzer
-
+from cribl_hc.analyzers import get_analyzer, list_objectives
 
 console = Console()
 app = typer.Typer(help="List available analyzers")
@@ -83,7 +82,7 @@ def list_analyzers(
 
     # Show usage example
     console.print("\n[dim]Usage examples:[/dim]")
-    console.print(f"  [cyan]cribl-hc analyze run[/cyan]                    # Run all analyzers")
+    console.print("  [cyan]cribl-hc analyze run[/cyan]                    # Run all analyzers")
     console.print(
-        f"  [cyan]cribl-hc analyze run -o health[/cyan]          # Run specific analyzer"
+        "  [cyan]cribl-hc analyze run -o health[/cyan]          # Run specific analyzer"
     )
