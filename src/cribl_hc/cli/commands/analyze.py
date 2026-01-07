@@ -3,6 +3,7 @@ Analyze command for running health check analysis.
 """
 
 import asyncio
+from typing import List, Optional
 from pathlib import Path
 
 import typer
