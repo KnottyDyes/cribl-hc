@@ -7,9 +7,10 @@ and authentication mechanisms. Calculates overall security posture score.
 Priority: P2 (Security - critical for compliance and data protection)
 """
 
+import json
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -66,8 +67,7 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def get_estimated_api_calls(self) -> int:
         """
-        Estimate API calls: outputs(1) + inputs(1) + auth(1) + system(1) +
-        certificates(1) + roles(1) + users(1) + api_keys(1) + teams(1) = 9.
+        Estimate API calls needed.
         """
         return 9
 
@@ -97,22 +97,22 @@ class SecurityAnalyzer(BaseAnalyzer):
                 "security_analysis_started", product=client.product_type, product_name=product_name
             )
 
-            outputs = await client.get_outputs()
-            inputs = await client.get_inputs()
-            auth_config = await client.get_auth_config()
-            certificates = await client.get_certificates()
-            roles = await client.get_roles()
-            users = await client.get_users()
-            api_keys = await client.get_api_keys()
-            teams = await client.get_teams()
+            outputs = await client.get_outputs() or []
+            inputs = await client.get_inputs() or []
+            auth_config = await client.get_auth_config() or {}
+            certificates = await client.get_certificates() or []
+            roles = await client.get_roles() or []
+            users = await client.get_users() or []
+            api_keys = await client.get_api_keys() or []
+            teams = await client.get_teams() or []
 
-            tls_issues = self._analyze_tls_configuration(outputs, inputs, result)
-            secret_issues = self._analyze_secrets(outputs, inputs, result)
-            auth_issues = self._analyze_authentication(auth_config, result)
-            self._analyze_certificates(certificates, result)
-            self._analyze_rbac(roles, users, result)
-            self._analyze_api_keys(api_keys, result)
-            self._analyze_teams(teams, result)
+            tls_issues = self._analyze_tls_configuration(outputs, inputs, result, client)
+            secret_issues = self._analyze_secrets(outputs, inputs, result, client)
+            auth_issues = self._analyze_authentication(auth_config, result, client)
+            self._analyze_certificates(certificates, result, client)
+            self._analyze_rbac(roles, users, result, client)
+            self._analyze_api_keys(api_keys, result, client)
+            self._analyze_teams(teams, result, client)
 
             security_score = self._calculate_security_score(
                 outputs, inputs, auth_config, tls_issues, secret_issues, auth_issues
@@ -136,7 +136,6 @@ class SecurityAnalyzer(BaseAnalyzer):
                     "users_analyzed": len(users),
                     "api_keys_analyzed": len(api_keys),
                     "teams_analyzed": len(teams),
-                    "total_bytes": 0,
                     "analyzed_at": datetime.utcnow().isoformat(),
                 }
             )
@@ -146,13 +145,17 @@ class SecurityAnalyzer(BaseAnalyzer):
 
         except Exception as e:
             log.error("security_analysis_failed", error=str(e), exc_info=True)
-            result.metadata.update({"error": str(e), "total_bytes": 0})
+            result.metadata.update({"error": str(e)})
             result.success = False
 
         return result
 
     def _analyze_tls_configuration(
-        self, outputs: list[dict[str, Any]], inputs: list[dict[str, Any]], result: AnalyzerResult
+        self,
+        outputs: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        result: AnalyzerResult,
+        client: CriblAPIClient,
     ) -> list[dict[str, Any]]:
         """Analyze TLS configuration for outputs and inputs."""
         tls_issues = []
@@ -167,6 +170,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                 )
                 result.add_finding(
                     self.create_finding(
+                        client=client,
                         id=f"security-tls-disabled-output-{output_id}",
                         category="security",
                         severity="high",
@@ -175,6 +179,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                         affected_components=[output_id],
                         confidence_level="high",
                         remediation_steps=[f"Enable TLS for output '{output_id}'"],
+                        estimated_impact="Data transmitted in plaintext",
                     )
                 )
 
@@ -185,6 +190,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                 )
                 result.add_finding(
                     self.create_finding(
+                        client=client,
                         id=f"security-weak-tls-output-{output_id}",
                         category="security",
                         severity="medium",
@@ -195,17 +201,21 @@ class SecurityAnalyzer(BaseAnalyzer):
                         remediation_steps=[
                             f"Update TLS minVersion to TLSv1.2+ for output '{output_id}'"
                         ],
+                        estimated_impact="Potentially vulnerable TLS configuration",
                     )
                 )
 
         return tls_issues
 
     def _analyze_secrets(
-        self, outputs: list[dict[str, Any]], inputs: list[dict[str, Any]], result: AnalyzerResult
+        self,
+        outputs: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        result: AnalyzerResult,
+        client: CriblAPIClient,
     ) -> list[dict[str, Any]]:
         """Scan configurations for hardcoded secrets."""
         secret_issues = []
-        import json
 
         for comp_list, comp_type in [(outputs, "output"), (inputs, "input")]:
             for comp in comp_list:
@@ -223,6 +233,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                         )
                         result.add_finding(
                             self.create_finding(
+                                client=client,
                                 id=f"security-hardcoded-secret-{comp_type}-{comp_id}",
                                 category="security",
                                 severity="critical",
@@ -233,6 +244,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                                 remediation_steps=[
                                     f"Replace hardcoded {secret_type} with environment variable"
                                 ],
+                                estimated_impact="Credentials exposed in configuration",
                             )
                         )
 
@@ -244,7 +256,7 @@ class SecurityAnalyzer(BaseAnalyzer):
         return any(p in value.lower() for p in placeholders)
 
     def _analyze_authentication(
-        self, auth_config: dict[str, Any], result: AnalyzerResult
+        self, auth_config: dict[str, Any], result: AnalyzerResult, client: CriblAPIClient
     ) -> list[dict[str, Any]]:
         """Analyze authentication configuration."""
         issues = []
@@ -252,6 +264,7 @@ class SecurityAnalyzer(BaseAnalyzer):
             issues.append({"issue": "auth_disabled"})
             result.add_finding(
                 self.create_finding(
+                    client=client,
                     id="security-auth-disabled",
                     category="security",
                     severity="high",
@@ -260,6 +273,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                     affected_components=["system"],
                     confidence_level="high",
                     remediation_steps=["Enable authentication in system settings"],
+                    estimated_impact="Unauthorized access to system",
                 )
             )
 
@@ -268,6 +282,7 @@ class SecurityAnalyzer(BaseAnalyzer):
             issues.append({"issue": "weak_auth_method"})
             result.add_finding(
                 self.create_finding(
+                    client=client,
                     id="security-basic-auth",
                     category="security",
                     severity="low",
@@ -276,12 +291,16 @@ class SecurityAnalyzer(BaseAnalyzer):
                     affected_components=["system"],
                     confidence_level="high",
                     remediation_steps=["Consider upgrading to SAML or OIDC"],
+                    estimated_impact="Weaker authentication security",
                 )
             )
         return issues
 
     def _analyze_certificates(
-        self, certificates: list[dict[str, Any]], result: AnalyzerResult
+        self,
+        certificates: list[dict[str, Any]],
+        result: AnalyzerResult,
+        client: CriblAPIClient,
     ) -> list[dict[str, Any]]:
         """Analyze certificate configurations for expiration."""
         issues = []
@@ -303,6 +322,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                     issues.append({"cert_id": cert_id, "issue": "expired"})
                     result.add_finding(
                         self.create_finding(
+                            client=client,
                             id=f"security-cert-expired-{cert_id}",
                             category="security",
                             severity="critical",
@@ -310,6 +330,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                             description=f"Certificate '{cert_id}' expired {abs(days_until)} days ago.",
                             confidence_level="high",
                             remediation_steps=[f"Renew certificate '{cert_id}' immediately"],
+                            estimated_impact="Service disruption for components using this certificate",
                         )
                     )
                 elif days_until <= 30:
@@ -317,6 +338,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                     severity = "high" if days_until <= 7 else "medium"
                     result.add_finding(
                         self.create_finding(
+                            client=client,
                             id=f"security-cert-expiring-{cert_id}",
                             category="security",
                             severity=severity,
@@ -324,6 +346,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                             description=f"Certificate '{cert_id}' expires in {days_until} days.",
                             confidence_level="high",
                             remediation_steps=[f"Renew certificate '{cert_id}'"],
+                            estimated_impact="Potential future service disruption",
                         )
                     )
             except Exception:
@@ -332,7 +355,11 @@ class SecurityAnalyzer(BaseAnalyzer):
         return issues
 
     def _analyze_rbac(
-        self, roles: list[dict[str, Any]], users: list[dict[str, Any]], result: AnalyzerResult
+        self,
+        roles: list[dict[str, Any]],
+        users: list[dict[str, Any]],
+        result: AnalyzerResult,
+        client: CriblAPIClient,
     ) -> list[dict[str, Any]]:
         """Analyze RBAC and user activity."""
         issues = []
@@ -346,6 +373,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                 admin_roles.add(role_id)
                 result.add_finding(
                     self.create_finding(
+                        client=client,
                         id=f"security-rbac-wildcard-{role_id}",
                         category="security",
                         severity="high",
@@ -353,6 +381,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                         description=f"Role '{role_id}' has wildcard or admin permissions.",
                         confidence_level="high",
                         remediation_steps=[f"Review and restrict permissions for role '{role_id}'"],
+                        estimated_impact="Users with this role have excessive power",
                     )
                 )
 
@@ -376,6 +405,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                         severity = "high" if days_inactive > 180 else "medium"
                         result.add_finding(
                             self.create_finding(
+                                client=client,
                                 id=f"security-user-inactive-{user_id}",
                                 category="security",
                                 severity=severity,
@@ -383,6 +413,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                                 description=f"User '{user_id}' has not logged in for {days_inactive} days.",
                                 confidence_level="medium",
                                 remediation_steps=[f"Disable or remove inactive user '{user_id}'"],
+                                estimated_impact="Increased risk of credential misuse",
                             )
                         )
                 except Exception:
@@ -415,7 +446,7 @@ class SecurityAnalyzer(BaseAnalyzer):
         return issues
 
     def _analyze_api_keys(
-        self, api_keys: list[dict[str, Any]], result: AnalyzerResult
+        self, api_keys: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> list[dict[str, Any]]:
         """Analyze API key security."""
         issues = []
@@ -424,6 +455,7 @@ class SecurityAnalyzer(BaseAnalyzer):
             if not key.get("expiresAt") and not key.get("expires_at"):
                 result.add_finding(
                     self.create_finding(
+                        client=client,
                         id=f"security-api-key-no-expiry-{key_id}",
                         category="security",
                         severity="medium",
@@ -431,16 +463,20 @@ class SecurityAnalyzer(BaseAnalyzer):
                         description=f"API key '{key_id}' does not have an expiration date.",
                         confidence_level="high",
                         remediation_steps=[f"Set an expiration date for API key '{key_id}'"],
+                        estimated_impact="API keys that never expire increase long-term risk",
                     )
                 )
         return issues
 
-    def _analyze_teams(self, teams: list[dict[str, Any]], result: AnalyzerResult) -> None:
+    def _analyze_teams(
+        self, teams: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
         """Analyze team configurations."""
         for team in teams:
             if not team.get("members"):
                 result.add_finding(
                     self.create_finding(
+                        client=client,
                         id=f"security-team-empty-{team.get('id')}",
                         category="security",
                         severity="info",
@@ -448,6 +484,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                         description=f"Team '{team.get('id')}' has no members.",
                         confidence_level="high",
                         remediation_steps=["Remove empty teams to simplify configuration"],
+                        estimated_impact="Unnecessary configuration complexity",
                     )
                 )
 
@@ -480,7 +517,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                     type="security",
                     priority="p0",
                     title="Remove Hardcoded Credentials",
-                    description="Replace hardcoded credentials with environment variables.",
+                    description="Replace hardcoded credentials in configurations with environment variables.",
                     rationale="Hardcoded credentials can be exposed in backups and version control.",
                     implementation_steps=[
                         "Identify components with secrets",
