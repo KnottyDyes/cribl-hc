@@ -8,6 +8,7 @@ Priority: P2 (Important)
 """
 
 from datetime import datetime
+from typing import List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -41,8 +42,6 @@ class SearchHealthAnalyzer(BaseAnalyzer):
     - Dashboards without schedules
     - Unused or stale saved searches
     - Search cost and resource consumption
-
-    Priority: P2 (Important - ensures search functionality)
     """
 
     LONG_RUNNING_SECONDS = 300
@@ -57,7 +56,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         return "search"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Search health analyzer is specific to Cribl Search."""
         return ["search"]
 
@@ -67,7 +66,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         """
         return 6
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:search:jobs",
@@ -83,13 +82,6 @@ class SearchHealthAnalyzer(BaseAnalyzer):
     ) -> AnalyzerResult:
         """
         Analyze Cribl Search health and configuration.
-
-        Args:
-            client: Authenticated Cribl API client
-            workspace: Search workspace name (default: "default_search")
-
-        Returns:
-            AnalyzerResult with Search health findings and recommendations
         """
         result = self.create_result()
 
@@ -140,6 +132,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             if not any([jobs, datasets, dashboards, saved_searches]):
                 result.add_finding(
                     self.create_finding(
+                        client=client,
                         id="search-no-resources",
                         category="search",
                         severity="info",
@@ -153,12 +146,12 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 result.success = True
                 return result
 
-            self._analyze_jobs(jobs, result)
-            self._analyze_datasets(datasets, result)
-            self._analyze_groups(groups, result)
-            self._analyze_dashboards(dashboards, result)
-            self._analyze_saved_searches(saved_searches, result)
-            self._analyze_cost(cost_data, result)
+            self._analyze_jobs(jobs, result, client)
+            self._analyze_datasets(datasets, result, client)
+            self._analyze_groups(groups, result, client)
+            self._analyze_dashboards(dashboards, result, client)
+            self._analyze_saved_searches(saved_searches, result, client)
+            self._analyze_cost(cost_data, result, client)
 
             result.success = True
             log.info(
@@ -166,10 +159,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 workspace=workspace,
                 jobs=len(jobs),
                 datasets=len(datasets),
-                dashboards=len(dashboards),
-                saved_searches=len(saved_searches),
                 findings=len(result.findings),
-                recommendations=len(result.recommendations),
             )
 
         except Exception as e:
@@ -178,6 +168,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             result.metadata["error"] = str(e)
             result.add_finding(
                 self.create_finding(
+                    client=client,
                     id="search-analysis-error",
                     category="search",
                     severity="critical",
@@ -193,13 +184,15 @@ class SearchHealthAnalyzer(BaseAnalyzer):
 
         return result
 
-    def _analyze_jobs(self, jobs: list[SearchJob], result: AnalyzerResult) -> None:
+    def _analyze_jobs(
+        self, jobs: List[SearchJob], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
         """Analyze search job health."""
         current_time = datetime.utcnow()
 
         for job in jobs:
             if job.status == "failed":
-                self._report_failed_job(job, result)
+                self._report_failed_job(job, result, client)
                 continue
 
             if job.status == "running" and job.time_started:
@@ -207,21 +200,24 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 duration_seconds = (current_time - start_time).total_seconds()
 
                 if duration_seconds >= self.VERY_LONG_RUNNING_SECONDS:
-                    self._report_stuck_job(job, duration_seconds, result)
+                    self._report_stuck_job(job, duration_seconds, result, client)
                 elif duration_seconds >= self.LONG_RUNNING_SECONDS:
-                    self._report_long_running_job(job, duration_seconds, result)
+                    self._report_long_running_job(job, duration_seconds, result, client)
 
             if job.status == "completed" and job.cpu_metrics:
                 billable_cpu = job.cpu_metrics.billable_cpu_seconds or 0
                 if billable_cpu >= self.VERY_HIGH_CPU_THRESHOLD:
-                    self._report_high_cpu_job(job, billable_cpu, "very_high", result)
+                    self._report_high_cpu_job(job, billable_cpu, "very_high", result, client)
                 elif billable_cpu >= self.HIGH_CPU_THRESHOLD:
-                    self._report_high_cpu_job(job, billable_cpu, "high", result)
+                    self._report_high_cpu_job(job, billable_cpu, "high", result, client)
 
-    def _report_failed_job(self, job: SearchJob, result: AnalyzerResult) -> None:
+    def _report_failed_job(
+        self, job: SearchJob, result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
         """Report a failed search job."""
         result.add_finding(
             self.create_finding(
+                client=client,
                 id=f"search-job-failed-{job.id}",
                 category="search",
                 severity="high",
@@ -249,11 +245,16 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         )
 
     def _report_stuck_job(
-        self, job: SearchJob, duration_seconds: float, result: AnalyzerResult
+        self,
+        job: SearchJob,
+        duration_seconds: float,
+        result: AnalyzerResult,
+        client: CriblAPIClient,
     ) -> None:
         """Report a potentially stuck search job."""
         result.add_finding(
             self.create_finding(
+                client=client,
                 id=f"search-job-stuck-{job.id}",
                 category="search",
                 severity="high",
@@ -309,11 +310,16 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         )
 
     def _report_long_running_job(
-        self, job: SearchJob, duration_seconds: float, result: AnalyzerResult
+        self,
+        job: SearchJob,
+        duration_seconds: float,
+        result: AnalyzerResult,
+        client: CriblAPIClient,
     ) -> None:
         """Report a long-running search job."""
         result.add_finding(
             self.create_finding(
+                client=client,
                 id=f"search-job-long-{job.id}",
                 category="search",
                 severity="medium",
@@ -339,13 +345,19 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         )
 
     def _report_high_cpu_job(
-        self, job: SearchJob, billable_cpu: float, severity_level: str, result: AnalyzerResult
+        self,
+        job: SearchJob,
+        billable_cpu: float,
+        severity_level: str,
+        result: AnalyzerResult,
+        client: CriblAPIClient,
     ) -> None:
         """Report a job with high CPU usage."""
         severity = "high" if severity_level == "very_high" else "medium"
 
         result.add_finding(
             self.create_finding(
+                client=client,
                 id=f"search-job-high-cpu-{job.id}",
                 category="search",
                 severity=severity,
@@ -405,13 +417,16 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 )
             )
 
-    def _analyze_datasets(self, datasets: list[SearchDataset], result: AnalyzerResult) -> None:
+    def _analyze_datasets(
+        self, datasets: List[SearchDataset], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
         """Analyze search dataset health."""
         disabled_datasets = [d for d in datasets if not d.enabled]
 
         if disabled_datasets:
             result.add_finding(
                 self.create_finding(
+                    client=client,
                     id="search-datasets-disabled",
                     category="search",
                     severity="low",
@@ -433,6 +448,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         if orphan_datasets:
             result.add_finding(
                 self.create_finding(
+                    client=client,
                     id="search-datasets-no-provider",
                     category="search",
                     severity="medium",
@@ -451,7 +467,9 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 )
             )
 
-    def _analyze_groups(self, groups: list[SearchGroup], result: AnalyzerResult) -> None:
+    def _analyze_groups(
+        self, groups: List[SearchGroup], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
         """Analyze Search groups for configuration issues."""
         if not groups:
             return
@@ -461,6 +479,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         if empty_groups:
             result.add_finding(
                 self.create_finding(
+                    client=client,
                     id="search-groups-empty",
                     category="search",
                     severity="info",
@@ -475,13 +494,16 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 )
             )
 
-    def _analyze_dashboards(self, dashboards: list[Dashboard], result: AnalyzerResult) -> None:
+    def _analyze_dashboards(
+        self, dashboards: List[Dashboard], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
         """Analyze dashboard health."""
         empty_dashboards = [d for d in dashboards if not d.elements or len(d.elements) == 0]
 
         if empty_dashboards:
             result.add_finding(
                 self.create_finding(
+                    client=client,
                     id="search-dashboards-empty",
                     category="search",
                     severity="info",
@@ -500,6 +522,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         if complex_dashboards:
             result.add_finding(
                 self.create_finding(
+                    client=client,
                     id="search-dashboards-complex",
                     category="search",
                     severity="low",
@@ -518,7 +541,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         result.metadata["scheduled_dashboards"] = len(scheduled_dashboards)
 
     def _analyze_saved_searches(
-        self, saved_searches: list[SavedSearch], result: AnalyzerResult
+        self, saved_searches: List[SavedSearch], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze saved search configurations."""
         if not saved_searches:
@@ -528,6 +551,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             if not saved.query:
                 result.add_finding(
                     self.create_finding(
+                        client=client,
                         id=f"search-saved-no-query-{saved.id}",
                         category="search",
                         severity="low",
@@ -543,11 +567,14 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                     )
                 )
 
-    def _analyze_cost(self, cost_data: SearchCost, result: AnalyzerResult) -> None:
+    def _analyze_cost(
+        self, cost_data: SearchCost, result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
         """Analyze Search cost and resource consumption."""
         if cost_data.total_cost_usd and cost_data.total_cost_usd > 100.0:
             result.add_finding(
                 self.create_finding(
+                    client=client,
                     id="search-cost-high",
                     category="search",
                     severity="medium",

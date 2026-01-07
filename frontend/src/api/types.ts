@@ -111,6 +111,20 @@ export interface Finding {
   metadata?: Record<string, unknown>
 }
 
+export interface ComponentVersion {
+  name: string
+  version: string
+  status: string
+  metadata: Record<string, unknown>
+}
+
+export interface VersionInfo {
+  leader_version?: string
+  product_type?: string
+  product_versions: Record<string, string>
+  component_versions: ComponentVersion[]
+}
+
 export interface AnalysisResultResponse {
   analysis_id: string
   deployment_name: string
@@ -121,6 +135,7 @@ export interface AnalysisResultResponse {
   recommendations_count: number
   completed_at: string | null
   duration_seconds: number | null
+  version_info: VersionInfo
   summary?: {
     total_findings: number
     critical_count: number
