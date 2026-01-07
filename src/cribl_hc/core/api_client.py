@@ -237,6 +237,12 @@ class CriblAPIClient:
         response.raise_for_status()
         return response.json().get("items", [])
 
+    async def get_parsers(self) -> list[dict[str, Any]]:
+        endpoint = self._build_config_endpoint("parsers")
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        return response.json().get("items", [])
+
     async def get_workers(self) -> list[dict[str, Any]]:
         response = await self.get("/api/v1/master/workers")
         response.raise_for_status()
@@ -339,6 +345,36 @@ class CriblAPIClient:
             return data.get("items", [])
         except Exception:
             return []
+
+    async def get_lookups(self) -> list[dict[str, Any]]:
+        endpoint = self._build_config_endpoint("lookups")
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        return response.json().get("items", [])
+
+    async def get_notification_targets(self) -> list[dict[str, Any]]:
+        try:
+            response = await self.get("/api/v1/system/notifications/targets")
+            response.raise_for_status()
+            return response.json().get("items", [])
+        except Exception:
+            return []
+
+    async def get_notifications(self) -> list[dict[str, Any]]:
+        try:
+            response = await self.get("/api/v1/system/notifications")
+            response.raise_for_status()
+            return response.json().get("items", [])
+        except Exception:
+            return []
+
+    async def get_version_info(self) -> dict[str, Any]:
+        try:
+            response = await self.get("/api/v1/system/info")
+            response.raise_for_status()
+            return response.json()
+        except Exception:
+            return {}
 
     async def get_search_jobs(self, workspace: str = "default_search") -> dict:
         response = await self.get(f"/api/v1/m/{workspace}/search/jobs")
