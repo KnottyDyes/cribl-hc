@@ -32,17 +32,17 @@ export function HomePage() {
   const recentAnalyses = analyses?.slice(0, 3) || []
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
             Cribl Health Check
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
             Automated security and configuration analysis for your Cribl deployments
           </p>
           {version && (
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               API Version: {version.version}
             </p>
           )}
@@ -85,15 +85,15 @@ export function HomePage() {
             <div className="space-y-3 text-sm">
               <div className="flex items-start">
                 <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
-                <span>Add your Cribl deployment credentials</span>
+                <span className="text-gray-700 dark:text-gray-300">Add your Cribl deployment credentials</span>
               </div>
               <div className="flex items-start">
                 <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
-                <span>Select analyzers to run</span>
+                <span className="text-gray-700 dark:text-gray-300">Select analyzers to run</span>
               </div>
               <div className="flex items-start">
                 <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2 flex-shrink-0 mt-0.5" />
-                <span>Review findings and recommendations</span>
+                <span className="text-gray-700 dark:text-gray-300">Review findings and recommendations</span>
               </div>
             </div>
           </Card>
@@ -105,7 +105,7 @@ export function HomePage() {
               {recentAnalyses.map((analysis) => (
                 <div
                   key={analysis.analysis_id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer"
                   onClick={() => {
                     if (analysis.status === 'completed') {
                       navigate(`/results/${analysis.analysis_id}`)
@@ -115,10 +115,10 @@ export function HomePage() {
                   }}
                 >
                   <div>
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
                       {analysis.deployment_name}
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
                       {new Date(analysis.created_at).toLocaleDateString()}
                     </p>
                   </div>
@@ -140,12 +140,12 @@ export function HomePage() {
         )}
 
         {credentials?.length === 0 && (
-          <Card className="bg-blue-50 border-blue-200">
+          <Card className="bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800">
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
                 Get Started
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 dark:text-gray-300 mb-4">
                 Add your first Cribl deployment credential to begin running health checks
               </p>
               <Button onClick={() => navigate('/credentials')}>
