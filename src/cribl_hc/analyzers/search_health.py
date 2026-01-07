@@ -23,6 +23,8 @@ from cribl_hc.models.search import (
     SearchDatasetList,
     SearchJob,
     SearchJobList,
+    SearchGroup,
+    SearchGroupList,
 )
 from cribl_hc.utils.logger import get_logger
 
@@ -89,7 +91,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         """
         result = AnalyzerResult(objective=self.objective_name)
 
-        try:
+            try:
             log.info("search_health_analysis_started", workspace=workspace)
 
             # Fetch Search data
@@ -97,17 +99,20 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             datasets_response = await client.get_search_datasets(workspace)
             dashboards_response = await client.get_search_dashboards(workspace)
             saved_response = await client.get_search_saved_searches(workspace)
+            groups_response = await client.get_search_groups(workspace)
 
             # Parse responses
             job_list = SearchJobList(**jobs_response)
             dataset_list = SearchDatasetList(**datasets_response)
             dashboard_list = DashboardList(**dashboards_response)
             saved_list = SavedSearchList(**saved_response)
+            groups_list = SearchGroupList(**groups_response)
 
             jobs = job_list.items
             datasets = dataset_list.items
             dashboards = dashboard_list.items
             saved_searches = saved_list.items
+            groups = groups_list.items
 
             # Categorize jobs by status
             running_jobs = [j for j in jobs if j.status == "running"]
@@ -150,6 +155,9 @@ class SearchHealthAnalyzer(BaseAnalyzer):
 
             # Analyze datasets
             self._analyze_datasets(datasets, result)
+
+            # Analyze groups
+            self._analyze_groups(groups, result)
 
             # Analyze dashboards
             self._analyze_dashboards(dashboards, result)
@@ -491,28 +499,105 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         self, saved_searches: List[SavedSearch], result: AnalyzerResult
     ) -> None:
         """Analyze saved search configurations."""
-        # Check for saved searches without queries
-        invalid_searches = [s for s in saved_searches if not s.query]
+        if not saved_searches:
+            return
 
-        if invalid_searches:
+        for saved in saved_searches:
+            if not saved.query:
+                result.add_finding(
+                    Finding(
+                        id="search-saved-no-query",
+                        category="search",
+                        severity="low",
+                        title=f"Saved Search Without Query: {saved.id}",
+                        description=(
+                            f"Saved search '{saved.id}' has no query defined."
+                        ),
+                        affected_components=["Search", saved.id],
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Update saved search '{saved.id}' with a valid query",
+                            "Remove unused saved searches"
+                        ],
+                        metadata={"saved_search_id": saved.id}
+                    )
+                )
+
+    def _analyze_groups(self, groups: List[SearchGroup], result: AnalyzerResult) -> None:
+        """Analyze Search groups for configuration issues."""
+        if not groups:
+            return
+
+        empty_groups = [g for g in groups if not g.datasets and not g.dashboards]
+
+        if empty_groups:
             result.add_finding(
                 Finding(
-                    id="search-saved-no-query",
+                    id="search-groups-empty",
                     category="search",
-                    severity="low",
-                    title=f"{len(invalid_searches)} Saved Search(es) Without Query",
-                    description=(
-                        f"Found {len(invalid_searches)} saved search(es) without a query defined."
-                    ),
-                    affected_components=["Search"] + [s.id for s in invalid_searches[:5]],
-                    remediation_steps=[
-                        "Update saved searches with valid queries",
-                        "Remove unused saved searches"
-                    ],
+                    severity="info",
+                    title=f"{len(empty_groups)} Empty Group(s)",
+                    description=f"Found {len(empty_groups)} group(s) without datasets or dashboards.",
+                    affected_components=["Search"] + [g.id for g in empty_groups[:5]],
                     confidence_level="high",
-                    metadata={
-                        "invalid_count": len(invalid_searches),
-                        "invalid_ids": [s.id for s in invalid_searches]
-                    }
+                    metadata={"empty_count": len(empty_groups), "empty_ids": [g.id for g in empty_groups]}
+                )
+            )
+
+        orphaned_datasets = []
+        for group in groups:
+            if group.datasets and group.dashboards:
+                orphaned_datasets.extend(group.datasets or [])
+                orphaned_datasets.extend(group.dashboards or [])
+
+        if orphaned_datasets:
+            orphaned_datasets_set = set(orphaned_datasets)
+            for dataset_id in orphaned_datasets_set:
+                result.add_finding(
+                    Finding(
+                        id=f"search-dataset-not-in-group-{dataset_id}",
+                        category="search",
+                        severity="medium",
+                        title=f"Dataset Not in Any Group: {dataset_id}",
+                        description=(
+                            f"Dataset '{dataset_id}' is assigned to no group. "
+                            "Consider adding to a group for better organization."
+                        ),
+                        affected_components=["Search", dataset_id],
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Create or update a group to include '{dataset_id}'",
+                            "Verify group membership for users"
+                        ],
+                        metadata={"dataset_id": dataset_id}
+                    )
+                )
+
+    def _analyze_saved_searches(
+        self, saved_searches: List[SavedSearch], result: AnalyzerResult
+    ) -> None:
+        """Analyze saved search configurations."""
+        if not saved_searches:
+            return
+
+        for saved in saved_searches:
+            if not saved.query:
+                result.add_finding(
+                    Finding(
+                        id="search-saved-no-query",
+                        category="search",
+                        severity="low",
+                        title=f"Saved Search Without Query: {saved.id}",
+                        description=(
+                            f"Saved search '{saved.id}' has no query defined."
+                        ),
+                        affected_components=["Search", saved.id],
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Update saved search '{saved.id}' with a valid query",
+                            "Remove unused saved searches"
+                        ],
+                        metadata={"saved_search_id": saved.id}
+                    )
                 )
             )

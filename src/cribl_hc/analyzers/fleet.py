@@ -355,6 +355,8 @@ class FleetAnalyzer(BaseAnalyzer):
             unhealthy_pct = (unhealthy_workers / total_workers) * 100
 
             if unhealthy_pct >= 25:
+                unhealthy_worker_ids = [dw["worker_id"] for dw in workers_with_drift]
+                
                 result.add_finding(Finding(
                     id="fleet-health-critical",
                     category="fleet",
@@ -364,150 +366,24 @@ class FleetAnalyzer(BaseAnalyzer):
                         f"{unhealthy_workers} of {total_workers} workers ({unhealthy_pct:.0f}%) "
                         f"are unhealthy. This represents a significant portion of your fleet."
                     ),
+                    affected_components=unhealthy_worker_ids,
                     confidence_level="high",
                     estimated_impact="Significant risk of data processing interruption",
                     remediation_steps=[
                         "Immediately investigate unhealthy workers in Cribl UI",
-                        "Check leader node health and connectivity",
+                        "Check leader node and connectivity, check worker group health",
                         "Review infrastructure (CPU, memory, disk, network)",
                         "Consider scaling or replacing unhealthy workers"
                     ],
-                    metadata={
-                        "unhealthy_count": unhealthy_workers,
-                        "total_count": total_workers,
-                        "unhealthy_pct": round(unhealthy_pct, 1)
-                    }
-                ))
-            elif unhealthy_pct >= 10:
-                result.add_finding(Finding(
-                    id="fleet-health-warning",
-                    category="fleet",
-                    severity="medium",
-                    title="Fleet Health Degraded",
-                    description=(
-                        f"{unhealthy_workers} of {total_workers} workers ({unhealthy_pct:.0f}%) "
-                        f"are unhealthy. Monitor closely and investigate."
-                    ),
-                    confidence_level="high",
-                    remediation_steps=[
-                        "Review unhealthy workers in Cribl UI",
-                        "Check for common issues (connectivity, resources)",
-                        "Schedule maintenance if needed"
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/manage-workers/"
                     ],
                     metadata={
                         "unhealthy_count": unhealthy_workers,
                         "total_count": total_workers,
                         "unhealthy_pct": round(unhealthy_pct, 1)
-                    }
-                ))
-
-    def _analyze_single_deployment_patterns(
-        self,
-        workers: list[dict[str, Any]],
-        result: AnalyzerResult
-    ) -> None:
-        """
-        Analyze patterns in a single deployment.
-
-        Args:
-            workers: List of worker nodes
-            result: AnalyzerResult to add findings to
-        """
-        if not workers:
-            return
-
-        # Group workers by status
-        status_counts: dict[str, int] = Counter()
-        for worker in workers:
-            status = worker.get("status", "unknown")
-            status_counts[status] += 1
-
-        result.metadata["worker_status_distribution"] = dict(status_counts)
-
-        # Check for workers with unknown status
-        unknown_count = status_counts.get("unknown", 0)
-        if unknown_count > 0:
-            result.add_finding(Finding(
-                id="fleet-workers-unknown-status",
-                category="fleet",
-                severity="low",
-                title="Workers with Unknown Status",
-                description=(
-                    f"{unknown_count} worker(s) are reporting unknown status. "
-                    f"This may indicate monitoring issues or workers that haven't checked in."
-                ),
-                confidence_level="medium",
-                remediation_steps=[
-                    "Check worker connectivity to leader",
-                    "Review worker heartbeat settings",
-                    "Verify network path between workers and leader"
-                ],
-                metadata={"unknown_count": unknown_count}
-            ))
-
-    async def analyze_fleet(
-        self,
-        deployments: dict[str, CriblAPIClient]
-    ) -> AnalyzerResult:
-        """
-        Analyze multiple deployments and generate fleet-wide insights.
-
-        Args:
-            deployments: Dictionary mapping deployment names to API clients
-                Example: {"dev": client1, "staging": client2, "prod": client3}
-
-        Returns:
-            AnalyzerResult with fleet-wide findings and recommendations
-
-        Example:
-            >>> deployments = {
-            ...     "dev": dev_client,
-            ...     "prod": prod_client
-            ... }
-            >>> result = await analyzer.analyze_fleet(deployments)
-            >>> drift_findings = [f for f in result.findings if "drift" in f.id]
-        """
-        result = AnalyzerResult(objective=self.objective_name)
-
-        # Validate input
-        if not deployments:
-            result.success = False
-            result.error = "No deployments provided for fleet analysis"
-            self.log.error("no_deployments_provided")
-            return result
-
-        self.log.info("fleet_analysis_started", deployment_count=len(deployments))
-
-        # Initialize metadata
-        deployment_names = list(deployments.keys())
-        result.metadata.update({
-            "deployment_names": deployment_names,
-            "deployments_analyzed": 0,
-            "failed_deployments": [],
-            "successful_deployments": []
-        })
-
-        # Step 1: Analyze each deployment in parallel
-        await self._analyze_all_deployments(deployments, result)
-
-        # Step 2: Compare environments
-        self._compare_environments(result)
-
-        # Step 3: Detect fleet-wide patterns
-        self._detect_fleet_patterns(result)
-
-        # Step 4: Generate fleet-level recommendations
-        self._generate_fleet_recommendations(result)
-
-        # Mark as successful if at least one deployment analyzed
-        result.success = result.metadata["deployments_analyzed"] > 0
-
-        self.log.info(
-            "fleet_analysis_completed",
-            deployments_analyzed=result.metadata["deployments_analyzed"],
-            findings_count=len(result.findings),
-            recommendations_count=len(result.recommendations)
-        )
+                    },
+                )
 
         return result
 

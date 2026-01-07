@@ -50,16 +50,17 @@ class LakeHealthAnalyzer(BaseAnalyzer):
 
     def get_estimated_api_calls(self) -> int:
         """
-        Estimate API calls: datasets(1) + stats(1) + lakehouses(1) = 3.
+        Estimate API calls: datasets(1) + stats(1) + lakehouses(1) + storage_locations(1) = 4.
         """
-        return 3
+        return 4
 
     def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:lake:datasets",
             "read:lake:lakehouses",
-            "read:lake:stats"
+            "read:lake:stats",
+            "read:lake:storage_locations",
         ]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
@@ -81,8 +82,13 @@ class LakeHealthAnalyzer(BaseAnalyzer):
             datasets_response = await client.get_lake_datasets(include_metrics=True)
             stats_response = await client.get_lake_dataset_stats()
             lakehouses_response = await client.get_lake_lakehouses()
+            storage_locations_response = await client.get_lake_storage_locations()
 
             # Parse responses
+            dataset_list = LakeDatasetList(**datasets_response)
+            lakehouse_list = LakehouseList(**lakehouses_response)
+            storage_locations_response = await client.get_lake_storage_locations()
+            storage_locations = storage_locations_response.get("items", [])
             dataset_list = LakeDatasetList(**datasets_response)
             lakehouse_list = LakehouseList(**lakehouses_response)
 
@@ -90,15 +96,23 @@ class LakeHealthAnalyzer(BaseAnalyzer):
             lakehouses = lakehouse_list.items
 
             # Initialize metadata
-            result.metadata.update({
-                "total_datasets": len(datasets),
-                "lakehouse_count": len(lakehouses),
-                "json_datasets": sum(1 for d in datasets if d.format == "json"),
-                "parquet_datasets": sum(1 for d in datasets if d.format == "parquet"),
-                "datasets_with_short_retention": sum(1 for d in datasets if d.retention_period_in_days < self.SHORT_RETENTION),
-                "datasets_with_very_short_retention": sum(1 for d in datasets if d.retention_period_in_days < self.VERY_SHORT_RETENTION),
-                "analysis_timestamp": datetime.utcnow().isoformat()
-            })
+            result.metadata.update(
+                {
+                    "total_datasets": len(datasets),
+                    "lakehouse_count": len(lakehouses),
+                    "json_datasets": sum(1 for d in datasets if d.format == "json"),
+                    "parquet_datasets": sum(1 for d in datasets if d.format == "parquet"),
+                    "datasets_with_short_retention": sum(
+                        1 for d in datasets if d.retention_period_in_days < self.SHORT_RETENTION
+                    ),
+                    "datasets_with_very_short_retention": sum(
+                        1
+                        for d in datasets
+                        if d.retention_period_in_days < self.VERY_SHORT_RETENTION
+                    ),
+                    "analysis_timestamp": datetime.utcnow().isoformat(),
+                }
+            )
 
             # Handle empty datasets
             if not datasets:
@@ -111,7 +125,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                         description="No datasets are currently configured in Cribl Lake.",
                         affected_components=["Lake"],
                         confidence_level="high",
-                        metadata={"message": "Consider creating datasets to store data in Lake."}
+                        metadata={"message": "Consider creating datasets to store data in Lake."},
                     )
                 )
                 result.success = True
@@ -122,13 +136,16 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                 self._analyze_retention_policy(dataset, result)
                 self._analyze_storage_format(dataset, result)
 
+            # Analyze storage locations
+            self._analyze_storage_locations(storage_locations, datasets, result)
+
             result.success = True
             log.info(
                 "lake_health_analysis_completed",
                 datasets=len(datasets),
                 lakehouses=len(lakehouses),
                 findings=len(result.findings),
-                recommendations=len(result.recommendations)
+                recommendations=len(result.recommendations),
             )
 
         except Exception as e:
@@ -146,7 +163,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                     remediation_steps=["Check API connectivity", "Verify Lake is provisioned"],
                     estimated_impact="Cannot assess Lake health",
                     confidence_level="high",
-                    metadata={"error": str(e)}
+                    metadata={"error": str(e)},
                 )
             )
 
@@ -173,15 +190,15 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                     remediation_steps=[
                         f"Navigate to Lake > Datasets > {dataset.id}",
                         "Edit dataset configuration",
-                        f"Update 'Retention Period' to at least {self.RECOMMENDED_MIN_RETENTION} days"
+                        f"Update 'Retention Period' to at least {self.RECOMMENDED_MIN_RETENTION} days",
                     ],
                     estimated_impact="Potential data loss for historical queries",
                     confidence_level="high",
                     metadata={
                         "dataset_id": dataset.id,
                         "retention_days": retention_days,
-                        "recommended_min": self.RECOMMENDED_MIN_RETENTION
-                    }
+                        "recommended_min": self.RECOMMENDED_MIN_RETENTION,
+                    },
                 )
             )
 
@@ -206,8 +223,8 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                     metadata={
                         "dataset_id": dataset.id,
                         "current_format": "json",
-                        "recommended_format": "parquet"
-                    }
+                        "recommended_format": "parquet",
+                    },
                 )
             )
 
@@ -237,7 +254,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                     f"Navigate to Lake > Datasets > {dataset.id}",
                     "Edit dataset configuration",
                     f"Update 'Retention Period' to {recommended_retention} days",
-                    "Save changes"
+                    "Save changes",
                 ],
                 before_state=f"{dataset.id} retention: {current_retention} days",
                 after_state=f"{dataset.id} retention: {recommended_retention} days",
@@ -245,7 +262,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                     performance_improvement="Prevents accidental data loss for historical queries"
                 ),
                 implementation_effort="low",
-                product_tags=["lake"]
+                product_tags=["lake"],
             )
         )
 
@@ -274,11 +291,108 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                 before_state=f"{dataset.id} using JSON format (inefficient compression)",
                 after_state=f"{dataset.id} using Parquet format (60-80% storage reduction)",
                 impact_estimate=ImpactEstimate(
-                    storage_reduction_gb=None,  # Unknown without actual size data
+                    storage_reduction_gb=None,
                     performance_improvement="Faster query performance with columnar storage",
                     time_to_implement="2-4 hours"
                 ),
                 implementation_effort="medium",
                 product_tags=["lake"]
             )
+        )
+
+    def _analyze_storage_locations(
+        self, storage_locations: List[Dict[str, Any]], datasets: List[LakeDataset], result: AnalyzerResult
+    ) -> None:
+        """
+        Analyze Lake storage locations for issues.
+
+        Checks:
+        - Storage locations without datasets (orphaned locations)
+        - Storage locations with health issues
+        - Multiple datasets using same storage location (potential performance impact)
+
+        Args:
+            storage_locations: List of storage location configurations
+            datasets: List of Lake datasets
+            result: AnalyzerResult to add findings to
+        """
+        if not storage_locations:
+            return
+
+        # Build set of dataset storage locations
+        dataset_locations = {d.storage_location for d in datasets if d.storage_location}
+        dataset_locations.discard(None)
+
+        # Check for orphaned storage locations (no datasets)
+        for location in storage_locations:
+            location_id = location.get("id", "unknown")
+            location_type = location.get("type", "unknown")
+
+            # Check if storage location has no datasets
+            datasets_using = [d.id for d in datasets if d.storage_location == location_id]
+            if not datasets_using:
+                result.add_finding(
+                    Finding(
+                        id=f"lake-storage-orphaned-{location_id}",
+                        category="lake",
+                        severity="low",
+                        title=f"Unused Storage Location: {location_id}",
+                        description=(
+                            f"Storage location '{location_id}' ({location_type}) is not used by any dataset. "
+                            "Consider removing to reduce management overhead."
+                        ),
+                        affected_components=["Lake", f"storage:{location_id}"],
+                        confidence_level="medium",
+                        remediation_steps=[
+                            f"Verify if storage location '{location_id}' is no longer needed",
+                            "Remove unused storage locations",
+                            "Document reason if intentionally kept"
+                        ],
+                        metadata={
+                            "location_id": location_id,
+                            "location_type": location_type,
+                        }
+                    )
+                )
+
+        # Check for storage locations with many datasets (potential hot spot)
+        location_usage = {}
+        for d in datasets:
+            if d.storage_location:
+                location_id = d.storage_location
+                location_usage[location_id] = location_usage.get(location_id, 0) + 1
+
+        overutilized_locations = [
+            (loc_id, count) for loc_id, count in location_usage.items() if count > 10
+        ]
+
+        if overutilized_locations:
+            for loc_id, count in overutilized_locations[:3]:
+                location_type = next(
+                    (l.get("type", "unknown") for l in storage_locations if l.get("id") == loc_id),
+                    "unknown"
+                )
+                result.add_finding(
+                    Finding(
+                        id=f"lake-storage-heavy-{loc_id}",
+                        category="lake",
+                        severity="medium",
+                        title=f"Heavily Used Storage: {loc_id}",
+                        description=(
+                            f"Storage location '{loc_id}' ({location_type}) is used by {count} datasets. "
+                            "Consider reorganizing to balance load."
+                        ),
+                        affected_components=["Lake", f"storage:{loc_id}"],
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Review distribution of datasets across storage locations",
+                            f"Consider migrating some datasets from '{loc_id}' to other locations",
+                            "Monitor storage location performance metrics"
+                        ],
+                        metadata={
+                            "location_id": loc_id,
+                            "dataset_count": count,
+                        }
+                    )
+                )
         )

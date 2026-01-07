@@ -33,9 +33,7 @@ class ConnectionTestResult(BaseModel):
 
     success: bool = Field(..., description="Connection test success status")
     message: str = Field(..., description="Human-readable status message")
-    response_time_ms: Optional[float] = Field(
-        None, description="API response time in milliseconds"
-    )
+    response_time_ms: Optional[float] = Field(None, description="API response time in milliseconds")
     cribl_version: Optional[str] = Field(None, description="Detected Cribl version")
     api_url: str = Field(..., description="API URL tested")
     error: Optional[str] = Field(None, description="Error details if failed")
@@ -392,7 +390,7 @@ class CriblAPIClient:
                 product_name = {
                     "stream": "Cribl Stream",
                     "edge": "Cribl Edge",
-                    "lake": "Cribl Lake"
+                    "lake": "Cribl Lake",
                 }.get(self._product_type or "stream", "Cribl")
 
                 # Check version compatibility and build message
@@ -401,6 +399,7 @@ class CriblAPIClient:
                 # Add version compatibility warning if needed
                 try:
                     from cribl_hc.utils.version import parse_version, is_version_supported
+
                     parsed_version = parse_version(version)
                     if parsed_version and not is_version_supported(parsed_version):
                         # Version is older than N-2, add warning
@@ -412,7 +411,7 @@ class CriblAPIClient:
                             "unsupported_version_detected",
                             version=version,
                             product=self._product_type,
-                            message="Proceeding with best-effort analysis"
+                            message="Proceeding with best-effort analysis",
                         )
                 except Exception:
                     # Don't fail connection test if version parsing fails
@@ -593,6 +592,7 @@ class CriblAPIClient:
             # Stream: 1702468800000
             try:
                 from datetime import datetime
+
                 dt = datetime.fromisoformat(node["lastSeen"].replace("Z", "+00:00"))
                 normalized["lastMsgTime"] = int(dt.timestamp() * 1000)
             except Exception:
@@ -920,8 +920,12 @@ class CriblAPIClient:
 
         # Transform to expected format
         return {
-            "daily_gb_limit": data.get("dailyVolumeQuota", 0) / (1024 ** 3) if data.get("dailyVolumeQuota") else 0,
-            "current_daily_gb": data.get("currentDailyVolume", 0) / (1024 ** 3) if data.get("currentDailyVolume") else 0,
+            "daily_gb_limit": data.get("dailyVolumeQuota", 0) / (1024**3)
+            if data.get("dailyVolumeQuota")
+            else 0,
+            "current_daily_gb": data.get("currentDailyVolume", 0) / (1024**3)
+            if data.get("currentDailyVolume")
+            else 0,
         }
 
     def get_api_calls_remaining(self) -> int:
@@ -958,7 +962,7 @@ class CriblAPIClient:
         self,
         lake_name: str = "default",
         include_metrics: bool = False,
-        storage_location_id: Optional[str] = None
+        storage_location_id: Optional[str] = None,
     ) -> dict:
         """
         Get Lake datasets.
@@ -1119,6 +1123,85 @@ class CriblAPIClient:
         response.raise_for_status()
         return response.json()
 
+    async def get_search_groups(self, workspace: str = "default_search") -> dict:
+        """
+        Get Search groups from workspace.
+
+        Search groups organize datasets and dashboards for access control.
+
+        Args:
+            workspace: Search workspace name (default: "default_search")
+
+        Returns:
+            Dict with "items" (list of search groups) and "count"
+        """
+        endpoint = f"/api/v1/m/{workspace}/search/groups"
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_cost(self, workspace: str = "default_search", days: int = 30) -> dict:
+        """
+        Get Search cost data for a specified time period.
+
+        Args:
+            workspace: Search workspace name (default: "default_search")
+            days: Number of days to analyze (default: 30)
+
+        Returns:
+            Dict with cost breakdown by dataset, query type, and time period
+        """
+        endpoint = f"/api/v1/m/{workspace}/search/cost"
+        params = {"days": days} if days else None
+        response = await self.get(endpoint, params=params)
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_datatypes(self, workspace: str = "default_search") -> dict:
+        """
+        Get Search datatypes/schemas from workspace.
+
+        Analyzes data types and field schemas available for search.
+
+        Args:
+            workspace: Search workspace name (default: "default_search")
+
+        Returns:
+            Dict with "items" (list of datatypes/schemas) and "count"
+        """
+        endpoint = f"/api/v1/m/{workspace}/search/datatypes"
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        return response.json()
+
+    async def get_lake_storage_locations(self, lake_name: str = "default") -> dict:
+        """
+        Get Lake storage locations.
+
+        Storage locations define where Lake data is stored (cloud, on-prem, etc.).
+
+        Args:
+            lake_name: Lake name (default: "default")
+
+        Returns:
+            Dict with "items" (list of storage locations) and "count"
+
+        Example:
+            >>> locations = await client.get_lake_storage_locations()
+            >>> for loc in locations["items"]:
+            ...     print(f"{loc['id']}: {loc.get('type', 'unknown')}")
+        """
+        endpoint = f"/api/v1/products/lake/lakes/{lake_name}/storage_locations"
+        response = await self.get(endpoint)
+        response.raise_for_status()
+        return response.json()
+
+    # -------------------------------------------------------------------------
+    # Cribl Core (Control Plane) API Methods
+    # -------------------------------------------------------------------------
+    # Cribl Core (Control Plane) API Methods
+    # -------------------------------------------------------------------------
+    # Cribl Core (Control Plane) API Methods
     # -------------------------------------------------------------------------
     # Cribl Core (Control Plane) API Methods
     # -------------------------------------------------------------------------
@@ -1786,14 +1869,16 @@ class CriblAPIClient:
                     deploying_workers += deploying_count
                     config_drift = config_drift or has_drift
 
-                group_statuses.append({
-                    "group": group_id,
-                    "configVersion": config_version,
-                    "workerCount": worker_count,
-                    "deployingCount": deploying_count,
-                    "healthyCount": healthy_count,
-                    "hasDrift": has_drift
-                })
+                group_statuses.append(
+                    {
+                        "group": group_id,
+                        "configVersion": config_version,
+                        "workerCount": worker_count,
+                        "deployingCount": deploying_count,
+                        "healthyCount": healthy_count,
+                        "hasDrift": has_drift,
+                    }
+                )
 
             return {
                 "groups": group_statuses,
@@ -1801,7 +1886,7 @@ class CriblAPIClient:
                 "deployingWorkers": deploying_workers,
                 "configDrift": config_drift,
                 "totalGroups": len(groups),
-                "summary": summary
+                "summary": summary,
             }
         except Exception as e:
             log.warning("deployment_status_fetch_failed", error=str(e))
@@ -1810,5 +1895,5 @@ class CriblAPIClient:
                 "pendingDeployments": 0,
                 "deployingWorkers": 0,
                 "configDrift": False,
-                "error": str(e)
+                "error": str(e),
             }
