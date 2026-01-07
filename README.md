@@ -25,6 +25,9 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 - **Real-time Updates**: Live progress tracking via WebSocket during analysis
 - **Credential Management**: Add, edit, and test deployment credentials from the browser
 - **Visual Results**: Interactive findings table with filtering and sorting
+- **Branding Settings**: Customize organization name, contact info, logos, and report styling
+- **Theme Customization**: Light/dark theme with configurable color schemes
+- **Report Personalization**: Custom headers, footers, watermarks, and CSS styling
 - **REST API**: Full API backend for programmatic access
 - **Docker Support**: One-command deployment with Docker Compose
 
@@ -135,6 +138,8 @@ open http://localhost:8080/api/docs
 - Add/edit/test credentials via web interface
 - Start analyses with real-time progress updates
 - View findings in interactive table
+- Configure branding settings (organization info, logos, themes)
+- Customize report styling and appearance
 - WebSocket live updates during analysis
 
 **Documentation**: See [docs/WEB_GUI_QUICKSTART.md](docs/WEB_GUI_QUICKSTART.md)

@@ -88,7 +88,7 @@ export function ResultsPage() {
 
   if (isLoading) {
     return (
-      <div className="bg-gray-50 min-h-screen p-6">
+      <div className="bg-gray-50 dark:bg-gray-900 min-h-screen p-6">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6">
             <Button
@@ -99,10 +99,9 @@ export function ResultsPage() {
               <ArrowLeftIcon className="h-5 w-5 mr-2" />
               Back to Analyses
             </Button>
-            <h1 className="text-3xl font-bold text-gray-900">Loading Analysis Results...</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Loading Analysis Results...</h1>
           </div>
 
-          {/* Loading Skeletons */}
           <div className="grid grid-cols-1 gap-6">
             {Array.from({ length: 5 }).map((_, i) => (
               <SkeletonFindingCard key={i} />
@@ -115,9 +114,9 @@ export function ResultsPage() {
 
   if (error || !enrichedResults) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <p className="text-red-600 mb-4">Failed to load analysis results</p>
+          <p className="text-red-600 dark:text-red-400 mb-4">Failed to load analysis results</p>
           <Button onClick={() => navigate('/analysis')}>
             <ArrowLeftIcon className="h-4 w-4 mr-2" />
             Back to Analyses
@@ -171,7 +170,7 @@ export function ResultsPage() {
     })
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -180,10 +179,10 @@ export function ResultsPage() {
               Back
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {enrichedResults.deployment_name}
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 Analysis ID: {enrichedResults.analysis_id} • Completed:{' '}
                 {enrichedResults.completed_at ? new Date(enrichedResults.completed_at).toLocaleString() : "N/A"}
               </p>
@@ -245,8 +244,8 @@ export function ResultsPage() {
 
         <div className="space-y-4">
           {filteredFindings.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg">
-              <p className="text-gray-500">No findings match the selected filters.</p>
+            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
+              <p className="text-gray-500 dark:text-gray-400">No findings match the selected filters.</p>
             </div>
           ) : (
             filteredFindings.map((finding) => (

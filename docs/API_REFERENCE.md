@@ -293,6 +293,115 @@ Test credential connectivity.
 }
 ```
 
+#### Branding
+
+**GET /api/v1/branding**
+
+Get current branding configuration.
+
+Response:
+```json
+{
+  "provider": {
+    "organization_name": "My Company",
+    "contact_email": "support@mycompany.com",
+    "contact_phone": "+1-555-0123",
+    "website": "https://mycompany.com",
+    "tagline": "Trusted Analytics Partner",
+    "footer_text": "© 2025 My Company. All rights reserved."
+  },
+  "client": {
+    "name": "Client Corp",
+    "identifier": "client-corp-001",
+    "custom_report_title": "Client Health Report"
+  },
+  "theme": {
+    "light": {
+      "primary": "#2563eb",
+      "secondary": "#64748b",
+      "accent": "#0ea5e9"
+    },
+    "dark": {
+      "primary": "#3b82f6",
+      "secondary": "#94a3b8",
+      "accent": "#38bdf8"
+    }
+  },
+  "report": {
+    "watermark_text": "CONFIDENTIAL",
+    "enable_watermark": true,
+    "custom_css": "body { font-family: 'Inter', sans-serif; }",
+    "header_template": "{{ organization_name }} - Health Check Report",
+    "footer_template": "Generated on {{ date }}"
+  },
+  "provider_logo": "data:image/svg+xml;base64,...",
+  "client_logo": "data:image/svg+xml;base64,..."
+}
+```
+
+**PUT /api/v1/branding**
+
+Update branding configuration.
+
+Request:
+```json
+{
+  "provider": {
+    "organization_name": "My Company",
+    "contact_email": "support@mycompany.com",
+    "contact_phone": "+1-555-0123",
+    "website": "https://mycompany.com",
+    "tagline": "Trusted Analytics Partner",
+    "footer_text": "© 2025 My Company. All rights reserved."
+  },
+  "client": {
+    "name": "Client Corp",
+    "identifier": "client-corp-001",
+    "custom_report_title": "Client Health Report"
+  },
+  "theme": {
+    "light": {
+      "primary": "#2563eb",
+      "secondary": "#64748b",
+      "accent": "#0ea5e9"
+    },
+    "dark": {
+      "primary": "#3b82f6",
+      "secondary": "#94a3b8",
+      "accent": "#38bdf8"
+    }
+  },
+  "report": {
+    "watermark_text": "CONFIDENTIAL",
+    "enable_watermark": true,
+    "custom_css": "body { font-family: 'Inter', sans-serif; }",
+    "header_template": "{{ organization_name }} - Health Check Report",
+    "footer_template": "Generated on {{ date }}"
+  },
+  "provider_logo": "data:image/svg+xml;base64,...",
+  "client_logo": "data:image/svg+xml;base64,..."
+}
+```
+
+Response:
+```json
+{
+  "message": "Branding configuration updated successfully",
+  "branding": { ... }
+}
+```
+
+**DELETE /api/v1/branding**
+
+Reset branding configuration to defaults.
+
+Response:
+```json
+{
+  "message": "Branding configuration reset to defaults"
+}
+```
+
 #### Analysis
 
 **POST /api/v1/analysis/run**

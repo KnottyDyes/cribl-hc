@@ -17,6 +17,7 @@ Principles Added:
   10. Security by Design
   11. Version Compatibility
   12. Transparent Methodology
+  13. Safe Branch Management
 
 Template Updates Required:
   ✅ plan-template.md - Constitution Check section references this file
@@ -154,6 +155,16 @@ Follow-up TODOs:
 
 **Rationale:** Transparency builds trust and enables users to understand and validate recommendations. Documented methodology allows experts to assess accuracy. Confidence levels help users prioritize investigation. Open validation enables community improvement and expert review.
 
+### XIII. Safe Branch Management
+
+**Non-Negotiable Rules:**
+- MUST validate branch merge status before deletion
+- MUST confirm with user explicitly before force-deleting unmerged branches
+- MUST verify branch recovery capability (e.g., via PRs or reflog awareness) before destructive actions
+- MUST NEVER blindly execute bulk deletions without per-item validation
+
+**Rationale:** Prevents accidental loss of work and ensures that all code intended for preservation is safely merged or backed up. Explicit validation adds a necessary safety layer to version control operations, protecting project history and contributor effort.
+
 ## Development Workflow
 
 ### Code Review Requirements
@@ -222,4 +233,4 @@ Follow-up TODOs:
 - Document principle trade-offs explicitly in architecture decision records (ADRs)
 - Treat this constitution as the authoritative source for project values and constraints
 
-**Version**: 1.0.0 | **Ratified**: 2025-12-10 | **Last Amended**: 2025-12-10
+**Version**: 1.1.0 | **Ratified**: 2025-12-10 | **Last Amended**: 2026-01-06
