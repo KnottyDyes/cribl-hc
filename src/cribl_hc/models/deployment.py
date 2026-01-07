@@ -3,9 +3,9 @@ Deployment model representing a Cribl Stream environment.
 """
 
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field, SecretStr, field_validator, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, SecretStr, field_validator
 
 
 class Deployment(BaseModel):
@@ -46,7 +46,7 @@ class Deployment(BaseModel):
         ..., description="Environment type"
     )
     auth_token: SecretStr = Field(..., description="API authentication token (encrypted)")
-    cribl_version: Optional[str] = Field(
+    cribl_version: str | None = Field(
         None, description="Detected Cribl version", pattern=r"^\d+\.\d+\.\d+$"
     )
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -63,7 +63,7 @@ class Deployment(BaseModel):
 
     @field_validator("cribl_version")
     @classmethod
-    def validate_cribl_version(cls, v: Optional[str]) -> Optional[str]:
+    def validate_cribl_version(cls, v: str | None) -> str | None:
         """Validate Cribl version format if provided."""
         if v is None:
             return v

@@ -11,30 +11,29 @@ Built with Textual - provides a Pocker-style navigable interface with:
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional, Dict, List
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical, Grid, VerticalScroll
+from textual.binding import Binding
+from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
 from textual.widgets import (
-    Header,
-    Footer,
     Button,
-    Static,
-    Label,
     DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
     ProgressBar,
+    Select,
+    Static,
     TabbedContent,
     TabPane,
-    ListView,
-    ListItem,
-    Input,
-    Select,
 )
-from textual.screen import Screen, ModalScreen
-from textual.binding import Binding
-from textual.reactive import reactive
 
 from cribl_hc.cli.commands.config import load_credentials, save_credentials
 from cribl_hc.core.api_client import CriblAPIClient
@@ -42,7 +41,6 @@ from cribl_hc.core.orchestrator import AnalyzerOrchestrator
 from cribl_hc.core.report_generator import MarkdownReportGenerator
 from cribl_hc.models.analysis import AnalysisRun
 from cribl_hc.utils.logger import get_logger
-
 
 log = get_logger(__name__)
 
@@ -250,7 +248,7 @@ class ExportResultsDialog(ModalScreen):
     }
     """
 
-    def __init__(self, analysis_run: AnalysisRun, results: Dict):
+    def __init__(self, analysis_run: AnalysisRun, results: dict):
         super().__init__()
         self.analysis_run = analysis_run
         self.results = results
@@ -398,7 +396,7 @@ class AnalysisStatus(Static):
             yield Button("Run Analysis", id="btn-run-analysis", variant="primary")
             yield Button("Export Results", id="btn-export-results", variant="success")
 
-    def watch_current_deployment(self, deployment: Optional[str]) -> None:
+    def watch_current_deployment(self, deployment: str | None) -> None:
         """Update display when deployment changes."""
         label = self.query_one("#status-deployment", Label)
         if deployment:
@@ -626,24 +624,23 @@ class CriblHealthCheckApp(App):
     ]
 
     # Store current analysis results
-    current_analysis: Optional[AnalysisRun] = None
-    current_results: Optional[Dict] = None
+    current_analysis: AnalysisRun | None = None
+    current_results: dict | None = None
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header()
 
         with TabbedContent():
-            with TabPane("Dashboard", id="tab-dashboard"):
-                with Horizontal():
-                    # Left panel: Deployments
-                    with Vertical(id="left-panel", classes="panel"):
-                        yield DeploymentList(id="deployment-list-widget")
+            with TabPane("Dashboard", id="tab-dashboard"), Horizontal():
+                # Left panel: Deployments
+                with Vertical(id="left-panel", classes="panel"):
+                    yield DeploymentList(id="deployment-list-widget")
 
-                    # Right panels: Status and Findings
-                    with Vertical(id="right-panel", classes="panel"):
-                        yield AnalysisStatus(id="analysis-status")
-                        yield FindingsPanel(id="findings-panel")
+                # Right panels: Status and Findings
+                with Vertical(id="right-panel", classes="panel"):
+                    yield AnalysisStatus(id="analysis-status")
+                    yield FindingsPanel(id="findings-panel")
 
             with TabPane("Results History", id="tab-history"):
                 yield ResultsHistory(id="results-history")
@@ -842,14 +839,14 @@ class CriblHealthCheckApp(App):
                     status_widget.api_calls = orchestrator.api_calls_used
 
                 # Run analysis
-                start_time = datetime.now(timezone.utc)
+                start_time = datetime.now(UTC)
                 results = await orchestrator.run_analysis(
                     objectives=None,
                     progress_callback=update_progress,
                 )
 
                 # Update duration
-                duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+                duration = (datetime.now(UTC) - start_time).total_seconds()
                 status_widget.duration = duration
 
                 # Create analysis run

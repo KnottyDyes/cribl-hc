@@ -8,7 +8,6 @@ from rich.console import Console
 from cribl_hc.cli import test_connection
 from cribl_hc.cli.commands import analyze, config, list_analyzers
 
-
 console = Console()
 app = typer.Typer(
     name="cribl-hc",

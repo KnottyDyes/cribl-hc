@@ -10,8 +10,6 @@ This serves as the foundation for the future GUI implementation.
 """
 
 import asyncio
-from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -21,7 +19,6 @@ from rich.text import Text
 from cribl_hc.cli.config_tui import ConfigTUI
 from cribl_hc.cli.tui import HealthCheckTUI
 from cribl_hc.utils.logger import get_logger
-
 
 log = get_logger(__name__)
 
@@ -185,10 +182,8 @@ class UnifiedTUI:
 
     def _run_health_check(self) -> None:
         """Run health check analysis."""
+
         from cribl_hc.cli.commands.config import load_credentials
-        from cribl_hc.core.api_client import CriblAPIClient
-        from cribl_hc.core.orchestrator import AnalyzerOrchestrator
-        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
         self.console.clear()
         self.console.print(Panel(
@@ -282,9 +277,10 @@ class UnifiedTUI:
 
     async def _run_analysis_async(self, url: str, token: str, deployment_id: str):
         """Run health check analysis asynchronously."""
+        from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
+
         from cribl_hc.core.api_client import CriblAPIClient
-        from cribl_hc.core.orchestrator import AnalyzerOrchestrator, AnalysisProgress
-        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+        from cribl_hc.core.orchestrator import AnalysisProgress, AnalyzerOrchestrator
 
         # Test connection
         self.console.print("[yellow]Testing connection...[/yellow]")
@@ -338,7 +334,7 @@ class UnifiedTUI:
             # Create analysis run model
             analysis_run = orchestrator.create_analysis_run(results, deployment_id)
 
-            self.console.print(f"\n[green]✓ Analysis completed[/green]")
+            self.console.print("\n[green]✓ Analysis completed[/green]")
             self.console.print(f"[dim]Findings:[/dim] {len(analysis_run.findings)}")
             self.console.print(f"[dim]Recommendations:[/dim] {len(analysis_run.recommendations)}")
             self.console.print(f"[dim]Health Score:[/dim] {analysis_run.health_score.overall_score if analysis_run.health_score else 'N/A'}\n")

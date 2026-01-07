@@ -11,7 +11,6 @@ Provides a menu-driven interface for managing Cribl deployment credentials:
 
 import asyncio
 from pathlib import Path
-from typing import Dict, Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -21,7 +20,6 @@ from rich.text import Text
 
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.utils.logger import get_logger
-
 
 log = get_logger(__name__)
 
@@ -390,11 +388,11 @@ class ConfigTUI:
 
         # Create details panel
         details_text = Text()
-        details_text.append(f"Deployment ID: ", style="dim")
+        details_text.append("Deployment ID: ", style="dim")
         details_text.append(f"{deployment_id}\n", style="cyan")
-        details_text.append(f"URL: ", style="dim")
+        details_text.append("URL: ", style="dim")
         details_text.append(f"{cred['url']}\n", style="white")
-        details_text.append(f"Token: ", style="dim")
+        details_text.append("Token: ", style="dim")
 
         # Show masked token with option to reveal
         token_masked = cred['token'][:8] + "..." + cred['token'][-4:] if len(cred['token']) > 12 else "***"
@@ -402,7 +400,7 @@ class ConfigTUI:
 
         # Determine deployment type
         deployment_type = "Cribl Cloud" if ".cribl.cloud" in cred['url'] else "Self-Hosted"
-        details_text.append(f"Type: ", style="dim")
+        details_text.append("Type: ", style="dim")
         details_text.append(f"{deployment_type}", style="white")
 
         panel = Panel(details_text, title=f"[bold]{deployment_id}[/bold]", border_style="cyan", padding=(1, 2))

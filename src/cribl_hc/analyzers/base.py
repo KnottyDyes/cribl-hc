@@ -5,13 +5,12 @@ All analyzers must inherit from BaseAnalyzer and implement the analyze() method.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
 from cribl_hc.models.recommendation import Recommendation
 from cribl_hc.utils.logger import get_logger
-
 
 log = get_logger(__name__)
 
@@ -39,13 +38,13 @@ class AnalyzerResult:
     def __init__(
         self,
         objective: str,
-        findings: Optional[List[Finding]] = None,
-        recommendations: Optional[List[Recommendation]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        findings: list[Finding] | None = None,
+        recommendations: list[Recommendation] | None = None,
+        metadata: dict[str, Any] | None = None,
         success: bool = True,
-        error: Optional[str] = None,
-        source_analyzer: Optional[str] = None,
-        default_product_tags: Optional[List[str]] = None,
+        error: str | None = None,
+        source_analyzer: str | None = None,
+        default_product_tags: list[str] | None = None,
     ):
         self.objective = objective
         self.findings = findings or []
@@ -59,8 +58,8 @@ class AnalyzerResult:
         self._default_product_tags = default_product_tags or self.PRODUCTS.copy()
 
         # Initialize product counters
-        self._findings_by_product: Dict[str, int] = {p: 0 for p in self.PRODUCTS}
-        self._recommendations_by_product: Dict[str, int] = {p: 0 for p in self.PRODUCTS}
+        self._findings_by_product: dict[str, int] = dict.fromkeys(self.PRODUCTS, 0)
+        self._recommendations_by_product: dict[str, int] = dict.fromkeys(self.PRODUCTS, 0)
 
         # Count any pre-existing findings/recommendations
         for finding in self.findings:
@@ -105,11 +104,11 @@ class AnalyzerResult:
         self.recommendations.append(recommendation)
         self._increment_recommendation_counts(recommendation)
 
-    def get_critical_findings(self) -> List[Finding]:
+    def get_critical_findings(self) -> list[Finding]:
         """Get only critical severity findings."""
         return [f for f in self.findings if f.severity == "critical"]
 
-    def get_high_findings(self) -> List[Finding]:
+    def get_high_findings(self) -> list[Finding]:
         """Get high severity findings."""
         return [f for f in self.findings if f.severity == "high"]
 
@@ -151,7 +150,7 @@ class AnalyzerResult:
         )
         return filtered_result
 
-    def get_product_summary(self) -> Dict[str, Dict[str, int]]:
+    def get_product_summary(self) -> dict[str, dict[str, int]]:
         """
         Get summary of findings and recommendations by product.
 
@@ -177,7 +176,7 @@ class AnalyzerResult:
             for product in self.PRODUCTS
         }
 
-    def get_findings_by_product(self) -> Dict[str, int]:
+    def get_findings_by_product(self) -> dict[str, int]:
         """
         Get count of findings by product.
 
@@ -186,7 +185,7 @@ class AnalyzerResult:
         """
         return self._findings_by_product.copy()
 
-    def get_recommendations_by_product(self) -> Dict[str, int]:
+    def get_recommendations_by_product(self) -> dict[str, int]:
         """
         Get count of recommendations by product.
 
@@ -241,7 +240,7 @@ class BaseAnalyzer(ABC):
         pass
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """
         Return list of products this analyzer supports.
 
@@ -319,7 +318,7 @@ class BaseAnalyzer(ABC):
         """
         return True
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """
         Get list of API permissions required by this analyzer.
 

@@ -13,7 +13,6 @@ from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
 from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.utils.logger import get_logger
 
@@ -71,12 +70,7 @@ class FleetAnalyzer(BaseAnalyzer):
 
     def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
-        return [
-            "read:system",
-            "read:pipelines",
-            "read:workers",
-            "read:master"
-        ]
+        return ["read:system", "read:pipelines", "read:workers", "read:master"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         """
@@ -94,7 +88,7 @@ class FleetAnalyzer(BaseAnalyzer):
         Note:
             For multi-deployment comparison, use analyze_fleet() instead.
         """
-        result = AnalyzerResult(objective=self.objective_name)
+        result = self.create_result()
         self.log.info("fleet_single_deployment_analysis_started")
 
         try:
@@ -131,7 +125,7 @@ class FleetAnalyzer(BaseAnalyzer):
         worker_groups: list[dict[str, Any]],
         workers: list[dict[str, Any]],
         master_summary: dict[str, Any],
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """
         Analyze configuration drift between leader, worker groups, and workers.
@@ -166,11 +160,13 @@ class FleetAnalyzer(BaseAnalyzer):
 
             # Check for deployments in progress
             if deploying_count > 0:
-                groups_deploying.append({
-                    "group": group_id,
-                    "deploying_count": deploying_count,
-                    "config_version": config_version
-                })
+                groups_deploying.append(
+                    {
+                        "group": group_id,
+                        "deploying_count": deploying_count,
+                        "config_version": config_version,
+                    }
+                )
 
         leader_version = master_summary.get("currentVersion") if master_summary else None
         if leader_version:
@@ -197,61 +193,63 @@ class FleetAnalyzer(BaseAnalyzer):
                 else:
                     continue
 
-                result.add_finding(Finding(
-                    id=f"fleet-leader-drift-{group_id}",
-                    category="fleet",
-                    severity=severity,
-                    title=f"Worker Group Behind Leader: {group_id}",
-                    description=(
-                        f"Worker group '{group_id}' is running config v{group_version}, "
-                        f"but leader is at v{leader_version} ({version_diff} version(s) behind). "
-                        f"This affects {worker_count} worker(s)."
-                    ),
-                    confidence_level="high",
-                    estimated_impact=(
-                        "Workers may process data with outdated configurations, "
-                        "causing inconsistent behavior across the fleet"
-                    ),
-                    remediation_steps=[
-                        f"Deploy latest configuration to worker group '{group_id}' from Cribl UI",
-                        "Navigate to Worker Groups > Select group > Deploy",
-                        "If deployment fails repeatedly, check worker connectivity",
-                        "Review deployment logs for errors"
-                    ],
-                    affected_components=[group_id],
-                    documentation_links=[
-                        "https://docs.cribl.io/stream/deploy-workers/"
-                    ],
-                    metadata={
-                        "group_id": group_id,
-                        "group_version": group_version,
-                        "leader_version": leader_version,
-                        "versions_behind": version_diff,
-                        "worker_count": worker_count
-                    }
-                ))
+                result.add_finding(
+                    self.create_finding(
+                        id=f"fleet-leader-drift-{group_id}",
+                        category="fleet",
+                        severity=severity,
+                        title=f"Worker Group Behind Leader: {group_id}",
+                        description=(
+                            f"Worker group '{group_id}' is running config v{group_version}, "
+                            f"but leader is at v{leader_version} ({version_diff} version(s) behind). "
+                            f"This affects {worker_count} worker(s)."
+                        ),
+                        confidence_level="high",
+                        estimated_impact=(
+                            "Workers may process data with outdated configurations, "
+                            "causing inconsistent behavior across the fleet"
+                        ),
+                        remediation_steps=[
+                            f"Deploy latest configuration to worker group '{group_id}' from Cribl UI",
+                            "Navigate to Worker Groups > Select group > Deploy",
+                            "If deployment fails repeatedly, check worker connectivity",
+                            "Review deployment logs for errors",
+                        ],
+                        affected_components=[group_id],
+                        documentation_links=["https://docs.cribl.io/stream/deploy-workers/"],
+                        metadata={
+                            "group_id": group_id,
+                            "group_version": group_version,
+                            "leader_version": leader_version,
+                            "versions_behind": version_diff,
+                            "worker_count": worker_count,
+                        },
+                    )
+                )
 
         # Report deployments in progress
         if groups_deploying:
             for deploying in groups_deploying:
-                result.add_finding(Finding(
-                    id=f"fleet-deployment-in-progress-{deploying['group']}",
-                    category="fleet",
-                    severity="low",
-                    title=f"Config Deployment In Progress: {deploying['group']}",
-                    description=(
-                        f"Worker group '{deploying['group']}' has {deploying['deploying_count']} "
-                        f"worker(s) still deploying config version {deploying['config_version']}. "
-                        f"This is normal during deployments but should complete within minutes."
-                    ),
-                    confidence_level="high",
-                    remediation_steps=[
-                        "Monitor deployment progress in Cribl UI",
-                        "If stuck for >10 minutes, check worker connectivity",
-                        "Review worker logs for deployment errors"
-                    ],
-                    metadata=deploying
-                ))
+                result.add_finding(
+                    self.create_finding(
+                        id=f"fleet-deployment-in-progress-{deploying['group']}",
+                        category="fleet",
+                        severity="low",
+                        title=f"Config Deployment In Progress: {deploying['group']}",
+                        description=(
+                            f"Worker group '{deploying['group']}' has {deploying['deploying_count']} "
+                            f"worker(s) still deploying config version {deploying['config_version']}. "
+                            f"This is normal during deployments but should complete within minutes."
+                        ),
+                        confidence_level="high",
+                        remediation_steps=[
+                            "Monitor deployment progress in Cribl UI",
+                            "If stuck for >10 minutes, check worker connectivity",
+                            "Review worker logs for deployment errors",
+                        ],
+                        metadata=deploying,
+                    )
+                )
 
         # Check individual workers for config drift
         workers_with_drift: list[dict[str, Any]] = []
@@ -266,13 +264,15 @@ class FleetAnalyzer(BaseAnalyzer):
 
             expected_version = group_config_versions.get(worker_group)
             if expected_version and worker_config != expected_version:
-                workers_with_drift.append({
-                    "worker_id": worker_id,
-                    "group": worker_group,
-                    "worker_version": worker_config,
-                    "expected_version": expected_version,
-                    "status": worker.get("status", "unknown")
-                })
+                workers_with_drift.append(
+                    {
+                        "worker_id": worker_id,
+                        "group": worker_group,
+                        "worker_version": worker_config,
+                        "expected_version": expected_version,
+                        "status": worker.get("status", "unknown"),
+                    }
+                )
 
         # Report config drift
         if workers_with_drift:
@@ -283,49 +283,49 @@ class FleetAnalyzer(BaseAnalyzer):
 
             for group_id, drifted_workers in drift_by_group.items():
                 expected = group_config_versions.get(group_id, "unknown")
-                result.add_finding(Finding(
-                    id=f"fleet-config-drift-{group_id}",
-                    category="fleet",
-                    severity="medium",
-                    title=f"Config Version Drift in Worker Group: {group_id}",
-                    description=(
-                        f"{len(drifted_workers)} worker(s) in group '{group_id}' are running "
-                        f"a different config version than expected ({expected}). "
-                        f"This may indicate failed deployments or connectivity issues."
-                    ),
-                    confidence_level="high",
-                    estimated_impact="Workers may process data with outdated configurations",
-                    remediation_steps=[
-                        f"Review worker status for group '{group_id}' in Cribl UI",
-                        "Check worker connectivity to leader node",
-                        "Attempt manual config deployment to affected workers",
-                        "Review worker logs for deployment errors",
-                        "Consider restarting affected workers if deployment is stuck"
-                    ],
-                    affected_components=drifted_workers,
-                    documentation_links=[
-                        "https://docs.cribl.io/stream/manage-workers/"
-                    ],
-                    metadata={
-                        "group": group_id,
-                        "expected_version": expected,
-                        "drifted_worker_count": len(drifted_workers),
-                        "drifted_workers": workers_with_drift
-                    }
-                ))
+                result.add_finding(
+                    self.create_finding(
+                        id=f"fleet-config-drift-{group_id}",
+                        category="fleet",
+                        severity="medium",
+                        title=f"Config Version Drift in Worker Group: {group_id}",
+                        description=(
+                            f"{len(drifted_workers)} worker(s) in group '{group_id}' are running "
+                            f"a different config version than expected ({expected}). "
+                            f"This may indicate failed deployments or connectivity issues."
+                        ),
+                        confidence_level="high",
+                        estimated_impact="Workers may process data with outdated configurations",
+                        remediation_steps=[
+                            f"Review worker status for group '{group_id}' in Cribl UI",
+                            "Check worker connectivity to leader node",
+                            "Attempt manual config deployment to affected workers",
+                            "Review worker logs for deployment errors",
+                            "Consider restarting affected workers if deployment is stuck",
+                        ],
+                        affected_components=drifted_workers,
+                        documentation_links=["https://docs.cribl.io/stream/manage-workers/"],
+                        metadata={
+                            "group": group_id,
+                            "expected_version": expected,
+                            "drifted_worker_count": len(drifted_workers),
+                            "drifted_workers": workers_with_drift,
+                        },
+                    )
+                )
 
         # Store drift summary in metadata
         result.metadata["config_drift"] = {
             "groups_deploying": len(groups_deploying),
             "workers_with_drift": len(workers_with_drift),
-            "group_config_versions": group_config_versions
+            "group_config_versions": group_config_versions,
         }
 
     def _analyze_worker_group_health(
         self,
         worker_groups: list[dict[str, Any]],
         master_summary: dict[str, Any],
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """
         Analyze health metrics across worker groups.
@@ -347,7 +347,9 @@ class FleetAnalyzer(BaseAnalyzer):
             "total_workers": total_workers,
             "healthy_workers": healthy_workers,
             "unhealthy_workers": unhealthy_workers,
-            "health_pct": round((healthy_workers / total_workers * 100), 1) if total_workers > 0 else 0
+            "health_pct": round((healthy_workers / total_workers * 100), 1)
+            if total_workers > 0
+            else 0,
         }
 
         # Alert if significant portion of fleet is unhealthy
@@ -355,56 +357,58 @@ class FleetAnalyzer(BaseAnalyzer):
             unhealthy_pct = (unhealthy_workers / total_workers) * 100
 
             if unhealthy_pct >= 25:
-                result.add_finding(Finding(
-                    id="fleet-health-critical",
-                    category="fleet",
-                    severity="critical",
-                    title="Critical Fleet Health Issue",
-                    description=(
-                        f"{unhealthy_workers} of {total_workers} workers ({unhealthy_pct:.0f}%) "
-                        f"are unhealthy. This represents a significant portion of your fleet."
-                    ),
-                    confidence_level="high",
-                    estimated_impact="Significant risk of data processing interruption",
-                    remediation_steps=[
-                        "Immediately investigate unhealthy workers in Cribl UI",
-                        "Check leader node health and connectivity",
-                        "Review infrastructure (CPU, memory, disk, network)",
-                        "Consider scaling or replacing unhealthy workers"
-                    ],
-                    metadata={
-                        "unhealthy_count": unhealthy_workers,
-                        "total_count": total_workers,
-                        "unhealthy_pct": round(unhealthy_pct, 1)
-                    }
-                ))
+                result.add_finding(
+                    self.create_finding(
+                        id="fleet-health-critical",
+                        category="fleet",
+                        severity="critical",
+                        title="Critical Fleet Health Issue",
+                        description=(
+                            f"{unhealthy_workers} of {total_workers} workers ({unhealthy_pct:.0f}%) "
+                            f"are unhealthy. This represents a significant portion of your fleet."
+                        ),
+                        confidence_level="high",
+                        estimated_impact="Significant risk of data processing interruption",
+                        remediation_steps=[
+                            "Immediately investigate unhealthy workers in Cribl UI",
+                            "Check leader node health and connectivity",
+                            "Review infrastructure (CPU, memory, disk, network)",
+                            "Consider scaling or replacing unhealthy workers",
+                        ],
+                        metadata={
+                            "unhealthy_count": unhealthy_workers,
+                            "total_count": total_workers,
+                            "unhealthy_pct": round(unhealthy_pct, 1),
+                        },
+                    )
+                )
             elif unhealthy_pct >= 10:
-                result.add_finding(Finding(
-                    id="fleet-health-warning",
-                    category="fleet",
-                    severity="medium",
-                    title="Fleet Health Degraded",
-                    description=(
-                        f"{unhealthy_workers} of {total_workers} workers ({unhealthy_pct:.0f}%) "
-                        f"are unhealthy. Monitor closely and investigate."
-                    ),
-                    confidence_level="high",
-                    remediation_steps=[
-                        "Review unhealthy workers in Cribl UI",
-                        "Check for common issues (connectivity, resources)",
-                        "Schedule maintenance if needed"
-                    ],
-                    metadata={
-                        "unhealthy_count": unhealthy_workers,
-                        "total_count": total_workers,
-                        "unhealthy_pct": round(unhealthy_pct, 1)
-                    }
-                ))
+                result.add_finding(
+                    self.create_finding(
+                        id="fleet-health-warning",
+                        category="fleet",
+                        severity="medium",
+                        title="Fleet Health Degraded",
+                        description=(
+                            f"{unhealthy_workers} of {total_workers} workers ({unhealthy_pct:.0f}%) "
+                            f"are unhealthy. Monitor closely and investigate."
+                        ),
+                        confidence_level="high",
+                        remediation_steps=[
+                            "Review unhealthy workers in Cribl UI",
+                            "Check for common issues (connectivity, resources)",
+                            "Schedule maintenance if needed",
+                        ],
+                        metadata={
+                            "unhealthy_count": unhealthy_workers,
+                            "total_count": total_workers,
+                            "unhealthy_pct": round(unhealthy_pct, 1),
+                        },
+                    )
+                )
 
     def _analyze_single_deployment_patterns(
-        self,
-        workers: list[dict[str, Any]],
-        result: AnalyzerResult
+        self, workers: list[dict[str, Any]], result: AnalyzerResult
     ) -> None:
         """
         Analyze patterns in a single deployment.
@@ -427,28 +431,27 @@ class FleetAnalyzer(BaseAnalyzer):
         # Check for workers with unknown status
         unknown_count = status_counts.get("unknown", 0)
         if unknown_count > 0:
-            result.add_finding(Finding(
-                id="fleet-workers-unknown-status",
-                category="fleet",
-                severity="low",
-                title="Workers with Unknown Status",
-                description=(
-                    f"{unknown_count} worker(s) are reporting unknown status. "
-                    f"This may indicate monitoring issues or workers that haven't checked in."
-                ),
-                confidence_level="medium",
-                remediation_steps=[
-                    "Check worker connectivity to leader",
-                    "Review worker heartbeat settings",
-                    "Verify network path between workers and leader"
-                ],
-                metadata={"unknown_count": unknown_count}
-            ))
+            result.add_finding(
+                self.create_finding(
+                    id="fleet-workers-unknown-status",
+                    category="fleet",
+                    severity="low",
+                    title="Workers with Unknown Status",
+                    description=(
+                        f"{unknown_count} worker(s) are reporting unknown status. "
+                        f"This may indicate monitoring issues or workers that haven't checked in."
+                    ),
+                    confidence_level="medium",
+                    remediation_steps=[
+                        "Check worker connectivity to leader",
+                        "Review worker heartbeat settings",
+                        "Verify network path between workers and leader",
+                    ],
+                    metadata={"unknown_count": unknown_count},
+                )
+            )
 
-    async def analyze_fleet(
-        self,
-        deployments: dict[str, CriblAPIClient]
-    ) -> AnalyzerResult:
+    async def analyze_fleet(self, deployments: dict[str, CriblAPIClient]) -> AnalyzerResult:
         """
         Analyze multiple deployments and generate fleet-wide insights.
 
@@ -480,12 +483,14 @@ class FleetAnalyzer(BaseAnalyzer):
 
         # Initialize metadata
         deployment_names = list(deployments.keys())
-        result.metadata.update({
-            "deployment_names": deployment_names,
-            "deployments_analyzed": 0,
-            "failed_deployments": [],
-            "successful_deployments": []
-        })
+        result.metadata.update(
+            {
+                "deployment_names": deployment_names,
+                "deployments_analyzed": 0,
+                "failed_deployments": [],
+                "successful_deployments": [],
+            }
+        )
 
         # Step 1: Analyze each deployment in parallel
         await self._analyze_all_deployments(deployments, result)
@@ -506,15 +511,13 @@ class FleetAnalyzer(BaseAnalyzer):
             "fleet_analysis_completed",
             deployments_analyzed=result.metadata["deployments_analyzed"],
             findings_count=len(result.findings),
-            recommendations_count=len(result.recommendations)
+            recommendations_count=len(result.recommendations),
         )
 
         return result
 
     async def _analyze_all_deployments(
-        self,
-        deployments: dict[str, CriblAPIClient],
-        result: AnalyzerResult
+        self, deployments: dict[str, CriblAPIClient], result: AnalyzerResult
     ) -> None:
         """
         Analyze all deployments in parallel.
@@ -534,9 +537,7 @@ class FleetAnalyzer(BaseAnalyzer):
         for name, deployment_data in zip(deployments.keys(), deployment_results):
             if isinstance(deployment_data, Exception):
                 self.log.error(
-                    "deployment_analysis_failed",
-                    deployment=name,
-                    error=str(deployment_data)
+                    "deployment_analysis_failed", deployment=name, error=str(deployment_data)
                 )
                 result.metadata["failed_deployments"].append(name)
             else:
@@ -544,11 +545,7 @@ class FleetAnalyzer(BaseAnalyzer):
                 result.metadata["successful_deployments"].append(name)
                 result.metadata["deployments_analyzed"] += 1
 
-    async def _analyze_single_deployment(
-        self,
-        name: str,
-        client: CriblAPIClient
-    ) -> dict[str, Any]:
+    async def _analyze_single_deployment(self, name: str, client: CriblAPIClient) -> dict[str, Any]:
         """
         Analyze a single deployment.
 
@@ -565,7 +562,7 @@ class FleetAnalyzer(BaseAnalyzer):
             "name": name,
             "environment": getattr(client, "environment", "unknown"),
             "base_url": getattr(client, "base_url", ""),
-            "product_type": getattr(client, "product_type", "stream")
+            "product_type": getattr(client, "product_type", "stream"),
         }
 
         try:
@@ -607,8 +604,7 @@ class FleetAnalyzer(BaseAnalyzer):
 
         # Compare pipeline counts
         pipeline_counts = {
-            name: data.get("pipeline_count", 0)
-            for name, data in self._deployment_results.items()
+            name: data.get("pipeline_count", 0) for name, data in self._deployment_results.items()
         }
 
         # Check for significant differences
@@ -620,38 +616,37 @@ class FleetAnalyzer(BaseAnalyzer):
 
             # Only flag if difference is significant (>20%)
             if max_count > 0 and (max_count - min_count) / max_count > 0.2:
-                result.add_finding(Finding(
-                    id="fleet-config-drift-pipelines",
-                    category="fleet",
-                    severity="medium",
-                    title="Pipeline Count Drift Across Environments",
-                    description=(
-                        f"Significant difference in pipeline counts detected: "
-                        f"{min_env} has {min_count} pipelines while {max_env} has {max_count} pipelines. "
-                        f"This may indicate configuration drift or missing deployments."
-                    ),
-                    confidence_level="high",
-                    remediation_steps=[
-                        "Review pipeline configurations across all environments",
-                        "Ensure production-critical pipelines are deployed consistently",
-                        "Consider using GitOps workflow for configuration management",
-                        "Document intentional environment-specific configurations"
-                    ],
-                    documentation_links=[
-                        "https://docs.cribl.io/stream/deploy-git"
-                    ],
-                    metadata={
-                        "pipeline_counts": pipeline_counts,
-                        "min_env": min_env,
-                        "max_env": max_env,
-                        "difference_pct": round(((max_count - min_count) / max_count) * 100, 1)
-                    }
-                ))
+                result.add_finding(
+                    self.create_finding(
+                        id="fleet-config-drift-pipelines",
+                        category="fleet",
+                        severity="medium",
+                        title="Pipeline Count Drift Across Environments",
+                        description=(
+                            f"Significant difference in pipeline counts detected: "
+                            f"{min_env} has {min_count} pipelines while {max_env} has {max_count} pipelines. "
+                            f"This may indicate configuration drift or missing deployments."
+                        ),
+                        confidence_level="high",
+                        remediation_steps=[
+                            "Review pipeline configurations across all environments",
+                            "Ensure production-critical pipelines are deployed consistently",
+                            "Consider using GitOps workflow for configuration management",
+                            "Document intentional environment-specific configurations",
+                        ],
+                        documentation_links=["https://docs.cribl.io/stream/deploy-git"],
+                        metadata={
+                            "pipeline_counts": pipeline_counts,
+                            "min_env": min_env,
+                            "max_env": max_env,
+                            "difference_pct": round(((max_count - min_count) / max_count) * 100, 1),
+                        },
+                    )
+                )
 
         # Compare worker counts
         worker_counts = {
-            name: data.get("worker_count", 0)
-            for name, data in self._deployment_results.items()
+            name: data.get("worker_count", 0) for name, data in self._deployment_results.items()
         }
 
         if len(set(worker_counts.values())) > 1:
@@ -678,42 +673,42 @@ class FleetAnalyzer(BaseAnalyzer):
         unhealthy_envs = health_statuses.get("yellow", []) + health_statuses.get("red", [])
 
         if len(unhealthy_envs) >= 2:
-            result.add_finding(Finding(
-                id="fleet-pattern-multiple-unhealthy",
-                category="fleet",
-                severity="high",
-                title="Multiple Deployments Unhealthy",
-                description=(
-                    f"Multiple deployments ({', '.join(unhealthy_envs)}) are reporting unhealthy status. "
-                    f"This may indicate a systemic issue affecting your fleet."
-                ),
-                confidence_level="high",
-                estimated_impact="Potential service degradation across multiple environments",
-                remediation_steps=[
-                    "Investigate common issues across affected deployments",
-                    "Check for infrastructure problems (network, storage, compute)",
-                    "Review recent configuration changes",
-                    "Escalate to Cribl support if pattern persists"
-                ],
-                affected_components=unhealthy_envs,
-                metadata={
-                    "unhealthy_deployments": unhealthy_envs,
-                    "unhealthy_count": len(unhealthy_envs),
-                    "health_statuses": dict(health_statuses)
-                }
-            ))
+            result.add_finding(
+                self.create_finding(
+                    id="fleet-pattern-multiple-unhealthy",
+                    category="fleet",
+                    severity="high",
+                    title="Multiple Deployments Unhealthy",
+                    description=(
+                        f"Multiple deployments ({', '.join(unhealthy_envs)}) are reporting unhealthy status. "
+                        f"This may indicate a systemic issue affecting your fleet."
+                    ),
+                    confidence_level="high",
+                    estimated_impact="Potential service degradation across multiple environments",
+                    remediation_steps=[
+                        "Investigate common issues across affected deployments",
+                        "Check for infrastructure problems (network, storage, compute)",
+                        "Review recent configuration changes",
+                        "Escalate to Cribl support if pattern persists",
+                    ],
+                    affected_components=unhealthy_envs,
+                    metadata={
+                        "unhealthy_deployments": unhealthy_envs,
+                        "unhealthy_count": len(unhealthy_envs),
+                        "health_statuses": dict(health_statuses),
+                    },
+                )
+            )
 
         # Store fleet patterns in metadata
         result.metadata["fleet_patterns"] = {
             "health_distribution": dict(health_statuses),
             "total_pipelines": sum(
-                data.get("pipeline_count", 0)
-                for data in self._deployment_results.values()
+                data.get("pipeline_count", 0) for data in self._deployment_results.values()
             ),
             "total_workers": sum(
-                data.get("worker_count", 0)
-                for data in self._deployment_results.values()
-            )
+                data.get("worker_count", 0) for data in self._deployment_results.values()
+            ),
         }
 
     def _generate_fleet_recommendations(self, result: AnalyzerResult) -> None:
@@ -729,62 +724,68 @@ class FleetAnalyzer(BaseAnalyzer):
         # Recommend GitOps if seeing configuration drift
         drift_findings = [f for f in result.findings if "drift" in f.id.lower()]
         if drift_findings:
-            result.add_recommendation(Recommendation(
-                id="fleet-rec-gitops",
-                type="fleet",
-                priority="p1",
-                title="Implement GitOps for Configuration Management",
-                description=(
-                    "Configuration drift detected across environments. "
-                    "Implement GitOps workflow to ensure consistent deployments."
-                ),
-                rationale=(
-                    "GitOps ensures configuration consistency, provides audit trail, "
-                    "and enables automated deployment workflows"
-                ),
-                implementation_steps=[
-                    "Set up Git repository for Cribl configurations",
-                    "Configure Git integration in all deployments",
-                    "Define deployment workflows (dev → staging → prod)",
-                    "Implement automated testing in CI/CD pipeline",
-                    "Document configuration promotion process"
-                ],
-                before_state=f"Configuration managed manually across {len(self._deployment_results)} environments",
-                after_state="Automated GitOps workflow with version control",
-                impact_estimate=ImpactEstimate(
-                    performance_improvement="Reduces configuration errors and deployment time by 60%"
-                ),
-                implementation_effort="medium",
-                related_findings=[f.id for f in drift_findings],
-                documentation_links=[
-                    "https://docs.cribl.io/stream/deploy-git"
-                ]
-            ))
+            result.add_recommendation(
+                Recommendation(
+                    id="fleet-rec-gitops",
+                    type="fleet",
+                    priority="p1",
+                    title="Implement GitOps for Configuration Management",
+                    description=(
+                        "Configuration drift detected across environments. "
+                        "Implement GitOps workflow to ensure consistent deployments."
+                    ),
+                    rationale=(
+                        "GitOps ensures configuration consistency, provides audit trail, "
+                        "and enables automated deployment workflows"
+                    ),
+                    implementation_steps=[
+                        "Set up Git repository for Cribl configurations",
+                        "Configure Git integration in all deployments",
+                        "Define deployment workflows (dev → staging → prod)",
+                        "Implement automated testing in CI/CD pipeline",
+                        "Document configuration promotion process",
+                    ],
+                    before_state=f"Configuration managed manually across {len(self._deployment_results)} environments",
+                    after_state="Automated GitOps workflow with version control",
+                    impact_estimate=ImpactEstimate(
+                        performance_improvement="Reduces configuration errors and deployment time by 60%",
+                        cost_savings_annual=0.0,
+                        storage_reduction_gb=0.0,
+                        time_to_implement="1 week",
+                    ),
+                    implementation_effort="medium",
+                    related_findings=[f.id for f in drift_findings],
+                    documentation_links=["https://docs.cribl.io/stream/deploy-git"],
+                )
+            )
 
         # Recommend fleet monitoring if multiple deployments
         if len(self._deployment_results) >= 3:
-            result.add_recommendation(Recommendation(
-                id="fleet-rec-centralized-monitoring",
-                type="fleet",
-                priority="p2",
-                title="Implement Centralized Fleet Monitoring",
-                description=(
-                    f"With {len(self._deployment_results)} deployments, centralized monitoring "
-                    f"would improve visibility and incident response"
-                ),
-                rationale="Centralized monitoring enables faster problem detection and resolution across the fleet",
-                implementation_steps=[
-                    "Deploy metrics aggregation solution (e.g., Prometheus, Cribl Search)",
-                    "Configure all deployments to send metrics to central location",
-                    "Create fleet-wide dashboards",
-                    "Set up cross-deployment alerting",
-                    "Document monitoring runbooks"
-                ],
-                impact_estimate=ImpactEstimate(
-                    performance_improvement="Reduces mean time to detect (MTTD) by 70%"
-                ),
-                implementation_effort="high",
-                documentation_links=[
-                    "https://docs.cribl.io/stream/monitoring"
-                ]
-            ))
+            result.add_recommendation(
+                Recommendation(
+                    id="fleet-rec-centralized-monitoring",
+                    type="fleet",
+                    priority="p2",
+                    title="Implement Centralized Fleet Monitoring",
+                    description=(
+                        f"With {len(self._deployment_results)} deployments, centralized monitoring "
+                        f"would improve visibility and incident response"
+                    ),
+                    rationale="Centralized monitoring enables faster problem detection and resolution across the fleet",
+                    implementation_steps=[
+                        "Deploy metrics aggregation solution (e.g., Prometheus, Cribl Search)",
+                        "Configure all deployments to send metrics to central location",
+                        "Create fleet-wide dashboards",
+                        "Set up cross-deployment alerting",
+                        "Document monitoring runbooks",
+                    ],
+                    impact_estimate=ImpactEstimate(
+                        performance_improvement="Reduces mean time to detect (MTTD) by 70%",
+                        cost_savings_annual=0.0,
+                        storage_reduction_gb=0.0,
+                        time_to_implement="2 weeks",
+                    ),
+                    implementation_effort="high",
+                    documentation_links=["https://docs.cribl.io/stream/monitoring"],
+                )
+            )

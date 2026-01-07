@@ -8,9 +8,8 @@ Priority: P2 (Important - cost optimization)
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
 from cribl_hc.models.lake import DatasetStats, DatasetStatsList, LakeDataset, LakeDatasetList
@@ -44,7 +43,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
         return "lake"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Lake storage analyzer is specific to Cribl Lake."""
         return ["lake"]
 
@@ -54,7 +53,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
         """
         return 2
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return [
             "read:lake:datasets",
@@ -170,7 +169,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
     def _analyze_dataset_storage(
         self,
         dataset: LakeDataset,
-        stats: Optional[DatasetStats],
+        stats: DatasetStats | None,
         result: AnalyzerResult
     ) -> float:
         """

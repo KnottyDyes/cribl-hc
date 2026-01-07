@@ -7,14 +7,13 @@ This analyzer focuses on:
 - Overall system health scoring
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.utils.logger import get_logger
-
 
 log = get_logger(__name__)
 
@@ -41,7 +40,7 @@ class HealthAnalyzer(BaseAnalyzer):
         return "health"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Health analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -60,7 +59,7 @@ class HealthAnalyzer(BaseAnalyzer):
         """
         return 5
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """List required API permissions."""
         return [
             "read:workers",
@@ -177,7 +176,7 @@ class HealthAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _fetch_workers(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_workers(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         """
         Fetch worker/node data from API (works for both Stream and Edge).
 
@@ -204,7 +203,7 @@ class HealthAnalyzer(BaseAnalyzer):
             self.log.error("nodes_fetch_failed", error=str(e))
             return []
 
-    async def _fetch_system_status(self, client: CriblAPIClient) -> Dict[str, Any]:
+    async def _fetch_system_status(self, client: CriblAPIClient) -> dict[str, Any]:
         """Fetch system status from API."""
         try:
             status = await client.get_system_status()
@@ -214,7 +213,7 @@ class HealthAnalyzer(BaseAnalyzer):
             self.log.error("system_status_fetch_failed", error=str(e))
             return {}
 
-    async def _fetch_leader_health(self, client: CriblAPIClient) -> Dict[str, Any]:
+    async def _fetch_leader_health(self, client: CriblAPIClient) -> dict[str, Any]:
         """Fetch leader health from API."""
         try:
             response = await client.get("/api/v1/health")
@@ -225,7 +224,7 @@ class HealthAnalyzer(BaseAnalyzer):
             self.log.error("leader_health_fetch_failed", error=str(e))
             return {}
 
-    def _check_leader_health(self, leader_health: Dict[str, Any], result: AnalyzerResult) -> None:
+    def _check_leader_health(self, leader_health: dict[str, Any], result: AnalyzerResult) -> None:
         """Check leader health status."""
         if not leader_health:
             return
@@ -257,7 +256,7 @@ class HealthAnalyzer(BaseAnalyzer):
                 )
             )
 
-    def _check_deployment_architecture(self, workers: List[Dict[str, Any]], result: AnalyzerResult) -> None:
+    def _check_deployment_architecture(self, workers: list[dict[str, Any]], result: AnalyzerResult) -> None:
         """Check deployment architecture for best practices."""
         worker_count = len(workers)
 
@@ -334,10 +333,10 @@ class HealthAnalyzer(BaseAnalyzer):
 
     def _analyze_worker_health(
         self,
-        workers: List[Dict[str, Any]],
+        workers: list[dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Analyze worker/node health and generate findings (Stream and Edge).
 
@@ -460,8 +459,8 @@ class HealthAnalyzer(BaseAnalyzer):
 
     def _calculate_health_score(
         self,
-        workers: List[Dict[str, Any]],
-        unhealthy_workers: List[Dict[str, Any]]
+        workers: list[dict[str, Any]],
+        unhealthy_workers: list[dict[str, Any]]
     ) -> float:
         """
         Calculate overall health score (0-100) based on worker health.
@@ -498,7 +497,7 @@ class HealthAnalyzer(BaseAnalyzer):
 
     def _calculate_health_score_from_leader(
         self,
-        leader_health: Dict[str, Any]
+        leader_health: dict[str, Any]
     ) -> float:
         """
         Calculate health score based on leader health endpoint.
@@ -529,9 +528,8 @@ class HealthAnalyzer(BaseAnalyzer):
             # Unknown status - return moderate score
             return 50.0
 
-    def _count_worker_issues(self, worker: Dict[str, Any]) -> int:
+    def _count_worker_issues(self, worker: dict[str, Any]) -> int:
         """Count number of issues for a worker (not warnings)."""
-        import time
         issues = 0
 
         # Check status
@@ -575,7 +573,7 @@ class HealthAnalyzer(BaseAnalyzer):
         health_score: float,
         total_workers: int,
         unhealthy_count: int,
-        leader_health: Optional[Dict[str, Any]] = None,
+        leader_health: dict[str, Any] | None = None,
     ) -> None:
         """Add overall health summary finding."""
         status = self._get_health_status(health_score)
@@ -669,7 +667,7 @@ class HealthAnalyzer(BaseAnalyzer):
     def _generate_worker_recommendations(
         self,
         result: AnalyzerResult,
-        unhealthy_workers: List[Dict[str, Any]],
+        unhealthy_workers: list[dict[str, Any]],
     ) -> None:
         """Generate recommendations for unhealthy workers."""
         for worker in unhealthy_workers:
@@ -717,9 +715,9 @@ class HealthAnalyzer(BaseAnalyzer):
                     priority=priority_level,
                     title=f"Remediate Worker Health: {worker_id}",
                     description=f"Address health issues on worker {worker_id}",
-                    rationale=f"Worker has resource constraints that may impact performance",
+                    rationale="Worker has resource constraints that may impact performance",
                     implementation_steps=steps,
-                    before_state=f"Worker experiencing resource constraints",
+                    before_state="Worker experiencing resource constraints",
                     after_state="Worker operating within normal resource limits",
                     impact_estimate=ImpactEstimate(
                         performance_improvement="Improved worker stability and throughput"
@@ -735,7 +733,7 @@ class HealthAnalyzer(BaseAnalyzer):
 
     # === Core API: System Messages & Banners ===
 
-    async def _fetch_system_messages(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_system_messages(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         """
         Fetch system messages from Core API.
 
@@ -748,7 +746,7 @@ class HealthAnalyzer(BaseAnalyzer):
             self.log.warning("failed_to_fetch_system_messages", error=str(e))
             return []
 
-    async def _fetch_banners(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_banners(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         """
         Fetch system banners from Core API.
 
@@ -763,7 +761,7 @@ class HealthAnalyzer(BaseAnalyzer):
 
     def _surface_system_messages(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -826,7 +824,7 @@ class HealthAnalyzer(BaseAnalyzer):
 
     def _surface_banners(
         self,
-        banners: List[Dict[str, Any]],
+        banners: list[dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """

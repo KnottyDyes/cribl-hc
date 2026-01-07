@@ -6,24 +6,27 @@ and real-time status updates via WebSocket.
 """
 
 import asyncio
+import json
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional
 from enum import Enum
+from json import JSONEncoder
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
-import json
-from json import JSONEncoder
 
 from cribl_hc.analyzers import get_global_registry
 from cribl_hc.cli.commands.config import load_credentials
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.core.orchestrator import AnalyzerOrchestrator
-from cribl_hc.models.analysis import AnalysisRun
-from cribl_hc.models.finding import Finding
-from cribl_hc.models.health import HealthScore
 from cribl_hc.utils.logger import get_logger
 
 router = APIRouter()
@@ -41,8 +44,8 @@ class CustomJSONEncoder(JSONEncoder):
 
 
 # In-memory storage for analysis results (will be replaced with database in v2)
-analysis_results: Dict[str, Dict] = {}
-active_websockets: Dict[str, List[WebSocket]] = {}
+analysis_results: dict[str, dict] = {}
+active_websockets: dict[str, list[WebSocket]] = {}
 
 
 class AnalysisStatus(str, Enum):
@@ -56,7 +59,7 @@ class AnalysisStatus(str, Enum):
 class AnalysisRequest(BaseModel):
     """Request model for starting an analysis."""
     deployment_name: str = Field(..., description="Name of the configured deployment")
-    analyzers: Optional[List[str]] = Field(
+    analyzers: list[str] | None = Field(
         None,
         description="List of analyzers to run. If not specified, all analyzers run."
     )
@@ -76,11 +79,11 @@ class AnalysisResponse(BaseModel):
     deployment_name: str
     status: AnalysisStatus
     created_at: datetime
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    analyzers: List[str]
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    analyzers: list[str]
     progress_percent: int = 0
-    current_step: Optional[str] = None
+    current_step: str | None = None
     api_calls_used: int = 0
 
 
@@ -89,18 +92,18 @@ class AnalysisResultResponse(BaseModel):
     analysis_id: str
     deployment_name: str
     status: AnalysisStatus
-    health_score: Optional[float] = None
+    health_score: float | None = None
     findings_count: int = 0
-    findings: List[Dict] = []
+    findings: list[dict] = []
     recommendations_count: int = 0
-    completed_at: Optional[datetime] = None
-    duration_seconds: Optional[float] = None
+    completed_at: datetime | None = None
+    duration_seconds: float | None = None
 
 
 async def run_analysis_task(
     analysis_id: str,
     deployment_name: str,
-    analyzers_to_run: Optional[List[str]]
+    analyzers_to_run: list[str] | None
 ):
     """
     Background task to run the analysis.
@@ -278,7 +281,7 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
         )
 
 
-@router.get("", response_model=List[AnalysisResponse])
+@router.get("", response_model=list[AnalysisResponse])
 async def list_analyses():
     """
     List all analyses.
@@ -679,7 +682,7 @@ async def websocket_analysis_updates(websocket: WebSocket, analysis_id: str):
                 data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
                 # Echo back (for ping/pong)
                 await websocket.send_json({"type": "pong"})
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Send keepalive
                 await websocket.send_json({"type": "keepalive"})
 

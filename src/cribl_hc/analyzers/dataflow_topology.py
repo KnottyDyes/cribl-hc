@@ -9,13 +9,12 @@ Analyzes the data flow topology to identify:
 - Potential data loss points
 """
 
-from typing import Any, Dict, List, Set, Tuple
 from collections import defaultdict
+from typing import Any
 
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
 from cribl_hc.utils.logger import get_logger
 
 
@@ -48,7 +47,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         return "dataflow_topology"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Dataflow analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -62,7 +61,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         """
         return 4
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return [
             "read:routes",
@@ -132,11 +131,11 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
 
     def _build_topology(
         self,
-        routes: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]],
-        outputs: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        routes: list[dict[str, Any]],
+        pipelines: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        outputs: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Build a topology graph of data flow.
 
@@ -217,9 +216,9 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
     def _analyze_routes(
         self,
         result: AnalyzerResult,
-        routes: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]],
-        outputs: List[Dict[str, Any]]
+        routes: list[dict[str, Any]],
+        pipelines: list[dict[str, Any]],
+        outputs: list[dict[str, Any]]
     ) -> None:
         """Analyze route configuration for issues."""
         pipeline_ids = {p.get("id") for p in pipelines if p.get("id")}
@@ -344,10 +343,10 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
     def _check_orphaned_configs(
         self,
         result: AnalyzerResult,
-        routes: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]],
-        outputs: List[Dict[str, Any]]
+        routes: list[dict[str, Any]],
+        pipelines: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        outputs: list[dict[str, Any]]
     ) -> None:
         """Check for orphaned configurations not referenced by routes."""
         # Find all referenced pipelines and outputs
@@ -432,7 +431,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         result.metadata["orphaned_pipelines"] = len(orphaned_pipelines)
         result.metadata["orphaned_outputs"] = len(orphaned_outputs)
 
-    def _analyze_data_paths(self, result: AnalyzerResult, topology: Dict[str, Any]) -> None:
+    def _analyze_data_paths(self, result: AnalyzerResult, topology: dict[str, Any]) -> None:
         """Analyze data paths for potential issues."""
         edges = topology["edges"]
 
@@ -472,8 +471,8 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
     def _analyze_cloning(
         self,
         result: AnalyzerResult,
-        routes: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]]
+        routes: list[dict[str, Any]],
+        pipelines: list[dict[str, Any]]
     ) -> None:
         """Analyze cloning patterns for data fan-out."""
         # Check for clone functions in pipelines
@@ -514,7 +513,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
 
         result.metadata["clone_functions"] = clone_count
 
-    def _analyze_route_ordering(self, result: AnalyzerResult, routes: List[Dict[str, Any]]) -> None:
+    def _analyze_route_ordering(self, result: AnalyzerResult, routes: list[dict[str, Any]]) -> None:
         """Analyze route ordering for potential issues."""
         enabled_routes = [r for r in routes if not r.get("disabled", False)]
 
@@ -562,10 +561,10 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
     def _add_summary_finding(
         self,
         result: AnalyzerResult,
-        routes: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]],
-        outputs: List[Dict[str, Any]]
+        routes: list[dict[str, Any]],
+        pipelines: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        outputs: list[dict[str, Any]]
     ) -> None:
         """Add summary finding for data flow topology."""
         issues = len([f for f in result.findings if f.severity in ("high", "critical", "medium")])

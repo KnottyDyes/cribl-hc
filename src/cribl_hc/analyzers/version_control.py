@@ -9,7 +9,6 @@ Priority: P2 (Configuration Management - critical for operational stability)
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer

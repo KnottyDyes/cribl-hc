@@ -8,20 +8,15 @@ Provides an interactive dashboard for viewing analysis results with:
 - Real-time updates
 """
 
-from datetime import datetime
-from typing import List, Optional
 
 from rich.console import Console
 from rich.layout import Layout
-from rich.live import Live
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.text import Text
 
 from cribl_hc.models.analysis import AnalysisRun
-from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation
 
 
 class HealthCheckTUI:
@@ -264,7 +259,7 @@ class HealthCheckTUI:
 
             rec_text.append(f"{i}. ", style="bold cyan")
             rec_text.append(rec.title, style="bold")
-            rec_text.append(f" (Priority: ", style="dim")
+            rec_text.append(" (Priority: ", style="dim")
             rec_text.append(rec.priority.upper(), style=priority_style)
             rec_text.append(")\n", style="dim")
             rec_text.append(f"   {rec.description}\n", style="dim")
@@ -289,7 +284,7 @@ class HealthCheckTUI:
 
         return Panel(footer_text, border_style="dim")
 
-    def show_error(self, message: str, error: Optional[Exception] = None) -> None:
+    def show_error(self, message: str, error: Exception | None = None) -> None:
         """
         Display an error message.
 

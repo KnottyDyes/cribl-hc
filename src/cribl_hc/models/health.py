@@ -3,7 +3,7 @@ Health score models for tracking deployment health metrics.
 """
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -82,10 +82,10 @@ class HealthScore(BaseModel):
     overall_score: int = Field(..., description="Overall score 0-100", ge=0, le=100)
     components: dict[str, ComponentScore] = Field(..., description="Component scores")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    trend_direction: Optional[Literal["improving", "stable", "declining"]] = Field(
+    trend_direction: Literal["improving", "stable", "declining"] | None = Field(
         None, description="Health trend direction"
     )
-    previous_score: Optional[int] = Field(
+    previous_score: int | None = Field(
         None, description="Previous score for trend", ge=0, le=100
     )
 

@@ -27,7 +27,7 @@ class MarkdownReportGenerator:
     def generate(
         self,
         analysis_run: AnalysisRun,
-        results: Dict[str, AnalyzerResult],
+        results: dict[str, AnalyzerResult],
     ) -> str:
         """
         Generate Markdown report.

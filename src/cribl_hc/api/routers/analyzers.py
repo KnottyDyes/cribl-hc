@@ -5,7 +5,7 @@ Provides information about available analyzers, their capabilities,
 and API call estimates.
 """
 
-from typing import List
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -19,13 +19,13 @@ class AnalyzerInfo(BaseModel):
     name: str
     description: str
     api_calls: int
-    permissions: List[str]
-    categories: List[str]
+    permissions: list[str]
+    categories: list[str]
 
 
 class AnalyzersListResponse(BaseModel):
     """Response for list analyzers endpoint."""
-    analyzers: List[AnalyzerInfo]
+    analyzers: list[AnalyzerInfo]
     total_count: int
     total_api_calls: int
 

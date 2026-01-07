@@ -9,23 +9,22 @@ Provides REST API endpoints for:
 """
 
 from contextlib import asynccontextmanager
-from typing import Dict
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from cribl_hc import __version__
-from cribl_hc.utils.logger import get_logger
 
 # Import routers
-from cribl_hc.api.routers import credentials, analysis, analyzers, system, branding
+from cribl_hc.api.routers import analysis, analyzers, branding, credentials, system
+from cribl_hc.utils.logger import get_logger
 
 log = get_logger(__name__)
 
 
 # In-memory storage for analysis tasks (will be replaced with proper storage later)
-analysis_storage: Dict = {}
+analysis_storage: dict = {}
 
 
 @asynccontextmanager

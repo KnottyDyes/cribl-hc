@@ -2,7 +2,6 @@
 Rich terminal output formatting for analysis results.
 """
 
-from typing import Dict
 
 from rich.console import Console
 from rich.panel import Panel
@@ -14,7 +13,7 @@ from cribl_hc.models.analysis import AnalysisRun
 
 
 def display_analysis_results(
-    results: Dict[str, AnalyzerResult],
+    results: dict[str, AnalyzerResult],
     analysis_run: AnalysisRun,
     console: Console,
 ):
