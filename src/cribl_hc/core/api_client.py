@@ -70,17 +70,54 @@ class CriblAPIClient:
     async def _detect_worker_group(self) -> None:
         if not self._client:
             return
+
+        if await self._try_api_discovery():
+            return
+
+        await self._try_fallback_candidates()
+
+    async def _try_api_discovery(self) -> bool:
+        if not self._client:
+            return False
+        try:
+            response = await self._client.get("/api/v1/master/groups")
+            if response.status_code == 200:
+                groups = response.json() or []
+                return await self._test_available_groups(groups)
+        except Exception:
+            pass
+        return False
+
+    async def _test_available_groups(self, groups: list) -> bool:
+        for group in groups:
+            if isinstance(group, dict):
+                group_id = group.get("id", "")
+                if self._is_stream_group(group_id) and await self._test_group_access(group_id):
+                    self._worker_group = group_id
+                    self._deployment_detected = True
+                    return True
+        return False
+
+    def _is_stream_group(self, group_id: str | None) -> bool:
+        return bool(group_id and not group_id.startswith("edge_"))
+
+    async def _test_group_access(self, group_id: str) -> bool:
+        if not self._client:
+            return False
+        try:
+            test_endpoint = f"/api/v1/m/{group_id}/pipelines"
+            test_response = await self._client.get(test_endpoint)
+            return test_response.status_code == 200
+        except Exception:
+            return False
+
+    async def _try_fallback_candidates(self) -> None:
         candidates = ["default", "defaultGroup", "workers", "main"]
         for group_name in candidates:
-            try:
-                test_endpoint = f"/api/v1/m/{group_name}/pipelines"
-                response = await self._client.get(test_endpoint)
-                if response.status_code == 200:
-                    self._worker_group = group_name
-                    self._deployment_detected = True
-                    return
-            except Exception:
-                continue
+            if await self._test_group_access(group_name):
+                self._worker_group = group_name
+                self._deployment_detected = True
+                return
         self._worker_group = "default"
         self._deployment_detected = True
 
@@ -176,7 +213,7 @@ class CriblAPIClient:
                 version = "unknown"
                 items = data.get("items", [])
                 if items and len(items) > 0:
-                    version = items[0].get("BUILD", {}).get("version", "unknown")
+                    version = items[0].get("BUILD", {}).get("VERSION", "unknown")
                 if version == "unknown":
                     version = data.get("version", "unknown")
                 if not self._product_type:

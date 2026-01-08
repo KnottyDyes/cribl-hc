@@ -32,20 +32,30 @@ class FleetAnalyzer(BaseAnalyzer):
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         result = self.create_result()
         try:
-            worker_groups = await client.get_worker_groups()
+            all_groups = await client.get_worker_groups()
             worker_groups_by_type = await client.get_worker_groups_by_type()
             master_summary = await client.get_master_summary()
             workers = await client.get_workers()
 
-            result.metadata["worker_group_count"] = len(worker_groups)
+            # Filter out Edge Fleets and Search Groups for Stream worker group analysis
+            stream_worker_groups = [
+                g
+                for g in all_groups
+                if not g.get("isFleet", False) and not g.get("isSearch", False)
+            ]
+
+            result.metadata["total_groups"] = len(all_groups)
+            result.metadata["worker_group_count"] = len(stream_worker_groups)
             result.metadata["total_workers"] = len(workers)
             result.metadata["master_summary"] = master_summary
             result.metadata["worker_groups_by_type"] = {
                 group_type: len(groups) for group_type, groups in worker_groups_by_type.items()
             }
 
-            await self._analyze_config_drift(client, worker_groups, workers, master_summary, result)
-            self._analyze_worker_group_health(worker_groups, master_summary, result, client)
+            await self._analyze_config_drift(
+                client, stream_worker_groups, workers, master_summary, result
+            )
+            self._analyze_worker_group_health(stream_worker_groups, master_summary, result, client)
             self._analyze_worker_group_types(worker_groups_by_type, result, client)
             self._analyze_single_deployment_patterns(workers, result, client)
             result.success = True
@@ -105,6 +115,7 @@ class FleetAnalyzer(BaseAnalyzer):
                         description=f"Worker group '{group_id}' is running config v{group_version}, but leader is at v{leader_version}.",
                         confidence_level="high",
                         affected_components=[group_id],
+                        worker_group=group_id,
                         metadata={
                             "group_id": group_id,
                             "versions_behind": version_diff,
@@ -124,6 +135,7 @@ class FleetAnalyzer(BaseAnalyzer):
                         title=f"Config Deployment In Progress: {group_id}",
                         description=f"Worker group '{group_id}' has {deploying.get('deploying_count')} worker(s) deploying config.",
                         confidence_level="high",
+                        worker_group=group_id,
                         metadata=deploying,
                     )
                 )
@@ -158,6 +170,7 @@ class FleetAnalyzer(BaseAnalyzer):
                         description=f"{len(drifted_workers)} worker(s) in group '{group_id}' have version drift.",
                         confidence_level="high",
                         affected_components=drifted_workers,
+                        worker_group=group_id,
                         remediation_steps=[
                             f"Deploy latest configuration to worker group '{group_id}'",
                             "Verify workers receive the updated configuration",
@@ -299,6 +312,7 @@ class FleetAnalyzer(BaseAnalyzer):
                             title=f"High Throughput Cloud Group: {group.get('name', group.get('id', 'Unknown'))}",
                             description=f"Cloud-managed worker group has high estimated ingest rate: {estimated_rate} KB/sec.",
                             confidence_level="medium",
+                            worker_group=group.get("id", "unknown"),
                             metadata={
                                 "group_id": group.get("id"),
                                 "estimated_ingest_rate": estimated_rate,
@@ -413,8 +427,15 @@ class FleetAnalyzer(BaseAnalyzer):
                     category="fleet",
                     severity="high",
                     title="Multiple Deployments Unhealthy",
-                    description="Multiple deployments are reporting unhealthy status.",
+                    description=f"Multiple deployments are reporting unhealthy status: {', '.join(unhealthy_envs[:3])}{'...' if len(unhealthy_envs) > 3 else ''}",
                     confidence_level="high",
+                    remediation_steps=[
+                        "Review health status of each affected deployment",
+                        "Check for common issues: resource exhaustion, networking, configuration errors",
+                        "Prioritize fixing critical deployments first",
+                        "Investigate patterns or root causes affecting multiple environments",
+                    ],
+                    estimated_impact="Degraded performance and potential data loss across multiple deployments",
                     metadata={"unhealthy_deployments": unhealthy_envs},
                 )
             )

@@ -223,28 +223,42 @@ class SecurityAnalyzer(BaseAnalyzer):
                 comp_str = json.dumps(comp)
 
                 for secret_type, pattern in self.SECRET_PATTERNS.items():
+                    match_count = 0
                     for match in pattern.finditer(comp_str):
                         val = match.group(1)
                         if self.ENV_VAR_PATTERN.search(val) or self._is_placeholder(val):
                             continue
 
+                        match_count += 1
                         secret_issues.append(
-                            {"component": comp_id, "type": comp_type, "secret_type": secret_type}
+                            {
+                                "component": comp_id,
+                                "type": comp_type,
+                                "secret_type": secret_type,
+                                "match_index": match_count,
+                            }
                         )
                         result.add_finding(
                             self.create_finding(
                                 client=client,
-                                id=f"security-hardcoded-secret-{comp_type}-{comp_id}",
+                                id=f"security-hardcoded-secret-{comp_type}-{comp_id}-{secret_type}-{match_count}",
                                 category="security",
                                 severity="critical",
                                 title=f"Hardcoded {secret_type.title()} in {comp_type.title()}: {comp_id}",
-                                description=f"{comp_type.title()} '{comp_id}' contains a hardcoded {secret_type}.",
+                                description=f"{comp_type.title()} '{comp_id}' contains a hardcoded {secret_type} (instance {match_count}).",
                                 affected_components=[comp_id],
                                 confidence_level="high",
                                 remediation_steps=[
-                                    f"Replace hardcoded {secret_type} with environment variable"
+                                    f"Replace hardcoded {secret_type} with environment variable",
+                                    f"Review all credential fields in '{comp_id}' configuration",
                                 ],
                                 estimated_impact="Credentials exposed in configuration",
+                                metadata={
+                                    "secret_type": secret_type,
+                                    "component_id": comp_id,
+                                    "component_type": comp_type,
+                                    "instance_number": match_count,
+                                },
                             )
                         )
 
