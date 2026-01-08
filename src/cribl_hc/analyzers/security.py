@@ -36,12 +36,12 @@ class SecurityAnalyzer(BaseAnalyzer):
     SECURE_TLS_VERSIONS = ["TLSv1.2", "TLSv1.3"]
 
     SECRET_PATTERNS = {
-        "password": re.compile(r'"password"\s*:\s*"([^"]{8,})"', re.IGNORECASE),
-        "api_key": re.compile(r'"(?:api[_-]?key|apikey)"\s*:\s*"([^"]{16,})"', re.IGNORECASE),
-        "secret": re.compile(r'"secret"\s*:\s*"([^"]{16,})"', re.IGNORECASE),
-        "token": re.compile(r'"(?:auth[_-]?token|token)"\s*:\s*"([^"]{20,})"', re.IGNORECASE),
+        "password": re.compile(r'"(password)"\s*:\s*"([^"]{8,})"', re.IGNORECASE),
+        "api_key": re.compile(r'"((?:api[_-]?key|apikey))"\s*:\s*"([^"]{16,})"', re.IGNORECASE),
+        "secret": re.compile(r'"(secret)"\s*:\s*"([^"]{16,})"', re.IGNORECASE),
+        "token": re.compile(r'"((?:auth[_-]?token|token))"\s*:\s*"([^"]{20,})"', re.IGNORECASE),
         "private_key": re.compile(
-            r'"(?:private[_-]?key|privatekey)"\s*:\s*"([^"]+)"', re.IGNORECASE
+            r'"((?:private[_-]?key|privatekey))"\s*:\s*"([^"]+)"', re.IGNORECASE
         ),
     }
 
@@ -223,33 +223,32 @@ class SecurityAnalyzer(BaseAnalyzer):
                 comp_str = json.dumps(comp)
 
                 for secret_type, pattern in self.SECRET_PATTERNS.items():
-                    match_count = 0
                     for match in pattern.finditer(comp_str):
-                        val = match.group(1)
+                        field_name = match.group(1)
+                        val = match.group(2)
                         if self.ENV_VAR_PATTERN.search(val) or self._is_placeholder(val):
                             continue
 
-                        match_count += 1
                         secret_issues.append(
                             {
                                 "component": comp_id,
                                 "type": comp_type,
                                 "secret_type": secret_type,
-                                "match_index": match_count,
+                                "field_name": field_name,
                             }
                         )
                         result.add_finding(
                             self.create_finding(
                                 client=client,
-                                id=f"security-hardcoded-secret-{comp_type}-{comp_id}-{secret_type}-{match_count}",
+                                id=f"security-hardcoded-secret-{comp_type}-{comp_id}-{field_name}",
                                 category="security",
                                 severity="critical",
-                                title=f"Hardcoded {secret_type.title()} in {comp_type.title()}: {comp_id}",
-                                description=f"{comp_type.title()} '{comp_id}' contains a hardcoded {secret_type} (instance {match_count}).",
+                                title=f"Hardcoded {secret_type.title()} '{field_name}' in {comp_type.title()}: {comp_id}",
+                                description=f"{comp_type.title()} '{comp_id}' contains a hardcoded {secret_type} in field '{field_name}'.",
                                 affected_components=[comp_id],
                                 confidence_level="high",
                                 remediation_steps=[
-                                    f"Replace hardcoded {secret_type} with environment variable",
+                                    f"Replace hardcoded {secret_type} in field '{field_name}' with environment variable",
                                     f"Review all credential fields in '{comp_id}' configuration",
                                 ],
                                 estimated_impact="Credentials exposed in configuration",
@@ -257,7 +256,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                                     "secret_type": secret_type,
                                     "component_id": comp_id,
                                     "component_type": comp_type,
-                                    "instance_number": match_count,
+                                    "field_name": field_name,
                                 },
                             )
                         )
