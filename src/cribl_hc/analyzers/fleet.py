@@ -158,6 +158,11 @@ class FleetAnalyzer(BaseAnalyzer):
                         description=f"{len(drifted_workers)} worker(s) in group '{group_id}' have version drift.",
                         confidence_level="high",
                         affected_components=drifted_workers,
+                        remediation_steps=[
+                            f"Deploy latest configuration to worker group '{group_id}'",
+                            "Verify workers receive the updated configuration",
+                            "Check for deployment failures in worker logs",
+                        ],
                         metadata={
                             "group": group_id,
                             "expected_version": expected,
@@ -216,6 +221,12 @@ class FleetAnalyzer(BaseAnalyzer):
                         title="Fleet Health Degraded",
                         description=f"{unhealthy_workers} of {total_workers} workers are unhealthy.",
                         confidence_level="high",
+                        remediation_steps=[
+                            "Investigate unhealthy workers in worker management console",
+                            "Check worker logs for error patterns",
+                            "Verify network connectivity between workers and leader",
+                            "Restart unhealthy workers if necessary",
+                        ],
                         metadata={"unhealthy_pct": round(unhealthy_pct, 1)},
                     )
                 )
@@ -378,6 +389,11 @@ class FleetAnalyzer(BaseAnalyzer):
                         title="Pipeline Count Drift Across Environments",
                         description="Significant difference in pipeline counts detected.",
                         confidence_level="high",
+                        remediation_steps=[
+                            "Review pipeline configurations across all environments",
+                            "Ensure consistent pipeline deployment across environments",
+                            "Implement GitOps for configuration management",
+                        ],
                         metadata={"pipeline_counts": pipeline_counts},
                     )
                 )
