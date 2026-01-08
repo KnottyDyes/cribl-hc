@@ -243,8 +243,8 @@ class SecurityAnalyzer(BaseAnalyzer):
                                 id=f"security-hardcoded-secret-{comp_type}-{comp_id}-{field_name}",
                                 category="security",
                                 severity="critical",
-                                title=f"Hardcoded {secret_type.title()} '{field_name}' in {comp_type.title()}: {comp_id}",
-                                description=f"{comp_type.title()} '{comp_id}' contains a hardcoded {secret_type} in field '{field_name}'.",
+                                title=f"{comp_id}: Hardcoded {secret_type.title()} Detected",
+                                description=f"Component '{comp_id}' contains a hardcoded {secret_type} in the '{field_name}' field.",
                                 affected_components=[comp_id],
                                 confidence_level="high",
                                 remediation_steps=[
