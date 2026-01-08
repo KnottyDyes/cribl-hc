@@ -112,6 +112,13 @@ class ConfigAnalyzer(BaseAnalyzer):
                     description=f"Failed to complete configuration analysis: {str(e)}",
                     affected_components=["configuration"],
                     confidence_level="high",
+                    estimated_impact="Configuration issues may go undetected without proper analysis",
+                    remediation_steps=[
+                        "Check API connectivity and permissions",
+                        "Verify configuration endpoints are accessible",
+                        "Review logs for specific error details",
+                        "Contact support if issue persists",
+                    ],
                 )
             )
         return result
@@ -178,6 +185,11 @@ class ConfigAnalyzer(BaseAnalyzer):
                             description=f"Function at index {func_idx} in pipeline '{pipeline_id}' is missing 'id' field",
                             affected_components=[f"pipeline-{pipeline_id}"],
                             confidence_level="high",
+                            remediation_steps=[
+                                f"Edit pipeline '{pipeline_id}' and add unique 'id' field to function at index {func_idx}",
+                                "Ensure all functions in pipeline have unique identifiers",
+                                "Test pipeline after adding missing IDs",
+                            ],
                         )
                     )
 
@@ -203,6 +215,12 @@ class ConfigAnalyzer(BaseAnalyzer):
                         description=f"Route '{route_id}' references pipeline '{pipeline_ref}' which does not exist",
                         affected_components=[f"route-{route_id}", f"pipeline-{pipeline_ref}"],
                         confidence_level="high",
+                        estimated_impact="Route will not process data and may cause processing errors",
+                        remediation_steps=[
+                            f"Create the missing pipeline '{pipeline_ref}' that route '{route_id}' references",
+                            f"Or update route '{route_id}' to reference an existing pipeline",
+                            "Verify data flow after fixing the reference",
+                        ],
                     )
                 )
 
@@ -217,6 +235,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                     continue
                 func_id = function.get("id", "unknown")
                 if func_id in self.DEPRECATED_FUNCTIONS:
+                    deprecated_info = self.DEPRECATED_FUNCTIONS[func_id]
                     result.add_finding(
                         self.create_finding(
                             client=client,
@@ -224,9 +243,15 @@ class ConfigAnalyzer(BaseAnalyzer):
                             category="config",
                             severity="medium",
                             title=f"Deprecated Function '{func_id}' in Pipeline: {pipeline_id}",
-                            description=f"Pipeline '{pipeline_id}' uses deprecated function '{func_id}'",
+                            description=f"Pipeline '{pipeline_id}' uses deprecated function '{func_id}'. {deprecated_info['reason']}",
                             affected_components=[f"pipeline-{pipeline_id}", f"function-{func_id}"],
                             confidence_level="high",
+                            remediation_steps=[
+                                f"Replace deprecated function '{func_id}' with '{deprecated_info['replacement']}' in pipeline '{pipeline_id}'",
+                                f"Update function configuration to use the modern syntax",
+                                f"Test pipeline functionality after replacement",
+                                f"Review documentation: {deprecated_info['docs']}",
+                            ],
                         )
                     )
 
@@ -391,6 +416,11 @@ class ConfigAnalyzer(BaseAnalyzer):
                             description=f"Pipeline '{pipeline_id}' has expensive operations before filtering",
                             affected_components=[f"pipeline-{pipeline_id}"],
                             confidence_level="high",
+                            remediation_steps=[
+                                f"Reorder functions in pipeline '{pipeline_id}' to place filters before expensive operations",
+                                "Move regex, lookup, and parsing functions after filtering functions",
+                                "Test pipeline performance after reordering",
+                            ],
                         )
                     )
 
@@ -417,6 +447,11 @@ class ConfigAnalyzer(BaseAnalyzer):
                     description=f"Pipeline '{pipeline_id}' contains {len(regex_funcs)} regex-based operations",
                     affected_components=[f"pipeline-{pipeline_id}"],
                     confidence_level="high",
+                    remediation_steps=[
+                        f"Consolidate regex operations in pipeline '{pipeline_id}' where possible",
+                        "Consider using lookup tables instead of complex regex patterns",
+                        "Optimize regex patterns for better performance",
+                    ],
                 )
             )
         return issues_found
@@ -441,6 +476,11 @@ class ConfigAnalyzer(BaseAnalyzer):
                         description=f"Route '{route_id}' has no filter, shadowing subsequent routes",
                         affected_components=[f"route-{route_id}"],
                         confidence_level="high",
+                        remediation_steps=[
+                            f"Move route '{route_id}' to the bottom of the routes list",
+                            "Add appropriate filter conditions to the route",
+                            "Review route ordering to ensure proper data flow",
+                        ],
                     )
                 )
 
@@ -467,6 +507,11 @@ class ConfigAnalyzer(BaseAnalyzer):
                         description=f"Pipeline '{pipeline_id}' has complexity score of {complexity}",
                         affected_components=[f"pipeline-{pipeline_id}"],
                         confidence_level="high",
+                        remediation_steps=[
+                            f"Review pipeline '{pipeline_id}' for simplification opportunities",
+                            "Consider breaking complex pipeline into smaller, focused pipelines",
+                            "Optimize function chains and remove redundant processing",
+                        ],
                     )
                 )
 

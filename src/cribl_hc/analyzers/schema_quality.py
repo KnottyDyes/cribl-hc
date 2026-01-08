@@ -242,11 +242,17 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
                             self.create_finding(
                                 id=f"regex-high-iterations-{pipeline_id}",
                                 title=f"High Regex Iterations in {pipeline_id}",
-                                description=f"Regex function in '{pipeline_id}' has {iterations} iterations.",
+                                description=f"Regex function in '{pipeline_id}' has {iterations} iterations, which may impact performance.",
                                 severity="medium",
                                 category="schema_quality",
                                 confidence_level="high",
                                 affected_components=[f"pipeline:{pipeline_id}"],
+                                remediation_steps=[
+                                    f"Review regex function in pipeline '{pipeline_id}'",
+                                    "Consider reducing iterations to 5 or fewer",
+                                    "Optimize regex patterns to be more specific",
+                                    "Test performance after reducing iterations",
+                                ],
                                 metadata={"pipeline_id": pipeline_id, "iterations": iterations},
                             )
                         )
@@ -416,6 +422,12 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
                         category="schema_quality",
                         confidence_level="high",
                         affected_components=[f"search:datatype:{dtype_id}"],
+                        remediation_steps=[
+                            f"Navigate to Search > Datatypes > {dtype_id}",
+                            "Add appropriate field definitions for structured searching",
+                            "Consider common fields like timestamp, source, sourcetype",
+                            "Test search functionality after adding fields",
+                        ],
                         metadata={"datatype_id": dtype_id},
                     )
                 )

@@ -32,16 +32,31 @@ class FleetAnalyzer(BaseAnalyzer):
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         result = self.create_result()
         try:
-            worker_groups = await client.get_worker_groups()
+            all_groups = await client.get_worker_groups()
+            worker_groups_by_type = await client.get_worker_groups_by_type()
             master_summary = await client.get_master_summary()
             workers = await client.get_workers()
 
-            result.metadata["worker_group_count"] = len(worker_groups)
+            # Filter out Edge Fleets and Search Groups for Stream worker group analysis
+            stream_worker_groups = [
+                g
+                for g in all_groups
+                if not g.get("isFleet", False) and not g.get("isSearch", False)
+            ]
+
+            result.metadata["total_groups"] = len(all_groups)
+            result.metadata["worker_group_count"] = len(stream_worker_groups)
             result.metadata["total_workers"] = len(workers)
             result.metadata["master_summary"] = master_summary
+            result.metadata["worker_groups_by_type"] = {
+                group_type: len(groups) for group_type, groups in worker_groups_by_type.items()
+            }
 
-            await self._analyze_config_drift(client, worker_groups, workers, master_summary, result)
-            self._analyze_worker_group_health(worker_groups, master_summary, result, client)
+            await self._analyze_config_drift(
+                client, stream_worker_groups, workers, master_summary, result
+            )
+            self._analyze_worker_group_health(stream_worker_groups, master_summary, result, client)
+            self._analyze_worker_group_types(worker_groups_by_type, result, client)
             self._analyze_single_deployment_patterns(workers, result, client)
             result.success = True
         except Exception as e:
@@ -100,6 +115,7 @@ class FleetAnalyzer(BaseAnalyzer):
                         description=f"Worker group '{group_id}' is running config v{group_version}, but leader is at v{leader_version}.",
                         confidence_level="high",
                         affected_components=[group_id],
+                        worker_group=group_id,
                         metadata={
                             "group_id": group_id,
                             "versions_behind": version_diff,
@@ -119,6 +135,7 @@ class FleetAnalyzer(BaseAnalyzer):
                         title=f"Config Deployment In Progress: {group_id}",
                         description=f"Worker group '{group_id}' has {deploying.get('deploying_count')} worker(s) deploying config.",
                         confidence_level="high",
+                        worker_group=group_id,
                         metadata=deploying,
                     )
                 )
@@ -153,6 +170,12 @@ class FleetAnalyzer(BaseAnalyzer):
                         description=f"{len(drifted_workers)} worker(s) in group '{group_id}' have version drift.",
                         confidence_level="high",
                         affected_components=drifted_workers,
+                        worker_group=group_id,
+                        remediation_steps=[
+                            f"Deploy latest configuration to worker group '{group_id}'",
+                            "Verify workers receive the updated configuration",
+                            "Check for deployment failures in worker logs",
+                        ],
                         metadata={
                             "group": group_id,
                             "expected_version": expected,
@@ -211,6 +234,12 @@ class FleetAnalyzer(BaseAnalyzer):
                         title="Fleet Health Degraded",
                         description=f"{unhealthy_workers} of {total_workers} workers are unhealthy.",
                         confidence_level="high",
+                        remediation_steps=[
+                            "Investigate unhealthy workers in worker management console",
+                            "Check worker logs for error patterns",
+                            "Verify network connectivity between workers and leader",
+                            "Restart unhealthy workers if necessary",
+                        ],
                         metadata={"unhealthy_pct": round(unhealthy_pct, 1)},
                     )
                 )
@@ -239,6 +268,58 @@ class FleetAnalyzer(BaseAnalyzer):
                     metadata={"unknown_count": unknown_count},
                 )
             )
+
+    def _analyze_worker_group_types(
+        self,
+        worker_groups_by_type: dict[str, list[dict[str, Any]]],
+        result: AnalyzerResult,
+        client: CriblAPIClient,
+    ) -> None:
+        hybrid_groups = worker_groups_by_type.get("hybrid", [])
+        cloud_managed_groups = worker_groups_by_type.get("cloud_managed", [])
+
+        if hybrid_groups:
+            total_hybrid_workers = sum(group.get("workerCount", 0) for group in hybrid_groups)
+            result.add_finding(
+                self.create_finding(
+                    client=client,
+                    id="fleet-hybrid-worker-groups-detected",
+                    category="fleet",
+                    severity="low",
+                    title="Hybrid Worker Groups Detected",
+                    description=f"Found {len(hybrid_groups)} hybrid worker group(s) with {total_hybrid_workers} workers. These are customer-managed workers in cloud deployments.",
+                    confidence_level="high",
+                    metadata={
+                        "hybrid_group_count": len(hybrid_groups),
+                        "hybrid_worker_count": total_hybrid_workers,
+                        "hybrid_group_names": [
+                            group.get("name", group.get("id", "unknown")) for group in hybrid_groups
+                        ],
+                    },
+                )
+            )
+
+        if cloud_managed_groups:
+            for group in cloud_managed_groups:
+                estimated_rate = group.get("estimatedIngestRate")
+                if estimated_rate and estimated_rate > 10240:
+                    result.add_finding(
+                        self.create_finding(
+                            client=client,
+                            id=f"fleet-high-throughput-cloud-group-{group.get('id', 'unknown')}",
+                            category="fleet",
+                            severity="low",
+                            title=f"High Throughput Cloud Group: {group.get('name', group.get('id', 'Unknown'))}",
+                            description=f"Cloud-managed worker group has high estimated ingest rate: {estimated_rate} KB/sec.",
+                            confidence_level="medium",
+                            worker_group=group.get("id", "unknown"),
+                            metadata={
+                                "group_id": group.get("id"),
+                                "estimated_ingest_rate": estimated_rate,
+                                "worker_count": group.get("workerCount", 0),
+                            },
+                        )
+                    )
 
     async def analyze_fleet(self, deployments: dict[str, CriblAPIClient]) -> AnalyzerResult:
         result = AnalyzerResult(objective=self.objective_name)
@@ -322,6 +403,11 @@ class FleetAnalyzer(BaseAnalyzer):
                         title="Pipeline Count Drift Across Environments",
                         description="Significant difference in pipeline counts detected.",
                         confidence_level="high",
+                        remediation_steps=[
+                            "Review pipeline configurations across all environments",
+                            "Ensure consistent pipeline deployment across environments",
+                            "Implement GitOps for configuration management",
+                        ],
                         metadata={"pipeline_counts": pipeline_counts},
                     )
                 )
@@ -341,8 +427,15 @@ class FleetAnalyzer(BaseAnalyzer):
                     category="fleet",
                     severity="high",
                     title="Multiple Deployments Unhealthy",
-                    description="Multiple deployments are reporting unhealthy status.",
+                    description=f"Multiple deployments are reporting unhealthy status: {', '.join(unhealthy_envs[:3])}{'...' if len(unhealthy_envs) > 3 else ''}",
                     confidence_level="high",
+                    remediation_steps=[
+                        "Review health status of each affected deployment",
+                        "Check for common issues: resource exhaustion, networking, configuration errors",
+                        "Prioritize fixing critical deployments first",
+                        "Investigate patterns or root causes affecting multiple environments",
+                    ],
+                    estimated_impact="Degraded performance and potential data loss across multiple deployments",
                     metadata={"unhealthy_deployments": unhealthy_envs},
                 )
             )

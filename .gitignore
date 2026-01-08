@@ -105,6 +105,10 @@ docs/cribl_api_reference/
 CLAUDE.md
 generate_status_report_pdf.py
 
+# Local development and debugging scripts
+debug_*.py
+test_*.py
+
 # Build artifacts
 *.prof
 *.out

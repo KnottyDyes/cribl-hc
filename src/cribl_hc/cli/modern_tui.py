@@ -118,7 +118,9 @@ class AddDeploymentDialog(ModalScreen):
                 credentials = load_credentials()
                 credentials[deployment_id] = {"url": url, "token": token}
                 save_credentials(credentials)
-                self.app.notify(f"Deployment '{deployment_id}' added successfully", severity="information")
+                self.app.notify(
+                    f"Deployment '{deployment_id}' added successfully", severity="information"
+                )
                 self.dismiss(True)
             except Exception as e:
                 self.app.notify(f"Failed to save: {str(e)}", severity="error")
@@ -201,7 +203,10 @@ class EditDeploymentDialog(ModalScreen):
                 credentials = load_credentials()
                 credentials[self.deployment_id] = {"url": url, "token": token}
                 save_credentials(credentials)
-                self.app.notify(f"Deployment '{self.deployment_id}' updated successfully", severity="information")
+                self.app.notify(
+                    f"Deployment '{self.deployment_id}' updated successfully",
+                    severity="information",
+                )
                 self.dismiss(True)
             except Exception as e:
                 self.app.notify(f"Failed to save: {str(e)}", severity="error")
@@ -260,16 +265,11 @@ class ExportResultsDialog(ModalScreen):
             with Container(classes="export-row"):
                 yield Label("Format:")
                 yield Select(
-                    [("JSON", "json"), ("Markdown", "md")],
-                    value="json",
-                    id="select-format"
+                    [("JSON", "json"), ("Markdown", "md")], value="json", id="select-format"
                 )
             with Container(classes="export-row"):
                 yield Label("Filename:")
-                yield Input(
-                    value=f"{self.analysis_run.deployment_id}_report",
-                    id="input-filename"
-                )
+                yield Input(value=f"{self.analysis_run.deployment_id}_report", id="input-filename")
             with Horizontal(classes="button-row"):
                 yield Button("Export", variant="success", id="btn-export")
                 yield Button("Cancel", variant="default", id="btn-cancel-export")
@@ -307,12 +307,7 @@ class ExportResultsDialog(ModalScreen):
     def _export_json(self, filepath: Path) -> None:
         """Export results as JSON."""
         with open(filepath, "w") as f:
-            json.dump(
-                self.analysis_run.model_dump(mode="json"),
-                f,
-                indent=2,
-                default=str
-            )
+            json.dump(self.analysis_run.model_dump(mode="json"), f, indent=2, default=str)
 
     def _export_markdown(self, filepath: Path) -> None:
         """Export results as Markdown."""
@@ -362,8 +357,7 @@ class DeploymentList(Static):
             # TODO: Add health indicator based on last analysis
             status_icon = "○"  # ● for healthy, ⚠ for warning, ✗ for error
             item = ListItem(
-                Label(f"{status_icon} {deployment_id}\n  {url}"),
-                id=f"deploy-{deployment_id}"
+                Label(f"{status_icon} {deployment_id}\n  {url}"), id=f"deploy-{deployment_id}"
             )
             list_view.append(item)
 
@@ -452,10 +446,9 @@ class FindingsPanel(Static):
 
         # Show all findings, sorted by severity
         severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-        sorted_findings = sorted(
-            findings,
-            key=lambda f: severity_order.get(f.severity, 4)
-        )[:15]  # Limit to 15 for better viewport fit
+        sorted_findings = sorted(findings, key=lambda f: severity_order.get(f.severity, 4))[
+            :15
+        ]  # Limit to 15 for better viewport fit
 
         for finding in sorted_findings:
             # Icon and color scheme based on severity
@@ -463,7 +456,7 @@ class FindingsPanel(Static):
                 "critical": ("⚠", "red"),
                 "high": ("⚠", "red"),
                 "medium": ("ℹ", "yellow"),
-                "low": ("·", "green")
+                "low": ("·", "green"),
             }
 
             icon, color = severity_display.get(finding.severity, ("·", "white"))
@@ -481,7 +474,7 @@ class FindingsPanel(Static):
                 severity_text,
                 finding.category,
                 finding.title[:40],  # Truncate long titles
-                component
+                component,
             )
 
 
@@ -723,6 +716,7 @@ class CriblHealthCheckApp(App):
 
     def action_add_deployment(self) -> None:
         """Add new deployment via modal dialog."""
+
         def check_result(added: bool) -> None:
             if added:
                 self.action_refresh()
@@ -836,7 +830,7 @@ class CriblHealthCheckApp(App):
                 def update_progress(analysis_progress):
                     percentage = analysis_progress.get_percentage()
                     status_widget.progress = int(percentage)
-                    status_widget.api_calls = orchestrator.api_calls_used
+                    status_widget.api_calls = orchestrator.client.get_api_calls_used()
 
                 # Run analysis
                 start_time = datetime.now(UTC)
@@ -863,11 +857,13 @@ class CriblHealthCheckApp(App):
                 status_widget.status = "Completed"
                 status_widget.progress = 100
 
-                health_score = analysis_run.health_score.overall_score if analysis_run.health_score else "N/A"
+                health_score = (
+                    analysis_run.health_score.overall_score if analysis_run.health_score else "N/A"
+                )
                 self.notify(
                     f"Analysis complete: {len(analysis_run.findings)} findings, Health Score: {health_score}",
                     severity="information",
-                    timeout=5
+                    timeout=5,
                 )
 
         except Exception as e:

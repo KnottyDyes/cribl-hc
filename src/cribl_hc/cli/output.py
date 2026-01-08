@@ -2,7 +2,6 @@
 Rich terminal output formatting for analysis results.
 """
 
-
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -63,15 +62,15 @@ def display_summary(analysis_run: AnalysisRun, console: Console):
     table.add_row("Total Findings", str(len(analysis_run.findings)))
     table.add_row(
         "  Critical",
-        f"[red]{len([f for f in analysis_run.findings if f.severity == 'critical'])}[/red]"
+        f"[red]{len([f for f in analysis_run.findings if f.severity == 'critical'])}[/red]",
     )
     table.add_row(
         "  High",
-        f"[orange1]{len([f for f in analysis_run.findings if f.severity == 'high'])}[/orange1]"
+        f"[orange1]{len([f for f in analysis_run.findings if f.severity == 'high'])}[/orange1]",
     )
     table.add_row(
         "  Medium",
-        f"[yellow]{len([f for f in analysis_run.findings if f.severity == 'medium'])}[/yellow]"
+        f"[yellow]{len([f for f in analysis_run.findings if f.severity == 'medium'])}[/yellow]",
     )
     table.add_row("Total Recommendations", str(len(analysis_run.recommendations)))
     table.add_row("API Calls Used", f"{analysis_run.api_calls_used}/100")
@@ -84,10 +83,7 @@ def display_summary(analysis_run: AnalysisRun, console: Console):
 
     # Display errors if any analyzers failed
     if analysis_run.errors:
-        console.print(Panel(
-            "[bold red]Errors Encountered[/bold red]",
-            style="red"
-        ))
+        console.print(Panel("[bold red]Errors Encountered[/bold red]", style="red"))
         for error in analysis_run.errors:
             console.print(f"  [red]✗[/red] {error}")
         console.print()
@@ -95,10 +91,7 @@ def display_summary(analysis_run: AnalysisRun, console: Console):
 
 def display_findings(objective: str, result: AnalyzerResult, console: Console):
     """Display findings for a specific objective."""
-    console.print(Panel(
-        f"[bold]{objective.upper()} Findings[/bold]",
-        style="cyan"
-    ))
+    console.print(Panel(f"[bold]{objective.upper()} Findings[/bold]", style="cyan"))
 
     # Check if disk metrics were skipped (Cribl Cloud)
     if result.metadata.get("disk_metrics_skipped"):
@@ -126,8 +119,11 @@ def display_findings(objective: str, result: AnalyzerResult, console: Console):
         console.print(f"\n[{color}]● {severity.upper()}[/{color}]")
 
         for finding in severity_findings:
-            # Create finding tree
-            tree = Tree(f"[bold]{finding.title}[/bold]")
+            title_parts = [finding.title]
+            if finding.worker_group and finding.worker_group != "default":
+                title_parts.append(f"[dim cyan]({finding.worker_group})[/dim cyan]")
+
+            tree = Tree("[bold]" + " ".join(title_parts) + "[/bold]")
             tree.add(f"[dim]{finding.description}[/dim]")
 
             if finding.affected_components:
@@ -144,10 +140,7 @@ def display_findings(objective: str, result: AnalyzerResult, console: Console):
 
 def display_recommendations(recommendations, console: Console):
     """Display recommendations."""
-    console.print(Panel(
-        "[bold]Recommendations[/bold]",
-        style="green"
-    ))
+    console.print(Panel("[bold]Recommendations[/bold]", style="green"))
 
     # Group by priority
     priority_order = ["p0", "p1", "p2", "p3"]
@@ -182,7 +175,9 @@ def display_recommendations(recommendations, console: Console):
 
             # Display impact estimate time
             if rec.impact_estimate and rec.impact_estimate.time_to_implement:
-                console.print(f"   [dim]Estimated time: {rec.impact_estimate.time_to_implement}[/dim]")
+                console.print(
+                    f"   [dim]Estimated time: {rec.impact_estimate.time_to_implement}[/dim]"
+                )
 
             if rec.documentation_links:
                 console.print(f"   [dim]References: {', '.join(rec.documentation_links)}[/dim]")
@@ -215,12 +210,14 @@ def display_health_score(score: float, console: Console):
     # Create score display
     score_text = f"[bold {color}]{score:.1f}/100[/bold {color}] - {status}"
 
-    console.print(Panel(
-        score_text,
-        title="Overall Health Score",
-        style=color,
-        padding=(1, 2),
-    ))
+    console.print(
+        Panel(
+            score_text,
+            title="Overall Health Score",
+            style=color,
+            padding=(1, 2),
+        )
+    )
 
 
 def format_api_usage(used: int, total: int = 100) -> str:
