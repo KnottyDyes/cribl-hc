@@ -33,15 +33,20 @@ class FleetAnalyzer(BaseAnalyzer):
         result = self.create_result()
         try:
             worker_groups = await client.get_worker_groups()
+            worker_groups_by_type = await client.get_worker_groups_by_type()
             master_summary = await client.get_master_summary()
             workers = await client.get_workers()
 
             result.metadata["worker_group_count"] = len(worker_groups)
             result.metadata["total_workers"] = len(workers)
             result.metadata["master_summary"] = master_summary
+            result.metadata["worker_groups_by_type"] = {
+                group_type: len(groups) for group_type, groups in worker_groups_by_type.items()
+            }
 
             await self._analyze_config_drift(client, worker_groups, workers, master_summary, result)
             self._analyze_worker_group_health(worker_groups, master_summary, result, client)
+            self._analyze_worker_group_types(worker_groups_by_type, result, client)
             self._analyze_single_deployment_patterns(workers, result, client)
             result.success = True
         except Exception as e:
@@ -239,6 +244,57 @@ class FleetAnalyzer(BaseAnalyzer):
                     metadata={"unknown_count": unknown_count},
                 )
             )
+
+    def _analyze_worker_group_types(
+        self,
+        worker_groups_by_type: dict[str, list[dict[str, Any]]],
+        result: AnalyzerResult,
+        client: CriblAPIClient,
+    ) -> None:
+        hybrid_groups = worker_groups_by_type.get("hybrid", [])
+        cloud_managed_groups = worker_groups_by_type.get("cloud_managed", [])
+
+        if hybrid_groups:
+            total_hybrid_workers = sum(group.get("workerCount", 0) for group in hybrid_groups)
+            result.add_finding(
+                self.create_finding(
+                    client=client,
+                    id="fleet-hybrid-worker-groups-detected",
+                    category="fleet",
+                    severity="low",
+                    title="Hybrid Worker Groups Detected",
+                    description=f"Found {len(hybrid_groups)} hybrid worker group(s) with {total_hybrid_workers} workers. These are customer-managed workers in cloud deployments.",
+                    confidence_level="high",
+                    metadata={
+                        "hybrid_group_count": len(hybrid_groups),
+                        "hybrid_worker_count": total_hybrid_workers,
+                        "hybrid_group_names": [
+                            group.get("name", group.get("id", "unknown")) for group in hybrid_groups
+                        ],
+                    },
+                )
+            )
+
+        if cloud_managed_groups:
+            for group in cloud_managed_groups:
+                estimated_rate = group.get("estimatedIngestRate")
+                if estimated_rate and estimated_rate > 10240:
+                    result.add_finding(
+                        self.create_finding(
+                            client=client,
+                            id=f"fleet-high-throughput-cloud-group-{group.get('id', 'unknown')}",
+                            category="fleet",
+                            severity="low",
+                            title=f"High Throughput Cloud Group: {group.get('name', group.get('id', 'Unknown'))}",
+                            description=f"Cloud-managed worker group has high estimated ingest rate: {estimated_rate} KB/sec.",
+                            confidence_level="medium",
+                            metadata={
+                                "group_id": group.get("id"),
+                                "estimated_ingest_rate": estimated_rate,
+                                "worker_count": group.get("workerCount", 0),
+                            },
+                        )
+                    )
 
     async def analyze_fleet(self, deployments: dict[str, CriblAPIClient]) -> AnalyzerResult:
         result = AnalyzerResult(objective=self.objective_name)

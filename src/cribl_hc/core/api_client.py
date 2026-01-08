@@ -253,6 +253,62 @@ class CriblAPIClient:
         response.raise_for_status()
         return response.json().get("items", [])
 
+    def get_worker_group_type(self, group: dict[str, Any]) -> str:
+        """
+        Determine the type of a worker group based on its properties.
+
+        Args:
+            group: Worker group object from API
+
+        Returns:
+            str: One of 'on_prem', 'cloud_managed', or 'hybrid'
+        """
+        # Check if it's an Edge Fleet (different from worker groups)
+        if group.get("isFleet", False):
+            return "edge_fleet"
+
+        # Check if it's a Search group
+        if group.get("isSearch", False):
+            return "search_group"
+
+        # For Stream worker groups, determine deployment type
+        on_prem = group.get("onPrem", True)  # Default to True for backward compatibility
+        provisioned = group.get("provisioned", False)
+
+        if on_prem:
+            return "on_prem"
+        elif provisioned:
+            return "cloud_managed"  # Cribl-managed workers in cloud
+        else:
+            return "hybrid"  # Customer-managed workers in cloud deployment
+
+    async def get_worker_groups_by_type(self) -> dict[str, list[dict[str, Any]]]:
+        """
+        Get worker groups categorized by their deployment type.
+
+        Returns:
+            dict: Worker groups categorized by type:
+                - on_prem: Traditional on-premises worker groups
+                - cloud_managed: Cribl-managed workers in Cribl.Cloud
+                - hybrid: Customer-managed workers in cloud deployments
+                - edge_fleet: Cribl Edge fleets
+                - search_group: Cribl Search groups
+        """
+        groups = await self.get_worker_groups()
+        by_type = {
+            "on_prem": [],
+            "cloud_managed": [],
+            "hybrid": [],
+            "edge_fleet": [],
+            "search_group": [],
+        }
+
+        for group in groups:
+            group_type = self.get_worker_group_type(group)
+            by_type[group_type].append(group)
+
+        return by_type
+
     async def get_master_summary(self) -> dict[str, Any]:
         response = await self.get("/api/v1/master/summary")
         response.raise_for_status()
@@ -368,6 +424,27 @@ class CriblAPIClient:
         except Exception:
             return []
 
+    async def get_metrics(self, time_range: str = "1h") -> dict[str, Any]:
+        if self._is_cloud:
+            endpoint = f"/api/v1/m/{self.worker_group}/system/metrics"
+        else:
+            endpoint = "/api/v1/system/metrics"
+
+        params = {}
+
+        try:
+            response = await self.get(endpoint, params=params)
+            response.raise_for_status()
+            return response.json()
+        except Exception:
+            log.warning(
+                "metrics_unavailable",
+                endpoint=endpoint,
+                cloud=self._is_cloud,
+                error="Metrics endpoint not available or failed",
+            )
+            return {}
+
     async def get_version_info(self) -> dict[str, Any]:
         try:
             response = await self.get("/api/v1/system/info")
@@ -426,6 +503,38 @@ class CriblAPIClient:
         response = await self.get(f"/api/v1/products/lake/lakes/{lake_name}/storage_locations")
         response.raise_for_status()
         return response.json()
+
+    async def capture_events(
+        self,
+        filter_expr: str = "true",
+        max_events: int = 10,
+        duration: int = 10,
+        level: int = 1,
+        worker_id: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        if not self._client:
+            raise RuntimeError("Client not initialized")
+
+        if self._is_cloud:
+            endpoint = f"/api/v1/m/{self.worker_group}/system/capture"
+        else:
+            endpoint = "/api/v1/system/capture"
+
+        payload = {
+            "filter": filter_expr,
+            "maxEvents": max_events,
+            "duration": duration * 1000,
+            "level": level,
+        }
+        if worker_id:
+            payload["workerId"] = worker_id
+
+        async with self.rate_limiter:
+            response = await self._client.post(endpoint, json=payload)
+
+        response.raise_for_status()
+        data = response.json()
+        return data.get("items", [])
 
     def get_api_calls_used(self) -> int:
         return self.rate_limiter.total_calls_made
