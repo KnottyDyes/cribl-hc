@@ -258,7 +258,7 @@ async def run_analysis_async(
         max_api_calls: Maximum API calls allowed
         branding: Optional branding configuration
     """
-    console.print("\n[cyan]Cribl Stream Health Check[/cyan]")
+    console.print("\n[cyan]Cribl Health Check[/cyan]")
     console.print(f"[dim]Target:[/dim] {url}")
     console.print(f"[dim]Deployment:[/dim] {deployment_id}\n")
 

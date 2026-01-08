@@ -58,7 +58,7 @@ class MarkdownReportGenerator:
     def _generate_header(self, analysis_run: AnalysisRun) -> str:
         provider_info = ""
         client_info = ""
-        report_title = "Cribl Stream Health Check Report"
+        report_title = "Cribl Health Check Report"
 
         if self.branding.provider:
             logo_src = self.branding.provider.logo_url or self.branding.provider.logo_path
@@ -239,7 +239,7 @@ class HTMLReportGenerator:
     def _get_report_title(self) -> str:
         if self.branding.client and self.branding.client.report_title:
             return self.branding.client.report_title
-        return "Cribl Stream Health Check Report"
+        return "Cribl Health Check Report"
 
     def _generate_css(self) -> str:
         c = self.colors

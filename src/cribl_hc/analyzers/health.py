@@ -388,6 +388,7 @@ class HealthAnalyzer(BaseAnalyzer):
                         category="health",
                         confidence_level="high",
                         affected_components=[worker_id],
+                        worker_group=worker_group,
                         estimated_impact=f"{product_name} performance degraded - {', '.join(all_concerns)}",
                         remediation_steps=[
                             "Review worker status and logs",

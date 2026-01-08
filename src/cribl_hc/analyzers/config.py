@@ -82,7 +82,6 @@ class ConfigAnalyzer(BaseAnalyzer):
             self._find_unused_components(pipelines, routes, inputs, outputs, result, client)
             self._check_security_misconfigurations(outputs, result, client)
             self._evaluate_best_practice_rules(pipelines, routes, inputs, outputs, result, client)
-            self._analyze_pipeline_efficiency(pipelines, result, client)
             self._analyze_route_conflicts(routes, pipelines, result, client)
             self._analyze_complexity_metrics(pipelines, result, client)
             await self._check_advanced_security(pipelines, result, client)
@@ -100,24 +99,25 @@ class ConfigAnalyzer(BaseAnalyzer):
                 }
             )
         except Exception as e:
-            self.log.error("config_analysis_failed", error=str(e))
+            self.log.error("config_analysis_failed", error=str(e), exc_info=True)
             result.success = True
             result.add_finding(
                 self.create_finding(
                     client=client,
                     id="config-analysis-error",
+                    grouping_id="config-analysis-error",
                     category="config",
                     severity="high",
                     title="Configuration Analysis Error",
                     description=f"Failed to complete configuration analysis: {str(e)}",
                     affected_components=["configuration"],
                     confidence_level="high",
-                    estimated_impact="Configuration issues may go undetected without proper analysis",
+                    estimated_impact="Configuration issues may go undetected without proper analysis.",
                     remediation_steps=[
-                        "Check API connectivity and permissions",
-                        "Verify configuration endpoints are accessible",
-                        "Review logs for specific error details",
-                        "Contact support if issue persists",
+                        "Check API connectivity and permissions.",
+                        "Verify configuration endpoints are accessible.",
+                        "Review logs for specific error details.",
+                        "Contact support if issue persists.",
                     ],
                 )
             )
@@ -157,12 +157,15 @@ class ConfigAnalyzer(BaseAnalyzer):
                     self.create_finding(
                         client=client,
                         id=f"config-syntax-missing-id-{hash(str(pipeline))}",
+                        grouping_id="config-syntax-missing-id",
                         category="config",
                         severity="critical",
                         title="Pipeline Missing Required 'id' Field",
-                        description="Pipeline configuration is missing required 'id' field",
+                        description="Pipeline configuration is missing required 'id' field.",
                         affected_components=["pipeline-unknown"],
                         confidence_level="high",
+                        estimated_impact="This pipeline cannot be referenced and may cause deployment failures.",
+                        remediation_steps=["Edit the pipeline JSON to add a unique 'id' field."],
                     )
                 )
                 continue
@@ -179,16 +182,17 @@ class ConfigAnalyzer(BaseAnalyzer):
                         self.create_finding(
                             client=client,
                             id=f"config-syntax-{pipeline_id}-func-{func_idx}-missing-id",
+                            grouping_id="config-syntax-func-missing-id",
                             category="config",
                             severity="medium",
                             title=f"Function Missing 'id' Field: {pipeline_id}",
-                            description=f"Function at index {func_idx} in pipeline '{pipeline_id}' is missing 'id' field",
+                            description=f"Function at index {func_idx} in pipeline '{pipeline_id}' is missing 'id' field.",
                             affected_components=[f"pipeline-{pipeline_id}"],
                             confidence_level="high",
                             remediation_steps=[
-                                f"Edit pipeline '{pipeline_id}' and add unique 'id' field to function at index {func_idx}",
-                                "Ensure all functions in pipeline have unique identifiers",
-                                "Test pipeline after adding missing IDs",
+                                f"Edit pipeline '{pipeline_id}' and add unique 'id' field to function at index {func_idx}.",
+                                "Ensure all functions in pipeline have unique identifiers.",
+                                "Test pipeline after adding missing IDs.",
                             ],
                         )
                     )
@@ -209,17 +213,18 @@ class ConfigAnalyzer(BaseAnalyzer):
                     self.create_finding(
                         client=client,
                         id=f"config-orphaned-route-{route_id}",
+                        grouping_id="config-orphaned-route",
                         category="config",
                         severity="high",
                         title=f"Route References Non-Existent Pipeline: {route_id}",
-                        description=f"Route '{route_id}' references pipeline '{pipeline_ref}' which does not exist",
+                        description=f"Route '{route_id}' references pipeline '{pipeline_ref}' which does not exist.",
                         affected_components=[f"route-{route_id}", f"pipeline-{pipeline_ref}"],
                         confidence_level="high",
-                        estimated_impact="Route will not process data and may cause processing errors",
+                        estimated_impact="Route will not process data and may cause processing errors.",
                         remediation_steps=[
-                            f"Create the missing pipeline '{pipeline_ref}' that route '{route_id}' references",
-                            f"Or update route '{route_id}' to reference an existing pipeline",
-                            "Verify data flow after fixing the reference",
+                            f"Create the missing pipeline '{pipeline_ref}' that route '{route_id}' references.",
+                            f"Or update route '{route_id}' to reference an existing pipeline.",
+                            "Verify data flow after fixing the reference.",
                         ],
                     )
                 )
@@ -240,6 +245,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                         self.create_finding(
                             client=client,
                             id=f"config-deprecated-{pipeline_id}-{func_idx}",
+                            grouping_id="config-deprecated-function",
                             category="config",
                             severity="medium",
                             title=f"Deprecated Function '{func_id}' in Pipeline: {pipeline_id}",
@@ -247,9 +253,9 @@ class ConfigAnalyzer(BaseAnalyzer):
                             affected_components=[f"pipeline-{pipeline_id}", f"function-{func_id}"],
                             confidence_level="high",
                             remediation_steps=[
-                                f"Replace deprecated function '{func_id}' with '{deprecated_info['replacement']}' in pipeline '{pipeline_id}'",
-                                f"Update function configuration to use the modern syntax",
-                                f"Test pipeline functionality after replacement",
+                                f"Replace deprecated function '{func_id}' with '{deprecated_info['replacement']}' in pipeline '{pipeline_id}'.",
+                                f"Update function configuration to use the modern syntax.",
+                                f"Test pipeline functionality after replacement.",
                                 f"Review documentation: {deprecated_info['docs']}",
                             ],
                         )
@@ -279,10 +285,11 @@ class ConfigAnalyzer(BaseAnalyzer):
                 self.create_finding(
                     client=client,
                     id=f"config-unused-pipeline-{pipeline_id}",
+                    grouping_id="config-unused-pipeline",
                     category="config",
                     severity="low",
                     title=f"Unused Pipeline: {pipeline_id}",
-                    description=f"Pipeline '{pipeline_id}' is not referenced by any route",
+                    description=f"Pipeline '{pipeline_id}' is not referenced by any route.",
                     affected_components=[f"pipeline-{pipeline_id}"],
                     confidence_level="high",
                 )
@@ -293,10 +300,11 @@ class ConfigAnalyzer(BaseAnalyzer):
                 self.create_finding(
                     client=client,
                     id=f"config-unused-output-{output_id}",
+                    grouping_id="config-unused-output",
                     category="config",
                     severity="low",
                     title=f"Unused Output: {output_id}",
-                    description=f"Output '{output_id}' is not referenced by any route",
+                    description=f"Output '{output_id}' is not referenced by any route.",
                     affected_components=[f"output-{output_id}"],
                     confidence_level="medium",
                 )
@@ -317,12 +325,18 @@ class ConfigAnalyzer(BaseAnalyzer):
                         self.create_finding(
                             client=client,
                             id=f"config-security-hardcoded-{output_id}-{hash(match.group(0))}",
+                            grouping_id="config-security-hardcoded",
                             category="config",
                             severity="high",
                             title=f"Hardcoded Credential in Output: {output_id}",
-                            description=f"Output '{output_id}' contains hardcoded field '{credential_key}'",
+                            description=f"Output '{output_id}' contains hardcoded field '{credential_key}'.",
                             affected_components=[f"output-{output_id}"],
                             confidence_level="high",
+                            estimated_impact="Hardcoded credentials can be exposed in version control or backups.",
+                            remediation_steps=[
+                                "Replace the hardcoded value with an environment variable or secret from a secrets manager.",
+                                f"Update the component '{output_id}' to reference the new secret.",
+                            ],
                         )
                     )
 
@@ -370,12 +384,17 @@ class ConfigAnalyzer(BaseAnalyzer):
             self.create_finding(
                 client=client,
                 id=f"{rule.id}-{component_id}",
+                grouping_id=rule.id,
                 category="config",
                 severity=rule.severity_if_violated,
                 title=f"{rule.name}: {component_id}",
-                description=f"{rule.description}",
+                description=rule.description.format(component_id=component_id),
                 affected_components=[f"{component_type}-{component_id}"],
                 confidence_level="high",
+                remediation_steps=[
+                    step.format(component_id=component_id) for step in rule.remediation_steps
+                ],
+                estimated_impact=rule.estimated_impact,
             )
         )
 
@@ -410,16 +429,17 @@ class ConfigAnalyzer(BaseAnalyzer):
                         self.create_finding(
                             client=client,
                             id=f"config-perf-function-ordering-{pipeline_id}",
+                            grouping_id="config-perf-function-ordering",
                             category="config",
                             severity="medium",
                             title=f"Suboptimal Function Ordering: {pipeline_id}",
-                            description=f"Pipeline '{pipeline_id}' has expensive operations before filtering",
+                            description=f"Pipeline '{pipeline_id}' has expensive operations before filtering.",
                             affected_components=[f"pipeline-{pipeline_id}"],
                             confidence_level="high",
                             remediation_steps=[
-                                f"Reorder functions in pipeline '{pipeline_id}' to place filters before expensive operations",
-                                "Move regex, lookup, and parsing functions after filtering functions",
-                                "Test pipeline performance after reordering",
+                                f"Reorder functions in pipeline '{pipeline_id}' to place filters before expensive operations.",
+                                "Move regex, lookup, and parsing functions after filtering functions.",
+                                "Test pipeline performance after reordering.",
                             ],
                         )
                     )
@@ -441,16 +461,17 @@ class ConfigAnalyzer(BaseAnalyzer):
                 self.create_finding(
                     client=client,
                     id=f"config-perf-multiple-regex-{pipeline_id}",
+                    grouping_id="config-perf-multiple-regex",
                     category="config",
                     severity="medium",
                     title=f"Multiple Regex Operations: {pipeline_id}",
-                    description=f"Pipeline '{pipeline_id}' contains {len(regex_funcs)} regex-based operations",
+                    description=f"Pipeline '{pipeline_id}' contains {len(regex_funcs)} regex-based operations.",
                     affected_components=[f"pipeline-{pipeline_id}"],
                     confidence_level="high",
                     remediation_steps=[
-                        f"Consolidate regex operations in pipeline '{pipeline_id}' where possible",
-                        "Consider using lookup tables instead of complex regex patterns",
-                        "Optimize regex patterns for better performance",
+                        f"Consolidate regex operations in pipeline '{pipeline_id}' where possible.",
+                        "Consider using lookup tables instead of complex regex patterns.",
+                        "Optimize regex patterns for better performance.",
                     ],
                 )
             )
@@ -470,16 +491,18 @@ class ConfigAnalyzer(BaseAnalyzer):
                     self.create_finding(
                         client=client,
                         id=f"config-route-catchall-not-last-{route_id}",
+                        grouping_id="config-route-catchall-not-last",
                         category="config",
                         severity="high",
                         title=f"Catch-All Route Not Last: {route_id}",
-                        description=f"Route '{route_id}' has no filter, shadowing subsequent routes",
+                        description=f"Route '{route_id}' has no filter, shadowing subsequent routes.",
                         affected_components=[f"route-{route_id}"],
                         confidence_level="high",
+                        estimated_impact="Subsequent routes will never be evaluated, leading to misrouted or dropped data.",
                         remediation_steps=[
-                            f"Move route '{route_id}' to the bottom of the routes list",
-                            "Add appropriate filter conditions to the route",
-                            "Review route ordering to ensure proper data flow",
+                            f"Move route '{route_id}' to the bottom of the routes list.",
+                            "Add appropriate filter conditions to the route.",
+                            "Review route ordering to ensure proper data flow.",
                         ],
                     )
                 )
@@ -501,16 +524,17 @@ class ConfigAnalyzer(BaseAnalyzer):
                     self.create_finding(
                         client=client,
                         id=f"config-complexity-high-{pipeline_id}",
+                        grouping_id="config-complexity-high",
                         category="config",
                         severity="medium",
                         title=f"High Pipeline Complexity: {pipeline_id}",
-                        description=f"Pipeline '{pipeline_id}' has complexity score of {complexity}",
+                        description=f"Pipeline '{pipeline_id}' has complexity score of {complexity}.",
                         affected_components=[f"pipeline-{pipeline_id}"],
                         confidence_level="high",
                         remediation_steps=[
-                            f"Review pipeline '{pipeline_id}' for simplification opportunities",
-                            "Consider breaking complex pipeline into smaller, focused pipelines",
-                            "Optimize function chains and remove redundant processing",
+                            f"Review pipeline '{pipeline_id}' for simplification opportunities.",
+                            "Consider breaking complex pipeline into smaller, focused pipelines.",
+                            "Optimize function chains and remove redundant processing.",
                         ],
                     )
                 )

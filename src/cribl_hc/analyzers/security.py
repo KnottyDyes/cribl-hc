@@ -241,6 +241,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                             self.create_finding(
                                 client=client,
                                 id=f"security-hardcoded-secret-{comp_type}-{comp_id}-{field_name}",
+                                grouping_id="security-hardcoded-secret",
                                 category="security",
                                 severity="critical",
                                 title=f"{comp_id}: Hardcoded {secret_type.title()} Detected",

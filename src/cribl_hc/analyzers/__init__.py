@@ -74,9 +74,7 @@ class AnalyzerRegistry:
             >>> registry.register(HealthAnalyzer)
         """
         if not issubclass(analyzer_class, BaseAnalyzer):
-            raise ValueError(
-                f"{analyzer_class.__name__} must inherit from BaseAnalyzer"
-            )
+            raise ValueError(f"{analyzer_class.__name__} must inherit from BaseAnalyzer")
 
         # Create temporary instance to get objective name
         # (we can't access the property without an instance)
@@ -84,15 +82,11 @@ class AnalyzerRegistry:
             temp_instance = analyzer_class()
             objective = temp_instance.objective_name
         except Exception as e:
-            raise ValueError(
-                f"Failed to get objective_name from {analyzer_class.__name__}: {e}"
-            )
+            raise ValueError(f"Failed to get objective_name from {analyzer_class.__name__}: {e}")
 
         if objective in self._analyzers:
             existing = self._analyzers[objective].__name__
-            raise ValueError(
-                f"Objective '{objective}' already registered by {existing}"
-            )
+            raise ValueError(f"Objective '{objective}' already registered by {existing}")
 
         self._analyzers[objective] = analyzer_class
         # Note: Logging removed to avoid logger initialization issues during import
@@ -278,6 +272,7 @@ from cribl_hc.analyzers.config import ConfigAnalyzer  # noqa: E402
 from cribl_hc.analyzers.cost import CostAnalyzer  # noqa: E402
 from cribl_hc.analyzers.dataflow_topology import DataFlowTopologyAnalyzer  # noqa: E402
 from cribl_hc.analyzers.fleet import FleetAnalyzer  # noqa: E402
+from cribl_hc.analyzers.freshness import FreshnessAnalyzer  # noqa: E402
 from cribl_hc.analyzers.health import HealthAnalyzer  # noqa: E402
 from cribl_hc.analyzers.lookup_health import LookupHealthAnalyzer  # noqa: E402
 from cribl_hc.analyzers.pipeline_performance import PipelinePerformanceAnalyzer  # noqa: E402
@@ -285,6 +280,7 @@ from cribl_hc.analyzers.predictive import PredictiveAnalyzer  # noqa: E402
 from cribl_hc.analyzers.resource import ResourceAnalyzer  # noqa: E402
 from cribl_hc.analyzers.schema_quality import SchemaQualityAnalyzer  # noqa: E402
 from cribl_hc.analyzers.security import SecurityAnalyzer  # noqa: E402
+from cribl_hc.analyzers.sensitive_data import SensitiveDataAnalyzer  # noqa: E402
 from cribl_hc.analyzers.storage import StorageAnalyzer  # noqa: E402
 from cribl_hc.analyzers.version_control import VersionControlAnalyzer  # noqa: E402
 
@@ -293,6 +289,7 @@ register_analyzer(ConfigAnalyzer)
 register_analyzer(ResourceAnalyzer)
 register_analyzer(StorageAnalyzer)
 register_analyzer(SecurityAnalyzer)
+register_analyzer(SensitiveDataAnalyzer)
 register_analyzer(CostAnalyzer)
 register_analyzer(FleetAnalyzer)
 register_analyzer(PredictiveAnalyzer)
@@ -303,3 +300,4 @@ register_analyzer(SchemaQualityAnalyzer)
 register_analyzer(DataFlowTopologyAnalyzer)
 register_analyzer(AlertingAnalyzer)
 register_analyzer(VersionControlAnalyzer)
+register_analyzer(FreshnessAnalyzer)

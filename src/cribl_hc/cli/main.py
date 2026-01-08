@@ -11,7 +11,7 @@ from cribl_hc.cli.commands import analyze, config, list_analyzers
 console = Console()
 app = typer.Typer(
     name="cribl-hc",
-    help="Cribl Stream Health Check Tool - Comprehensive deployment analysis and monitoring",
+    help="Cribl Health Check Tool - Comprehensive deployment analysis and monitoring",
     add_completion=False,
 )
 
@@ -44,10 +44,8 @@ app.add_typer(
 @app.command()
 def tui(
     legacy: bool = typer.Option(
-        False,
-        "--legacy",
-        help="Use legacy simple TUI instead of modern interface"
-    )
+        False, "--legacy", help="Use legacy simple TUI instead of modern interface"
+    ),
 ):
     """
     Launch interactive Terminal User Interface.
@@ -64,11 +62,13 @@ def tui(
         if legacy:
             # Use legacy simple TUI
             from cribl_hc.cli.unified_tui import UnifiedTUI
+
             unified = UnifiedTUI()
             unified.run()
         else:
             # Use modern Textual-based TUI (default)
             from cribl_hc.cli.modern_tui import run_modern_tui
+
             run_modern_tui()
     except KeyboardInterrupt:
         console.print("\n[cyan]Goodbye![/cyan]")

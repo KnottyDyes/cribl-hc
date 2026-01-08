@@ -1,12 +1,11 @@
 import { useEffect } from 'react'
 import { useForm, Controller } from 'react-hook-form'
+import type { UseFormRegister } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button, Input, Select } from '../common'
 import type { UITheme } from '../../api/types'
 import { uiThemeSchema } from '../../lib/validation'
 import { useBranding } from '../../hooks/useBranding'
-
-import { UseFormRegister } from 'react-hook-form'
 
 const FONT_FAMILY_OPTIONS = [
   { value: 'system-ui', label: 'System Default' },

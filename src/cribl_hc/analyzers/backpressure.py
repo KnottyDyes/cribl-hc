@@ -92,24 +92,48 @@ class BackpressureAnalyzer(BaseAnalyzer):
         try:
             log.info("backpressure_analysis_started")
 
-            # Fetch outputs/destinations configuration
             outputs = await client.get_outputs()
 
-            # Fetch metrics for runtime data
             metrics = await client.get_metrics(time_range="1h")
 
-            # Extract relevant metrics
+            if not metrics:
+                result.add_finding(
+                    Finding(
+                        id="backpressure-metrics-unavailable",
+                        category="backpressure",
+                        severity="info",
+                        title="Metrics Unavailable for Backpressure Analysis",
+                        description=(
+                            "System metrics are not available for this deployment. "
+                            "Backpressure analysis requires runtime metrics data, which is not exposed "
+                            "via API for this deployment type (typically Cribl Cloud). "
+                            "Consider using Cribl's built-in monitoring or infrastructure tools."
+                        ),
+                        affected_components=["Monitoring", "Metrics"],
+                        remediation_steps=[
+                            "Use Cribl's built-in monitoring dashboard",
+                            "Check infrastructure-level metrics (CPU, memory, disk)",
+                            "Review output destination health directly",
+                        ],
+                        estimated_impact="Limited visibility into destination performance",
+                        confidence_level="high",
+                        metadata={"deployment_type": "cloud" if client.is_cloud else "self-hosted"},
+                    )
+                )
+                result.success = True
+                return result
+
             output_metrics = self._extract_output_metrics(metrics)
             pq_metrics = self._extract_pq_metrics(metrics)
 
-            # Initialize metadata
-            result.metadata.update({
-                "total_outputs": len(outputs),
-                "outputs_with_pq": sum(1 for o in outputs if o.get("pqEnabled")),
-                "analysis_timestamp": datetime.utcnow().isoformat()
-            })
+            result.metadata.update(
+                {
+                    "total_outputs": len(outputs),
+                    "outputs_with_pq": sum(1 for o in outputs if o.get("pqEnabled")),
+                    "analysis_timestamp": datetime.utcnow().isoformat(),
+                }
+            )
 
-            # Handle empty state
             if not outputs:
                 result.add_finding(
                     Finding(
@@ -120,7 +144,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
                         description="No output destinations found for backpressure analysis.",
                         affected_components=["Outputs"],
                         confidence_level="high",
-                        metadata={}
+                        metadata={},
                     )
                 )
                 result.success = True
@@ -141,12 +165,16 @@ class BackpressureAnalyzer(BaseAnalyzer):
             # Add summary metadata
             self._add_summary_metadata(result)
 
+            for finding in result.findings:
+                if not finding.worker_group:
+                    finding.worker_group = client.worker_group
+
             result.success = True
             log.info(
                 "backpressure_analysis_completed",
                 outputs=len(outputs),
                 findings=len(result.findings),
-                recommendations=len(result.recommendations)
+                recommendations=len(result.recommendations),
             )
 
         except Exception as e:
@@ -164,7 +192,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
                     remediation_steps=["Check API connectivity", "Verify permissions"],
                     estimated_impact="Cannot assess destination health",
                     confidence_level="high",
-                    metadata={"error": str(e)}
+                    metadata={"error": str(e)},
                 )
             )
 
@@ -236,7 +264,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
         self,
         outputs: list[dict[str, Any]],
         output_metrics: dict[str, dict[str, Any]],
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Analyze backpressure on output destinations."""
         outputs_with_backpressure = []
@@ -273,7 +301,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
         output_type: str,
         blocked_percent: float,
         severity_level: str,
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Report a backpressure finding."""
         severity = "high" if severity_level == "critical" else "medium"
@@ -295,15 +323,15 @@ class BackpressureAnalyzer(BaseAnalyzer):
                     "Review destination connection settings (timeouts, batch sizes)",
                     "Enable or increase persistent queue capacity",
                     "Consider scaling the destination or adding load balancing",
-                    "Review pipeline routing to reduce volume to this destination"
+                    "Review pipeline routing to reduce volume to this destination",
                 ],
                 estimated_impact="Data buffering or potential data loss",
                 confidence_level="high",
                 metadata={
                     "output_id": output_id,
                     "output_type": output_type,
-                    "blocked_percent": round(blocked_percent, 2)
-                }
+                    "blocked_percent": round(blocked_percent, 2),
+                },
             )
         )
 
@@ -324,15 +352,18 @@ class BackpressureAnalyzer(BaseAnalyzer):
                         f"Verify {output_type} destination is accepting connections",
                         "Review and increase batch sizes if appropriate",
                         "Enable persistent queuing to buffer during outages",
-                        "Consider adding destination capacity or replicas"
+                        "Consider adding destination capacity or replicas",
                     ],
                     before_state=f"{blocked_percent:.1f}% events blocked",
                     after_state="Events flowing normally to destination",
                     impact_estimate=ImpactEstimate(
-                        performance_improvement="Eliminates data buffering delays"
+                        performance_improvement="Eliminates data buffering delays",
+                        cost_savings_annual=None,
+                        storage_reduction_gb=None,
+                        time_to_implement=None,
                     ),
                     implementation_effort="medium",
-                    product_tags=["stream", "edge"]
+                    product_tags=["stream", "edge"],
                 )
             )
 
@@ -340,7 +371,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
         self,
         outputs: list[dict[str, Any]],
         pq_metrics: dict[str, dict[str, Any]],
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Analyze persistent queue health."""
         pq_warnings = []
@@ -366,19 +397,21 @@ class BackpressureAnalyzer(BaseAnalyzer):
             else:
                 usage_percent = 0
 
-            current_size_gb = current_size / (1024 ** 3)
+            current_size_gb = current_size / (1024**3)
 
             # Check thresholds
-            if usage_percent >= self.PQ_CRITICAL_PERCENT or current_size_gb >= self.PQ_SIZE_CRITICAL_GB:
+            if (
+                usage_percent >= self.PQ_CRITICAL_PERCENT
+                or current_size_gb >= self.PQ_SIZE_CRITICAL_GB
+            ):
                 pq_critical.append(output_id)
-                self._report_pq_issue(
-                    output_id, current_size_gb, usage_percent, "critical", result
-                )
-            elif usage_percent >= self.PQ_WARNING_PERCENT or current_size_gb >= self.PQ_SIZE_WARNING_GB:
+                self._report_pq_issue(output_id, current_size_gb, usage_percent, "critical", result)
+            elif (
+                usage_percent >= self.PQ_WARNING_PERCENT
+                or current_size_gb >= self.PQ_SIZE_WARNING_GB
+            ):
                 pq_warnings.append(output_id)
-                self._report_pq_issue(
-                    output_id, current_size_gb, usage_percent, "warning", result
-                )
+                self._report_pq_issue(output_id, current_size_gb, usage_percent, "warning", result)
 
         result.metadata["pq_warnings"] = len(pq_warnings)
         result.metadata["pq_critical"] = len(pq_critical)
@@ -392,16 +425,16 @@ class BackpressureAnalyzer(BaseAnalyzer):
             size_value = size_value.strip().upper()
             # Order matters - check longer suffixes first
             multipliers = [
-                ("TB", 1024 ** 4),
-                ("GB", 1024 ** 3),
-                ("MB", 1024 ** 2),
+                ("TB", 1024**4),
+                ("GB", 1024**3),
+                ("MB", 1024**2),
                 ("KB", 1024),
                 ("B", 1),
             ]
             for suffix, multiplier in multipliers:
                 if size_value.endswith(suffix):
                     try:
-                        number = float(size_value[:-len(suffix)])
+                        number = float(size_value[: -len(suffix)])
                         return int(number * multiplier)
                     except ValueError:
                         return 0
@@ -413,7 +446,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
         current_size_gb: float,
         usage_percent: float,
         severity_level: str,
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Report a persistent queue issue."""
         severity = "high" if severity_level == "critical" else "medium"
@@ -435,15 +468,15 @@ class BackpressureAnalyzer(BaseAnalyzer):
                     "Monitor queue drain rate vs growth rate",
                     "Consider increasing queue size as temporary measure",
                     "Address root cause of destination backpressure",
-                    "Review if destination scaling is needed"
+                    "Review if destination scaling is needed",
                 ],
                 estimated_impact="Risk of data loss when queue fills",
                 confidence_level="high",
                 metadata={
                     "output_id": output_id,
                     "queue_size_gb": round(current_size_gb, 2),
-                    "usage_percent": round(usage_percent, 2)
-                }
+                    "usage_percent": round(usage_percent, 2),
+                },
             )
         )
 
@@ -464,15 +497,18 @@ class BackpressureAnalyzer(BaseAnalyzer):
                         "Verify destination is accepting connections",
                         "Monitor queue drain rate - should be positive",
                         "Consider temporarily routing traffic elsewhere",
-                        "Scale destination if it cannot handle volume"
+                        "Scale destination if it cannot handle volume",
                     ],
                     before_state=f"Queue at {usage_percent:.1f}% capacity",
                     after_state="Queue draining, destination healthy",
                     impact_estimate=ImpactEstimate(
-                        performance_improvement="Prevents data loss"
+                        performance_improvement="Prevents data loss",
+                        cost_savings_annual=None,
+                        storage_reduction_gb=None,
+                        time_to_implement=None,
                     ),
                     implementation_effort="high",
-                    product_tags=["stream", "edge"]
+                    product_tags=["stream", "edge"],
                 )
             )
 
@@ -480,7 +516,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
         self,
         outputs: list[dict[str, Any]],
         output_metrics: dict[str, dict[str, Any]],
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Analyze HTTP destination retry patterns."""
         http_retry_issues = []
@@ -526,7 +562,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
         retry_rate: float,
         errors_5xx: int,
         severity_level: str,
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Report HTTP retry pattern finding."""
         severity = "high" if severity_level == "critical" else "medium"
@@ -548,7 +584,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
                     "Review destination capacity and scaling",
                     "Check for rate limiting on the destination",
                     "Review batch size and timeout settings",
-                    "Consider adding request queuing or load balancing"
+                    "Consider adding request queuing or load balancing",
                 ],
                 estimated_impact="Increased latency and destination load",
                 confidence_level="high",
@@ -556,8 +592,8 @@ class BackpressureAnalyzer(BaseAnalyzer):
                     "output_id": output_id,
                     "output_type": output_type,
                     "retry_rate_percent": round(retry_rate, 2),
-                    "errors_5xx": errors_5xx
-                }
+                    "errors_5xx": errors_5xx,
+                },
             )
         )
 
@@ -565,7 +601,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
         self,
         outputs: list[dict[str, Any]],
         pq_metrics: dict[str, dict[str, Any]],
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Predict when persistent queues will exhaust based on growth trends."""
         exhaustion_predictions = []
@@ -615,12 +651,12 @@ class BackpressureAnalyzer(BaseAnalyzer):
         current_size: int,
         max_size: int,
         severity_level: str,
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Report queue exhaustion prediction."""
         severity = "critical" if severity_level == "critical" else "high"
-        current_gb = current_size / (1024 ** 3)
-        max_gb = max_size / (1024 ** 3)
+        current_gb = current_size / (1024**3)
+        max_gb = max_size / (1024**3)
 
         result.add_finding(
             Finding(
@@ -639,7 +675,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
                     "Check destination health and capacity",
                     "Consider temporarily increasing queue size",
                     "Route traffic to alternative destinations if available",
-                    "Prepare for potential data loss if queue fills"
+                    "Prepare for potential data loss if queue fills",
                 ],
                 estimated_impact=f"Data loss in ~{hours_to_full:.1f} hours if unaddressed",
                 confidence_level="medium",
@@ -647,8 +683,8 @@ class BackpressureAnalyzer(BaseAnalyzer):
                     "output_id": output_id,
                     "hours_to_exhaustion": round(hours_to_full, 2),
                     "current_size_gb": round(current_gb, 2),
-                    "max_size_gb": round(max_gb, 2)
-                }
+                    "max_size_gb": round(max_gb, 2),
+                },
             )
         )
 
@@ -668,15 +704,18 @@ class BackpressureAnalyzer(BaseAnalyzer):
                     "Identify root cause of backpressure",
                     "Scale destination if capacity limited",
                     "Consider data routing alternatives",
-                    "Increase queue size as temporary buffer"
+                    "Increase queue size as temporary buffer",
                 ],
                 before_state=f"Queue filling, {hours_to_full:.1f}h until full",
                 after_state="Queue draining, destination healthy",
                 impact_estimate=ImpactEstimate(
-                    performance_improvement="Prevents data loss"
+                    performance_improvement="Prevents data loss",
+                    cost_savings_annual=None,
+                    storage_reduction_gb=None,
+                    time_to_implement=None,
                 ),
                 implementation_effort="high",
-                product_tags=["stream", "edge"]
+                product_tags=["stream", "edge"],
             )
         )
 
