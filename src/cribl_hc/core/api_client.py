@@ -112,7 +112,7 @@ class CriblAPIClient:
             return False
 
     async def _try_fallback_candidates(self) -> None:
-        candidates = ["default", "defaultGroup", "workers", "main"]
+        candidates = ["EDC_onprem", "default", "defaultGroup", "workers", "main"]
         for group_name in candidates:
             if await self._test_group_access(group_name):
                 self._worker_group = group_name
