@@ -10,6 +10,7 @@ import json
 import uuid
 from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 from fastapi import (
     APIRouter,
@@ -20,6 +21,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import Response
+
 from pydantic import BaseModel, Field
 
 from cribl_hc.analyzers import get_global_registry
@@ -33,6 +35,7 @@ from cribl_hc.core.report_generator import (
     MarkdownReportGenerator,
 )
 from cribl_hc.utils.logger import get_logger
+
 
 router = APIRouter()
 log = get_logger(__name__)
@@ -62,6 +65,9 @@ class AnalysisStatus(str, Enum):
     FAILED = "failed"
 
 
+ProductName = Literal["stream", "edge", "lake", "search"]
+
+
 class AnalysisRequest(BaseModel):
     """Request model for starting an analysis."""
 
@@ -69,10 +75,17 @@ class AnalysisRequest(BaseModel):
     analyzers: list[str] | None = Field(
         None, description="List of analyzers to run. If not specified, all analyzers run."
     )
+    products: list[ProductName] | None = Field(
+        None, description="List of products to analyze (stream, edge, lake, search). If None, all."
+    )
 
     class Config:
         json_schema_extra = {
-            "example": {"deployment_name": "prod", "analyzers": ["health", "config", "resource"]}
+            "example": {
+                "deployment_name": "prod",
+                "analyzers": ["health", "config"],
+                "products": ["stream", "edge"],
+            }
         }
 
 
@@ -86,6 +99,7 @@ class AnalysisResponse(BaseModel):
     started_at: datetime | None = None
     completed_at: datetime | None = None
     analyzers: list[str]
+    products: list[Literal["stream", "edge", "lake", "search"]] | None = None
     progress_percent: int = 0
     current_step: str | None = None
     api_calls_used: int = 0
@@ -106,7 +120,10 @@ class AnalysisResultResponse(BaseModel):
 
 
 async def run_analysis_task(
-    analysis_id: str, deployment_name: str, analyzers_to_run: list[str] | None
+    analysis_id: str,
+    deployment_name: str,
+    analyzers_to_run: list[str] | None,
+    products_to_analyze: list[Literal["stream", "edge", "lake", "search"]] | None = None,
 ):
     """
     Background task to run the analysis.
@@ -135,8 +152,10 @@ async def run_analysis_task(
         async with client:
             orchestrator = AnalyzerOrchestrator(client=client)
 
-            # Run analysis with specified analyzers (or None for all)
-            results = await orchestrator.run_analysis(objectives=analyzers_to_run)
+            results = await orchestrator.run_analysis(
+                objectives=analyzers_to_run,
+                products=list(products_to_analyze) if products_to_analyze else None,
+            )
 
             # Create analysis run from results
             analysis_run = orchestrator.create_analysis_run(results, deployment_name)
@@ -235,6 +254,16 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
             registry = get_global_registry()
             analyzer_names = registry.list_objectives()
 
+        if request.products:
+            registry = get_global_registry()
+            requested_products = set(request.products)
+            filtered: list[str] = []
+            for objective in analyzer_names:
+                analyzer = registry.get_analyzer(objective)
+                if analyzer and any(p in requested_products for p in analyzer.supported_products):
+                    filtered.append(objective)
+            analyzer_names = filtered
+
         # Store initial analysis metadata
         analysis_results[analysis_id] = {
             "analysis_id": analysis_id,
@@ -244,6 +273,7 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
             "started_at": None,
             "completed_at": None,
             "analyzers": analyzer_names,
+            "products": request.products,
             "progress_percent": 0,
             "current_step": None,
             "api_calls_used": 0,
@@ -253,7 +283,11 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
 
         # Start background task
         background_tasks.add_task(
-            run_analysis_task, analysis_id, request.deployment_name, request.analyzers
+            run_analysis_task,
+            analysis_id,
+            request.deployment_name,
+            analyzer_names,
+            request.products,
         )
 
         log.info("analysis_queued", analysis_id=analysis_id, deployment=request.deployment_name)

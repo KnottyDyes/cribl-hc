@@ -9,6 +9,8 @@
 
 Comprehensive health checking tool for Cribl Stream deployments. Provides actionable insights across health assessment, configuration validation, performance optimization, security auditing, and cost management.
 
+**🔒 Data Privacy**: This tool adheres to strict data governance standards. See [DATA_PRIVACY.md](docs/DATA_PRIVACY.md) for details on how we handle transient event data.
+
 ## Features
 
 ### CLI Features

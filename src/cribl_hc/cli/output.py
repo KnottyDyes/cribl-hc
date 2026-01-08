@@ -2,6 +2,9 @@
 Rich terminal output formatting for analysis results.
 """
 
+from collections import defaultdict
+from itertools import groupby
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -9,6 +12,7 @@ from rich.tree import Tree
 
 from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.models.finding import Finding
 
 
 def display_analysis_results(
@@ -90,16 +94,14 @@ def display_summary(analysis_run: AnalysisRun, console: Console):
 
 
 def display_findings(objective: str, result: AnalyzerResult, console: Console):
-    """Display findings for a specific objective."""
+    """Display findings for a specific objective, grouping similar findings."""
     console.print(Panel(f"[bold]{objective.upper()} Findings[/bold]", style="cyan"))
 
-    # Check if disk metrics were skipped (Cribl Cloud)
     if result.metadata.get("disk_metrics_skipped"):
         console.print(
             f"[dim]ℹ️  {result.metadata.get('disk_metrics_skip_reason', 'Disk metrics skipped')}[/dim]\n"
         )
 
-    # Group findings by severity
     severity_order = ["critical", "high", "medium", "low", "info"]
     severity_colors = {
         "critical": "red",
@@ -109,29 +111,55 @@ def display_findings(objective: str, result: AnalyzerResult, console: Console):
         "info": "green",
     }
 
-    for severity in severity_order:
-        severity_findings = [f for f in result.findings if f.severity == severity]
+    sorted_findings = sorted(result.findings, key=lambda f: severity_order.index(f.severity))
 
+    for severity in severity_order:
+        severity_findings = [f for f in sorted_findings if f.severity == severity]
         if not severity_findings:
             continue
 
         color = severity_colors.get(severity, "white")
         console.print(f"\n[{color}]● {severity.upper()}[/{color}]")
 
-        for finding in severity_findings:
-            title_parts = [finding.title]
-            if finding.worker_group and finding.worker_group != "default":
-                title_parts.append(f"[dim cyan]({finding.worker_group})[/dim cyan]")
+        keyfunc = lambda f: (f.grouping_id, f.worker_group)
+        sorted_severity_findings = sorted(severity_findings, key=keyfunc)
 
-            tree = Tree("[bold]" + " ".join(title_parts) + "[/bold]")
-            tree.add(f"[dim]{finding.description}[/dim]")
+        for (grouping_id, worker_group), group in groupby(sorted_severity_findings, key=keyfunc):
+            group_findings = list(group)
+            first_finding = group_findings[0]
 
-            if finding.affected_components:
-                components_str = ", ".join(finding.affected_components)
-                tree.add(f"Components: {components_str}")
+            is_grouped = grouping_id and len(group_findings) > 1
+            if is_grouped:
+                base_title = first_finding.title.split(":")[0]
+                title_parts = [base_title]
+                if worker_group and worker_group != "default":
+                    title_parts.append(f"[dim cyan]({worker_group})[/dim cyan]")
 
-            if finding.estimated_impact:
-                tree.add(f"Impact: {finding.estimated_impact}")
+                tree = Tree(
+                    "[bold]" + " ".join(title_parts) + f" ({len(group_findings)} instances)[/bold]"
+                )
+
+                for finding in group_findings:
+                    tree.add(
+                        f"Component: {finding.affected_components[0] if finding.affected_components else 'N/A'}"
+                    )
+
+                if first_finding.description:
+                    tree.add(f"[dim]{first_finding.description.split('.')[0]}.[/dim]")
+                if first_finding.estimated_impact:
+                    tree.add(f"Impact: {first_finding.estimated_impact}")
+
+            else:
+                title_parts = [first_finding.title]
+                if first_finding.worker_group and first_finding.worker_group != "default":
+                    title_parts.append(f"[dim cyan]({first_finding.worker_group})[/dim cyan]")
+
+                tree = Tree("[bold]" + " ".join(title_parts) + "[/bold]")
+                tree.add(f"[dim]{first_finding.description}[/dim]")
+                if first_finding.affected_components:
+                    tree.add(f"Components: {', '.join(first_finding.affected_components)}")
+                if first_finding.estimated_impact:
+                    tree.add(f"Impact: {first_finding.estimated_impact}")
 
             console.print(tree)
 

@@ -38,6 +38,9 @@ class Finding(BaseModel):
     )
     detected_at: datetime = Field(default_factory=datetime.utcnow)
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional context")
+    grouping_id: Optional[str] = Field(
+        default=None, description="Identifier used to group similar findings together."
+    )
 
     @model_validator(mode="after")
     def validate_severity_requirements(self) -> "Finding":

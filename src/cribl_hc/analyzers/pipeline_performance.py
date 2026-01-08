@@ -40,18 +40,16 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
 
     # Regex complexity thresholds
     REGEX_NESTED_QUANTIFIER_PATTERN = re.compile(
-        r'\([^)]*[+*][^)]*\)[+*]|\([^)]*\([^)]*[+*][^)]*\)[^)]*\)[+*]'
+        r"\([^)]*[+*][^)]*\)[+*]|\([^)]*\([^)]*[+*][^)]*\)[^)]*\)[+*]"
     )
-    REGEX_ALTERNATION_REPEAT_PATTERN = re.compile(
-        r'\([^|)]+\|[^|)]+\|[^|)]+\)[+*]'
-    )
+    REGEX_ALTERNATION_REPEAT_PATTERN = re.compile(r"\([^|)]+\|[^|)]+\|[^|)]+\)[+*]")
     REGEX_MAX_LENGTH = 500  # Very long regex are suspicious
 
     # JavaScript anti-patterns
-    JS_TEST_PATTERN = re.compile(r'\.test\s*\(')
-    JS_MATCH_PATTERN = re.compile(r'\.match\s*\(')
-    JS_INDEXOF_PATTERN = re.compile(r'\.indexOf\s*\(')
-    JS_INCLUDES_PATTERN = re.compile(r'\.includes\s*\(')
+    JS_TEST_PATTERN = re.compile(r"\.test\s*\(")
+    JS_MATCH_PATTERN = re.compile(r"\.match\s*\(")
+    JS_INDEXOF_PATTERN = re.compile(r"\.indexOf\s*\(")
+    JS_INCLUDES_PATTERN = re.compile(r"\.includes\s*\(")
 
     # Function types that commonly have performance issues
     HEAVY_FUNCTION_TYPES = ["regex_extract", "eval", "code", "geoip", "lookup"]
@@ -98,28 +96,49 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
         try:
             log.info("pipeline_performance_analysis_started")
 
-            # Fetch pipeline configurations
             pipelines = await client.get_pipelines()
 
-            # Fetch metrics for runtime performance data
             metrics = await client.get_metrics(time_range="1h")
 
-            # Extract pipeline-specific metrics
+            if not metrics:
+                result.add_finding(
+                    Finding(
+                        id="pipeline-perf-metrics-unavailable",
+                        category="pipeline_performance",
+                        severity="info",
+                        title="Metrics Unavailable for Pipeline Performance Analysis",
+                        description=(
+                            "System metrics are not available for this deployment. "
+                            "Pipeline performance analysis requires runtime metrics data, which is not exposed "
+                            "via API for this deployment type (typically Cribl Cloud). "
+                            "Consider using Cribl's built-in monitoring or infrastructure tools."
+                        ),
+                        affected_components=["Monitoring", "Metrics"],
+                        remediation_steps=[
+                            "Use Cribl's built-in monitoring dashboard",
+                            "Check infrastructure-level metrics (CPU, memory, disk)",
+                            "Review pipeline configurations directly in Cribl UI",
+                        ],
+                        estimated_impact="Limited visibility into pipeline performance",
+                        confidence_level="high",
+                        metadata={"deployment_type": "cloud" if client.is_cloud else "self-hosted"},
+                    )
+                )
+                result.success = True
+                return result
+
             pipeline_metrics = self._extract_pipeline_metrics(metrics)
 
-            # Count functions
-            total_functions = sum(
-                len(p.get("functions", [])) for p in pipelines
+            total_functions = sum(len(p.get("functions", [])) for p in pipelines)
+
+            result.metadata.update(
+                {
+                    "total_pipelines": len(pipelines),
+                    "total_functions": total_functions,
+                    "analysis_timestamp": datetime.utcnow().isoformat(),
+                }
             )
 
-            # Initialize metadata
-            result.metadata.update({
-                "total_pipelines": len(pipelines),
-                "total_functions": total_functions,
-                "analysis_timestamp": datetime.utcnow().isoformat()
-            })
-
-            # Handle empty state
             if not pipelines:
                 result.add_finding(
                     Finding(
@@ -130,7 +149,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
                         description="No pipelines found for performance analysis.",
                         affected_components=["Pipelines"],
                         confidence_level="high",
-                        metadata={}
+                        metadata={},
                     )
                 )
                 result.success = True
@@ -149,13 +168,17 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
             # Add summary metadata
             self._add_summary_metadata(result)
 
+            for finding in result.findings:
+                if not finding.worker_group:
+                    finding.worker_group = client.worker_group
+
             result.success = True
             log.info(
                 "pipeline_performance_analysis_completed",
                 pipelines=len(pipelines),
                 functions=total_functions,
                 findings=len(result.findings),
-                recommendations=len(result.recommendations)
+                recommendations=len(result.recommendations),
             )
 
         except Exception as e:
@@ -173,7 +196,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
                     remediation_steps=["Check API connectivity", "Verify permissions"],
                     estimated_impact="Cannot assess pipeline performance",
                     confidence_level="high",
-                    metadata={"error": str(e)}
+                    metadata={"error": str(e)},
                 )
             )
 
@@ -219,7 +242,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
         self,
         pipeline: dict[str, Any],
         pipeline_metrics: dict[str, dict[str, Any]],
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Analyze a single pipeline for performance issues."""
         pipeline_id = pipeline.get("id", "unknown")
@@ -240,11 +263,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
             self._analyze_function(pipeline_id, idx, func, result)
 
     def _analyze_function(
-        self,
-        pipeline_id: str,
-        func_idx: int,
-        func: dict[str, Any],
-        result: AnalyzerResult
+        self, pipeline_id: str, func_idx: int, func: dict[str, Any], result: AnalyzerResult
     ) -> None:
         """Analyze a single function for performance issues."""
         func_id = func.get("id", f"func-{func_idx}")
@@ -269,11 +288,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
             self._analyze_geoip_function(pipeline_id, func_id, func_conf, result)
 
     def _analyze_regex_function(
-        self,
-        pipeline_id: str,
-        func_id: str,
-        conf: dict[str, Any],
-        result: AnalyzerResult
+        self, pipeline_id: str, func_id: str, conf: dict[str, Any], result: AnalyzerResult
     ) -> None:
         """Analyze regex function for complexity issues."""
         # Get regex pattern from various possible locations
@@ -297,8 +312,8 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
             issues.append("Repeated alternations detected (performance risk)")
 
         # Check for .* or .+ without anchors
-        if re.search(r'(?<!\\)\.\*', regex_pattern) or re.search(r'(?<!\\)\.\+', regex_pattern):
-            if not regex_pattern.startswith('^') and not regex_pattern.endswith('$'):
+        if re.search(r"(?<!\\)\.\*", regex_pattern) or re.search(r"(?<!\\)\.\+", regex_pattern):
+            if not regex_pattern.startswith("^") and not regex_pattern.endswith("$"):
                 issues.append("Unbounded .* or .+ without anchors")
 
         if issues:
@@ -318,7 +333,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
                         "Use possessive quantifiers or atomic groups if supported",
                         "Add anchors (^ or $) to constrain matching",
                         "Consider using simpler string matching if possible",
-                        "Test regex with representative data to measure performance"
+                        "Test regex with representative data to measure performance",
                     ],
                     estimated_impact="Potential slow processing or CPU spikes",
                     confidence_level="medium",
@@ -326,19 +341,15 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
                         "pipeline_id": pipeline_id,
                         "function_id": func_id,
                         "pattern_length": len(regex_pattern),
-                        "issues": issues
-                    }
+                        "issues": issues,
+                    },
                 )
             )
 
             result.metadata["regex_issues"] = result.metadata.get("regex_issues", 0) + 1
 
     def _analyze_javascript_function(
-        self,
-        pipeline_id: str,
-        func_id: str,
-        conf: dict[str, Any],
-        result: AnalyzerResult
+        self, pipeline_id: str, func_id: str, conf: dict[str, Any], result: AnalyzerResult
     ) -> None:
         """Analyze JavaScript/eval function for anti-patterns."""
         # Get code from various possible locations
@@ -352,10 +363,8 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
         # Check for .test() which is slower than indexOf for simple checks
         if self.JS_TEST_PATTERN.search(code):
             # Only flag if it looks like a simple substring check
-            if not re.search(r'/[^/]+\.\+\*\?/', code):  # No complex regex
-                anti_patterns.append(
-                    ".test() used - consider .includes() for simple string checks"
-                )
+            if not re.search(r"/[^/]+\.\+\*\?/", code):  # No complex regex
+                anti_patterns.append(".test() used - consider .includes() for simple string checks")
 
         # Check for .match() when only checking existence
         if self.JS_MATCH_PATTERN.search(code):
@@ -365,16 +374,12 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
                 )
 
         # Check for inefficient string concatenation in loops
-        if re.search(r'for\s*\([^)]+\)\s*\{[^}]*\+=[^}]*\}', code):
-            anti_patterns.append(
-                "String concatenation in loop - consider Array.join()"
-            )
+        if re.search(r"for\s*\([^)]+\)\s*\{[^}]*\+=[^}]*\}", code):
+            anti_patterns.append("String concatenation in loop - consider Array.join()")
 
         # Check for eval() usage (security and performance)
-        if re.search(r'\beval\s*\(', code):
-            anti_patterns.append(
-                "eval() usage - significant security and performance risk"
-            )
+        if re.search(r"\beval\s*\(", code):
+            anti_patterns.append("eval() usage - significant security and performance risk")
 
         if anti_patterns:
             result.add_finding(
@@ -393,26 +398,22 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
                         "Review code for optimization opportunities",
                         "Use indexOf/includes instead of regex for simple string checks",
                         "Avoid eval() - use safer alternatives",
-                        "Use Array.join() for string building in loops"
+                        "Use Array.join() for string building in loops",
                     ],
                     estimated_impact="Suboptimal code execution performance",
                     confidence_level="medium",
                     metadata={
                         "pipeline_id": pipeline_id,
                         "function_id": func_id,
-                        "anti_patterns": anti_patterns
-                    }
+                        "anti_patterns": anti_patterns,
+                    },
                 )
             )
 
             result.metadata["js_antipatterns"] = result.metadata.get("js_antipatterns", 0) + 1
 
     def _analyze_lookup_function(
-        self,
-        pipeline_id: str,
-        func_id: str,
-        conf: dict[str, Any],
-        result: AnalyzerResult
+        self, pipeline_id: str, func_id: str, conf: dict[str, Any], result: AnalyzerResult
     ) -> None:
         """Analyze lookup function for potential issues."""
         lookup_type = conf.get("type", "file")
@@ -434,35 +435,27 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
                     remediation_steps=[
                         "Consider exact match if possible",
                         "Pre-process lookup table for faster matching",
-                        "Monitor lookup performance in metrics"
+                        "Monitor lookup performance in metrics",
                     ],
                     estimated_impact="Slower lookup performance per event",
                     confidence_level="medium",
                     metadata={
                         "pipeline_id": pipeline_id,
                         "function_id": func_id,
-                        "match_mode": match_mode
-                    }
+                        "match_mode": match_mode,
+                    },
                 )
             )
 
     def _analyze_geoip_function(
-        self,
-        pipeline_id: str,
-        func_id: str,
-        conf: dict[str, Any],
-        result: AnalyzerResult
+        self, pipeline_id: str, func_id: str, conf: dict[str, Any], result: AnalyzerResult
     ) -> None:
         """Analyze GeoIP function for potential issues."""
         # GeoIP is inherently heavy - flag if used without filtering
         result.metadata["geoip_functions"] = result.metadata.get("geoip_functions", 0) + 1
 
     def _report_slow_pipeline(
-        self,
-        pipeline_id: str,
-        avg_latency_ms: float,
-        severity_level: str,
-        result: AnalyzerResult
+        self, pipeline_id: str, avg_latency_ms: float, severity_level: str, result: AnalyzerResult
     ) -> None:
         """Report a slow pipeline."""
         severity = "high" if severity_level == "critical" else "medium"
@@ -484,23 +477,18 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
                     "Add filter functions early to reduce event volume",
                     "Optimize or remove expensive functions",
                     "Consider splitting into multiple pipelines",
-                    "Enable pipeline timing to identify slow functions"
+                    "Enable pipeline timing to identify slow functions",
                 ],
                 estimated_impact=f"{avg_latency_ms:.2f}ms latency per event",
                 confidence_level="high",
-                metadata={
-                    "pipeline_id": pipeline_id,
-                    "avg_latency_ms": round(avg_latency_ms, 2)
-                }
+                metadata={"pipeline_id": pipeline_id, "avg_latency_ms": round(avg_latency_ms, 2)},
             )
         )
 
         result.metadata["slow_pipelines"] = result.metadata.get("slow_pipelines", 0) + 1
 
     def _analyze_function_ordering(
-        self,
-        pipelines: list[dict[str, Any]],
-        result: AnalyzerResult
+        self, pipelines: list[dict[str, Any]], result: AnalyzerResult
     ) -> None:
         """Analyze function ordering for optimization opportunities."""
         pipelines_with_ordering_issues = []
@@ -546,14 +534,14 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
                     remediation_steps=[
                         "Move filter/drop functions earlier in the pipeline",
                         "Place sampling functions before expensive operations",
-                        "Review function ordering for each flagged pipeline"
+                        "Review function ordering for each flagged pipeline",
                     ],
                     estimated_impact="Reduced CPU usage from filtering early",
                     confidence_level="medium",
                     metadata={
                         "pipeline_count": len(pipelines_with_ordering_issues),
-                        "pipeline_ids": pipelines_with_ordering_issues
-                    }
+                        "pipeline_ids": pipelines_with_ordering_issues,
+                    },
                 )
             )
 
@@ -572,22 +560,23 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
                         "Review each flagged pipeline's function order",
                         "Move drop/filter/sampling functions before lookup/geoip/eval",
                         "Test pipeline after reordering to verify behavior",
-                        "Monitor pipeline metrics after changes"
+                        "Monitor pipeline metrics after changes",
                     ],
                     before_state="Expensive functions process all events",
                     after_state="Filters reduce events before expensive processing",
                     impact_estimate=ImpactEstimate(
-                        performance_improvement="Reduced CPU usage per pipeline"
+                        performance_improvement="Reduced CPU usage per pipeline",
+                        cost_savings_annual=None,
+                        storage_reduction_gb=None,
+                        time_to_implement=None,
                     ),
                     implementation_effort="low",
-                    product_tags=["stream", "edge"]
+                    product_tags=["stream", "edge"],
                 )
             )
 
     def _check_timing_instrumentation(
-        self,
-        pipelines: list[dict[str, Any]],
-        result: AnalyzerResult
+        self, pipelines: list[dict[str, Any]], result: AnalyzerResult
     ) -> None:
         """Check which pipelines have timing instrumentation enabled."""
         pipelines_without_timing = []
@@ -621,13 +610,11 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
                     remediation_steps=[
                         "Enable timing on slow pipelines for function-level metrics",
                         "Use Cribl's monitoring to view per-function latency",
-                        "Identify specific functions causing slowdowns"
+                        "Identify specific functions causing slowdowns",
                     ],
                     estimated_impact="Better visibility into pipeline performance",
                     confidence_level="high",
-                    metadata={
-                        "pipelines_without_timing": len(pipelines_without_timing)
-                    }
+                    metadata={"pipelines_without_timing": len(pipelines_without_timing)},
                 )
             )
 

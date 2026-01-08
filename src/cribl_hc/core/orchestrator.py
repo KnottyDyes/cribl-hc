@@ -71,7 +71,8 @@ class AnalyzerOrchestrator:
 
     async def run_analysis(
         self,
-        objectives: Optional[List[str]] = None,
+        objectives: Optional[Sequence[str]] = None,
+        products: Optional[Sequence[str]] = None,
         progress_callback: Optional[Callable[[Any], None]] = None,
     ) -> dict[str, AnalyzerResult]:
         """
@@ -81,9 +82,17 @@ class AnalyzerOrchestrator:
         if objectives is None:
             objectives = list_objectives()
 
+        if products:
+            requested_products = set(products)
+            filtered_objectives: list[str] = []
+            for objective in objectives:
+                analyzer = get_analyzer(objective)
+                if analyzer and any(p in requested_products for p in analyzer.supported_products):
+                    filtered_objectives.append(objective)
+            objectives = filtered_objectives
+
         if not objectives:
             return {}
-
         self.progress = AnalysisProgress(
             total_objectives=len(objectives),
             api_call_budget=self.max_api_calls,
