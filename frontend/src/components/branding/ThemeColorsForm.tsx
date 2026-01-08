@@ -6,12 +6,28 @@ import type { UITheme } from '../../api/types'
 import { uiThemeSchema } from '../../lib/validation'
 import { useBranding } from '../../hooks/useBranding'
 
+import { UseFormRegister } from 'react-hook-form'
+
 const FONT_FAMILY_OPTIONS = [
   { value: 'system-ui', label: 'System Default' },
   { value: 'Inter, system-ui, -apple-system, sans-serif', label: 'Modern Sans' },
   { value: 'Georgia, serif', label: 'Serif' },
   { value: 'Monaco, Consolas, monospace', label: 'Monospace' },
 ]
+
+const ColorInput = ({ theme, color, label, register }: {
+  theme: 'light' | 'dark';
+  color: keyof UITheme['light'];
+  label: string;
+  register: UseFormRegister<UITheme>;
+}) => (
+  <Input
+    label={label}
+    type="color"
+    {...register(`${theme}.${color}`)}
+    className="w-full"
+  />
+);
 
 export function ThemeColorsForm() {
   const { branding, updateTheme, isUpdatingTheme } = useBranding()
@@ -35,15 +51,6 @@ export function ThemeColorsForm() {
     updateTheme(data)
   }
   
-  const ColorInput = ({ theme, color, label }: { theme: 'light' | 'dark', color: keyof UITheme['light'], label: string }) => (
-    <Input
-        label={label}
-        type="color"
-        {...register(`${theme}.${color}`)}
-        className="w-full"
-    />
-  )
-
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <Controller
@@ -68,10 +75,10 @@ export function ThemeColorsForm() {
               Light Theme Colors
             </h4>
             <div className="grid grid-cols-2 gap-4">
-                <ColorInput theme="light" color="primary" label="Primary"/>
-                <ColorInput theme="light" color="secondary" label="Secondary"/>
-                <ColorInput theme="light" color="accent" label="Accent"/>
-                <ColorInput theme="light" color="background" label="Background"/>
+                <ColorInput theme="light" color="primary" label="Primary" register={register}/>
+                <ColorInput theme="light" color="secondary" label="Secondary" register={register}/>
+                <ColorInput theme="light" color="accent" label="Accent" register={register}/>
+                <ColorInput theme="light" color="background" label="Background" register={register}/>
             </div>
           </div>
 
@@ -80,10 +87,10 @@ export function ThemeColorsForm() {
               Dark Theme Colors
             </h4>
             <div className="grid grid-cols-2 gap-4">
-                <ColorInput theme="dark" color="primary" label="Primary"/>
-                <ColorInput theme="dark" color="secondary" label="Secondary"/>
-                <ColorInput theme="dark" color="accent" label="Accent"/>
-                <ColorInput theme="dark" color="background" label="Background"/>
+                <ColorInput theme="dark" color="primary" label="Primary" register={register}/>
+                <ColorInput theme="dark" color="secondary" label="Secondary" register={register}/>
+                <ColorInput theme="dark" color="accent" label="Accent" register={register}/>
+                <ColorInput theme="dark" color="background" label="Background" register={register}/>
             </div>
           </div>
         </div>
