@@ -74,6 +74,7 @@ export interface AnalysisRequest {
 export interface AnalysisRequestInput {
   credential_name: string
   analyzers: string[]
+  products?: CriblProduct[]
 }
 
 export interface AnalysisResponse {
