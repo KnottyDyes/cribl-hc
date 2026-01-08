@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { credentialsApi } from '../../api/credentials'
 import { analyzersApi } from '../../api/analyzers'
-import { Select, Button } from '../common'
-import type { AnalysisRequestInput } from '../../api/types'
+import { Select, Button, ProductSelector } from '../common'
+import type { AnalysisRequestInput, CriblProduct } from '../../api/types'
 
 interface AnalysisFormProps {
   onSubmit: (data: AnalysisRequestInput) => void
@@ -13,6 +13,7 @@ interface AnalysisFormProps {
 export function AnalysisForm({ onSubmit, isSubmitting = false }: AnalysisFormProps) {
   const [selectedCredential, setSelectedCredential] = useState('')
   const [selectedAnalyzers, setSelectedAnalyzers] = useState<string[]>([])
+  const [selectedProducts, setSelectedProducts] = useState<CriblProduct[] | undefined>(undefined)
 
   const { data: credentials, isLoading: loadingCredentials } = useQuery({
     queryKey: ['credentials'],
@@ -30,6 +31,7 @@ export function AnalysisForm({ onSubmit, isSubmitting = false }: AnalysisFormPro
       onSubmit({
         credential_name: selectedCredential,
         analyzers: selectedAnalyzers,
+        products: selectedProducts,
       })
     }
   }
@@ -71,35 +73,40 @@ export function AnalysisForm({ onSubmit, isSubmitting = false }: AnalysisFormPro
         required
       />
 
+      <ProductSelector
+        selectedProducts={selectedProducts}
+        onChange={setSelectedProducts}
+      />
+
       <div>
         <div className="flex items-center justify-between mb-3">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Select Analyzers <span className="text-red-500">*</span>
           </label>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={selectAll}
-              className="text-xs text-blue-600 hover:text-blue-800"
+              className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
             >
               Select All
             </button>
-            <span className="text-gray-400">|</span>
+            <span className="text-gray-400 dark:text-gray-600">|</span>
             <button
               type="button"
               onClick={deselectAll}
-              className="text-xs text-blue-600 hover:text-blue-800"
+              className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
             >
               Deselect All
             </button>
           </div>
         </div>
 
-        <div className="bg-gray-50 rounded-lg p-4 space-y-2 max-h-96 overflow-y-auto">
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2 max-h-96 overflow-y-auto">
           {analyzersData?.analyzers.map((analyzer) => (
             <label
               key={analyzer.name}
-              className="flex items-start p-3 bg-white rounded-md border border-gray-200 hover:bg-gray-50 cursor-pointer"
+              className="flex items-start p-3 bg-white rounded-md border border-gray-200 hover:bg-gray-50 cursor-pointer dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800/60"
             >
               <input
                 type="checkbox"
@@ -109,14 +116,14 @@ export function AnalysisForm({ onSubmit, isSubmitting = false }: AnalysisFormPro
               />
               <div className="ml-3 flex-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-900">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                     {analyzer.name}
                   </span>
-                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
                     {analyzer.api_calls} API calls
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">{analyzer.description}</p>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{analyzer.description}</p>
               </div>
             </label>
           ))}
