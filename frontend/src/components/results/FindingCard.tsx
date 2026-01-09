@@ -45,7 +45,7 @@ export function FindingCard({ finding }: FindingCardProps) {
       <div className="space-y-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${getSeverityColor()}`}>
                 {getSeverityIcon()}
                 {finding.severity.toUpperCase()}
@@ -53,6 +53,11 @@ export function FindingCard({ finding }: FindingCardProps) {
               <span className="inline-flex items-center rounded-md bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">
                 {finding.category}
               </span>
+              {finding.worker_group && (
+                <span className="inline-flex items-center rounded-md bg-cyan-100 dark:bg-cyan-900/50 px-2 py-0.5 text-xs font-medium text-cyan-800 dark:text-cyan-300">
+                  {finding.worker_group}
+                </span>
+              )}
             </div>
             <h4 className="mt-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
               {finding.title}

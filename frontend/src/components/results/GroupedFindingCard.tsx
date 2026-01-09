@@ -61,7 +61,7 @@ export function GroupedFindingCard({ findings, groupTitle, workerGroup }: Groupe
               <span className="inline-flex items-center rounded-md bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">
                 {firstFinding.category}
               </span>
-              {workerGroup && workerGroup !== 'default' && (
+              {workerGroup && (
                 <span className="inline-flex items-center rounded-md bg-cyan-100 dark:bg-cyan-900/50 px-2 py-0.5 text-xs font-medium text-cyan-800 dark:text-cyan-300">
                   {workerGroup}
                 </span>
