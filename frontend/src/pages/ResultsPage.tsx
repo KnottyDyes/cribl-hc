@@ -70,6 +70,56 @@ export function ResultsPage() {
     }
   }, [results])
 
+  const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 }
+
+  const filteredFindings = useMemo(() => {
+    if (!enrichedResults?.findings) return []
+    
+    return enrichedResults.findings
+      .filter((finding) => {
+        const matchesSeverity = severityFilter === 'all' || finding.severity === severityFilter
+        const matchesCategory = categoryFilter === 'all' || finding.category === categoryFilter
+        const matchesProduct = productFilter === 'all' ||
+          (finding.product_tags && finding.product_tags.includes(productFilter as CriblProduct))
+        return matchesSeverity && matchesCategory && matchesProduct
+      })
+      .sort((a, b) => {
+        const severityDiff = severityOrder[b.severity] - severityOrder[a.severity]
+        if (severityDiff !== 0) return severityDiff
+        return a.category.localeCompare(b.category)
+      })
+  }, [enrichedResults?.findings, severityFilter, categoryFilter, productFilter])
+
+  const groupedFindings = useMemo(() => {
+    const groups: { [key: string]: Finding[] } = {}
+    
+    filteredFindings.forEach((finding) => {
+      const groupKey = `${finding.grouping_id || finding.id}-${finding.worker_group || 'default'}`
+      if (!groups[groupKey]) {
+        groups[groupKey] = []
+      }
+      groups[groupKey].push(finding)
+    })
+
+    return Object.values(groups).map((findings) => {
+      const first = findings[0]
+      const isGrouped = first.grouping_id && findings.length > 1
+      const groupTitle = isGrouped ? first.title.split(':')[0] : first.title
+      
+      return {
+        findings,
+        groupTitle,
+        workerGroup: first.worker_group,
+        isGrouped,
+        severity: first.severity,
+      }
+    }).sort((a, b) => {
+      const severityDiff = severityOrder[b.severity] - severityOrder[a.severity]
+      if (severityDiff !== 0) return severityDiff
+      return a.groupTitle.localeCompare(b.groupTitle)
+    })
+  }, [filteredFindings])
+
   const handleExport = async (format: 'json' | 'html' | 'md') => {
     if (!id) return
     try {
@@ -149,56 +199,6 @@ export function ResultsPage() {
     { value: 'lake', label: 'Lake' },
     { value: 'search', label: 'Search' },
   ]
-
-  const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 }
-
-  const filteredFindings = useMemo(() => {
-    if (!enrichedResults?.findings) return []
-    
-    return enrichedResults.findings
-      .filter((finding) => {
-        const matchesSeverity = severityFilter === 'all' || finding.severity === severityFilter
-        const matchesCategory = categoryFilter === 'all' || finding.category === categoryFilter
-        const matchesProduct = productFilter === 'all' ||
-          (finding.product_tags && finding.product_tags.includes(productFilter as CriblProduct))
-        return matchesSeverity && matchesCategory && matchesProduct
-      })
-      .sort((a, b) => {
-        const severityDiff = severityOrder[b.severity] - severityOrder[a.severity]
-        if (severityDiff !== 0) return severityDiff
-        return a.category.localeCompare(b.category)
-      })
-  }, [enrichedResults?.findings, severityFilter, categoryFilter, productFilter])
-
-  const groupedFindings = useMemo(() => {
-    const groups: { [key: string]: Finding[] } = {}
-    
-    filteredFindings.forEach((finding) => {
-      const groupKey = `${finding.grouping_id || finding.id}-${finding.worker_group || 'default'}`
-      if (!groups[groupKey]) {
-        groups[groupKey] = []
-      }
-      groups[groupKey].push(finding)
-    })
-
-    return Object.values(groups).map((findings) => {
-      const first = findings[0]
-      const isGrouped = first.grouping_id && findings.length > 1
-      const groupTitle = isGrouped ? first.title.split(':')[0] : first.title
-      
-      return {
-        findings,
-        groupTitle,
-        workerGroup: first.worker_group,
-        isGrouped,
-        severity: first.severity,
-      }
-    }).sort((a, b) => {
-      const severityDiff = severityOrder[b.severity] - severityOrder[a.severity]
-      if (severityDiff !== 0) return severityDiff
-      return a.groupTitle.localeCompare(b.groupTitle)
-    })
-  }, [filteredFindings])
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
