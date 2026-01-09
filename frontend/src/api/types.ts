@@ -110,6 +110,8 @@ export interface Finding {
   source_analyzer?: string
   detected_at?: string
   metadata?: Record<string, unknown>
+  worker_group?: string | null
+  grouping_id?: string | null
 }
 
 export interface ComponentVersion {
