@@ -367,16 +367,17 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                 Finding(
                     id="pipelines-orphaned",
                     title=f"Pipelines Disconnected from Routes ({len(orphaned_pipelines)})",
-                    description=f"Found {len(orphaned_pipelines)} pipeline(s) not connected to any route in the data flow topology: "
-                    f"{', '.join(sorted(orphaned_pipelines)[:5])}{'...' if len(orphaned_pipelines) > 5 else ''}. "
-                    f"These pipelines exist but have no route directing data to them. Pack pipelines are excluded as they may use alternative connection methods.",
+                    description=f"Found {len(orphaned_pipelines)} pipeline(s) not connected to any route in the data flow topology. "
+                    f"These pipelines exist but have no route directing data to them. "
+                    f"Pack pipelines are excluded from this analysis as they may use alternative connection methods. "
+                    f"See affected components below for the complete list.",
                     severity="low",
                     category="dataflow_topology",
                     confidence_level="medium",
-                    affected_components=[f"pipeline:{p}" for p in list(orphaned_pipelines)[:10]],
+                    affected_components=[f"pipeline:{p}" for p in sorted(orphaned_pipelines)],
                     estimated_impact="Disconnected pipelines cannot process data unless connected via routes. May indicate incomplete configuration or intentionally unused resources.",
                     remediation_steps=[
-                        "Review each pipeline to determine if it should be connected to a route",
+                        "Review each pipeline in the affected components list to determine if it should be connected",
                         "Create routes to connect pipelines that should process data",
                         "Remove pipelines that are no longer needed",
                         "Document pipelines kept for future use",
