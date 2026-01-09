@@ -152,19 +152,23 @@ export function ResultsPage() {
 
   const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 }
 
-  const filteredFindings = enrichedResults.findings
-    .filter((finding) => {
-      const matchesSeverity = severityFilter === 'all' || finding.severity === severityFilter
-      const matchesCategory = categoryFilter === 'all' || finding.category === categoryFilter
-      const matchesProduct = productFilter === 'all' ||
-        (finding.product_tags && finding.product_tags.includes(productFilter as CriblProduct))
-      return matchesSeverity && matchesCategory && matchesProduct
-    })
-    .sort((a, b) => {
-      const severityDiff = severityOrder[b.severity] - severityOrder[a.severity]
-      if (severityDiff !== 0) return severityDiff
-      return a.category.localeCompare(b.category)
-    })
+  const filteredFindings = useMemo(() => {
+    if (!enrichedResults?.findings) return []
+    
+    return enrichedResults.findings
+      .filter((finding) => {
+        const matchesSeverity = severityFilter === 'all' || finding.severity === severityFilter
+        const matchesCategory = categoryFilter === 'all' || finding.category === categoryFilter
+        const matchesProduct = productFilter === 'all' ||
+          (finding.product_tags && finding.product_tags.includes(productFilter as CriblProduct))
+        return matchesSeverity && matchesCategory && matchesProduct
+      })
+      .sort((a, b) => {
+        const severityDiff = severityOrder[b.severity] - severityOrder[a.severity]
+        if (severityDiff !== 0) return severityDiff
+        return a.category.localeCompare(b.category)
+      })
+  }, [enrichedResults?.findings, severityFilter, categoryFilter, productFilter])
 
   const groupedFindings = useMemo(() => {
     const groups: { [key: string]: Finding[] } = {}
