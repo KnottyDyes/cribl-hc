@@ -63,12 +63,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
 
     def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
-        return [
-            "read:routes",
-            "read:pipelines",
-            "read:inputs",
-            "read:outputs"
-        ]
+        return ["read:routes", "read:pipelines", "read:inputs", "read:outputs"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         """
@@ -119,7 +114,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
             self.log.info(
                 "dataflow_topology_analysis_completed",
                 route_count=len(routes),
-                pipeline_count=len(pipelines)
+                pipeline_count=len(pipelines),
             )
 
         except Exception as e:
@@ -134,7 +129,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         routes: list[dict[str, Any]],
         pipelines: list[dict[str, Any]],
         inputs: list[dict[str, Any]],
-        outputs: list[dict[str, Any]]
+        outputs: list[dict[str, Any]],
     ) -> dict[str, Any]:
         """
         Build a topology graph of data flow.
@@ -169,21 +164,19 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
 
             # Route connects to pipeline
             if pipeline_id:
-                edges.append({
-                    "from": f"route:{route_id}",
-                    "to": f"pipeline:{pipeline_id}",
-                    "type": "route_to_pipeline"
-                })
+                edges.append(
+                    {
+                        "from": f"route:{route_id}",
+                        "to": f"pipeline:{pipeline_id}",
+                        "type": "route_to_pipeline",
+                    }
+                )
                 nodes.add(f"route:{route_id}")
 
             # Route connects to output
             if output_id:
                 source = f"pipeline:{pipeline_id}" if pipeline_id else f"route:{route_id}"
-                edges.append({
-                    "from": source,
-                    "to": f"output:{output_id}",
-                    "type": "to_output"
-                })
+                edges.append({"from": source, "to": f"output:{output_id}", "type": "to_output"})
 
         # Check inputs with QuickConnect
         for inp in inputs:
@@ -195,30 +188,27 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                 pipeline_id = conn.get("pipeline", "")
 
                 if pipeline_id:
-                    edges.append({
-                        "from": f"input:{input_id}",
-                        "to": f"pipeline:{pipeline_id}",
-                        "type": "quickconnect"
-                    })
+                    edges.append(
+                        {
+                            "from": f"input:{input_id}",
+                            "to": f"pipeline:{pipeline_id}",
+                            "type": "quickconnect",
+                        }
+                    )
                 if output_id:
                     source = f"pipeline:{pipeline_id}" if pipeline_id else f"input:{input_id}"
-                    edges.append({
-                        "from": source,
-                        "to": f"output:{output_id}",
-                        "type": "quickconnect"
-                    })
+                    edges.append(
+                        {"from": source, "to": f"output:{output_id}", "type": "quickconnect"}
+                    )
 
-        return {
-            "nodes": nodes,
-            "edges": edges
-        }
+        return {"nodes": nodes, "edges": edges}
 
     def _analyze_routes(
         self,
         result: AnalyzerResult,
         routes: list[dict[str, Any]],
         pipelines: list[dict[str, Any]],
-        outputs: list[dict[str, Any]]
+        outputs: list[dict[str, Any]],
     ) -> None:
         """Analyze route configuration for issues."""
         pipeline_ids = {p.get("id") for p in pipelines if p.get("id")}
@@ -238,7 +228,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                     id="routes-too-many",
                     title="Many Routes Configured",
                     description=f"Found {len(enabled_routes)} enabled routes. "
-                               f"More than {self.MAX_RECOMMENDED_ROUTES} routes may impact performance.",
+                    f"More than {self.MAX_RECOMMENDED_ROUTES} routes may impact performance.",
                     severity="medium",
                     category="dataflow_topology",
                     confidence_level="medium",
@@ -247,12 +237,12 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                     remediation_steps=[
                         "Consider consolidating similar routes",
                         "Use packs to organize related routes",
-                        "Evaluate if all routes are necessary"
+                        "Evaluate if all routes are necessary",
                     ],
                     metadata={
                         "route_count": len(enabled_routes),
-                        "threshold": self.MAX_RECOMMENDED_ROUTES
-                    }
+                        "threshold": self.MAX_RECOMMENDED_ROUTES,
+                    },
                 )
             )
 
@@ -280,12 +270,9 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                         estimated_impact="Data will not be processed as expected",
                         remediation_steps=[
                             f"Create the missing pipeline '{pipeline_id}'",
-                            f"Or update route '{route_id}' to use an existing pipeline"
+                            f"Or update route '{route_id}' to use an existing pipeline",
                         ],
-                        metadata={
-                            "route_id": route_id,
-                            "missing_pipeline": pipeline_id
-                        }
+                        metadata={"route_id": route_id, "missing_pipeline": pipeline_id},
                     )
                 )
 
@@ -303,12 +290,9 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                         estimated_impact="Data cannot be delivered to destination",
                         remediation_steps=[
                             f"Create the missing output '{output_id}'",
-                            f"Or update route '{route_id}' to use an existing output"
+                            f"Or update route '{route_id}' to use an existing output",
                         ],
-                        metadata={
-                            "route_id": route_id,
-                            "missing_output": output_id
-                        }
+                        metadata={"route_id": route_id, "missing_output": output_id},
                     )
                 )
 
@@ -323,8 +307,8 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                     id="routes-multiple-catchall",
                     title="Multiple Catch-All Routes",
                     description=f"Found {len(catch_all_routes)} routes with no filter (catch-all): "
-                               f"{', '.join(catch_all_routes[:3])}{'...' if len(catch_all_routes) > 3 else ''}. "
-                               f"Only the first catch-all route will receive events.",
+                    f"{', '.join(catch_all_routes[:3])}{'...' if len(catch_all_routes) > 3 else ''}. "
+                    f"Only the first catch-all route will receive events.",
                     severity="medium",
                     category="dataflow_topology",
                     confidence_level="high",
@@ -332,11 +316,9 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                     estimated_impact="Subsequent catch-all routes will never receive data",
                     remediation_steps=[
                         "Add filters to distinguish routes",
-                        "Keep only one catch-all route at the end"
+                        "Keep only one catch-all route at the end",
                     ],
-                    metadata={
-                        "catch_all_routes": catch_all_routes
-                    }
+                    metadata={"catch_all_routes": catch_all_routes},
                 )
             )
 
@@ -346,7 +328,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         routes: list[dict[str, Any]],
         pipelines: list[dict[str, Any]],
         inputs: list[dict[str, Any]],
-        outputs: list[dict[str, Any]]
+        outputs: list[dict[str, Any]],
     ) -> None:
         """Check for orphaned configurations not referenced by routes."""
         # Find all referenced pipelines and outputs
@@ -384,21 +366,22 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
             result.add_finding(
                 Finding(
                     id="pipelines-orphaned",
-                    title=f"Orphaned Pipelines ({len(orphaned_pipelines)})",
-                    description=f"Found {len(orphaned_pipelines)} pipeline(s) not referenced by any route: "
-                               f"{', '.join(sorted(orphaned_pipelines)[:5])}{'...' if len(orphaned_pipelines) > 5 else ''}",
+                    title=f"Pipelines Disconnected from Routes ({len(orphaned_pipelines)})",
+                    description=f"Found {len(orphaned_pipelines)} pipeline(s) not connected to any route in the data flow topology: "
+                    f"{', '.join(sorted(orphaned_pipelines)[:5])}{'...' if len(orphaned_pipelines) > 5 else ''}. "
+                    f"These pipelines exist but have no route directing data to them. Pack pipelines are excluded as they may use alternative connection methods.",
                     severity="low",
                     category="dataflow_topology",
                     confidence_level="medium",
                     affected_components=[f"pipeline:{p}" for p in list(orphaned_pipelines)[:10]],
-                    estimated_impact="Orphaned pipelines may be unused or referenced by packs",
+                    estimated_impact="Disconnected pipelines cannot process data unless connected via routes. May indicate incomplete configuration or intentionally unused resources.",
                     remediation_steps=[
-                        "Verify pipelines are not used by packs",
-                        "Remove truly unused pipelines"
+                        "Review each pipeline to determine if it should be connected to a route",
+                        "Create routes to connect pipelines that should process data",
+                        "Remove pipelines that are no longer needed",
+                        "Document pipelines kept for future use",
                     ],
-                    metadata={
-                        "orphaned_pipelines": sorted(orphaned_pipelines)
-                    }
+                    metadata={"orphaned_pipelines": sorted(orphaned_pipelines)},
                 )
             )
 
@@ -412,7 +395,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                     id="outputs-orphaned",
                     title=f"Orphaned Outputs ({len(orphaned_outputs)})",
                     description=f"Found {len(orphaned_outputs)} output(s) not referenced by any route: "
-                               f"{', '.join(sorted(orphaned_outputs)[:5])}{'...' if len(orphaned_outputs) > 5 else ''}",
+                    f"{', '.join(sorted(orphaned_outputs)[:5])}{'...' if len(orphaned_outputs) > 5 else ''}",
                     severity="low",
                     category="dataflow_topology",
                     confidence_level="medium",
@@ -420,11 +403,9 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                     estimated_impact="Orphaned outputs waste resources and may cause confusion",
                     remediation_steps=[
                         "Verify outputs are not used by packs or external systems",
-                        "Remove truly unused outputs"
+                        "Remove truly unused outputs",
                     ],
-                    metadata={
-                        "orphaned_outputs": sorted(orphaned_outputs)
-                    }
+                    metadata={"orphaned_outputs": sorted(orphaned_outputs)},
                 )
             )
 
@@ -451,7 +432,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                         id=f"output-many-sources-{output_name}",
                         title=f"Output Has Many Sources: {output_name}",
                         description=f"Output '{output_name}' receives data from {count} sources. "
-                                   f"Consider if this is intentional or if consolidation is needed.",
+                        f"Consider if this is intentional or if consolidation is needed.",
                         severity="info",
                         category="dataflow_topology",
                         confidence_level="medium",
@@ -459,20 +440,14 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                         estimated_impact="Many sources to one output can cause bottlenecks",
                         remediation_steps=[
                             "Verify this fan-in pattern is intentional",
-                            "Monitor output for backpressure"
+                            "Monitor output for backpressure",
                         ],
-                        metadata={
-                            "output_id": output_name,
-                            "source_count": count
-                        }
+                        metadata={"output_id": output_name, "source_count": count},
                     )
                 )
 
     def _analyze_cloning(
-        self,
-        result: AnalyzerResult,
-        routes: list[dict[str, Any]],
-        pipelines: list[dict[str, Any]]
+        self, result: AnalyzerResult, routes: list[dict[str, Any]], pipelines: list[dict[str, Any]]
     ) -> None:
         """Analyze cloning patterns for data fan-out."""
         # Check for clone functions in pipelines
@@ -493,7 +468,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                                 id=f"pipeline-excessive-cloning-{pipeline_id}",
                                 title=f"Excessive Cloning in Pipeline: {pipeline_id}",
                                 description=f"Pipeline '{pipeline_id}' clones to {len(clones)} destinations. "
-                                           f"Excessive cloning can impact performance.",
+                                f"Excessive cloning can impact performance.",
                                 severity="medium",
                                 category="dataflow_topology",
                                 confidence_level="high",
@@ -502,12 +477,9 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                                 remediation_steps=[
                                     "Evaluate if all clone destinations are necessary",
                                     "Consider using a dedicated cloning pipeline",
-                                    "Monitor pipeline performance"
+                                    "Monitor pipeline performance",
                                 ],
-                                metadata={
-                                    "pipeline_id": pipeline_id,
-                                    "clone_count": len(clones)
-                                }
+                                metadata={"pipeline_id": pipeline_id, "clone_count": len(clones)},
                             )
                         )
 
@@ -541,7 +513,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                     id="routes-unreachable",
                     title=f"Potentially Unreachable Routes ({len(overlapping_routes)})",
                     description=f"Found {len(overlapping_routes)} route(s) that may be unreachable due to earlier catch-all routes: "
-                               f"{', '.join(overlapping_routes[:3])}{'...' if len(overlapping_routes) > 3 else ''}",
+                    f"{', '.join(overlapping_routes[:3])}{'...' if len(overlapping_routes) > 3 else ''}",
                     severity="medium",
                     category="dataflow_topology",
                     confidence_level="medium",
@@ -550,11 +522,9 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                     remediation_steps=[
                         "Review route ordering",
                         "Add specific filters to earlier routes",
-                        "Remove duplicate or unreachable routes"
+                        "Remove duplicate or unreachable routes",
                     ],
-                    metadata={
-                        "unreachable_routes": overlapping_routes
-                    }
+                    metadata={"unreachable_routes": overlapping_routes},
                 )
             )
 
@@ -564,7 +534,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         routes: list[dict[str, Any]],
         pipelines: list[dict[str, Any]],
         inputs: list[dict[str, Any]],
-        outputs: list[dict[str, Any]]
+        outputs: list[dict[str, Any]],
     ) -> None:
         """Add summary finding for data flow topology."""
         issues = len([f for f in result.findings if f.severity in ("high", "critical", "medium")])
@@ -600,7 +570,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                     "pipeline_count": len(pipelines),
                     "input_count": len(inputs),
                     "output_count": len(outputs),
-                    "issue_count": issues
-                }
+                    "issue_count": issues,
+                },
             )
         )
