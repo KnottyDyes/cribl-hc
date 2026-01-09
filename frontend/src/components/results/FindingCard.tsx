@@ -66,20 +66,29 @@ export function FindingCard({ finding }: FindingCardProps) {
           </div>
         </div>
 
-        {finding.affected_components.length > 0 && (
+        {(finding.affected_components.length > 0 || 
+          (finding.metadata?.orphaned_pipelines && Array.isArray(finding.metadata.orphaned_pipelines))) && (
           <div>
             <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Affected Components
+              {finding.metadata?.orphaned_pipelines && 
+                ` (${finding.metadata.orphaned_pipelines.length} total)`}
             </h5>
             <div className="flex flex-wrap gap-2">
-              {finding.affected_components.map((component, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-300"
-                >
-                  {component}
-                </span>
-              ))}
+              {(() => {
+                const components = finding.metadata?.orphaned_pipelines 
+                  ? (finding.metadata.orphaned_pipelines as string[]).map(p => `pipeline:${p}`)
+                  : finding.affected_components
+                
+                return components.map((component, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-300"
+                  >
+                    {component}
+                  </span>
+                ))
+              })()}
             </div>
           </div>
         )}

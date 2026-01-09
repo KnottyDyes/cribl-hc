@@ -95,21 +95,28 @@ export function GroupedFindingCard({ findings, groupTitle, workerGroup }: Groupe
             Affected Components
           </h5>
           <div className="flex flex-wrap gap-2">
-            {findings.slice(0, isExpanded ? undefined : 5).map((finding, idx) => (
-              finding.affected_components.map((component, compIdx) => (
-                <span
-                  key={`${idx}-${compIdx}`}
-                  className="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-300"
-                >
-                  {component}
-                </span>
-              ))
-            ))}
-            {!isExpanded && findings.length > 5 && (
-              <span className="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-500 dark:text-gray-400">
-                +{findings.length - 5} more
-              </span>
-            )}
+            {(() => {
+              const allComponents = findings.flatMap(f => f.affected_components)
+              const displayComponents = isExpanded ? allComponents : allComponents.slice(0, 10)
+              
+              return (
+                <>
+                  {displayComponents.map((component, idx) => (
+                    <span
+                      key={`${component}-${idx}`}
+                      className="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-300"
+                    >
+                      {component}
+                    </span>
+                  ))}
+                  {!isExpanded && allComponents.length > 10 && (
+                    <span className="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-500 dark:text-gray-400">
+                      +{allComponents.length - 10} more
+                    </span>
+                  )}
+                </>
+              )
+            })()}
           </div>
         </div>
 
