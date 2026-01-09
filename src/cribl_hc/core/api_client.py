@@ -570,8 +570,17 @@ class CriblAPIClient:
             response = await self._client.post(endpoint, json=payload)
 
         response.raise_for_status()
-        data = response.json()
-        return data.get("items", [])
+
+        # Handle streaming JSON response
+        events = []
+        for line in response.text.strip().split("\n"):
+            if line:
+                try:
+                    events.append(json.loads(line))
+                except json.JSONDecodeError:
+                    self.log.warning("json_decode_error_in_capture", line=line)
+
+        return events
 
     def get_api_calls_used(self) -> int:
         return self.rate_limiter.total_calls_made
