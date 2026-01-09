@@ -254,41 +254,43 @@ class CriblAPIClient:
         async with self.rate_limiter:
             return await self._client.get(endpoint, **kwargs)
 
+    async def _get_data_or_empty(
+        self, endpoint: str, default: Any = None, extract_items: bool = True
+    ) -> Any:
+        if default is None:
+            default = []
+        try:
+            response = await self.get(endpoint)
+            response.raise_for_status()
+            json_data = response.json()
+            if extract_items:
+                return json_data.get("items", default)
+            return json_data
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return default
+            raise
+
     async def get_pipelines(self) -> list[dict[str, Any]]:
-        response = await self.get(self._build_config_endpoint("pipelines"))
-        response.raise_for_status()
-        return response.json().get("items", [])
+        return await self._get_data_or_empty(self._build_config_endpoint("pipelines"))
 
     async def get_routes(self) -> list[dict[str, Any]]:
-        response = await self.get(self._build_config_endpoint("routes"))
-        response.raise_for_status()
-        return response.json().get("items", [])
+        return await self._get_data_or_empty(self._build_config_endpoint("routes"))
 
     async def get_inputs(self) -> list[dict[str, Any]]:
-        response = await self.get(self._build_config_endpoint("inputs"))
-        response.raise_for_status()
-        return response.json().get("items", [])
+        return await self._get_data_or_empty(self._build_config_endpoint("inputs"))
 
     async def get_outputs(self) -> list[dict[str, Any]]:
-        response = await self.get(self._build_config_endpoint("outputs"))
-        response.raise_for_status()
-        return response.json().get("items", [])
+        return await self._get_data_or_empty(self._build_config_endpoint("outputs"))
 
     async def get_parsers(self) -> list[dict[str, Any]]:
-        endpoint = self._build_config_endpoint("parsers")
-        response = await self.get(endpoint)
-        response.raise_for_status()
-        return response.json().get("items", [])
+        return await self._get_data_or_empty(self._build_config_endpoint("parsers"))
 
     async def get_workers(self) -> list[dict[str, Any]]:
-        response = await self.get("/api/v1/master/workers")
-        response.raise_for_status()
-        return response.json().get("items", [])
+        return await self._get_data_or_empty("/api/v1/master/workers")
 
     async def get_worker_groups(self) -> list[dict[str, Any]]:
-        response = await self.get("/api/v1/master/groups")
-        response.raise_for_status()
-        return response.json().get("items", [])
+        return await self._get_data_or_empty("/api/v1/master/groups")
 
     def get_worker_group_type(self, group: dict[str, Any]) -> str:
         """
@@ -347,15 +349,13 @@ class CriblAPIClient:
         return by_type
 
     async def get_master_summary(self) -> dict[str, Any]:
-        response = await self.get("/api/v1/master/summary")
-        response.raise_for_status()
-        return response.json()
+        return await self._get_data_or_empty(
+            "/api/v1/master/summary", default={}, extract_items=False
+        )
 
     async def get_nodes(self) -> list[dict[str, Any]]:
         endpoint = "/api/v1/edge/nodes" if self.is_edge else "/api/v1/master/workers"
-        response = await self.get(endpoint)
-        response.raise_for_status()
-        return response.json().get("items", [])
+        return await self._get_data_or_empty(endpoint)
 
     def _normalize_node_data(self, node: dict[str, Any]) -> dict[str, Any]:
         return node
@@ -440,10 +440,7 @@ class CriblAPIClient:
             return []
 
     async def get_lookups(self) -> list[dict[str, Any]]:
-        endpoint = self._build_config_endpoint("lookups")
-        response = await self.get(endpoint)
-        response.raise_for_status()
-        return response.json().get("items", [])
+        return await self._get_data_or_empty(self._build_config_endpoint("lookups"))
 
     async def get_notification_targets(self) -> list[dict[str, Any]]:
         try:
