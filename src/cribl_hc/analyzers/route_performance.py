@@ -242,7 +242,7 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
             return 0.0
 
         sorted_data = sorted(data)
-        index = math.ceil((percentile / 100) * len(sorted_data)) - 1
+        index = int((percentile / 100) * (len(sorted_data) - 1))
         index = max(0, min(index, len(sorted_data) - 1))
         return sorted_data[index]
 

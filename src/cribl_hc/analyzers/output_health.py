@@ -177,6 +177,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
                         title=f"Missing Authentication: {output_id}",
                         description=f"Output '{output_id}' ({output_type}) is missing required authentication token.",
                         confidence_level="high",
+                        estimated_impact="Output will fail to deliver data without authentication.",
                         remediation_steps=[
                             "Configure authentication token for the output",
                             "Verify destination credentials",
@@ -269,6 +270,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
                         title=f"Elevated Output Error Rate: {output_id}",
                         description=f"Output '{output_id}' has >5% failure rate ({error_rate:.1f}%).",
                         confidence_level="high",
+                        estimated_impact=f"Approximately {error_rate:.1f}% of data may be lost.",
                         remediation_steps=[
                             "Monitor destination performance",
                             "Check for intermittent network issues",

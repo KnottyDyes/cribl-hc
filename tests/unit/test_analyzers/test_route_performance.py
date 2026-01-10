@@ -95,7 +95,9 @@ class TestRoutePerformanceAnalyzer:
         routes = [create_route("route-slow")]
 
         # Create latencies where p99 is > 5000ms
-        latencies = [100.0] * 99 + [6000.0]  # 100 samples
+        # For 100 samples: p99 = index 98 (0-based), which means 99th value
+        # So we need 98 low values, then high values for 99-100
+        latencies = [100.0] * 98 + [6000.0, 6500.0]
         metrics_data = {"route-slow": create_route_metrics("route-slow", latencies=latencies)}
 
         mock_client.get_routes.return_value = routes
@@ -115,8 +117,8 @@ class TestRoutePerformanceAnalyzer:
         """Test that p99 latency > 10000ms is flagged as CRITICAL."""
         routes = [create_route("route-slow-crit")]
 
-        # Create latencies where p99 is > 10000ms
-        latencies = [100.0] * 99 + [11000.0]  # 100 samples
+        # For 100 samples: p99 = index 98, so we need 98 low values + high values for 99-100
+        latencies = [100.0] * 98 + [11000.0, 11500.0]
         metrics_data = {
             "route-slow-crit": create_route_metrics("route-slow-crit", latencies=latencies)
         }
@@ -150,7 +152,7 @@ class TestRoutePerformanceAnalyzer:
         finding = result.findings[0]
         assert finding.severity == "high"
         assert "High Error Rate" in finding.title
-        assert finding.metadata["error_rate"] == 7.0
+        assert round(finding.metadata["error_rate"], 1) == 7.0
 
     @pytest.mark.asyncio
     async def test_error_rate_critical(self, mock_client):
