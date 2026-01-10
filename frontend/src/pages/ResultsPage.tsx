@@ -92,13 +92,14 @@ export function ResultsPage() {
   }, [enrichedResults, severityFilter, categoryFilter, productFilter])
 
   const groupedFindings = useMemo(() => {
-    const workerGroupMap: { [key: string]: { [key: string]: Finding[] } } = {}
-    
-    filteredFindings.forEach((finding) => {
-      const workerGroup = finding.worker_group || 'default'
-      if (!workerGroupMap[workerGroup]) {
-        workerGroupMap[workerGroup] = {}
-      }
+     const workerGroupMap: { [key: string]: { [key: string]: Finding[] } } = {}
+     
+     filteredFindings.forEach((finding) => {
+       // Global findings (no worker_group) are separate from default worker group
+       const workerGroup = finding.worker_group === null || finding.worker_group === undefined ? '__global__' : finding.worker_group
+       if (!workerGroupMap[workerGroup]) {
+         workerGroupMap[workerGroup] = {}
+       }
       
       const groupKey = finding.grouping_id || finding.id
       if (!workerGroupMap[workerGroup][groupKey]) {
@@ -312,34 +313,38 @@ export function ResultsPage() {
               <p className="text-gray-500 dark:text-gray-400">No findings match the selected filters.</p>
             </div>
           ) : (
-            Object.entries(
-              groupedFindings.reduce(
-                (acc, group) => {
-                  const wg = group.workerGroup || 'default'
-                  if (!acc[wg]) acc[wg] = []
-                  acc[wg].push(group)
-                  return acc
-                },
-                {} as Record<string, typeof groupedFindings>
-              )
-            ).map(([workerGroup, groups]) => {
-              const isCollapsed = collapsedGroups.has(workerGroup)
-              return (
-                <div key={workerGroup} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                  <button
-                    onClick={() => toggleWorkerGroupCollapse(workerGroup)}
-                    className="w-full px-4 py-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    {isCollapsed ? (
-                      <ChevronRightIcon className="h-5 w-5 text-gray-400" />
-                    ) : (
-                      <ChevronDownIcon className="h-5 w-5 text-gray-400" />
-                    )}
-                    <div className="flex-1 text-left">
-                      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        {workerGroup === 'default' ? 'Default Worker Group' : `Worker Group: ${workerGroup}`}
-                      </h2>
-                    </div>
+             Object.entries(
+               groupedFindings.reduce(
+                 (acc, group) => {
+                   const wg = group.workerGroup
+                   if (!acc[wg]) acc[wg] = []
+                   acc[wg].push(group)
+                   return acc
+                 },
+                 {} as Record<string, typeof groupedFindings>
+               )
+             ).map(([workerGroup, groups]) => {
+               const isCollapsed = collapsedGroups.has(workerGroup)
+               const displayName = 
+                 workerGroup === '__global__' ? 'Global Findings' :
+                 workerGroup === 'default' ? 'Default Worker Group' : 
+                 `Worker Group: ${workerGroup}`
+               return (
+                 <div key={workerGroup} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                   <button
+                     onClick={() => toggleWorkerGroupCollapse(workerGroup)}
+                     className="w-full px-4 py-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                   >
+                     {isCollapsed ? (
+                       <ChevronRightIcon className="h-5 w-5 text-gray-400" />
+                     ) : (
+                       <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+                     )}
+                     <div className="flex-1 text-left">
+                       <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                         {displayName}
+                       </h2>
+                     </div>
                     <span className="text-sm text-gray-500 dark:text-gray-400">
                       {groups.length} finding{groups.length !== 1 ? 's' : ''}
                     </span>
