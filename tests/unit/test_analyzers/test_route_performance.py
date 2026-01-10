@@ -1,5 +1,6 @@
 import pytest
 import math
+from typing import Optional, List
 from unittest.mock import AsyncMock, MagicMock
 
 from cribl_hc.analyzers.route_performance import RoutePerformanceAnalyzer
@@ -15,7 +16,7 @@ def create_route_metrics(
     events_in: int = 1000,
     events_out: int = 1000,
     errors: int = 0,
-    latencies: list[float] = None,
+    latencies: Optional[List[float]] = None,
     processing_time_ms: float = 100.0,
 ) -> dict:
     if latencies is None:

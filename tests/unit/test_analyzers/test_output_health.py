@@ -212,4 +212,5 @@ class TestOutputDestinationAnalyzer:
         result = await analyzer.analyze(mock_client)
 
         assert result.success is False
+        assert result.error is not None
         assert "API Failure" in result.error
