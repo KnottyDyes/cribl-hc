@@ -277,6 +277,8 @@ from cribl_hc.analyzers.health import HealthAnalyzer  # noqa: E402
 from cribl_hc.analyzers.input_health import InputSourceAnalyzer  # noqa: E402
 from cribl_hc.analyzers.lookup_health import LookupHealthAnalyzer  # noqa: E402
 from cribl_hc.analyzers.output_health import OutputDestinationAnalyzer  # noqa: E402
+from cribl_hc.analyzers.notification_delivery import NotificationDeliveryAnalyzer  # noqa: E402
+from cribl_hc.analyzers.parser_quality import ParserQualityAnalyzer  # noqa: E402
 from cribl_hc.analyzers.pipeline_performance import PipelinePerformanceAnalyzer  # noqa: E402
 from cribl_hc.analyzers.predictive import PredictiveAnalyzer  # noqa: E402
 from cribl_hc.analyzers.resource import ResourceAnalyzer  # noqa: E402
@@ -307,3 +309,5 @@ register_analyzer(FreshnessAnalyzer)
 register_analyzer(InputSourceAnalyzer)
 register_analyzer(OutputDestinationAnalyzer)
 register_analyzer(RoutePerformanceAnalyzer)
+register_analyzer(ParserQualityAnalyzer)
+register_analyzer(NotificationDeliveryAnalyzer)
