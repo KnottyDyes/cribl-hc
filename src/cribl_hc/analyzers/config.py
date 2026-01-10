@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, List
+from typing import Any
 
 import structlog
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.recommendation import Recommendation
 from cribl_hc.rules.loader import RuleEvaluator, RuleLoader
 
 log = structlog.get_logger(__name__)
@@ -69,7 +68,8 @@ class ConfigAnalyzer(BaseAnalyzer):
         self._current_worker_group = client.worker_group
         try:
             pipelines = await self._fetch_pipelines(client)
-            routes = await self._fetch_routes(client)
+            routes_objects = await self._fetch_routes(client)
+            routes = self._flatten_routes(routes_objects)
             inputs = await self._fetch_inputs(client)
             outputs = await self._fetch_outputs(client)
 
@@ -147,6 +147,30 @@ class ConfigAnalyzer(BaseAnalyzer):
         except Exception:
             return []
 
+    def _flatten_routes(self, routes_objects: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """
+        Flatten Routes objects to individual routes.
+
+        The Cribl API returns Routes objects (routing tables) which contain nested routes.
+        This method extracts all individual routes from all Routes objects.
+
+        Args:
+            routes_objects: List of Routes objects from API
+
+        Returns:
+            Flat list of individual route configurations
+        """
+        flattened = []
+        for routes_obj in routes_objects:
+            # Each Routes object has a 'routes' array containing individual routes
+            nested_routes = routes_obj.get("routes", [])
+            if isinstance(nested_routes, list):
+                flattened.extend(nested_routes)
+            # If routes_obj IS a route (backward compatibility), add it directly
+            elif routes_obj.get("filter") or routes_obj.get("pipeline"):
+                flattened.append(routes_obj)
+        return flattened
+
     def _validate_pipeline_syntax(
         self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
@@ -171,6 +195,25 @@ class ConfigAnalyzer(BaseAnalyzer):
                 continue
             functions = pipeline.get("functions") or pipeline.get("conf", {}).get("functions")
             if functions is None:
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id=f"config-syntax-{pipeline_id}-missing-functions",
+                        grouping_id="config-syntax-missing-functions",
+                        category="config",
+                        severity="high",
+                        title=f"Pipeline Missing 'functions' Field: {pipeline_id}",
+                        description=f"Pipeline '{pipeline_id}' is missing required 'functions' field.",
+                        affected_components=[f"pipeline-{pipeline_id}"],
+                        confidence_level="high",
+                        estimated_impact="Pipeline cannot process data without function definitions.",
+                        remediation_steps=[
+                            f"Edit pipeline '{pipeline_id}' to add 'functions' array.",
+                            "Define at least one function to process data.",
+                            "Test pipeline after adding functions.",
+                        ],
+                    )
+                )
                 continue
             if not isinstance(functions, list):
                 continue
@@ -424,7 +467,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                 remediation_steps=[
                     step.format(component_id=component_id) for step in rule.remediation_steps
                 ],
-                estimated_impact=rule.estimated_impact,
+                estimated_impact=rule.estimated_impact or "",
             )
         )
 

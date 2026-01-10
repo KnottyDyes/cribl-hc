@@ -62,15 +62,17 @@ class BestPracticeRule(BaseModel):
         ..., description="Severity when violated"
     )
     documentation_link: str = Field(..., description="Cribl docs URL", min_length=1)
+    remediation_steps: list[str] = Field(
+        default_factory=list, description="Steps to remediate the violation"
+    )
+    estimated_impact: str | None = Field(
+        None, description="Expected impact if remediation is applied"
+    )
     cribl_version_min: str | None = Field(
-        None,
-        description="Minimum Cribl version",
-        pattern=r"^\d+\.\d+\.\d+$"
+        None, description="Minimum Cribl version", pattern=r"^\d+\.\d+\.\d+$"
     )
     cribl_version_max: str | None = Field(
-        None,
-        description="Maximum Cribl version (for deprecated rules)",
-        pattern=r"^\d+\.\d+\.\d+$"
+        None, description="Maximum Cribl version (for deprecated rules)", pattern=r"^\d+\.\d+\.\d+$"
     )
     enabled: bool = Field(True, description="Whether rule is enabled")
 
