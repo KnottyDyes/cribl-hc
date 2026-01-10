@@ -91,30 +91,52 @@ export function ResultsPage() {
   }, [enrichedResults, severityFilter, categoryFilter, productFilter])
 
   const groupedFindings = useMemo(() => {
-    const groups: { [key: string]: Finding[] } = {}
+    const workerGroupMap: { [key: string]: { [key: string]: Finding[] } } = {}
     
     filteredFindings.forEach((finding) => {
-      const groupKey = `${finding.grouping_id || finding.id}-${finding.worker_group || 'default'}`
-      if (!groups[groupKey]) {
-        groups[groupKey] = []
+      const workerGroup = finding.worker_group || 'default'
+      if (!workerGroupMap[workerGroup]) {
+        workerGroupMap[workerGroup] = {}
       }
-      groups[groupKey].push(finding)
+      
+      const groupKey = finding.grouping_id || finding.id
+      if (!workerGroupMap[workerGroup][groupKey]) {
+        workerGroupMap[workerGroup][groupKey] = []
+      }
+      workerGroupMap[workerGroup][groupKey].push(finding)
     })
 
-    return Object.values(groups).map((findings) => {
-      const first = findings[0]
-      const isGrouped = first.grouping_id && findings.length > 1
-      const groupTitle = isGrouped ? first.title.split(':')[0] : first.title
-      
-      return {
-        findings,
-        groupTitle,
-        workerGroup: first.worker_group,
-        isGrouped,
-        severity: first.severity,
+    const result: Array<{
+      findings: Finding[]
+      groupTitle: string
+      workerGroup: string
+      isGrouped: boolean
+      severity: string
+    }> = []
+
+    Object.entries(workerGroupMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([workerGroup, groups]) => {
+        Object.entries(groups).forEach(([, findings]) => {
+          const first = findings[0]
+          const isGrouped = !!first.grouping_id && findings.length > 1
+          const groupTitle = isGrouped ? first.title.split(':')[0] : first.title
+          
+          result.push({
+            findings,
+            groupTitle,
+            workerGroup,
+            isGrouped,
+            severity: first.severity,
+          })
+        })
+      })
+
+    return result.sort((a, b) => {
+      if (a.workerGroup !== b.workerGroup) {
+        return a.workerGroup.localeCompare(b.workerGroup)
       }
-    }).sort((a, b) => {
-      const severityDiff = SEVERITY_ORDER[b.severity] - SEVERITY_ORDER[a.severity]
+      const severityDiff = SEVERITY_ORDER[b.severity as keyof typeof SEVERITY_ORDER] - SEVERITY_ORDER[a.severity as keyof typeof SEVERITY_ORDER]
       if (severityDiff !== 0) return severityDiff
       return a.groupTitle.localeCompare(b.groupTitle)
     })
@@ -273,23 +295,47 @@ export function ResultsPage() {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           {groupedFindings.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
               <p className="text-gray-500 dark:text-gray-400">No findings match the selected filters.</p>
             </div>
           ) : (
-            groupedFindings.map((group, idx) => (
-              group.isGrouped ? (
-                <GroupedFindingCard
-                  key={`${group.findings[0].grouping_id}-${group.workerGroup}-${idx}`}
-                  findings={group.findings}
-                  groupTitle={group.groupTitle}
-                  workerGroup={group.workerGroup}
-                />
-              ) : (
-                <FindingCard key={group.findings[0].id} finding={group.findings[0]} />
+            Object.entries(
+              groupedFindings.reduce(
+                (acc, group) => {
+                  const wg = group.workerGroup || 'default'
+                  if (!acc[wg]) acc[wg] = []
+                  acc[wg].push(group)
+                  return acc
+                },
+                {} as Record<string, typeof groupedFindings>
               )
+            ).map(([workerGroup, groups]) => (
+              <div key={workerGroup}>
+                <div className="mb-4 flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    {workerGroup === 'default' ? 'Default Worker Group' : `Worker Group: ${workerGroup}`}
+                  </h2>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    ({groups.length} finding{groups.length !== 1 ? 's' : ''})
+                  </span>
+                </div>
+                <div className="space-y-4">
+                  {groups.map((group, idx) => (
+                    group.isGrouped ? (
+                      <GroupedFindingCard
+                        key={`${group.findings[0].grouping_id}-${group.workerGroup}-${idx}`}
+                        findings={group.findings}
+                        groupTitle={group.groupTitle}
+                        workerGroup={group.workerGroup}
+                      />
+                    ) : (
+                      <FindingCard key={group.findings[0].id} finding={group.findings[0]} />
+                    )
+                  ))}
+                </div>
+              </div>
             ))
           )}
         </div>

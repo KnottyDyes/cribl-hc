@@ -524,12 +524,12 @@ From Core API spec, these endpoints are available but not used:
 ## Next Steps
 
 ### Immediate (This Week)
-- [x] Complete Regex Efficiency Analyzer (10% remaining work)
+- [ ] Complete Regex Efficiency Analyzer (10% remaining work)
   - Route filter expression validation in `ConfigAnalyzer`
   - Input-to-pipeline filter validation in `SchemaQualityAnalyzer`
   - Add comprehensive test coverage
-- [x] Update documentation to reflect P1-P2 completion
-- [x] Review and consolidate P3 feature planning
+- [ ] Update documentation to reflect P1-P2 completion
+- [ ] Review and consolidate P3 feature planning
 
 ### Short-term (Next 2 Weeks)
 - [ ] Begin Phase B feature implementation
