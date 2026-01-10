@@ -71,7 +71,7 @@ class SecurityAnalyzer(BaseAnalyzer):
         """
         Estimate API calls needed.
         """
-        return 9
+        return 10
 
     def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
@@ -79,7 +79,7 @@ class SecurityAnalyzer(BaseAnalyzer):
             "read:outputs",
             "read:inputs",
             "read:auth",
-            "read:system",
+            "read:security",
             "read:certificates",
             "read:roles",
             "read:users",
@@ -102,6 +102,11 @@ class SecurityAnalyzer(BaseAnalyzer):
             outputs = await client.get_outputs() or []
             inputs = await client.get_inputs() or []
             auth_config = await client.get_auth_config() or {}
+            try:
+                security_settings = await client.get_security_settings() or {}
+            except Exception as e:
+                log.warning("security_settings_fetch_failed", error=str(e))
+                security_settings = {}
             certificates = await client.get_certificates() or []
             roles = await client.get_roles() or []
             users = await client.get_users() or []
@@ -115,6 +120,7 @@ class SecurityAnalyzer(BaseAnalyzer):
             self._analyze_rbac(roles, users, result, client)
             self._analyze_api_keys(api_keys, result, client)
             self._analyze_teams(teams, result, client)
+            self._analyze_guard_policies(security_settings, result, client)
 
             security_score = self._calculate_security_score(
                 outputs, inputs, auth_config, tls_issues, secret_issues, auth_issues
@@ -632,6 +638,63 @@ class SecurityAnalyzer(BaseAnalyzer):
                         estimated_impact="Unnecessary configuration complexity",
                     )
                 )
+
+    def _analyze_guard_policies(
+        self, security_settings: dict[str, Any], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
+        if not isinstance(security_settings, dict) or not security_settings:
+            return
+
+        policies: list[dict[str, Any]] = []
+        candidates = [security_settings]
+        guard_settings = security_settings.get("guard")
+        if isinstance(guard_settings, dict):
+            candidates.append(guard_settings)
+        masking_settings = security_settings.get("masking")
+        if isinstance(masking_settings, dict):
+            candidates.append(masking_settings)
+
+        for candidate in candidates:
+            if not isinstance(candidate, dict):
+                continue
+            for key in ("maskingPolicies", "masking_policies", "policies", "maskingPoliciesList"):
+                value = candidate.get(key)
+                if isinstance(value, list):
+                    policies = value
+                    break
+            if policies:
+                break
+
+        enabled_policies = [p for p in policies if p.get("enabled", True)]
+        result.metadata["guard_policy_count"] = len(policies)
+        result.metadata["guard_policy_enabled_count"] = len(enabled_policies)
+
+        if enabled_policies:
+            return
+
+        affected = [p.get("id", "unknown") for p in policies] if policies else ["guard"]
+        result.add_finding(
+            self.create_finding(
+                client=client,
+                id="security-guard-masking-policies",
+                grouping_id="security-guard-masking-policies",
+                category="security",
+                severity="medium",
+                title="Cribl Guard Masking Policies Not Active",
+                description="No enabled masking policies were detected for Cribl Guard.",
+                confidence_level="high",
+                affected_components=affected,
+                remediation_steps=[
+                    "Review Cribl Guard masking policies",
+                    "Enable masking policies for high-risk sources",
+                    "Verify Guard is configured for sensitive data",
+                ],
+                metadata={
+                    "policy_count": len(policies),
+                    "enabled_policy_count": len(enabled_policies),
+                },
+            )
+        )
 
     def _calculate_security_score(
         self,

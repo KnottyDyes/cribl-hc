@@ -388,6 +388,14 @@ class CriblAPIClient:
         except Exception:
             return {}
 
+    async def get_security_settings(self) -> dict[str, Any]:
+        try:
+            response = await self.get("/api/v1/system/security")
+            response.raise_for_status()
+            return response.json()
+        except Exception:
+            return {}
+
     async def get_system_messages(self) -> list[dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/messages")
