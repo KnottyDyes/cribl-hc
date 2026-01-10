@@ -501,6 +501,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                     title=f"Orphaned Role: {role_id}",
                     description=f"Role '{role_id}' is defined but not assigned to any user.",
                     confidence_level="medium",
+                    affected_components=[role_id],
                     remediation_steps=[
                         f"If role '{role_id}' is no longer needed, consider deleting it to simplify configuration."
                     ],
