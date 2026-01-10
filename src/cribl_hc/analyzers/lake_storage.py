@@ -121,27 +121,17 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                     log.warning("lake_datasets_fetch_failed", lake_id=lake_id, error=str(e))
 
             datasets = datasets_list_all
-            stats_map = {}
 
-            # Calculate total storage
-            total_storage_bytes = sum(
-                stats_map.get(d.id, DatasetStats(dataset_id=d.id)).size_bytes or 0 for d in datasets
-            )
-            total_storage_gb = total_storage_bytes / (1024**3)
-
-            # Initialize metadata
             result.metadata.update(
                 {
                     "total_datasets": len(datasets),
-                    "total_storage_gb": round(total_storage_gb, 2),
+                    "lakes_analyzed": len(lakes),
                     "json_datasets": sum(1 for d in datasets if d.format == "json"),
                     "parquet_datasets": sum(1 for d in datasets if d.format == "parquet"),
-                    "datasets_with_stats": len(stats_map),
                     "analysis_timestamp": datetime.utcnow().isoformat(),
                 }
             )
 
-            # Handle empty datasets
             if not datasets:
                 result.add_finding(
                     Finding(
@@ -158,27 +148,18 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                 result.success = True
                 return result
 
-            # Analyze each dataset
             potential_savings_gb = 0.0
             for dataset in datasets:
-                stats = stats_map.get(dataset.id)
-                savings = self._analyze_dataset_storage(dataset, stats, result)
+                savings = self._analyze_dataset_storage(dataset, None, result)
                 if savings:
                     potential_savings_gb += savings
 
-            # Add summary metadata
             result.metadata["potential_savings_gb"] = round(potential_savings_gb, 2)
-            result.metadata["potential_savings_percent"] = (
-                round((potential_savings_gb / total_storage_gb * 100), 1)
-                if total_storage_gb > 0
-                else 0
-            )
 
             result.success = True
             log.info(
                 "lake_storage_analysis_completed",
                 datasets=len(datasets),
-                total_storage_gb=round(total_storage_gb, 2),
                 potential_savings_gb=round(potential_savings_gb, 2),
                 findings=len(result.findings),
                 recommendations=len(result.recommendations),
@@ -332,6 +313,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                 before_state=f"{dataset.id}: {round(current_size_gb, 1)}GB JSON format",
                 after_state=f"{dataset.id}: ~{round(current_size_gb - savings_gb, 1)}GB Parquet format",
                 impact_estimate=ImpactEstimate(
+                    cost_savings_annual=round(savings_gb * 12),
                     storage_reduction_gb=round(savings_gb, 2),
                     performance_improvement="Faster query execution with columnar storage",
                     time_to_implement="2-4 hours",
