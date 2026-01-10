@@ -100,34 +100,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
 
             metrics = await client.get_metrics(time_range="1h")
 
-            if not metrics:
-                result.add_finding(
-                    Finding(
-                        id="pipeline-perf-metrics-unavailable",
-                        category="pipeline_performance",
-                        severity="info",
-                        title="Metrics Unavailable for Pipeline Performance Analysis",
-                        description=(
-                            "System metrics are not available for this deployment. "
-                            "Pipeline performance analysis requires runtime metrics data, which is not exposed "
-                            "via API for this deployment type (typically Cribl Cloud). "
-                            "Consider using Cribl's built-in monitoring or infrastructure tools."
-                        ),
-                        affected_components=["Monitoring", "Metrics"],
-                        remediation_steps=[
-                            "Use Cribl's built-in monitoring dashboard",
-                            "Check infrastructure-level metrics (CPU, memory, disk)",
-                            "Review pipeline configurations directly in Cribl UI",
-                        ],
-                        estimated_impact="Limited visibility into pipeline performance",
-                        confidence_level="high",
-                        metadata={"deployment_type": "cloud" if client.is_cloud else "self-hosted"},
-                    )
-                )
-                result.success = True
-                return result
-
-            pipeline_metrics = self._extract_pipeline_metrics(metrics)
+            pipeline_metrics = self._extract_pipeline_metrics(metrics) if metrics else {}
 
             total_functions = sum(len(p.get("functions", [])) for p in pipelines)
 
@@ -267,7 +240,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
     ) -> None:
         """Analyze a single function for performance issues."""
         func_id = func.get("id", f"func-{func_idx}")
-        func_type = func.get("type", func.get("filter", "unknown"))
+        func_type = func.get("type") or func.get("id", "") or func.get("filter", "unknown")
         func_conf = func.get("conf", {})
 
         # Check for disabled functions (still analyzed but noted)
@@ -275,7 +248,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
             return
 
         # Analyze based on function type
-        if func_type in ["regex_extract", "regex_filter"]:
+        if func_type in ["regex_extract", "regex_filter", "regex", "grok"]:
             self._analyze_regex_function(pipeline_id, func_id, func_conf, result)
 
         elif func_type in ["eval", "code"]:
