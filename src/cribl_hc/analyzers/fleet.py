@@ -135,6 +135,7 @@ class FleetAnalyzer(BaseAnalyzer):
                         title=f"Config Deployment In Progress: {group_id}",
                         description=f"Worker group '{group_id}' has {deploying.get('deploying_count')} worker(s) deploying config.",
                         confidence_level="high",
+                        affected_components=[group_id],
                         worker_group=group_id,
                         metadata=deploying,
                     )
@@ -221,6 +222,7 @@ class FleetAnalyzer(BaseAnalyzer):
                         title="Critical Fleet Health Issue",
                         description=f"{unhealthy_workers} of {total_workers} workers are unhealthy.",
                         confidence_level="high",
+                        affected_components=["fleet"],
                         metadata={"unhealthy_pct": round(unhealthy_pct, 1)},
                     )
                 )
@@ -234,6 +236,7 @@ class FleetAnalyzer(BaseAnalyzer):
                         title="Fleet Health Degraded",
                         description=f"{unhealthy_workers} of {total_workers} workers are unhealthy.",
                         confidence_level="high",
+                        affected_components=["fleet"],
                         remediation_steps=[
                             "Investigate unhealthy workers in worker management console",
                             "Check worker logs for error patterns",
@@ -265,6 +268,7 @@ class FleetAnalyzer(BaseAnalyzer):
                     title="Workers with Unknown Status",
                     description=f"{unknown_count} worker(s) are reporting unknown status.",
                     confidence_level="medium",
+                    affected_components=["fleet"],
                     metadata={"unknown_count": unknown_count},
                 )
             )
@@ -296,6 +300,7 @@ class FleetAnalyzer(BaseAnalyzer):
                     title="Hybrid Worker Groups Detected",
                     description=f"Found {len(hybrid_groups)} hybrid worker group(s) with {total_hybrid_workers} workers. These are customer-managed workers in cloud deployments.",
                     confidence_level="high",
+                    affected_components=[g.get("id", "unknown") for g in hybrid_groups],
                     metadata={
                         "hybrid_group_count": len(hybrid_groups),
                         "hybrid_worker_count": total_hybrid_workers,
@@ -319,6 +324,7 @@ class FleetAnalyzer(BaseAnalyzer):
                             title=f"High Throughput Cloud Group: {group.get('name', group.get('id', 'Unknown'))}",
                             description=f"Cloud-managed worker group has high estimated ingest rate: {estimated_rate} KB/sec.",
                             confidence_level="medium",
+                            affected_components=[group.get("id", "unknown")],
                             worker_group=group.get("id", "unknown"),
                             metadata={
                                 "group_id": group.get("id"),
@@ -410,6 +416,7 @@ class FleetAnalyzer(BaseAnalyzer):
                         title="Pipeline Count Drift Across Environments",
                         description="Significant difference in pipeline counts detected.",
                         confidence_level="high",
+                        affected_components=list(pipeline_counts.keys()),
                         remediation_steps=[
                             "Review pipeline configurations across all environments",
                             "Ensure consistent pipeline deployment across environments",
@@ -436,6 +443,7 @@ class FleetAnalyzer(BaseAnalyzer):
                     title="Multiple Deployments Unhealthy",
                     description=f"Multiple deployments are reporting unhealthy status: {', '.join(unhealthy_envs[:3])}{'...' if len(unhealthy_envs) > 3 else ''}",
                     confidence_level="high",
+                    affected_components=unhealthy_envs,
                     remediation_steps=[
                         "Review health status of each affected deployment",
                         "Check for common issues: resource exhaustion, networking, configuration errors",
