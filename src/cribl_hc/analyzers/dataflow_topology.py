@@ -97,7 +97,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
             self._analyze_routes(result, routes, pipelines, outputs)
 
             # Check for orphaned configurations
-            self._check_orphaned_configs(result, routes, pipelines, inputs, outputs)
+            self._check_orphaned_configs(result, routes, pipelines, inputs, outputs, client)
 
             # Analyze data paths
             self._analyze_data_paths(result, topology)
@@ -329,34 +329,41 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         pipelines: list[dict[str, Any]],
         inputs: list[dict[str, Any]],
         outputs: list[dict[str, Any]],
+        client: CriblAPIClient,
     ) -> None:
         """Check for orphaned configurations not referenced by routes."""
         # Find all referenced pipelines and outputs
-        referenced_pipelines = set()
-        referenced_outputs = set()
+        referenced_pipelines: set[str] = set()
+        referenced_outputs: set[str] = set()
 
         for route in routes:
             if not route.get("disabled", False):
-                pipeline = route.get("pipeline", "")
-                output = route.get("output", "")
+                pipeline = route.get("pipeline")
+                output = route.get("output")
                 if pipeline:
-                    referenced_pipelines.add(pipeline)
+                    referenced_pipelines.add(str(pipeline))
                 if output:
-                    referenced_outputs.add(output)
+                    referenced_outputs.add(str(output))
 
         # Check inputs with QuickConnect
         for inp in inputs:
             connections = inp.get("connections", []) or []
             for conn in connections:
-                pipeline = conn.get("pipeline", "")
-                output = conn.get("output", "")
-                if pipeline:
+                pipeline = conn.get("pipeline")
+                if isinstance(pipeline, str) and pipeline:
                     referenced_pipelines.add(pipeline)
-                if output:
+
+                output = conn.get("output")
+                if isinstance(output, str) and output:
                     referenced_outputs.add(output)
 
         # Find orphaned pipelines
-        all_pipelines = {p.get("id") for p in pipelines if p.get("id")}
+        all_pipelines: set[str] = set()
+        for pipeline in pipelines:
+            pipeline_id = pipeline.get("id")
+            if isinstance(pipeline_id, str) and pipeline_id:
+                all_pipelines.add(pipeline_id)
+
         orphaned_pipelines = all_pipelines - referenced_pipelines
 
         # Filter out packs (they have different referencing)
@@ -364,7 +371,8 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
 
         if orphaned_pipelines:
             result.add_finding(
-                Finding(
+                self.create_finding(
+                    client=client,
                     id="pipelines-orphaned",
                     title=f"Pipelines Disconnected from Routes ({len(orphaned_pipelines)})",
                     description=f"Found {len(orphaned_pipelines)} pipeline(s) not connected to any route in the data flow topology. "
@@ -387,12 +395,18 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
             )
 
         # Find orphaned outputs
-        all_outputs = {o.get("id") for o in outputs if o.get("id")}
+        all_outputs: set[str] = set()
+        for output in outputs:
+            output_id = output.get("id")
+            if isinstance(output_id, str) and output_id:
+                all_outputs.add(output_id)
+
         orphaned_outputs = all_outputs - referenced_outputs
 
         if orphaned_outputs:
             result.add_finding(
-                Finding(
+                self.create_finding(
+                    client=client,
                     id="outputs-orphaned",
                     title=f"Orphaned Outputs ({len(orphaned_outputs)})",
                     description=f"Found {len(orphaned_outputs)} output(s) not referenced by any route: "
@@ -400,7 +414,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                     severity="low",
                     category="dataflow_topology",
                     confidence_level="medium",
-                    affected_components=[f"output:{o}" for o in list(orphaned_outputs)[:10]],
+                    affected_components=[f"output:{o}" for o in sorted(orphaned_outputs)[:10]],
                     estimated_impact="Orphaned outputs waste resources and may cause confusion",
                     remediation_steps=[
                         "Verify outputs are not used by packs or external systems",
@@ -501,9 +515,8 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
             is_final = route.get("final", True)
 
             # If a route is final and has no filter, subsequent routes to same output are unreachable
-            if is_final and (not filter_expr or filter_expr == "true"):
-                if output in seen_outputs:
-                    overlapping_routes.append(route_id)
+            if is_final and (not filter_expr or filter_expr == "true") and output in seen_outputs:
+                overlapping_routes.append(route_id)
 
             if output:
                 seen_outputs.add(output)

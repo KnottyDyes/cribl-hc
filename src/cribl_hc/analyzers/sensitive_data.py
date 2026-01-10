@@ -1,9 +1,7 @@
 import re
-from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
 from cribl_hc.utils.logger import get_logger
 
 
@@ -100,7 +98,8 @@ class SensitiveDataAnalyzer(BaseAnalyzer):
                             components = ["event-stream:live-capture"]
 
                         result.add_finding(
-                            Finding(
+                            self.create_finding(
+                                client=client,
                                 id=f"sensitive-data-{key}",
                                 title=f"Sensitive Data Detected: {pattern_def['name']}",
                                 description=f"Found potential {pattern_def['name']} in live event stream during system capture. "
@@ -132,14 +131,15 @@ class SensitiveDataAnalyzer(BaseAnalyzer):
 
             if findings_count == 0:
                 result.add_finding(
-                    Finding(
+                    self.create_finding(
+                        client=client,
                         id="sensitive-data-clean",
                         title="No Sensitive Data Detected",
                         description=f"Scanned {len(events)} events and found no PII/Secrets patterns.",
                         severity="info",
                         category="security",
                         confidence_level="medium",
-                        affected_components=["pipeline:processing"],
+                        affected_components=["event-stream:live-capture"],
                         estimated_impact="None",
                         remediation_steps=[],
                         metadata={"events_scanned": len(events)},
