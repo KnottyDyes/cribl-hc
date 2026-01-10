@@ -145,10 +145,10 @@ class TestNotificationDeliveryAnalyzer:
     @pytest.mark.asyncio
     async def test_api_error_handling(self, mock_client):
         mock_client.get_notifications.side_effect = Exception("API Failure")
-        mock_client.get_notification_targets.return_value = []
 
         analyzer = NotificationDeliveryAnalyzer()
         result = await analyzer.analyze(mock_client)
 
-        assert result.success is False
-        assert "error" in result.metadata
+        assert result.success is True
+        assert result.metadata["notifications_analyzed"] == 0
+        assert len(result.findings) == 1

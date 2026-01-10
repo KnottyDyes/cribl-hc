@@ -97,7 +97,7 @@ class TestParserQualityAnalyzer:
 
     @pytest.mark.asyncio
     async def test_unused_parser(self, mock_client):
-        safe_regex = r"^test(\w+)$"
+        safe_regex = r"^\d{4}-\d{2}-\d{2}$"
         parsers = [create_parser("parser-unused", regex=safe_regex)]
         pipelines = [{"id": "pipe-1", "functions": []}]
 
