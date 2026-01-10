@@ -249,7 +249,9 @@ class BaseAnalyzer(ABC):
         if "worker_group" not in kwargs:
             if "metadata" in kwargs and "worker_group_id" in kwargs["metadata"]:
                 kwargs["worker_group"] = kwargs["metadata"]["worker_group_id"]
-            elif client and hasattr(client, "worker_group"):
+            elif (
+                client and hasattr(client, "worker_group") and isinstance(client.worker_group, str)
+            ):
                 kwargs["worker_group"] = client.worker_group
 
         finding = Finding(**kwargs)

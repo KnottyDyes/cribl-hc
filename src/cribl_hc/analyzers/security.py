@@ -10,9 +10,11 @@ Priority: P2 (Security - critical for compliance and data protection)
 import json
 import re
 from datetime import datetime
-from typing import Any, List
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.utils.logger import get_logger
@@ -400,9 +402,16 @@ class SecurityAnalyzer(BaseAnalyzer):
                 )
 
         inactive_users = 0
+        admin_user_count = 0
+        used_role_ids = set()
         for user in users:
             user_id = user.get("id", user.get("username", "unknown"))
             last_login_str = user.get("lastLogin") or user.get("last_login")
+
+            user_roles = user.get("roles", [])
+            used_role_ids.update(user_roles)
+            if any(role in admin_roles for role in user_roles):
+                admin_user_count += 1
 
             if last_login_str:
                 try:
@@ -433,6 +442,25 @@ class SecurityAnalyzer(BaseAnalyzer):
                 except Exception:
                     pass
 
+        admin_user_threshold = 3
+        if admin_user_count > admin_user_threshold:
+            result.add_finding(
+                self.create_finding(
+                    client=client,
+                    id="security-rbac-too-many-admins",
+                    category="security",
+                    severity="medium",
+                    title="High Number of Admin Users",
+                    description=f"Found {admin_user_count} users with administrative privileges, which exceeds the recommended maximum of {admin_user_threshold}.",
+                    confidence_level="high",
+                    remediation_steps=[
+                        "Review the list of administrative users.",
+                        "Remove unnecessary administrative privileges based on the principle of least privilege.",
+                    ],
+                    estimated_impact="Increased risk of unauthorized changes and security breaches.",
+                )
+            )
+
         if len(users) > 0 and (inactive_users / len(users)) > 0.25:
             result.add_recommendation(
                 Recommendation(
@@ -457,6 +485,29 @@ class SecurityAnalyzer(BaseAnalyzer):
                 )
             )
 
+        all_role_ids = {role.get("id") for role in roles if role.get("id")}
+        orphaned_roles = all_role_ids - used_role_ids
+
+        default_roles = {"default", "admin", "user"}
+        orphaned_roles -= default_roles
+
+        for role_id in orphaned_roles:
+            result.add_finding(
+                self.create_finding(
+                    client=client,
+                    id=f"security-rbac-orphaned-role-{role_id}",
+                    category="security",
+                    severity="low",
+                    title=f"Orphaned Role: {role_id}",
+                    description=f"Role '{role_id}' is defined but not assigned to any user.",
+                    confidence_level="medium",
+                    remediation_steps=[
+                        f"If role '{role_id}' is no longer needed, consider deleting it to simplify configuration."
+                    ],
+                    estimated_impact="Reduces configuration clutter and potential for misassignment.",
+                )
+            )
+
         return issues
 
     def _analyze_api_keys(
@@ -464,6 +515,8 @@ class SecurityAnalyzer(BaseAnalyzer):
     ) -> list[dict[str, Any]]:
         """Analyze API key security."""
         issues = []
+        now = datetime.utcnow()
+
         for key in api_keys:
             key_id = key.get("id", "unknown")
             if not key.get("expiresAt") and not key.get("expires_at"):
@@ -478,6 +531,69 @@ class SecurityAnalyzer(BaseAnalyzer):
                         confidence_level="high",
                         remediation_steps=[f"Set an expiration date for API key '{key_id}'"],
                         estimated_impact="API keys that never expire increase long-term risk",
+                    )
+                )
+
+            last_used_str = key.get("lastUsed")
+            if not last_used_str:
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id=f"security-api-key-never-used-{key_id}",
+                        category="security",
+                        severity="low",
+                        title=f"API Key Never Used: {key_id}",
+                        description=f"API key '{key_id}' has never been used.",
+                        confidence_level="medium",
+                        remediation_steps=[
+                            f"Validate if the API key '{key_id}' is still required. If not, delete it."
+                        ],
+                        estimated_impact="Reduces attack surface by removing unused credentials.",
+                    )
+                )
+            else:
+                try:
+                    if isinstance(last_used_str, (int, float)):
+                        last_used = datetime.utcfromtimestamp(last_used_str / 1000)
+                    else:
+                        last_used = datetime.fromisoformat(
+                            last_used_str.replace("Z", "+00:00").split("+")[0]
+                        )
+                    days_since_used = (now - last_used).days
+                    if days_since_used > 90:
+                        result.add_finding(
+                            self.create_finding(
+                                client=client,
+                                id=f"security-api-key-inactive-{key_id}",
+                                category="security",
+                                severity="medium",
+                                title=f"Inactive API Key: {key_id}",
+                                description=f"API key '{key_id}' has not been used in {days_since_used} days.",
+                                confidence_level="medium",
+                                remediation_steps=[
+                                    f"Consider rotating or deleting the inactive API key '{key_id}'."
+                                ],
+                                estimated_impact="Increased risk from potentially forgotten but active credentials.",
+                            )
+                        )
+                except Exception:
+                    log.warning("failed_to_parse_api_key_last_used", key=key_id)
+
+            perms = key.get("permissions", [])
+            if any(p == "admin" or "*" in str(p) for p in perms):
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id=f"security-api-key-overly-permissive-{key_id}",
+                        category="security",
+                        severity="high",
+                        title=f"Overly Permissive API Key: {key_id}",
+                        description=f"API key '{key_id}' has wildcard or admin permissions.",
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Review and restrict permissions for API key '{key_id}' to the minimum required."
+                        ],
+                        estimated_impact="A compromised key could grant full administrative access.",
                     )
                 )
         return issues

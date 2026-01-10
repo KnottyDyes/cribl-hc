@@ -50,11 +50,11 @@ class TestSearchPerformanceAnalyzer:
                     "cpuMetrics": {
                         "totalCPUSeconds": 5.0,
                         "billableCPUSeconds": 4.0,
-                        "executorsCPUSeconds": 3.0
-                    }
+                        "executorsCPUSeconds": 3.0,
+                    },
                 }
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
 
@@ -80,11 +80,11 @@ class TestSearchPerformanceAnalyzer:
                     "cpuMetrics": {
                         "totalCPUSeconds": 400.0,
                         "billableCPUSeconds": 350.0,
-                        "executorsCPUSeconds": 300.0
-                    }
+                        "executorsCPUSeconds": 300.0,
+                    },
                 }
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
 
@@ -109,11 +109,11 @@ class TestSearchPerformanceAnalyzer:
                     "cpuMetrics": {
                         "totalCPUSeconds": 100.0,
                         "billableCPUSeconds": 80.0,
-                        "executorsCPUSeconds": 70.0
-                    }
+                        "executorsCPUSeconds": 70.0,
+                    },
                 }
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
 
@@ -137,11 +137,11 @@ class TestSearchPerformanceAnalyzer:
                     "cpuMetrics": {
                         "totalCPUSeconds": 100.0,
                         "billableCPUSeconds": 20.0,  # Only 20% efficiency
-                        "executorsCPUSeconds": 80.0
-                    }
+                        "executorsCPUSeconds": 80.0,
+                    },
                 }
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
 
@@ -165,11 +165,11 @@ class TestSearchPerformanceAnalyzer:
                     "cpuMetrics": {
                         "totalCPUSeconds": 50.0,
                         "billableCPUSeconds": 40.0,
-                        "executorsCPUSeconds": 35.0
-                    }
+                        "executorsCPUSeconds": 35.0,
+                    },
                 }
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
 
@@ -195,8 +195,8 @@ class TestSearchPerformanceAnalyzer:
                     "cpuMetrics": {
                         "totalCPUSeconds": 300.0,
                         "billableCPUSeconds": 250.0,
-                        "executorsCPUSeconds": 200.0
-                    }
+                        "executorsCPUSeconds": 200.0,
+                    },
                 },
                 {
                     "id": "job-2",
@@ -205,8 +205,8 @@ class TestSearchPerformanceAnalyzer:
                     "cpuMetrics": {
                         "totalCPUSeconds": 400.0,
                         "billableCPUSeconds": 350.0,
-                        "executorsCPUSeconds": 300.0
-                    }
+                        "executorsCPUSeconds": 300.0,
+                    },
                 },
                 {
                     "id": "job-3",
@@ -215,11 +215,11 @@ class TestSearchPerformanceAnalyzer:
                     "cpuMetrics": {
                         "totalCPUSeconds": 100.0,
                         "billableCPUSeconds": 80.0,
-                        "executorsCPUSeconds": 70.0
-                    }
-                }
+                        "executorsCPUSeconds": 70.0,
+                    },
+                },
             ],
-            "count": 3
+            "count": 3,
         }
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
 
@@ -228,7 +228,11 @@ class TestSearchPerformanceAnalyzer:
         assert result.success is True
         assert result.metadata["total_billable_cpu_seconds"] == 680.0
         # Should have cost optimization recommendation
-        cost_recs = [r for r in result.recommendations if "cost" in r.title.lower() or "cpu" in r.title.lower()]
+        cost_recs = [
+            r
+            for r in result.recommendations
+            if "cost" in r.title.lower() or "cpu" in r.title.lower()
+        ]
         assert len(cost_recs) > 0
 
     @pytest.mark.asyncio
@@ -253,11 +257,11 @@ class TestSearchPerformanceAnalyzer:
                 {
                     "id": "job-no-metrics",
                     "status": "completed",
-                    "query": "cribl dataset='logs' | count"
+                    "query": "cribl dataset='logs' | count",
                     # No cpuMetrics
                 }
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
 
@@ -291,11 +295,11 @@ class TestSearchPerformanceAnalyzer:
                     "cpuMetrics": {
                         "totalCPUSeconds": 100.0,
                         "billableCPUSeconds": 80.0,
-                        "executorsCPUSeconds": 70.0
-                    }
+                        "executorsCPUSeconds": 70.0,
+                    },
                 }
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
 
@@ -316,8 +320,8 @@ class TestSearchPerformanceAnalyzer:
                     "cpuMetrics": {
                         "totalCPUSeconds": 50.0,
                         "billableCPUSeconds": 40.0,
-                        "executorsCPUSeconds": 35.0
-                    }
+                        "executorsCPUSeconds": 35.0,
+                    },
                 },
                 {
                     "id": "job-completed",
@@ -326,11 +330,11 @@ class TestSearchPerformanceAnalyzer:
                     "cpuMetrics": {
                         "totalCPUSeconds": 10.0,
                         "billableCPUSeconds": 8.0,
-                        "executorsCPUSeconds": 7.0
-                    }
-                }
+                        "executorsCPUSeconds": 7.0,
+                    },
+                },
             ],
-            "count": 2
+            "count": 2,
         }
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
 
@@ -354,12 +358,12 @@ class TestSearchPerformanceAnalyzer:
                         {
                             "id": "elem-1",
                             "type": "chart",
-                            "query": "cribl dataset='*' | count by source"
+                            "query": "cribl dataset='*' | count by source",
                         }
-                    ]
+                    ],
                 }
             ],
-            "count": 1
+            "count": 1,
         }
 
         result = await analyzer.analyze(mock_client)
@@ -367,7 +371,11 @@ class TestSearchPerformanceAnalyzer:
         assert result.success is True
         assert result.metadata["dashboards_with_wildcards"] == 1
         # Should have finding for dashboard wildcards
-        wildcard_findings = [f for f in result.findings if "dashboard" in f.title.lower() and "wildcard" in f.title.lower()]
+        wildcard_findings = [
+            f
+            for f in result.findings
+            if "dashboard" in f.title.lower() and "wildcard" in f.title.lower()
+        ]
         assert len(wildcard_findings) > 0
         # Should have recommendation
         assert len(result.recommendations) > 0
@@ -383,18 +391,18 @@ class TestSearchPerformanceAnalyzer:
                     "name": "Dashboard 1",
                     "elements": [
                         {"id": "e1", "type": "chart", "query": "cribl dataset='logs' | count"},
-                        {"id": "e2", "type": "table", "query": "cribl dataset='logs' | head 10"}
-                    ]
+                        {"id": "e2", "type": "table", "query": "cribl dataset='logs' | head 10"},
+                    ],
                 },
                 {
                     "id": "dash-2",
                     "name": "Dashboard 2",
                     "elements": [
                         {"id": "e3", "type": "chart", "query": "cribl dataset='metrics' | count"}
-                    ]
-                }
+                    ],
+                },
             ],
-            "count": 2
+            "count": 2,
         }
 
         result = await analyzer.analyze(mock_client)
@@ -408,14 +416,8 @@ class TestSearchPerformanceAnalyzer:
         """Test analyzer handles dashboards without elements."""
         mock_client.get_search_jobs.return_value = {"items": [], "count": 0}
         mock_client.get_search_dashboards.return_value = {
-            "items": [
-                {
-                    "id": "dash-empty",
-                    "name": "Empty Dashboard",
-                    "elements": []
-                }
-            ],
-            "count": 1
+            "items": [{"id": "dash-empty", "name": "Empty Dashboard", "elements": []}],
+            "count": 1,
         }
 
         result = await analyzer.analyze(mock_client)
@@ -423,3 +425,31 @@ class TestSearchPerformanceAnalyzer:
         assert result.success is True
         assert result.metadata["total_dashboards"] == 1
         assert result.metadata["dashboard_elements_analyzed"] == 0
+
+    @pytest.mark.asyncio
+    async def test_analyze_with_high_cost_job(self, analyzer, mock_client):
+        """Test analyzer with a high-cost search job."""
+        mock_client.get_search_jobs.return_value = {
+            "items": [
+                {
+                    "id": "job-high-cost",
+                    "status": "completed",
+                    "query": "cribl dataset='*' | stats count by _raw",
+                    "cpuMetrics": {
+                        "totalCPUSeconds": 200.0,
+                        "billableCPUSeconds": 180.0,
+                        "executorsCPUSeconds": 150.0,
+                    },
+                }
+            ],
+            "count": 1,
+        }
+        mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
+
+        result = await analyzer.analyze(mock_client)
+
+        assert result.success is True
+        assert result.metadata["high_cpu_jobs"] == 1
+        medium_findings = [f for f in result.findings if f.severity == "medium"]
+        assert len(medium_findings) > 0
+        assert "High CPU" in medium_findings[0].title

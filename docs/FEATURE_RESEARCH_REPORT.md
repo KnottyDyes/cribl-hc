@@ -18,12 +18,12 @@
 
 | Priority | Feature | Value | Effort |
 |----------|---------|-------|--------|
-| 🔴 P1 | Certificate Expiration Monitoring | HIGH | LOW |
-| 🔴 P1 | Enhanced RBAC/User Audit | HIGH | MEDIUM |
-| 🔴 P1 | Config Drift Detection | HIGH | LOW |
-| 🟡 P2 | Notification Target Validation | MEDIUM | LOW |
-| 🟡 P2 | API Key Lifecycle Management | MEDIUM | LOW |
-| 🟡 P2 | System Messages Surfacing | MEDIUM | LOW |
+| 🔴 P1 | ~~Certificate Expiration Monitoring~~ | HIGH | LOW |
+| 🔴 P1 | ~~Enhanced RBAC/User Audit~~ | HIGH | MEDIUM |
+| 🔴 P1 | ~~Config Drift Detection~~ | HIGH | LOW |
+| 🟡 P2 | ~~Notification Target Validation~~ | MEDIUM | LOW |
+| 🟡 P2 | ~~API Key Lifecycle Management~~ | MEDIUM | LOW |
+| 🟡 P2 | ~~System Messages Surfacing~~ | MEDIUM | LOW |
 | 🟢 P3 | Report Branding/Customization | MEDIUM | HIGH |
 | 🟢 P3 | Multi-Deployment Comparison | HIGH | HIGH |
 
@@ -107,14 +107,13 @@ for cert in certificates:
 - `/system/users` ✅ (in client)
 - `/system/roles` ✅ (in client)
 - `/system/teams` ✅ (in client)
-- `/system/policies` ✅ (in client)
 
-**New Checks**:
-1. **Inactive users** (no login in 90+ days)
-2. **Overly permissive roles** (wildcard permissions)
-3. **Empty teams** (teams with no members)
-4. **Orphaned policies** (policies not attached to roles)
-5. **Admin user count** (flag if too many admins)
+**Implemented Checks**:
+- ✅ **Inactive users** (no login in 90+ days)
+- ✅ **Overly permissive roles** (wildcard permissions)
+- ✅ **Empty teams** (teams with no members)
+- ✅ **Orphaned roles** (roles not assigned to any users)
+- ✅ **Admin user count** (flags if >3 users have admin roles)
 
 **Example Finding**:
 ```
@@ -124,7 +123,7 @@ Recommendation: Review and disable or remove inactive accounts.
 ```
 
 **Value**: Security compliance, audit readiness  
-**Effort**: ~4 hours (endpoints exist, need login tracking logic)
+**Effort**: Complete
 
 ---
 
@@ -188,14 +187,14 @@ Recommendation: Trigger re-deployment or investigate stuck workers.
 
 **API Endpoint**: `/system/keys` ✅ (in client)
 
-**New Checks**:
-1. API keys never used
-2. API keys not used in 90+ days
-3. Keys without expiration
-4. Keys with overly broad permissions
+**Implemented Checks**:
+- ✅ API keys never used
+- ✅ API keys not used in 90+ days
+- ✅ Keys without expiration
+- ✅ Keys with overly broad permissions
 
 **Value**: Security hygiene, credential rotation compliance  
-**Effort**: ~2 hours
+**Effort**: Complete
 
 ---
 
