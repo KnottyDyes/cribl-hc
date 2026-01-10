@@ -49,16 +49,14 @@ class LakeStorageAnalyzer(BaseAnalyzer):
 
     def get_estimated_api_calls(self) -> int:
         """
-        Estimate API calls: datasets(1) + stats(1) = 2.
+        Estimate API calls: lakes(1) + datasets per lake(N) = 1+N.
+        Assuming average 2 lakes: ~3 calls.
         """
-        return 2
+        return 3
 
     def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
-        return [
-            "read:lake:datasets",
-            "read:lake:stats"
-        ]
+        return ["read:lake:datasets", "read:lake:stats"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         """
@@ -75,33 +73,73 @@ class LakeStorageAnalyzer(BaseAnalyzer):
         try:
             log.info("lake_storage_analysis_started")
 
-            # Fetch Lake data
-            datasets_response = await client.get_lake_datasets(include_metrics=True)
-            stats_response = await client.get_lake_dataset_stats()
+            try:
+                lakes_response = await client.get_lake_groups()
+                lakes = lakes_response.get("items", [])
+            except Exception as e:
+                log.warning("lake_groups_fetch_failed", error=str(e))
+                result.add_finding(
+                    self.create_finding(
+                        id="lake-unavailable",
+                        category="lake",
+                        severity="warning",
+                        title="Lake Service Unavailable",
+                        description="Lake API is not available in this deployment. Skipping Lake storage analysis.",
+                        remediation="Ensure Lake product is installed and configured.",
+                        metadata={"error": str(e)},
+                    )
+                )
+                return result
 
-            # Parse responses
-            dataset_list = LakeDatasetList(**datasets_response)
-            stats_list = DatasetStatsList(**stats_response)
+            if not lakes:
+                result.add_finding(
+                    self.create_finding(
+                        id="lake-no-lakes",
+                        category="lake",
+                        severity="info",
+                        title="No Lakes Configured",
+                        description="No Lake instances are configured in this deployment.",
+                        remediation="Configure a Lake instance to enable Lake storage analysis.",
+                    )
+                )
+                return result
 
-            datasets = dataset_list.items
-            stats_map = {s.dataset_id: s for s in stats_list.items}
+            datasets_list_all = []
+
+            for lake in lakes:
+                lake_id = lake.get("id")
+                if not lake_id:
+                    continue
+
+                try:
+                    datasets_response = await client.get_lake_datasets(
+                        lake_id, include_metrics=True
+                    )
+                    dataset_list = LakeDatasetList(**datasets_response)
+                    datasets_list_all.extend(dataset_list.items)
+                except Exception as e:
+                    log.warning("lake_datasets_fetch_failed", lake_id=lake_id, error=str(e))
+
+            datasets = datasets_list_all
+            stats_map = {}
 
             # Calculate total storage
             total_storage_bytes = sum(
-                stats_map.get(d.id, DatasetStats(dataset_id=d.id)).size_bytes or 0
-                for d in datasets
+                stats_map.get(d.id, DatasetStats(dataset_id=d.id)).size_bytes or 0 for d in datasets
             )
-            total_storage_gb = total_storage_bytes / (1024 ** 3)
+            total_storage_gb = total_storage_bytes / (1024**3)
 
             # Initialize metadata
-            result.metadata.update({
-                "total_datasets": len(datasets),
-                "total_storage_gb": round(total_storage_gb, 2),
-                "json_datasets": sum(1 for d in datasets if d.format == "json"),
-                "parquet_datasets": sum(1 for d in datasets if d.format == "parquet"),
-                "datasets_with_stats": len(stats_map),
-                "analysis_timestamp": datetime.utcnow().isoformat()
-            })
+            result.metadata.update(
+                {
+                    "total_datasets": len(datasets),
+                    "total_storage_gb": round(total_storage_gb, 2),
+                    "json_datasets": sum(1 for d in datasets if d.format == "json"),
+                    "parquet_datasets": sum(1 for d in datasets if d.format == "parquet"),
+                    "datasets_with_stats": len(stats_map),
+                    "analysis_timestamp": datetime.utcnow().isoformat(),
+                }
+            )
 
             # Handle empty datasets
             if not datasets:
@@ -114,7 +152,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                         description="No datasets are currently configured in Cribl Lake.",
                         affected_components=["Lake"],
                         confidence_level="high",
-                        metadata={"message": "No storage analysis needed."}
+                        metadata={"message": "No storage analysis needed."},
                     )
                 )
                 result.success = True
@@ -132,7 +170,8 @@ class LakeStorageAnalyzer(BaseAnalyzer):
             result.metadata["potential_savings_gb"] = round(potential_savings_gb, 2)
             result.metadata["potential_savings_percent"] = (
                 round((potential_savings_gb / total_storage_gb * 100), 1)
-                if total_storage_gb > 0 else 0
+                if total_storage_gb > 0
+                else 0
             )
 
             result.success = True
@@ -142,7 +181,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                 total_storage_gb=round(total_storage_gb, 2),
                 potential_savings_gb=round(potential_savings_gb, 2),
                 findings=len(result.findings),
-                recommendations=len(result.recommendations)
+                recommendations=len(result.recommendations),
             )
 
         except Exception as e:
@@ -160,17 +199,14 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                     remediation_steps=["Check API connectivity", "Verify Lake is provisioned"],
                     estimated_impact="Cannot assess Lake storage optimization",
                     confidence_level="high",
-                    metadata={"error": str(e)}
+                    metadata={"error": str(e)},
                 )
             )
 
         return result
 
     def _analyze_dataset_storage(
-        self,
-        dataset: LakeDataset,
-        stats: DatasetStats | None,
-        result: AnalyzerResult
+        self, dataset: LakeDataset, stats: DatasetStats | None, result: AnalyzerResult
     ) -> float:
         """
         Analyze storage efficiency for a single dataset.
@@ -182,7 +218,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
 
         # Check for JSON format inefficiency with size data
         if dataset.format == "json" and stats and stats.size_bytes:
-            size_gb = stats.size_bytes / (1024 ** 3)
+            size_gb = stats.size_bytes / (1024**3)
 
             # Only flag large datasets (>10GB) for Parquet conversion
             if size_gb >= 10:
@@ -205,7 +241,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                             f"Create new Parquet dataset: {dataset.id}_parquet",
                             "Configure pipeline to route data to new dataset",
                             "Monitor both datasets during transition",
-                            "Delete old JSON dataset after validation"
+                            "Delete old JSON dataset after validation",
                         ],
                         estimated_impact=f"~{round(estimated_savings_gb, 1)}GB storage reduction",
                         confidence_level="high",
@@ -214,8 +250,8 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                             "current_size_gb": round(size_gb, 2),
                             "current_format": "json",
                             "recommended_format": "parquet",
-                            "estimated_savings_gb": round(estimated_savings_gb, 2)
-                        }
+                            "estimated_savings_gb": round(estimated_savings_gb, 2),
+                        },
                     )
                 )
 
@@ -231,10 +267,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
         return potential_savings
 
     def _analyze_dataset_activity(
-        self,
-        dataset: LakeDataset,
-        stats: DatasetStats,
-        result: AnalyzerResult
+        self, dataset: LakeDataset, stats: DatasetStats, result: AnalyzerResult
     ) -> None:
         """Analyze dataset activity patterns."""
         if not stats.last_updated:
@@ -262,8 +295,8 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                     metadata={
                         "dataset_id": dataset.id,
                         "days_inactive": days_inactive,
-                        "last_updated": last_update_time.isoformat()
-                    }
+                        "last_updated": last_update_time.isoformat(),
+                    },
                 )
             )
 
@@ -272,7 +305,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
         dataset: LakeDataset,
         current_size_gb: float,
         savings_gb: float,
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Add recommendation for format optimization."""
         result.add_recommendation(
@@ -294,16 +327,16 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                     "Update pipeline routing to send data to new dataset",
                     "Monitor data ingestion for 24-48 hours",
                     "Validate query compatibility with Parquet format",
-                    f"Delete old JSON dataset: {dataset.id}"
+                    f"Delete old JSON dataset: {dataset.id}",
                 ],
                 before_state=f"{dataset.id}: {round(current_size_gb, 1)}GB JSON format",
                 after_state=f"{dataset.id}: ~{round(current_size_gb - savings_gb, 1)}GB Parquet format",
                 impact_estimate=ImpactEstimate(
                     storage_reduction_gb=round(savings_gb, 2),
                     performance_improvement="Faster query execution with columnar storage",
-                    time_to_implement="2-4 hours"
+                    time_to_implement="2-4 hours",
                 ),
                 implementation_effort="medium",
-                product_tags=["lake"]
+                product_tags=["lake"],
             )
         )

@@ -534,19 +534,19 @@ class CriblAPIClient:
         response.raise_for_status()
         return response.json()
 
-    async def get_lake_datasets(self, include_metrics: bool = False) -> dict:
+    async def get_lake_groups(self) -> dict:
+        response = await self.get("/api/v1/products/lake/groups")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_lake_datasets(self, lake_id: str, include_metrics: bool = False) -> dict:
         params = {"includeMetrics": str(include_metrics).lower()}
-        response = await self.get("/api/v1/products/lake/datasets", params=params)
+        response = await self.get(f"/api/v1/products/lake/lakes/{lake_id}/datasets", params=params)
         response.raise_for_status()
         return response.json()
 
-    async def get_lake_lakehouses(self) -> dict:
-        response = await self.get("/api/v1/products/lake/lakehouses")
-        response.raise_for_status()
-        return response.json()
-
-    async def get_lake_storage_locations(self, lake_name: str = "default") -> dict:
-        response = await self.get(f"/api/v1/products/lake/lakes/{lake_name}/storage_locations")
+    async def get_lake_storage_locations(self, lake_id: str) -> dict:
+        response = await self.get(f"/api/v1/products/lake/lakes/{lake_id}/storage-locations")
         response.raise_for_status()
         return response.json()
 
