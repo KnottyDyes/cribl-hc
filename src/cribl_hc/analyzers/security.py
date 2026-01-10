@@ -345,6 +345,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                             title=f"Certificate Expired: {cert_id}",
                             description=f"Certificate '{cert_id}' expired {abs(days_until)} days ago.",
                             confidence_level="high",
+                            affected_components=[cert_id],
                             remediation_steps=[f"Renew certificate '{cert_id}' immediately"],
                             estimated_impact="Service disruption for components using this certificate",
                         )
@@ -361,6 +362,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                             title=f"Certificate Expiring Soon: {cert_id}",
                             description=f"Certificate '{cert_id}' expires in {days_until} days.",
                             confidence_level="high",
+                            affected_components=[cert_id],
                             remediation_steps=[f"Renew certificate '{cert_id}'"],
                             estimated_impact="Potential future service disruption",
                         )
@@ -396,6 +398,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                         title=f"Overly Permissive Role: {role_id}",
                         description=f"Role '{role_id}' has wildcard or admin permissions.",
                         confidence_level="high",
+                        affected_components=[role_id],
                         remediation_steps=[f"Review and restrict permissions for role '{role_id}'"],
                         estimated_impact="Users with this role have excessive power",
                     )
@@ -435,6 +438,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                                 title=f"Inactive User Account: {user_id}",
                                 description=f"User '{user_id}' has not logged in for {days_inactive} days.",
                                 confidence_level="medium",
+                                affected_components=[user_id],
                                 remediation_steps=[f"Disable or remove inactive user '{user_id}'"],
                                 estimated_impact="Increased risk of credential misuse",
                             )
@@ -453,6 +457,11 @@ class SecurityAnalyzer(BaseAnalyzer):
                     title="High Number of Admin Users",
                     description=f"Found {admin_user_count} users with administrative privileges, which exceeds the recommended maximum of {admin_user_threshold}.",
                     confidence_level="high",
+                    affected_components=[
+                        user.get("id", user.get("username", "unknown"))
+                        for user in users
+                        if any(role in admin_roles for role in user.get("roles", []))
+                    ],
                     remediation_steps=[
                         "Review the list of administrative users.",
                         "Remove unnecessary administrative privileges based on the principle of least privilege.",
@@ -530,6 +539,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                         title=f"API Key Without Expiration: {key_id}",
                         description=f"API key '{key_id}' does not have an expiration date.",
                         confidence_level="high",
+                        affected_components=[key_id],
                         remediation_steps=[f"Set an expiration date for API key '{key_id}'"],
                         estimated_impact="API keys that never expire increase long-term risk",
                     )
@@ -546,6 +556,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                         title=f"API Key Never Used: {key_id}",
                         description=f"API key '{key_id}' has never been used.",
                         confidence_level="medium",
+                        affected_components=[key_id],
                         remediation_steps=[
                             f"Validate if the API key '{key_id}' is still required. If not, delete it."
                         ],
@@ -571,6 +582,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                                 title=f"Inactive API Key: {key_id}",
                                 description=f"API key '{key_id}' has not been used in {days_since_used} days.",
                                 confidence_level="medium",
+                                affected_components=[key_id],
                                 remediation_steps=[
                                     f"Consider rotating or deleting the inactive API key '{key_id}'."
                                 ],
@@ -591,6 +603,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                         title=f"Overly Permissive API Key: {key_id}",
                         description=f"API key '{key_id}' has wildcard or admin permissions.",
                         confidence_level="high",
+                        affected_components=[key_id],
                         remediation_steps=[
                             f"Review and restrict permissions for API key '{key_id}' to the minimum required."
                         ],
@@ -614,6 +627,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                         title=f"Empty Team: {team.get('id')}",
                         description=f"Team '{team.get('id')}' has no members.",
                         confidence_level="high",
+                        affected_components=[team.get("id", "unknown")],
                         remediation_steps=["Remove empty teams to simplify configuration"],
                         estimated_impact="Unnecessary configuration complexity",
                     )
