@@ -15,8 +15,6 @@ from typing import Any
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
-from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.utils.logger import get_logger
 
 log = get_logger(__name__)
@@ -99,19 +97,59 @@ class SecurityAnalyzer(BaseAnalyzer):
                 "security_analysis_started", product=client.product_type, product_name=product_name
             )
 
-            outputs = await client.get_outputs() or []
-            inputs = await client.get_inputs() or []
-            auth_config = await client.get_auth_config() or {}
+            try:
+                outputs = await client.get_outputs() or []
+            except Exception as e:
+                log.warning("outputs_fetch_failed", error=str(e))
+                outputs = []
+
+            try:
+                inputs = await client.get_inputs() or []
+            except Exception as e:
+                log.warning("inputs_fetch_failed", error=str(e))
+                inputs = []
+
+            try:
+                auth_config = await client.get_auth_config() or {}
+            except Exception as e:
+                log.warning("auth_config_fetch_failed", error=str(e))
+                auth_config = {}
+
             try:
                 security_settings = await client.get_security_settings() or {}
             except Exception as e:
                 log.warning("security_settings_fetch_failed", error=str(e))
                 security_settings = {}
-            certificates = await client.get_certificates() or []
-            roles = await client.get_roles() or []
-            users = await client.get_users() or []
-            api_keys = await client.get_api_keys() or []
-            teams = await client.get_teams() or []
+
+            try:
+                certificates = await client.get_certificates() or []
+            except Exception as e:
+                log.warning("certificates_fetch_failed", error=str(e))
+                certificates = []
+
+            try:
+                roles = await client.get_roles() or []
+            except Exception as e:
+                log.warning("roles_fetch_failed", error=str(e))
+                roles = []
+
+            try:
+                users = await client.get_users() or []
+            except Exception as e:
+                log.warning("users_fetch_failed", error=str(e))
+                users = []
+
+            try:
+                api_keys = await client.get_api_keys() or []
+            except Exception as e:
+                log.warning("api_keys_fetch_failed", error=str(e))
+                api_keys = []
+
+            try:
+                teams = await client.get_teams() or []
+            except Exception as e:
+                log.warning("teams_fetch_failed", error=str(e))
+                teams = []
 
             tls_issues = self._analyze_tls_configuration(outputs, inputs, result, client)
             secret_issues = self._analyze_secrets(outputs, inputs, result, client)
@@ -188,6 +226,28 @@ class SecurityAnalyzer(BaseAnalyzer):
                         confidence_level="high",
                         remediation_steps=[f"Enable TLS for output '{output_id}'"],
                         estimated_impact="Data transmitted in plaintext",
+                    )
+                )
+
+            if tls_conf.get("rejectUnauthorized") is False:
+                tls_issues.append(
+                    {"component": output_id, "type": "output", "issue": "cert_validation_disabled"}
+                )
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id=f"security-cert-validation-disabled-output-{output_id}",
+                        category="security",
+                        severity="high",
+                        title=f"Certificate Validation Disabled: {output_id}",
+                        description=f"Output '{output_id}' disables certificate validation (rejectUnauthorized=false).",
+                        affected_components=[output_id],
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Enable certificate validation for output '{output_id}'",
+                            "Verify destination certificates are trusted",
+                        ],
+                        estimated_impact="Increased risk of man-in-the-middle attacks",
                     )
                 )
 
@@ -407,6 +467,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                         affected_components=[role_id],
                         remediation_steps=[f"Review and restrict permissions for role '{role_id}'"],
                         estimated_impact="Users with this role have excessive power",
+                        metadata={"role_id": role_id, "permissions": perms},
                     )
                 )
 
@@ -414,6 +475,8 @@ class SecurityAnalyzer(BaseAnalyzer):
         admin_user_count = 0
         used_role_ids = set()
         for user in users:
+            if user.get("disabled"):
+                continue
             user_id = user.get("id", user.get("username", "unknown"))
             last_login_str = user.get("lastLogin") or user.get("last_login")
 
@@ -447,6 +510,38 @@ class SecurityAnalyzer(BaseAnalyzer):
                                 affected_components=[user_id],
                                 remediation_steps=[f"Disable or remove inactive user '{user_id}'"],
                                 estimated_impact="Increased risk of credential misuse",
+                            )
+                        )
+                except Exception:
+                    pass
+            else:
+                created_at = user.get("created") or user.get("createdAt")
+                if not created_at:
+                    continue
+                try:
+                    if isinstance(created_at, (int, float)):
+                        created_ts = datetime.utcfromtimestamp(created_at / 1000)
+                    else:
+                        created_ts = datetime.fromisoformat(
+                            created_at.replace("Z", "+00:00").split("+")[0]
+                        )
+                    days_since_created = (now - created_ts).days
+                    if days_since_created > 30:
+                        result.add_finding(
+                            self.create_finding(
+                                client=client,
+                                id=f"security-user-never-logged-in-{user_id}",
+                                category="security",
+                                severity="medium",
+                                title=f"Never Logged In User: {user_id}",
+                                description=f"User '{user_id}' has never logged in since creation ({days_since_created} days).",
+                                confidence_level="medium",
+                                affected_components=[user_id],
+                                remediation_steps=[
+                                    f"Review account '{user_id}' and disable if unused."
+                                ],
+                                estimated_impact="Unused accounts increase the attack surface.",
+                                metadata={"created_at": created_at},
                             )
                         )
                 except Exception:
@@ -548,6 +643,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                         affected_components=[key_id],
                         remediation_steps=[f"Set an expiration date for API key '{key_id}'"],
                         estimated_impact="API keys that never expire increase long-term risk",
+                        metadata={"key_id": key_id},
                     )
                 )
 
@@ -567,6 +663,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                             f"Validate if the API key '{key_id}' is still required. If not, delete it."
                         ],
                         estimated_impact="Reduces attack surface by removing unused credentials.",
+                        metadata={"key_id": key_id},
                     )
                 )
             else:
@@ -593,6 +690,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                                     f"Consider rotating or deleting the inactive API key '{key_id}'."
                                 ],
                                 estimated_impact="Increased risk from potentially forgotten but active credentials.",
+                                metadata={"key_id": key_id, "days_since_used": days_since_used},
                             )
                         )
                 except Exception:
@@ -709,8 +807,12 @@ class SecurityAnalyzer(BaseAnalyzer):
         score = 100
         if auth_config.get("disabled") is True:
             score -= self.SCORE_WEIGHTS["authentication_configured"]
+        if tls_issues:
+            score -= self.SCORE_WEIGHTS["tls_enabled"]
         if secret_issues:
-            score -= min(len(secret_issues) * 5, self.SCORE_WEIGHTS["no_hardcoded_secrets"])
+            score -= self.SCORE_WEIGHTS["no_hardcoded_secrets"]
+        if auth_issues:
+            score -= min(len(auth_issues) * 5, self.SCORE_WEIGHTS["authentication_configured"])
         return max(0, min(100, int(score)))
 
     def _generate_security_recommendations(
