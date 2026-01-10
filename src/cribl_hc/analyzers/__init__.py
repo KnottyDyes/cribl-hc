@@ -274,10 +274,13 @@ from cribl_hc.analyzers.dataflow_topology import DataFlowTopologyAnalyzer  # noq
 from cribl_hc.analyzers.fleet import FleetAnalyzer  # noqa: E402
 from cribl_hc.analyzers.freshness import FreshnessAnalyzer  # noqa: E402
 from cribl_hc.analyzers.health import HealthAnalyzer  # noqa: E402
+from cribl_hc.analyzers.input_health import InputSourceAnalyzer  # noqa: E402
 from cribl_hc.analyzers.lookup_health import LookupHealthAnalyzer  # noqa: E402
+from cribl_hc.analyzers.output_health import OutputDestinationAnalyzer  # noqa: E402
 from cribl_hc.analyzers.pipeline_performance import PipelinePerformanceAnalyzer  # noqa: E402
 from cribl_hc.analyzers.predictive import PredictiveAnalyzer  # noqa: E402
 from cribl_hc.analyzers.resource import ResourceAnalyzer  # noqa: E402
+from cribl_hc.analyzers.route_performance import RoutePerformanceAnalyzer  # noqa: E402
 from cribl_hc.analyzers.schema_quality import SchemaQualityAnalyzer  # noqa: E402
 from cribl_hc.analyzers.security import SecurityAnalyzer  # noqa: E402
 from cribl_hc.analyzers.sensitive_data import SensitiveDataAnalyzer  # noqa: E402
@@ -301,3 +304,6 @@ register_analyzer(DataFlowTopologyAnalyzer)
 register_analyzer(AlertingAnalyzer)
 register_analyzer(VersionControlAnalyzer)
 register_analyzer(FreshnessAnalyzer)
+register_analyzer(InputSourceAnalyzer)
+register_analyzer(OutputDestinationAnalyzer)
+register_analyzer(RoutePerformanceAnalyzer)
