@@ -58,11 +58,20 @@ class CriblAPIClient:
             "Accept": "application/json",
             "User-Agent": "cribl-health-check/1.0",
         }
+        try:
+            import h2  # noqa: F401
+
+            http2_enabled = True
+        except ImportError:
+            http2_enabled = False
+
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             headers=headers,
             timeout=self.timeout,
             follow_redirects=True,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
+            http2=http2_enabled,
         )
         if self._is_cloud and not self._worker_group:
             await self._detect_worker_group()

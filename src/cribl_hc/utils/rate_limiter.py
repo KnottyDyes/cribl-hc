@@ -7,6 +7,7 @@ and implements exponential backoff for retry logic.
 
 import asyncio
 import time
+from collections import deque
 from datetime import datetime, timedelta
 
 from cribl_hc.utils.logger import get_logger
@@ -57,8 +58,8 @@ class RateLimiter:
         self.max_backoff_seconds = max_backoff_seconds
         self.backoff_multiplier = backoff_multiplier
 
-        # Track API calls
-        self.call_timestamps: list[datetime] = []
+        # Track API calls using deque for O(1) operations
+        self.call_timestamps: deque[datetime] = deque(maxlen=max_calls)
         self.total_calls_made = 0
 
         # Backoff state
@@ -89,16 +90,12 @@ class RateLimiter:
                     f"API call budget exhausted ({self.total_calls_made}/{self.max_calls})"
                 )
 
-            # Remove timestamps outside the time window
             cutoff_time = datetime.utcnow() - timedelta(seconds=self.time_window_seconds)
-            self.call_timestamps = [
-                ts for ts in self.call_timestamps if ts > cutoff_time
-            ]
+            while self.call_timestamps and self.call_timestamps[0] <= cutoff_time:
+                self.call_timestamps.popleft()
 
-            # Wait if rate limit exceeded
             while len(self.call_timestamps) >= self.max_calls:
-                # Calculate wait time until oldest call expires
-                oldest_call = min(self.call_timestamps)
+                oldest_call = self.call_timestamps[0]
                 wait_until = oldest_call + timedelta(seconds=self.time_window_seconds)
                 wait_seconds = (wait_until - datetime.utcnow()).total_seconds()
 
@@ -110,15 +107,10 @@ class RateLimiter:
                     )
                     await asyncio.sleep(wait_seconds)
 
-                # Re-check after wait
-                cutoff_time = datetime.utcnow() - timedelta(
-                    seconds=self.time_window_seconds
-                )
-                self.call_timestamps = [
-                    ts for ts in self.call_timestamps if ts > cutoff_time
-                ]
+                cutoff_time = datetime.utcnow() - timedelta(seconds=self.time_window_seconds)
+                while self.call_timestamps and self.call_timestamps[0] <= cutoff_time:
+                    self.call_timestamps.popleft()
 
-            # Record this call
             self.call_timestamps.append(datetime.utcnow())
             self.total_calls_made += 1
 
@@ -143,7 +135,8 @@ class RateLimiter:
         if self.enable_backoff and should_backoff:
             # Calculate backoff delay
             backoff_delay = min(
-                self.current_backoff_seconds * (self.backoff_multiplier ** (self.consecutive_failures - 1)),
+                self.current_backoff_seconds
+                * (self.backoff_multiplier ** (self.consecutive_failures - 1)),
                 self.max_backoff_seconds,
             )
 
@@ -178,8 +171,7 @@ class RateLimiter:
             Number of calls in the current window
         """
         cutoff_time = datetime.utcnow() - timedelta(seconds=self.time_window_seconds)
-        recent_calls = [ts for ts in self.call_timestamps if ts > cutoff_time]
-        return len(recent_calls)
+        return sum(1 for ts in self.call_timestamps if ts > cutoff_time)
 
     def reset(self) -> None:
         """
@@ -250,9 +242,7 @@ class SimpleSyncRateLimiter:
         if len(self.call_timestamps) >= self.max_calls:
             oldest_call = min(self.call_timestamps)
             wait_seconds = (oldest_call + self.time_window_seconds) - current_time
-            raise RuntimeError(
-                f"Rate limit exceeded. Wait {wait_seconds:.1f}s before next call."
-            )
+            raise RuntimeError(f"Rate limit exceeded. Wait {wait_seconds:.1f}s before next call.")
 
         # Record call
         self.call_timestamps.append(current_time)

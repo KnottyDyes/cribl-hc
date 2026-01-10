@@ -378,7 +378,7 @@ class SecurityAnalyzer(BaseAnalyzer):
         client: CriblAPIClient,
     ) -> list[dict[str, Any]]:
         """Analyze RBAC and user activity."""
-        issues = []
+        issues: list[dict[str, Any]] = []
         now = datetime.utcnow()
 
         admin_roles = set()
@@ -514,7 +514,7 @@ class SecurityAnalyzer(BaseAnalyzer):
         self, api_keys: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> list[dict[str, Any]]:
         """Analyze API key security."""
-        issues = []
+        issues: list[dict[str, Any]] = []
         now = datetime.utcnow()
 
         for key in api_keys:
@@ -619,7 +619,13 @@ class SecurityAnalyzer(BaseAnalyzer):
                 )
 
     def _calculate_security_score(
-        self, outputs, inputs, auth_config, tls_issues, secret_issues, auth_issues
+        self,
+        outputs: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        auth_config: dict[str, Any],
+        tls_issues: list[dict[str, Any]],
+        secret_issues: list[dict[str, Any]],
+        auth_issues: list[dict[str, Any]],
     ) -> int:
         """Calculate overall security score (0-100)."""
         score = 100
@@ -631,12 +637,12 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def _generate_security_recommendations(
         self,
-        outputs,
-        inputs,
-        auth_config,
-        tls_issues,
-        secret_issues,
-        auth_issues,
+        outputs: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        auth_config: dict[str, Any],
+        tls_issues: list[dict[str, Any]],
+        secret_issues: list[dict[str, Any]],
+        auth_issues: list[dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """Generate security recommendations."""

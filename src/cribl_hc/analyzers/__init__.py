@@ -24,6 +24,10 @@ Available Objectives:
 
 from __future__ import annotations
 
+import importlib
+import pkgutil
+from pathlib import Path
+
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.utils.logger import get_logger
 
@@ -265,49 +269,24 @@ __all__ = [
     "list_objectives",
 ]
 
-# Auto-register built-in analyzers
-from cribl_hc.analyzers.alerting import AlertingAnalyzer  # noqa: E402
-from cribl_hc.analyzers.backpressure import BackpressureAnalyzer  # noqa: E402
-from cribl_hc.analyzers.config import ConfigAnalyzer  # noqa: E402
-from cribl_hc.analyzers.cost import CostAnalyzer  # noqa: E402
-from cribl_hc.analyzers.dataflow_topology import DataFlowTopologyAnalyzer  # noqa: E402
-from cribl_hc.analyzers.fleet import FleetAnalyzer  # noqa: E402
-from cribl_hc.analyzers.freshness import FreshnessAnalyzer  # noqa: E402
-from cribl_hc.analyzers.health import HealthAnalyzer  # noqa: E402
-from cribl_hc.analyzers.input_health import InputSourceAnalyzer  # noqa: E402
-from cribl_hc.analyzers.lookup_health import LookupHealthAnalyzer  # noqa: E402
-from cribl_hc.analyzers.output_health import OutputDestinationAnalyzer  # noqa: E402
-from cribl_hc.analyzers.notification_delivery import NotificationDeliveryAnalyzer  # noqa: E402
-from cribl_hc.analyzers.parser_quality import ParserQualityAnalyzer  # noqa: E402
-from cribl_hc.analyzers.pipeline_performance import PipelinePerformanceAnalyzer  # noqa: E402
-from cribl_hc.analyzers.predictive import PredictiveAnalyzer  # noqa: E402
-from cribl_hc.analyzers.resource import ResourceAnalyzer  # noqa: E402
-from cribl_hc.analyzers.route_performance import RoutePerformanceAnalyzer  # noqa: E402
-from cribl_hc.analyzers.schema_quality import SchemaQualityAnalyzer  # noqa: E402
-from cribl_hc.analyzers.security import SecurityAnalyzer  # noqa: E402
-from cribl_hc.analyzers.sensitive_data import SensitiveDataAnalyzer  # noqa: E402
-from cribl_hc.analyzers.storage import StorageAnalyzer  # noqa: E402
-from cribl_hc.analyzers.version_control import VersionControlAnalyzer  # noqa: E402
 
-register_analyzer(HealthAnalyzer)
-register_analyzer(ConfigAnalyzer)
-register_analyzer(ResourceAnalyzer)
-register_analyzer(StorageAnalyzer)
-register_analyzer(SecurityAnalyzer)
-register_analyzer(SensitiveDataAnalyzer)
-register_analyzer(CostAnalyzer)
-register_analyzer(FleetAnalyzer)
-register_analyzer(PredictiveAnalyzer)
-register_analyzer(BackpressureAnalyzer)
-register_analyzer(PipelinePerformanceAnalyzer)
-register_analyzer(LookupHealthAnalyzer)
-register_analyzer(SchemaQualityAnalyzer)
-register_analyzer(DataFlowTopologyAnalyzer)
-register_analyzer(AlertingAnalyzer)
-register_analyzer(VersionControlAnalyzer)
-register_analyzer(FreshnessAnalyzer)
-register_analyzer(InputSourceAnalyzer)
-register_analyzer(OutputDestinationAnalyzer)
-register_analyzer(RoutePerformanceAnalyzer)
-register_analyzer(ParserQualityAnalyzer)
-register_analyzer(NotificationDeliveryAnalyzer)
+def _auto_discover_and_register_analyzers() -> None:
+    package_dir = Path(__file__).parent
+    for _, module_name, _ in pkgutil.iter_modules([str(package_dir)]):
+        if module_name in ("base", "__init__"):
+            continue
+        try:
+            module = importlib.import_module(f"cribl_hc.analyzers.{module_name}")
+            for attr_name in dir(module):
+                attr = getattr(module, attr_name)
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, BaseAnalyzer)
+                    and attr is not BaseAnalyzer
+                ):
+                    register_analyzer(attr)
+        except Exception:
+            pass
+
+
+_auto_discover_and_register_analyzers()
