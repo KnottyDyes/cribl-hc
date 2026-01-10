@@ -688,6 +688,7 @@ class HealthAnalyzer(BaseAnalyzer):
                     title=f"System Message: {msg_title[:50]}",
                     description=f"Cribl system message ({msg_channel}): {msg_text}",
                     confidence_level="high",
+                    affected_components=["system"],
                     remediation_steps=[
                         "Review the system message in Cribl UI for full context",
                         "Address the underlying issue described in the message",
@@ -736,6 +737,7 @@ class HealthAnalyzer(BaseAnalyzer):
                     else f"Active Banner: {message}",
                     description=f"An active system banner is configured: {message}",
                     confidence_level="high",
+                    affected_components=["system"],
                     remediation_steps=[
                         "Review if the banner is still relevant",
                         "Disable banner after the event/maintenance is complete",
