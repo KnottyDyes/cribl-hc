@@ -45,7 +45,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         (r"(.*)*", "Nested quantifiers cause exponential backtracking"),
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the schema quality analyzer."""
         super().__init__()
         self.log = get_logger(__name__)
@@ -141,7 +141,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         """Analyze parser library entries."""
         referenced_parsers = self._find_parser_references(pipelines)
 
-        parser_types = defaultdict(int)
+        parser_types: defaultdict[str, int] = defaultdict(int)
         for parser in parsers:
             parser_id = parser.get("id", "unknown")
             parser_type = parser.get("type", "unknown")
@@ -337,7 +337,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
 
     def _analyze_event_breakers(self, result: AnalyzerResult, inputs: list[dict[str, Any]]) -> None:
         """Analyze event breaker configuration on inputs."""
-        breaker_types = defaultdict(int)
+        breaker_types: defaultdict[str, int] = defaultdict(int)
         custom_breaker_count = 0
 
         for inp in inputs:
@@ -401,7 +401,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         self, result: AnalyzerResult, pipelines: list[dict[str, Any]]
     ) -> None:
         """Analyze schema mapping and field renaming patterns."""
-        rename_patterns = defaultdict(int)
+        rename_patterns: defaultdict[str, int] = defaultdict(int)
         eval_field_count = 0
 
         for pipeline in pipelines:

@@ -163,7 +163,7 @@ class BaseAnalyzer(ABC):
     Abstract base class for all analyzers.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize base analyzer."""
         self.log = get_logger(self.__class__.__name__)
 
