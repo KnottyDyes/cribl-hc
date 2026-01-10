@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -102,30 +102,44 @@ class AnalyzerOrchestrator:
         self.version_info = await self._collect_version_info()
 
         results: dict[str, AnalyzerResult] = {}
-        for objective in objectives:
-            api_calls_used = self.client.get_api_calls_used()
-            api_calls_remaining = self.max_api_calls - api_calls_used
 
-            if api_calls_remaining <= 0:
+        # Check API budget upfront for all objectives
+        api_calls_used = self.client.get_api_calls_used()
+        api_calls_remaining = self.max_api_calls - api_calls_used
+
+        if api_calls_remaining <= 0:
+            for objective in objectives:
                 self.log.error("api_budget_exhausted", objective=objective)
                 results[objective] = AnalyzerResult(
                     objective=objective, success=False, error="API budget exceeded"
                 )
-                continue
+            self.end_time = datetime.utcnow()
+            return results
 
+        # Run all analyzers in parallel
+        async def run_objective_with_tracking(objective: str) -> tuple[str, AnalyzerResult]:
             self.progress.start_objective(objective)
             try:
                 result = await self._run_single_analyzer(objective)
-                results[objective] = result
             except Exception as e:
                 self.log.error("analyzer_failed", objective=objective, error=str(e))
-                results[objective] = AnalyzerResult(
-                    objective=objective, success=False, error=str(e)
-                )
-
+                result = AnalyzerResult(objective=objective, success=False, error=str(e))
             self.progress.complete_objective()
             if progress_callback:
                 progress_callback(self.progress)
+            return objective, result
+
+        # Execute all objectives in parallel
+        objective_tasks = [run_objective_with_tracking(obj) for obj in objectives]
+        objective_results = await asyncio.gather(*objective_tasks, return_exceptions=True)
+
+        # Process results, handling any exceptions
+        for item in objective_results:
+            if isinstance(item, Exception):
+                self.log.error("parallel_execution_error", error=str(item))
+                continue
+            objective, result = item
+            results[objective] = result
 
         self.end_time = datetime.utcnow()
         return results

@@ -11,6 +11,7 @@ Analyzes schema and parsing configurations to identify:
 
 from collections import defaultdict
 from typing import Any
+import re
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -105,6 +106,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
             self._analyze_parsers(result, parsers, pipelines)
             self._analyze_regex_functions(result, pipelines)
             self._analyze_event_breakers(result, inputs)
+            self._analyze_input_filters(result, inputs)
             self._analyze_schema_mapping(result, pipelines)
 
             # Analyze Search datatypes if applicable
@@ -323,6 +325,11 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
                         category="schema_quality",
                         confidence_level="medium",
                         affected_components=[f"{source_type}:{context}"],
+                        remediation_steps=[
+                            "Rewrite regex to avoid nested quantifiers",
+                            "Use more specific patterns",
+                            "Anchor regex patterns where possible",
+                        ],
                         metadata={"context": context, "problematic_pattern": bad_pattern},
                     )
                 )
@@ -357,6 +364,38 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
 
         result.metadata["event_breaker_types"] = dict(breaker_types)
         result.metadata["custom_breaker_count"] = custom_breaker_count
+
+    def _analyze_input_filters(self, result: AnalyzerResult, inputs: list[dict[str, Any]]) -> None:
+        for inp in inputs:
+            input_id = inp.get("id", "unknown")
+            filter_expr = (
+                inp.get("filter")
+                or inp.get("filterExpr")
+                or inp.get("filterExpression")
+                or inp.get("conf", {}).get("filter")
+                or ""
+            )
+
+            if not isinstance(filter_expr, str) or not filter_expr.strip():
+                continue
+
+            patterns = self._extract_regex_patterns_from_expression(filter_expr)
+            for pattern in patterns:
+                self._check_regex_pattern(result, f"input:{input_id}", pattern, "input-filter")
+
+    @staticmethod
+    def _extract_regex_patterns_from_expression(filter_expr: str) -> list[str]:
+        patterns = []
+        for match in re.finditer(r"/([^/\\]*(?:\\.[^/\\]*)*)/", filter_expr):
+            patterns.append(match.group(1))
+
+        for match in re.finditer(r"regex\(\s*['\"](.+?)['\"]\s*\)", filter_expr):
+            patterns.append(match.group(1))
+
+        for match in re.finditer(r"match\(\s*[^,]+,\s*['\"](.+?)['\"]\s*\)", filter_expr):
+            patterns.append(match.group(1))
+
+        return patterns
 
     def _analyze_schema_mapping(
         self, result: AnalyzerResult, pipelines: list[dict[str, Any]]
