@@ -6,7 +6,7 @@ import { ResultsSummary } from '../components/results/ResultsSummary'
 import { FindingCard } from '../components/results/FindingCard'
 import { GroupedFindingCard } from '../components/results/GroupedFindingCard'
 import { Button, Select, SkeletonFindingCard } from '../components/common'
-import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, ArrowDownTrayIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import type { AnalysisResultResponse, CriblProduct, Finding } from '../api/types'
 
 const SEVERITY_ORDER = { critical: 5, high: 4, medium: 3, low: 2, info: 1 } as const
@@ -17,6 +17,7 @@ export function ResultsPage() {
   const [severityFilter, setSeverityFilter] = useState<string>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [productFilter, setProductFilter] = useState<string>('all')
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
   const { data: results, isLoading, error } = useQuery({
     queryKey: ['analysis-results', id],
@@ -157,6 +158,16 @@ export function ResultsPage() {
     } catch {
       alert('Failed to export results')
     }
+  }
+
+  const toggleWorkerGroupCollapse = (workerGroup: string) => {
+    const newCollapsed = new Set(collapsedGroups)
+    if (newCollapsed.has(workerGroup)) {
+      newCollapsed.delete(workerGroup)
+    } else {
+      newCollapsed.add(workerGroup)
+    }
+    setCollapsedGroups(newCollapsed)
   }
 
   if (isLoading) {
@@ -311,32 +322,48 @@ export function ResultsPage() {
                 },
                 {} as Record<string, typeof groupedFindings>
               )
-            ).map(([workerGroup, groups]) => (
-              <div key={workerGroup}>
-                <div className="mb-4 flex items-center gap-2">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    {workerGroup === 'default' ? 'Default Worker Group' : `Worker Group: ${workerGroup}`}
-                  </h2>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    ({groups.length} finding{groups.length !== 1 ? 's' : ''})
-                  </span>
-                </div>
-                <div className="space-y-4">
-                  {groups.map((group, idx) => (
-                    group.isGrouped ? (
-                      <GroupedFindingCard
-                        key={`${group.findings[0].grouping_id}-${group.workerGroup}-${idx}`}
-                        findings={group.findings}
-                        groupTitle={group.groupTitle}
-                        workerGroup={group.workerGroup}
-                      />
+            ).map(([workerGroup, groups]) => {
+              const isCollapsed = collapsedGroups.has(workerGroup)
+              return (
+                <div key={workerGroup} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => toggleWorkerGroupCollapse(workerGroup)}
+                    className="w-full px-4 py-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    {isCollapsed ? (
+                      <ChevronRightIcon className="h-5 w-5 text-gray-400" />
                     ) : (
-                      <FindingCard key={group.findings[0].id} finding={group.findings[0]} />
-                    )
-                  ))}
+                      <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+                    )}
+                    <div className="flex-1 text-left">
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                        {workerGroup === 'default' ? 'Default Worker Group' : `Worker Group: ${workerGroup}`}
+                      </h2>
+                    </div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {groups.length} finding{groups.length !== 1 ? 's' : ''}
+                    </span>
+                  </button>
+
+                  {!isCollapsed && (
+                    <div className="px-4 pb-4 pt-0 space-y-4 border-t border-gray-200 dark:border-gray-700">
+                      {groups.map((group, idx) => (
+                        group.isGrouped ? (
+                          <GroupedFindingCard
+                            key={`${group.findings[0].grouping_id}-${group.workerGroup}-${idx}`}
+                            findings={group.findings}
+                            groupTitle={group.groupTitle}
+                            workerGroup={group.workerGroup}
+                          />
+                        ) : (
+                          <FindingCard key={group.findings[0].id} finding={group.findings[0]} />
+                        )
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>
