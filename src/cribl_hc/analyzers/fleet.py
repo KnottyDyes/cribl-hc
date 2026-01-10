@@ -1,6 +1,6 @@
 import asyncio
 from collections import Counter, defaultdict
-from typing import Any, List, Optional
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -56,7 +56,7 @@ class FleetAnalyzer(BaseAnalyzer):
                 client, stream_worker_groups, workers, master_summary, result
             )
             self._analyze_worker_group_health(stream_worker_groups, master_summary, result, client)
-            self._analyze_worker_group_types(worker_groups_by_type, result, client)
+            self._analyze_worker_group_types(worker_groups_by_type, workers, result, client)
             self._analyze_single_deployment_patterns(workers, result, client)
             result.success = True
         except Exception as e:
@@ -272,6 +272,7 @@ class FleetAnalyzer(BaseAnalyzer):
     def _analyze_worker_group_types(
         self,
         worker_groups_by_type: dict[str, list[dict[str, Any]]],
+        workers: list[dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
     ) -> None:
@@ -279,7 +280,13 @@ class FleetAnalyzer(BaseAnalyzer):
         cloud_managed_groups = worker_groups_by_type.get("cloud_managed", [])
 
         if hybrid_groups:
-            total_hybrid_workers = sum(group.get("workerCount", 0) for group in hybrid_groups)
+            # Count actual workers by matching group membership
+            hybrid_group_ids = {str(group["id"]) for group in hybrid_groups if group.get("id")}
+            total_hybrid_workers = sum(
+                1
+                for worker in workers
+                if isinstance(worker.get("group"), str) and worker["group"] in hybrid_group_ids
+            )
             result.add_finding(
                 self.create_finding(
                     client=client,
@@ -350,7 +357,7 @@ class FleetAnalyzer(BaseAnalyzer):
         for name, client in deployments.items():
             tasks.append(self._analyze_single_deployment(name, client))
         deployment_results = await asyncio.gather(*tasks, return_exceptions=True)
-        for name, res in zip(deployments.keys(), deployment_results):
+        for name, res in zip(deployments.keys(), deployment_results, strict=True):
             if isinstance(res, dict):
                 self._deployment_results[name] = res
                 result.metadata["successful_deployments"].append(name)

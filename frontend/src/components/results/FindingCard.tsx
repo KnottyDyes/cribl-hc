@@ -11,6 +11,10 @@ interface FindingCardProps {
 }
 
 export function FindingCard({ finding }: FindingCardProps) {
+  const orphanedPipelines = finding.metadata?.orphaned_pipelines
+  const hasOrphanedPipelines = Array.isArray(orphanedPipelines)
+  const orphanedPipelinesArray = hasOrphanedPipelines ? (orphanedPipelines as string[]) : []
+
   const getSeverityColor = () => {
     switch (finding.severity) {
       case 'critical':
@@ -45,7 +49,7 @@ export function FindingCard({ finding }: FindingCardProps) {
       <div className="space-y-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${getSeverityColor()}`}>
                 {getSeverityIcon()}
                 {finding.severity.toUpperCase()}
@@ -53,6 +57,11 @@ export function FindingCard({ finding }: FindingCardProps) {
               <span className="inline-flex items-center rounded-md bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">
                 {finding.category}
               </span>
+              {finding.worker_group && (
+                <span className="inline-flex items-center rounded-md bg-cyan-100 dark:bg-cyan-900/50 px-2 py-0.5 text-xs font-medium text-cyan-800 dark:text-cyan-300">
+                  {finding.worker_group}
+                </span>
+              )}
             </div>
             <h4 className="mt-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
               {finding.title}
@@ -61,20 +70,27 @@ export function FindingCard({ finding }: FindingCardProps) {
           </div>
         </div>
 
-        {finding.affected_components.length > 0 && (
+        {(finding.affected_components.length > 0 || hasOrphanedPipelines) && (
           <div>
             <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Affected Components
+              {hasOrphanedPipelines && ` (${orphanedPipelinesArray.length} total)`}
             </h5>
             <div className="flex flex-wrap gap-2">
-              {finding.affected_components.map((component, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-300"
-                >
-                  {component}
-                </span>
-              ))}
+              {(() => {
+                const components = hasOrphanedPipelines
+                  ? orphanedPipelinesArray.map((p: string) => `pipeline:${p}`)
+                  : finding.affected_components
+                
+                return components.map((component, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-700 px-2.5 py-1 text-xs text-gray-700 dark:text-gray-300"
+                  >
+                    {component}
+                  </span>
+                ))
+              })()}
             </div>
           </div>
         )}

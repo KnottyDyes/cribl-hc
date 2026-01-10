@@ -4,9 +4,12 @@ import { useQuery } from '@tanstack/react-query'
 import { analysisApi } from '../api/analysis'
 import { ResultsSummary } from '../components/results/ResultsSummary'
 import { FindingCard } from '../components/results/FindingCard'
+import { GroupedFindingCard } from '../components/results/GroupedFindingCard'
 import { Button, Select, SkeletonFindingCard } from '../components/common'
 import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
-import type { AnalysisResultResponse, CriblProduct } from '../api/types'
+import type { AnalysisResultResponse, CriblProduct, Finding } from '../api/types'
+
+const SEVERITY_ORDER = { critical: 5, high: 4, medium: 3, low: 2, info: 1 } as const
 
 export function ResultsPage() {
   const { id } = useParams<{ id: string }>()
@@ -68,6 +71,54 @@ export function ResultsPage() {
       },
     }
   }, [results])
+
+  const filteredFindings = useMemo(() => {
+    if (!enrichedResults?.findings) return []
+    
+    return enrichedResults.findings
+      .filter((finding) => {
+        const matchesSeverity = severityFilter === 'all' || finding.severity === severityFilter
+        const matchesCategory = categoryFilter === 'all' || finding.category === categoryFilter
+        const matchesProduct = productFilter === 'all' ||
+          (finding.product_tags && finding.product_tags.includes(productFilter as CriblProduct))
+        return matchesSeverity && matchesCategory && matchesProduct
+      })
+      .sort((a, b) => {
+        const severityDiff = SEVERITY_ORDER[b.severity] - SEVERITY_ORDER[a.severity]
+        if (severityDiff !== 0) return severityDiff
+        return a.category.localeCompare(b.category)
+      })
+  }, [enrichedResults, severityFilter, categoryFilter, productFilter])
+
+  const groupedFindings = useMemo(() => {
+    const groups: { [key: string]: Finding[] } = {}
+    
+    filteredFindings.forEach((finding) => {
+      const groupKey = `${finding.grouping_id || finding.id}-${finding.worker_group || 'default'}`
+      if (!groups[groupKey]) {
+        groups[groupKey] = []
+      }
+      groups[groupKey].push(finding)
+    })
+
+    return Object.values(groups).map((findings) => {
+      const first = findings[0]
+      const isGrouped = first.grouping_id && findings.length > 1
+      const groupTitle = isGrouped ? first.title.split(':')[0] : first.title
+      
+      return {
+        findings,
+        groupTitle,
+        workerGroup: first.worker_group,
+        isGrouped,
+        severity: first.severity,
+      }
+    }).sort((a, b) => {
+      const severityDiff = SEVERITY_ORDER[b.severity] - SEVERITY_ORDER[a.severity]
+      if (severityDiff !== 0) return severityDiff
+      return a.groupTitle.localeCompare(b.groupTitle)
+    })
+  }, [filteredFindings])
 
   const handleExport = async (format: 'json' | 'html' | 'md') => {
     if (!id) return
@@ -149,26 +200,6 @@ export function ResultsPage() {
     { value: 'search', label: 'Search' },
   ]
 
-  const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 }
-
-  const filteredFindings = enrichedResults.findings
-    .filter((finding) => {
-      const matchesSeverity = severityFilter === 'all' || finding.severity === severityFilter
-      const matchesCategory = categoryFilter === 'all' || finding.category === categoryFilter
-      // Product filter: match if 'all' or if product is in finding's product_tags
-      // Only match if product_tags includes the filter value (empty product_tags = no products)
-      const matchesProduct = productFilter === 'all' ||
-        (finding.product_tags && finding.product_tags.includes(productFilter as CriblProduct))
-      return matchesSeverity && matchesCategory && matchesProduct
-    })
-    .sort((a, b) => {
-      // Sort by severity first (descending: critical → high → medium → low → info)
-      const severityDiff = severityOrder[b.severity] - severityOrder[a.severity]
-      if (severityDiff !== 0) return severityDiff
-      // Then by category (ascending) as secondary sort
-      return a.category.localeCompare(b.category)
-    })
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -243,13 +274,22 @@ export function ResultsPage() {
         </div>
 
         <div className="space-y-4">
-          {filteredFindings.length === 0 ? (
+          {groupedFindings.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
               <p className="text-gray-500 dark:text-gray-400">No findings match the selected filters.</p>
             </div>
           ) : (
-            filteredFindings.map((finding) => (
-              <FindingCard key={finding.id} finding={finding} />
+            groupedFindings.map((group, idx) => (
+              group.isGrouped ? (
+                <GroupedFindingCard
+                  key={`${group.findings[0].grouping_id}-${group.workerGroup}-${idx}`}
+                  findings={group.findings}
+                  groupTitle={group.groupTitle}
+                  workerGroup={group.workerGroup}
+                />
+              ) : (
+                <FindingCard key={group.findings[0].id} finding={group.findings[0]} />
+              )
             ))
           )}
         </div>

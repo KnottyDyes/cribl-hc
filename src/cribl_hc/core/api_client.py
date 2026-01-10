@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, Optional
 from urllib.parse import urljoin
+import json
 
 import httpx
 from pydantic import BaseModel, Field
@@ -183,6 +184,8 @@ class CriblAPIClient:
             return f"/api/v1/e/{fleet}/{resource}" if fleet else f"/api/v1/edge/{resource}"
         elif self._is_cloud:
             group = self.worker_group
+            if resource in ("lookups", "parsers"):
+                return f"/api/v1/master/{resource}"
             if resource in ("inputs", "outputs"):
                 return f"/api/v1/m/{group}/system/{resource}"
             return f"/api/v1/m/{group}/{resource}"
@@ -567,8 +570,17 @@ class CriblAPIClient:
             response = await self._client.post(endpoint, json=payload)
 
         response.raise_for_status()
-        data = response.json()
-        return data.get("items", [])
+
+        # Handle streaming JSON response
+        events = []
+        for line in response.text.strip().split("\n"):
+            if line:
+                try:
+                    events.append(json.loads(line))
+                except json.JSONDecodeError:
+                    log.warning("json_decode_error_in_capture", line=line)
+
+        return events
 
     def get_api_calls_used(self) -> int:
         return self.rate_limiter.total_calls_made

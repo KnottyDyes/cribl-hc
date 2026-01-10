@@ -1,9 +1,7 @@
 import re
-from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
 from cribl_hc.utils.logger import get_logger
 
 
@@ -88,23 +86,43 @@ class SensitiveDataAnalyzer(BaseAnalyzer):
                         if findings_count > 10:
                             break
 
+                        source_info = event.get("cribl_pipe", event.get("source", "unknown"))
+                        input_id = event.get("input", "unknown")
+
+                        components = []
+                        if input_id != "unknown":
+                            components.append(f"input:{input_id}")
+                        if source_info != "unknown":
+                            components.append(f"pipeline:{source_info}")
+                        if not components:
+                            components = ["event-stream:live-capture"]
+
                         result.add_finding(
-                            Finding(
+                            self.create_finding(
+                                client=client,
                                 id=f"sensitive-data-{key}",
                                 title=f"Sensitive Data Detected: {pattern_def['name']}",
-                                description=f"Found potential {pattern_def['name']} in event stream. "
-                                f"Ensure sensitive data is masked or encrypted.",
+                                description=f"Found potential {pattern_def['name']} in live event stream during system capture. "
+                                f"This sensitive data was detected in unmasked form, indicating a masking or encryption gap. "
+                                f"Check the affected components to identify where masking should be applied.",
                                 severity=pattern_def["severity"],
                                 category="security",
                                 confidence_level="medium",
-                                affected_components=["pipeline:processing"],
+                                affected_components=components,
                                 estimated_impact="Data Leakage, Compliance Violation (PCI/HIPAA/GDPR)",
                                 remediation_steps=[
-                                    "Apply Masking function in pipeline",
-                                    "Encrypt sensitive fields before ingestion",
-                                    "Filter out sensitive events at source",
+                                    "Identify which pipeline is processing this data from the affected components",
+                                    "Apply Masking function early in the pipeline before any outputs",
+                                    "Encrypt sensitive fields before ingestion if possible",
+                                    "Filter out sensitive events at the source if they shouldn't be collected",
+                                    "Verify masking is applied before data reaches any destination",
                                 ],
-                                metadata={"pattern_type": key, "match_count": len(matches)},
+                                metadata={
+                                    "pattern_type": key,
+                                    "match_count": len(matches),
+                                    "source": source_info,
+                                    "input": input_id,
+                                },
                             )
                         )
 
@@ -113,14 +131,15 @@ class SensitiveDataAnalyzer(BaseAnalyzer):
 
             if findings_count == 0:
                 result.add_finding(
-                    Finding(
+                    self.create_finding(
+                        client=client,
                         id="sensitive-data-clean",
                         title="No Sensitive Data Detected",
                         description=f"Scanned {len(events)} events and found no PII/Secrets patterns.",
                         severity="info",
                         category="security",
                         confidence_level="medium",
-                        affected_components=["pipeline:processing"],
+                        affected_components=["event-stream:live-capture"],
                         estimated_impact="None",
                         remediation_steps=[],
                         metadata={"events_scanned": len(events)},
