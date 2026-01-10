@@ -91,7 +91,8 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                         severity="warning",
                         title="Lake Service Unavailable",
                         description="Lake API is not available in this deployment. Skipping Lake health analysis.",
-                        remediation="Ensure Lake product is installed and configured.",
+                        remediation_steps=["Ensure Lake product is installed and configured."],
+                        confidence_level="high",
                         metadata={"error": str(e)},
                     )
                 )
@@ -105,7 +106,10 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                         severity="info",
                         title="No Lakes Configured",
                         description="No Lake instances are configured in this deployment.",
-                        remediation="Configure a Lake instance to enable Lake health monitoring.",
+                        remediation_steps=[
+                            "Configure a Lake instance to enable Lake health monitoring."
+                        ],
+                        confidence_level="high",
                     )
                 )
                 return result
