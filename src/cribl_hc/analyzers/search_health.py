@@ -8,7 +8,6 @@ Priority: P2 (Important)
 """
 
 from datetime import datetime
-from typing import List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -51,14 +50,14 @@ class SearchHealthAnalyzer(BaseAnalyzer):
     VERY_HIGH_CPU_THRESHOLD = 300.0
 
     @property
+    def supported_products(self) -> list[str]:
+        """Search health analyzer is specific to Cribl Search."""
+        return ["search"]
+
+    @property
     def objective_name(self) -> str:
         """Return the objective name for this analyzer."""
         return "search"
-
-    @property
-    def supported_products(self) -> List[str]:
-        """Search health analyzer is specific to Cribl Search."""
-        return ["search"]
 
     def get_estimated_api_calls(self) -> int:
         """
@@ -66,7 +65,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         """
         return 6
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return [
             "read:search:jobs",
@@ -111,6 +110,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             running_jobs = [j for j in jobs if j.status == "running"]
             failed_jobs = [j for j in jobs if j.status == "failed"]
             completed_jobs = [j for j in jobs if j.status == "completed"]
+            canceled_jobs = [j for j in jobs if j.status == "canceled"]
 
             result.metadata.update(
                 {
@@ -119,6 +119,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                     "running_jobs": len(running_jobs),
                     "failed_jobs": len(failed_jobs),
                     "completed_jobs": len(completed_jobs),
+                    "canceled_jobs": len(canceled_jobs),
                     "total_datasets": len(datasets),
                     "enabled_datasets": sum(1 for d in datasets if d.enabled),
                     "total_dashboards": len(dashboards),
@@ -185,7 +186,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         return result
 
     def _analyze_jobs(
-        self, jobs: List[SearchJob], result: AnalyzerResult, client: CriblAPIClient
+        self, jobs: list[SearchJob], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze search job health."""
         current_time = datetime.utcnow()
@@ -193,6 +194,10 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         for job in jobs:
             if job.status == "failed":
                 self._report_failed_job(job, result, client)
+                continue
+
+            if job.status == "canceled":
+                self._report_canceled_job(job, result, client)
                 continue
 
             if job.status == "running" and job.time_started:
@@ -220,7 +225,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 client=client,
                 id=f"search-job-failed-{job.id}",
                 category="search",
-                severity="high",
+                severity="critical",
                 title=f"Failed Search Job: {job.id}",
                 description=(
                     f"Search job '{job.id}' failed. "
@@ -239,6 +244,33 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                     "job_id": job.id,
                     "query": job.query,
                     "error": job.error,
+                    "user": job.user,
+                },
+            )
+        )
+
+    def _report_canceled_job(
+        self, job: SearchJob, result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
+        """Report a canceled search job."""
+        result.add_finding(
+            self.create_finding(
+                client=client,
+                id=f"search-job-canceled-{job.id}",
+                category="search",
+                severity="medium",
+                title=f"Canceled Search Job: {job.id}",
+                description=f"Search job '{job.id}' was canceled by a user.",
+                affected_components=["Search", job.id],
+                remediation_steps=[
+                    "Investigate why the job was canceled",
+                    "If the cancellation was unintentional, re-run the search.",
+                ],
+                estimated_impact="Potential data loss or incomplete analysis",
+                confidence_level="high",
+                metadata={
+                    "job_id": job.id,
+                    "query": job.query,
                     "user": job.user,
                 },
             )
@@ -418,7 +450,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             )
 
     def _analyze_datasets(
-        self, datasets: List[SearchDataset], result: AnalyzerResult, client: CriblAPIClient
+        self, datasets: list[SearchDataset], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze search dataset health."""
         disabled_datasets = [d for d in datasets if not d.enabled]
@@ -468,7 +500,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             )
 
     def _analyze_groups(
-        self, groups: List[SearchGroup], result: AnalyzerResult, client: CriblAPIClient
+        self, groups: list[SearchGroup], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze Search groups for configuration issues."""
         if not groups:
@@ -495,7 +527,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             )
 
     def _analyze_dashboards(
-        self, dashboards: List[Dashboard], result: AnalyzerResult, client: CriblAPIClient
+        self, dashboards: list[Dashboard], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze dashboard health."""
         empty_dashboards = [d for d in dashboards if not d.elements or len(d.elements) == 0]
@@ -541,7 +573,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         result.metadata["scheduled_dashboards"] = len(scheduled_dashboards)
 
     def _analyze_saved_searches(
-        self, saved_searches: List[SavedSearch], result: AnalyzerResult, client: CriblAPIClient
+        self, saved_searches: list[SavedSearch], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze saved search configurations."""
         if not saved_searches:
