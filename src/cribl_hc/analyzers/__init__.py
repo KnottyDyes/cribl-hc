@@ -55,6 +55,7 @@ class AnalyzerRegistry:
     def __init__(self):
         """Initialize empty analyzer registry."""
         self._analyzers: dict[str, type[BaseAnalyzer]] = {}
+        self._analyzer_classes: list[type[BaseAnalyzer]] = []
 
     def register(self, analyzer_class: type[BaseAnalyzer]) -> None:
         """
@@ -88,11 +89,11 @@ class AnalyzerRegistry:
         except Exception as e:
             raise ValueError(f"Failed to get objective_name from {analyzer_class.__name__}: {e}")
 
-        if objective in self._analyzers:
-            existing = self._analyzers[objective].__name__
-            raise ValueError(f"Objective '{objective}' already registered by {existing}")
+        # Register primary analyzer (first one loaded per objective) and track all
+        if objective not in self._analyzers:
+            self._analyzers[objective] = analyzer_class
 
-        self._analyzers[objective] = analyzer_class
+        self._analyzer_classes.append(analyzer_class)
         # Note: Logging removed to avoid logger initialization issues during import
         # log.info("analyzer_registered", objective=objective, analyzer_class=analyzer_class.__name__)
 
@@ -285,8 +286,13 @@ def _auto_discover_and_register_analyzers() -> None:
                     and attr is not BaseAnalyzer
                 ):
                     register_analyzer(attr)
-        except Exception:
-            pass
+        except Exception as e:
+            import sys
+
+            print(
+                f"Warning: Failed to auto-discover analyzers from {module_name}: {e}",
+                file=sys.stderr,
+            )
 
 
 _auto_discover_and_register_analyzers()

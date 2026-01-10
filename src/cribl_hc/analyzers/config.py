@@ -92,6 +92,7 @@ class ConfigAnalyzer(BaseAnalyzer):
             self._evaluate_best_practice_rules(pipelines, routes, inputs, outputs, result, client)
             self._analyze_route_conflicts(routes, pipelines, result, client)
             self._check_route_filter_regex(routes, result, client)
+            self._analyze_pipeline_efficiency(pipelines, result, client)
             self._analyze_complexity_metrics(pipelines, result, client)
             await self._check_advanced_security(pipelines, result, client)
 
@@ -555,6 +556,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                         "Consider using lookup tables instead of complex regex patterns.",
                         "Optimize regex patterns for better performance.",
                     ],
+                    metadata={"regex_function_count": len(regex_funcs)},
                 )
             )
         return issues_found

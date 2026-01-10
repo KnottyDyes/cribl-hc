@@ -238,6 +238,10 @@ class BaseAnalyzer(ABC):
     def create_finding(self, client: Optional[CriblAPIClient] = None, **kwargs) -> Finding:
         """
         Create a Finding automatically tagged with this analyzer's info.
+
+        Auto-generates grouping_id from title pattern if not explicitly provided.
+        For titles like "Pattern: {variable}", uses "pattern" as grouping_id.
+        This enables automatic grouping of similar findings in the UI.
         """
         if "source_analyzer" not in kwargs:
             kwargs["source_analyzer"] = self.objective_name
@@ -253,6 +257,16 @@ class BaseAnalyzer(ABC):
                 client and hasattr(client, "worker_group") and isinstance(client.worker_group, str)
             ):
                 kwargs["worker_group"] = client.worker_group
+
+        # Auto-generate grouping_id from title pattern if not explicitly provided
+        if "grouping_id" not in kwargs and "title" in kwargs:
+            title = kwargs["title"]
+            # Extract pattern from titles like "Pattern: value" or "Pattern Name: value"
+            if ":" in title:
+                pattern = title.split(":")[0].strip().lower()
+                # Convert to snake_case and prefix with objective for uniqueness
+                pattern_id = pattern.replace(" ", "-")
+                kwargs["grouping_id"] = f"{self.objective_name}-{pattern_id}"
 
         finding = Finding(**kwargs)
 
