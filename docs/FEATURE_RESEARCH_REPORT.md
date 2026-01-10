@@ -19,7 +19,7 @@
 
 | Priority | Feature | Value | Effort | Status |
 |----------|---------|-------|--------|--------|
-| 🔴 P1 | Certificate Expiration Monitoring | HIGH | LOW | 📋 Planned |
+| ~~🔴 P1~~ | ~~Certificate Expiration Monitoring~~ | ~~HIGH~~ | ~~LOW~~ | ✅ **COMPLETE** |
 | 🔴 P1 | Enhanced RBAC/User Audit | HIGH | MEDIUM | 📋 Planned |
 | 🔴 P1 | Config Drift Detection | HIGH | LOW | 📋 Planned |
 | 🟡 P2 | Notification Target Validation | MEDIUM | LOW | 📋 Planned |
@@ -74,6 +74,33 @@
 **API Endpoints**: Uses event sampling
 
 **Location**: `src/cribl_hc/analyzers/freshness.py`
+
+---
+
+### ✅ Certificate Expiration Monitoring (P1 - COMPLETE)
+
+**Status**: Already implemented in **SecurityAnalyzer**
+
+**Original Priority**: P1 (HIGH value, LOW effort)  
+**Implementation Date**: Pre-Phase 12 (already existed)
+
+**Features Delivered**:
+- Expired certificate detection (negative days until expiration)
+- 7-day warning threshold (high severity)
+- 30-day warning threshold (medium severity)
+- Proper ISO 8601 date parsing with timezone handling
+- Graceful error handling for malformed dates
+
+**Severity Mapping**:
+- **Expired** (< 0 days): **CRITICAL** - "Service disruption for components using this certificate"
+- **≤ 7 days**: **HIGH** - "Potential future service disruption"
+- **≤ 30 days**: **MEDIUM** - "Certificate needs renewal soon"
+
+**Value**: Prevents outages from expired TLS certificates, enables proactive maintenance
+
+**API Endpoint**: `/api/v1/system/certificates` (already in use)
+
+**Location**: `src/cribl_hc/analyzers/security.py` (method: `_analyze_certificates`)
 
 ---
 
