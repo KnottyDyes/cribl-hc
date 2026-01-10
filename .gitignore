@@ -97,17 +97,28 @@ default_report.md
 docs/development/
 docs/reports/
 docs/wip/
+development/
+plans/
+specs/
 
 # Cribl API reference docs (proprietary - not for distribution)
 docs/cribl_api_reference/
 
 # Session notes and working documents (not part of official docs)
 CLAUDE.md
+AGENTS.md
+PUSH_INSTRUCTIONS.md
+RELEASING.md
+TAURI_SETUP.md
+TAURI_STATUS.md
+push-branch.sh
+setup_opencode.sh
 generate_status_report_pdf.py
 
-# Local development and debugging scripts
-debug_*.py
-test_*.py
+# Local development and debugging scripts (root level only)
+/debug_*.py
+/test_*.py
+/demo_*.py
 
 # Build artifacts
 *.prof
