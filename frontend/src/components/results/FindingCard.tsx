@@ -11,6 +11,10 @@ interface FindingCardProps {
 }
 
 export function FindingCard({ finding }: FindingCardProps) {
+  const orphanedPipelines = finding.metadata?.orphaned_pipelines
+  const hasOrphanedPipelines = Array.isArray(orphanedPipelines)
+  const orphanedPipelinesArray = hasOrphanedPipelines ? (orphanedPipelines as string[]) : []
+
   const getSeverityColor = () => {
     switch (finding.severity) {
       case 'critical':
@@ -66,18 +70,16 @@ export function FindingCard({ finding }: FindingCardProps) {
           </div>
         </div>
 
-        {(finding.affected_components.length > 0 || 
-          (finding.metadata?.orphaned_pipelines && Array.isArray(finding.metadata.orphaned_pipelines))) && (
+        {(finding.affected_components.length > 0 || hasOrphanedPipelines) && (
           <div>
             <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Affected Components
-              {finding.metadata?.orphaned_pipelines && 
-                ` (${finding.metadata.orphaned_pipelines.length} total)`}
+              {hasOrphanedPipelines && ` (${orphanedPipelinesArray.length} total)`}
             </h5>
             <div className="flex flex-wrap gap-2">
               {(() => {
-                const components = finding.metadata?.orphaned_pipelines 
-                  ? (finding.metadata.orphaned_pipelines as string[]).map(p => `pipeline:${p}`)
+                const components = hasOrphanedPipelines
+                  ? orphanedPipelinesArray.map((p: string) => `pipeline:${p}`)
                   : finding.affected_components
                 
                 return components.map((component, idx) => (

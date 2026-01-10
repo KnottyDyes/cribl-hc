@@ -21,6 +21,7 @@ export function ReportStylingForm() {
     defaultValues: branding.report,
   })
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const showWatermark = watch('show_watermark')
 
   useEffect(() => {

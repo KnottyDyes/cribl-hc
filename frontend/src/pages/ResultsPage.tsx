@@ -9,6 +9,8 @@ import { Button, Select, SkeletonFindingCard } from '../components/common'
 import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import type { AnalysisResultResponse, CriblProduct, Finding } from '../api/types'
 
+const SEVERITY_ORDER = { critical: 5, high: 4, medium: 3, low: 2, info: 1 } as const
+
 export function ResultsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -70,8 +72,6 @@ export function ResultsPage() {
     }
   }, [results])
 
-  const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 }
-
   const filteredFindings = useMemo(() => {
     if (!enrichedResults?.findings) return []
     
@@ -84,11 +84,11 @@ export function ResultsPage() {
         return matchesSeverity && matchesCategory && matchesProduct
       })
       .sort((a, b) => {
-        const severityDiff = severityOrder[b.severity] - severityOrder[a.severity]
+        const severityDiff = SEVERITY_ORDER[b.severity] - SEVERITY_ORDER[a.severity]
         if (severityDiff !== 0) return severityDiff
         return a.category.localeCompare(b.category)
       })
-  }, [enrichedResults?.findings, severityFilter, categoryFilter, productFilter])
+  }, [enrichedResults, severityFilter, categoryFilter, productFilter])
 
   const groupedFindings = useMemo(() => {
     const groups: { [key: string]: Finding[] } = {}
@@ -114,7 +114,7 @@ export function ResultsPage() {
         severity: first.severity,
       }
     }).sort((a, b) => {
-      const severityDiff = severityOrder[b.severity] - severityOrder[a.severity]
+      const severityDiff = SEVERITY_ORDER[b.severity] - SEVERITY_ORDER[a.severity]
       if (severityDiff !== 0) return severityDiff
       return a.groupTitle.localeCompare(b.groupTitle)
     })
