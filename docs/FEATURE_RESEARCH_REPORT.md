@@ -21,7 +21,7 @@
 |----------|---------|-------|--------|--------|
 | ~~🔴 P1~~ | ~~Certificate Expiration Monitoring~~ | ~~HIGH~~ | ~~LOW~~ | ✅ **COMPLETE** |
 | 🔴 P1 | Enhanced RBAC/User Audit | HIGH | MEDIUM | 📋 Planned |
-| 🔴 P1 | Config Drift Detection | HIGH | LOW | 📋 Planned |
+| ~~🔴 P1~~ | ~~Config Drift Detection~~ | ~~HIGH~~ | ~~LOW~~ | ✅ **COMPLETE** |
 | 🟡 P2 | Notification Target Validation | MEDIUM | LOW | 📋 Planned |
 | 🟡 P2 | API Key Lifecycle Management | MEDIUM | LOW | 📋 Planned |
 | 🟡 P2 | System Messages Surfacing | MEDIUM | LOW | 📋 Planned |
@@ -101,6 +101,41 @@
 **API Endpoint**: `/api/v1/system/certificates` (already in use)
 
 **Location**: `src/cribl_hc/analyzers/security.py` (method: `_analyze_certificates`)
+
+---
+
+### ✅ Config Drift Detection (P1 - COMPLETE)
+
+**Status**: Already implemented in **FleetAnalyzer**
+
+**Original Priority**: P1 (HIGH value, LOW effort)  
+**Implementation Date**: Pre-Phase 12 (already existed)
+
+**Features Delivered**:
+- **Leader vs Worker Group Drift**: Detects when worker groups fall behind leader's config version
+- **Individual Worker Drift**: Identifies workers out of sync with their group
+- **Deployment Tracking**: Monitors in-progress config deployments
+- **Cross-Environment Drift**: Aggregates drift patterns across fleet
+
+**Severity Mapping**:
+- **≥3 versions behind**: **CRITICAL** - "Worker group significantly behind leader"
+- **1-2 versions behind**: **HIGH** - "Worker group behind leader"
+- **Deployment in progress**: **LOW** - Informational finding
+
+**Detection Logic**:
+1. Compares each worker group's `configVersion` to leader's `currentVersion`
+2. Identifies workers where `worker.configVersion` != `group.configVersion`
+3. Groups drifted workers by worker group for reporting
+4. Tracks `deployingWorkerCount` for in-progress updates
+
+**Value**: Operational consistency, faster troubleshooting, prevents configuration-related incidents
+
+**API Endpoints**: 
+- `/api/v1/master/groups` (worker groups with config versions)
+- `/api/v1/master/summary` (leader current version)
+- `/api/v1/workers` (individual worker versions)
+
+**Location**: `src/cribl_hc/analyzers/fleet.py` (method: `_analyze_config_drift`)
 
 ---
 
