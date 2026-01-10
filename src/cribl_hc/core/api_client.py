@@ -520,7 +520,7 @@ class CriblAPIClient:
         return response.json()
 
     async def get_search_groups(self, workspace: str = "default_search") -> dict:
-        response = await self.get(f"/api/v1/m/{workspace}/search/groups")
+        response = await self.get("/api/v1/search/usage-groups")
         response.raise_for_status()
         return response.json()
 
