@@ -10,7 +10,9 @@ Provides a menu-driven interface for managing Cribl deployment credentials:
 """
 
 import asyncio
+import re
 from pathlib import Path
+from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
@@ -38,6 +40,47 @@ class ConfigTUI:
         self.console = Console()
         self.config_file = Path.home() / ".cribl-hc" / "config.json"
         self.running = True
+
+    @staticmethod
+    def _extract_from_paste(text: str) -> dict[str, Optional[str]]:
+        """
+        Extract URL and token from pasted content.
+
+        Handles:
+        - curl commands: curl -H "Authorization: Bearer TOKEN" https://example.com/api/v1/...
+        - Raw URLs: https://example.com/api/v1/something
+        - URLs with paths (strips to base URL)
+
+        Args:
+            text: Pasted content to parse
+
+        Returns:
+            Dictionary with 'url' and 'token' keys (values may be None)
+        """
+        result: dict[str, Optional[str]] = {"url": None, "token": None}
+
+        # Extract Bearer token from curl command or Authorization header
+        bearer_match = re.search(r"(?:Bearer\s+|bearer\s+)([A-Za-z0-9_\-.]+)", text, re.IGNORECASE)
+        if bearer_match:
+            result["token"] = bearer_match.group(1)
+
+        # Extract URL (handles both curl and raw URLs)
+        url_match = re.search(r"(https?://[^\s\"'<>]+)", text, re.IGNORECASE)
+        if url_match:
+            url = url_match.group(1)
+
+            # Strip API path - keep only base URL
+            # Example: https://cribl.example.com/api/v1/system/status -> https://cribl.example.com
+            try:
+                from urllib.parse import urlparse
+
+                parsed = urlparse(url)
+                result["url"] = f"{parsed.scheme}://{parsed.netloc}"
+            except Exception:
+                # If URL parsing fails, use as-is
+                result["url"] = url
+
+        return result
 
     def run(self) -> None:
         """Run the interactive configuration TUI."""
@@ -126,10 +169,14 @@ class ConfigTUI:
 
         # Check if deployment already exists
         from cribl_hc.cli.commands.config import load_credentials
+
         try:
             credentials = load_credentials()
             if deployment_id in credentials:
-                if not Confirm.ask(f"\n[yellow]Deployment '{deployment_id}' already exists. Overwrite?[/yellow]", default=False):
+                if not Confirm.ask(
+                    f"\n[yellow]Deployment '{deployment_id}' already exists. Overwrite?[/yellow]",
+                    default=False,
+                ):
                     self.console.print("[yellow]Operation cancelled.[/yellow]")
                     return
         except FileNotFoundError:
@@ -140,21 +187,37 @@ class ConfigTUI:
         self.console.print("  [cyan]1.[/cyan] Cribl Cloud (https://workspace-org.cribl.cloud)")
         self.console.print("  [cyan]2.[/cyan] Self-Hosted (https://your-server.com)")
 
-        deployment_type = Prompt.ask("\n[cyan]Deployment type[/cyan]", choices=["1", "2"], default="1")
+        deployment_type = Prompt.ask(
+            "\n[cyan]Deployment type[/cyan]", choices=["1", "2"], default="1"
+        )
 
         # Get URL with validation
         if deployment_type == "1":
-            self.console.print("\n[dim]Cribl Cloud URL format: https://<workspace>-<org>.cribl.cloud[/dim]")
+            self.console.print(
+                "\n[dim]Cribl Cloud URL format: https://<workspace>-<org>.cribl.cloud[/dim]"
+            )
             self.console.print("[dim]Example: https://main-mycompany.cribl.cloud[/dim]")
 
-        url = Prompt.ask("\n[cyan]Cribl URL[/cyan]")
+        self.console.print(
+            "\n[dim]Tip: Paste a curl command or API URL - we'll extract the base URL[/dim]"
+        )
+        url_input = Prompt.ask("\n[cyan]Cribl URL[/cyan]")
+
+        extracted = self._extract_from_paste(url_input)
+        url = extracted["url"] or url_input
 
         if not url.startswith("http"):
             url = f"https://{url}"
 
         # Get API token
         self.console.print("\n[dim]Generate an API token in Cribl Settings > API Tokens[/dim]")
-        token = Prompt.ask("[cyan]API Token[/cyan]", password=True)
+        self.console.print(
+            "[dim]Tip: Paste a curl command - we'll extract the token automatically[/dim]"
+        )
+        token_input = Prompt.ask("[cyan]API Token[/cyan]", password=False)
+
+        extracted = self._extract_from_paste(token_input)
+        token = extracted["token"] or token_input
 
         if not token or not token.strip():
             self.console.print("[red]API token cannot be empty.[/red]")
@@ -166,7 +229,9 @@ class ConfigTUI:
         connection_ok = asyncio.run(self._test_connection_async(url, token))
 
         if not connection_ok:
-            if not Confirm.ask("\n[yellow]Connection test failed. Save anyway?[/yellow]", default=False):
+            if not Confirm.ask(
+                "\n[yellow]Connection test failed. Save anyway?[/yellow]", default=False
+            ):
                 self.console.print("[yellow]Operation cancelled.[/yellow]")
                 return
 
@@ -216,17 +281,27 @@ class ConfigTUI:
         self.console.print(f"[dim]Current Token:[/dim] {'*' * 20}")
 
         # Get new values (allow empty to keep current)
-        self.console.print("\n[dim]Press Enter to keep current value[/dim]")
+        self.console.print("\n[dim]Press Enter to keep current value or paste a curl command[/dim]")
+        self.console.print(
+            "[dim]Tip: Paste a curl command or API URL - we'll extract the base URL[/dim]"
+        )
 
-        new_url = Prompt.ask("[cyan]New URL[/cyan]", default=current_cred['url'])
+        new_url_input = Prompt.ask("[cyan]New URL[/cyan]", default=current_cred["url"])
+        extracted = self._extract_from_paste(new_url_input)
+        new_url = extracted["url"] or new_url_input
 
         update_token = Confirm.ask("\n[cyan]Update API token?[/cyan]", default=False)
-        new_token = current_cred['token']
+        new_token = current_cred["token"]
 
         if update_token:
-            new_token = Prompt.ask("[cyan]New API Token[/cyan]", password=True)
+            self.console.print(
+                "[dim]Tip: Paste a curl command - we'll extract the token automatically[/dim]"
+            )
+            new_token_input = Prompt.ask("[cyan]New API Token[/cyan]", password=False)
+            extracted = self._extract_from_paste(new_token_input)
+            new_token = extracted["token"] or new_token_input
             if not new_token or not new_token.strip():
-                new_token = current_cred['token']
+                new_token = current_cred["token"]
 
         # Test connection before saving
         self.console.print("\n[yellow]Testing connection...[/yellow]")
@@ -234,7 +309,9 @@ class ConfigTUI:
         connection_ok = asyncio.run(self._test_connection_async(new_url, new_token))
 
         if not connection_ok:
-            if not Confirm.ask("\n[yellow]Connection test failed. Save anyway?[/yellow]", default=False):
+            if not Confirm.ask(
+                "\n[yellow]Connection test failed. Save anyway?[/yellow]", default=False
+            ):
                 self.console.print("[yellow]Operation cancelled.[/yellow]")
                 return
 
@@ -278,7 +355,9 @@ class ConfigTUI:
             return
 
         # Confirm deletion
-        if not Confirm.ask(f"\n[yellow]Are you sure you want to delete '{deployment_id}'?[/yellow]", default=False):
+        if not Confirm.ask(
+            f"\n[yellow]Are you sure you want to delete '{deployment_id}'?[/yellow]", default=False
+        ):
             self.console.print("[yellow]Operation cancelled.[/yellow]")
             return
 
@@ -319,7 +398,9 @@ class ConfigTUI:
 
         self.console.print(f"\n[yellow]Testing connection to {cred['url']}...[/yellow]")
 
-        connection_ok = asyncio.run(self._test_connection_async(cred['url'], cred['token'], verbose=True))
+        connection_ok = asyncio.run(
+            self._test_connection_async(cred["url"], cred["token"], verbose=True)
+        )
 
         if connection_ok:
             self.console.print(f"\n[green]✓ Connection to '{deployment_id}' successful![/green]")
@@ -350,9 +431,11 @@ class ConfigTUI:
 
         for dep_id, cred in credentials.items():
             # Mask token
-            token_masked = cred['token'][:8] + "..." + cred['token'][-4:] if len(cred['token']) > 12 else "***"
+            token_masked = (
+                cred["token"][:8] + "..." + cred["token"][-4:] if len(cred["token"]) > 12 else "***"
+            )
 
-            table.add_row(dep_id, cred['url'], token_masked)
+            table.add_row(dep_id, cred["url"], token_masked)
 
         self.console.print(table)
         self.console.print(f"\n[dim]Total: {len(credentials)} deployment(s)[/dim]")
@@ -395,21 +478,27 @@ class ConfigTUI:
         details_text.append("Token: ", style="dim")
 
         # Show masked token with option to reveal
-        token_masked = cred['token'][:8] + "..." + cred['token'][-4:] if len(cred['token']) > 12 else "***"
+        token_masked = (
+            cred["token"][:8] + "..." + cred["token"][-4:] if len(cred["token"]) > 12 else "***"
+        )
         details_text.append(f"{token_masked}\n", style="yellow")
 
         # Determine deployment type
-        deployment_type = "Cribl Cloud" if ".cribl.cloud" in cred['url'] else "Self-Hosted"
+        deployment_type = "Cribl Cloud" if ".cribl.cloud" in cred["url"] else "Self-Hosted"
         details_text.append("Type: ", style="dim")
         details_text.append(f"{deployment_type}", style="white")
 
-        panel = Panel(details_text, title=f"[bold]{deployment_id}[/bold]", border_style="cyan", padding=(1, 2))
+        panel = Panel(
+            details_text, title=f"[bold]{deployment_id}[/bold]", border_style="cyan", padding=(1, 2)
+        )
         self.console.print(panel)
 
         # Option to test connection
         if Confirm.ask("\n[cyan]Test connection?[/cyan]", default=True):
             self.console.print("\n[yellow]Testing connection...[/yellow]")
-            connection_ok = asyncio.run(self._test_connection_async(cred['url'], cred['token'], verbose=True))
+            connection_ok = asyncio.run(
+                self._test_connection_async(cred["url"], cred["token"], verbose=True)
+            )
 
             if connection_ok:
                 self.console.print("[green]✓ Connection successful![/green]")
@@ -434,7 +523,9 @@ class ConfigTUI:
 
                 if result.success:
                     if verbose:
-                        self.console.print(f"[green]✓ Connected successfully[/green] [dim]({result.response_time_ms:.0f}ms)[/dim]")
+                        self.console.print(
+                            f"[green]✓ Connected successfully[/green] [dim]({result.response_time_ms:.0f}ms)[/dim]"
+                        )
                         self.console.print(f"[dim]Cribl version:[/dim] {result.cribl_version}")
 
                         # Show product type
