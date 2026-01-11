@@ -234,30 +234,55 @@ class ConfigTUI:
             )
             self.console.print("[dim]Example: https://main-mycompany.cribl.cloud[/dim]")
 
+        # Try curl first
+        self.console.print("\n[dim]Quickest option: Paste full curl command[/dim]")
         self.console.print(
-            "\n[dim]Tip: Paste a curl command or API URL - we'll extract the base URL[/dim]"
+            '[dim]Example: curl -H "Authorization: Bearer TOKEN" https://url/api/v1/...[/dim]'
         )
-        url_input = Prompt.ask("\n[cyan]Cribl URL[/cyan]")
+        use_curl = Confirm.ask("\n[cyan]Do you have a curl command to paste?[/cyan]", default=True)
 
-        extracted = self._extract_from_paste(url_input)
-        url = extracted["url"] or url_input
+        url = None
+        token = None
 
-        if not url.startswith("http"):
-            url = f"https://{url}"
+        if use_curl:
+            curl_command = Prompt.ask("[cyan]Paste curl command[/cyan]")
+            extracted = self._extract_from_paste(curl_command)
+            url = extracted["url"]
+            token = extracted["token"]
 
-        # Get API token
-        self.console.print("\n[dim]Generate an API token in Cribl Settings > API Tokens[/dim]")
-        self.console.print(
-            "[dim]Tip: Paste a curl command - we'll extract the token automatically[/dim]"
-        )
-        token_input = Prompt.ask("[cyan]API Token[/cyan]", password=False)
+            if url:
+                self.console.print(f"[green]✓ Extracted URL: {url}[/green]")
+            if token:
+                self.console.print(f"[green]✓ Extracted token[/green]")
 
-        extracted = self._extract_from_paste(token_input)
-        token = extracted["token"] or token_input
+            if not url or not token:
+                self.console.print(
+                    "\n[yellow]Could not extract complete credentials from curl command.[/yellow]"
+                )
+                self.console.print("[dim]Completing manually...[/dim]")
+
+        # Get URL if not extracted
+        if not url:
+            self.console.print("\n[dim]Generate an API token in Cribl Settings > API Tokens[/dim]")
+            url_input = Prompt.ask("[cyan]Cribl URL[/cyan]")
+            url = url_input
+
+        # Get token if not extracted
+        if not token:
+            token_input = Prompt.ask("[cyan]API Token[/cyan]", password=False)
+            token = token_input
+
+        # Validate
+        if not url or not url.strip():
+            self.console.print("[red]URL cannot be empty.[/red]")
+            return
 
         if not token or not token.strip():
             self.console.print("[red]API token cannot be empty.[/red]")
             return
+
+        if not url.startswith("http"):
+            url = f"https://{url}"
 
         # Test connection before saving
         self.console.print("\n[yellow]Testing connection...[/yellow]")
