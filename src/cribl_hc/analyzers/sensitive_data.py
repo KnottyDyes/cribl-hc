@@ -38,7 +38,7 @@ class SensitiveDataAnalyzer(BaseAnalyzer):
         },
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.log = get_logger(__name__)
 

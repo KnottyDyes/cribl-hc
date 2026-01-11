@@ -50,9 +50,10 @@ class LakeHealthAnalyzer(BaseAnalyzer):
 
     def get_estimated_api_calls(self) -> int:
         """
-        Estimate API calls: datasets(1) + stats(1) + lakehouses(1) + storage_locations(1) = 4.
+        Estimate API calls: lakes(1) + datasets per lake(N) + storage_locations per lake(N) = 1+2N.
+        Assuming average 2 lakes: ~5 calls.
         """
-        return 4
+        return 5
 
     def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
@@ -78,24 +79,73 @@ class LakeHealthAnalyzer(BaseAnalyzer):
         try:
             log.info("lake_health_analysis_started")
 
-            # Fetch Lake data
-            datasets_response = await client.get_lake_datasets(include_metrics=True)
-            lakehouses_response = await client.get_lake_lakehouses()
-            storage_locations_response = await client.get_lake_storage_locations()
+            try:
+                lakes_response = await client.get_lake_groups()
+                lakes = lakes_response.get("items", [])
+            except Exception as e:
+                log.warning("lake_groups_fetch_failed", error=str(e))
+                result.add_finding(
+                    self.create_finding(
+                        id="lake-unavailable",
+                        category="lake",
+                        severity="warning",
+                        title="Lake Service Unavailable",
+                        description="Lake API is not available in this deployment. Skipping Lake health analysis.",
+                        remediation_steps=["Ensure Lake product is installed and configured."],
+                        confidence_level="high",
+                        metadata={"error": str(e)},
+                    )
+                )
+                return result
 
-            # Parse responses
-            dataset_list = LakeDatasetList(**datasets_response)
-            lakehouse_list = LakehouseList(**lakehouses_response)
-            storage_locations = storage_locations_response.get("items", [])
+            if not lakes:
+                result.add_finding(
+                    self.create_finding(
+                        id="lake-no-lakes",
+                        category="lake",
+                        severity="info",
+                        title="No Lakes Configured",
+                        description="No Lake instances are configured in this deployment.",
+                        remediation_steps=[
+                            "Configure a Lake instance to enable Lake health monitoring."
+                        ],
+                        confidence_level="high",
+                    )
+                )
+                return result
+
+            datasets_list_all = []
+            storage_locations_all = []
+
+            for lake in lakes:
+                lake_id = lake.get("id")
+                if not lake_id:
+                    continue
+
+                try:
+                    datasets_response = await client.get_lake_datasets(
+                        lake_id, include_metrics=True
+                    )
+                    dataset_list = LakeDatasetList(**datasets_response)
+                    datasets_list_all.extend(dataset_list.items)
+                except Exception as e:
+                    log.warning("lake_datasets_fetch_failed", lake_id=lake_id, error=str(e))
+
+                try:
+                    storage_locations_response = await client.get_lake_storage_locations(lake_id)
+                    storage_locations_all.extend(storage_locations_response.get("items", []))
+                except Exception as e:
+                    log.warning("lake_storage_fetch_failed", lake_id=lake_id, error=str(e))
+
+            dataset_list = LakeDatasetList(items=datasets_list_all, count=len(datasets_list_all))
+            storage_locations = storage_locations_all
 
             datasets = dataset_list.items
-            lakehouses = lakehouse_list.items
 
-            # Initialize metadata
             result.metadata.update(
                 {
                     "total_datasets": len(datasets),
-                    "lakehouse_count": len(lakehouses),
+                    "lake_count": len(lakes),
                     "storage_location_count": len(storage_locations),
                     "json_datasets": sum(1 for d in datasets if d.format == "json"),
                     "parquet_datasets": sum(1 for d in datasets if d.format == "parquet"),
@@ -140,7 +190,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
             log.info(
                 "lake_health_analysis_completed",
                 datasets=len(datasets),
-                lakehouses=len(lakehouses),
+                lakes=len(lakes),
                 findings=len(result.findings),
                 recommendations=len(result.recommendations),
             )

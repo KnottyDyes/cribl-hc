@@ -8,7 +8,6 @@ This analyzer focuses on:
 """
 
 import time
-from datetime import datetime
 from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
@@ -93,7 +92,8 @@ class HealthAnalyzer(BaseAnalyzer):
             # Check leader health
             self._check_leader_health(leader_health, result, client)
 
-            # Surface system messages and banners from Core API
+            self._check_insights_alerts(system_messages, result, client)
+            await self._collect_internal_metrics(client, result)
             self._surface_system_messages(system_messages, result, client)
             self._surface_banners(banners, result, client)
             result.metadata["system_messages_count"] = len(system_messages)
@@ -653,6 +653,91 @@ class HealthAnalyzer(BaseAnalyzer):
             self.log.warning("failed_to_fetch_banners", error=str(e))
             return []
 
+    def _check_insights_alerts(
+        self, messages: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
+        if not messages:
+            return
+
+        insight_messages = []
+        for msg in messages:
+            channel = str(msg.get("channel", "")).lower()
+            title = str(msg.get("title", "")).lower()
+            message = str(msg.get("message", "")).lower()
+            if "insight" in channel or "insight" in title or "insight" in message:
+                insight_messages.append(msg)
+
+        if not insight_messages:
+            return
+
+        severity_order = ["critical", "error", "warn", "warning", "info"]
+        severity_map = {
+            "critical": "critical",
+            "error": "high",
+            "warn": "medium",
+            "warning": "medium",
+            "info": "low",
+        }
+        highest = "info"
+        for msg in insight_messages:
+            msg_severity = str(msg.get("severity", "info")).lower()
+            if msg_severity not in severity_order:
+                continue
+            if severity_order.index(msg_severity) < severity_order.index(highest):
+                highest = msg_severity
+
+        result.add_finding(
+            self.create_finding(
+                client=client,
+                id="health-insights-alerts",
+                grouping_id="health-insights-alerts",
+                category="health",
+                severity=severity_map.get(highest, "low"),
+                title="Cribl Insights Alerts Detected",
+                description=f"Detected {len(insight_messages)} Insights alert(s) in system messages.",
+                confidence_level="high",
+                affected_components=["insights"],
+                remediation_steps=[
+                    "Review Insights alerts in the Cribl UI",
+                    "Resolve the underlying issues referenced by the alerts",
+                    "Verify Insights is configured for the deployment",
+                ],
+                metadata={
+                    "insights_alert_count": len(insight_messages),
+                    "insights_alert_severity": highest,
+                },
+            )
+        )
+
+    async def _collect_internal_metrics(
+        self, client: CriblAPIClient, result: AnalyzerResult
+    ) -> None:
+        try:
+            metrics = await client.get_metrics(time_range="1h")
+            items = metrics.get("items", []) if isinstance(metrics, dict) else []
+            result.metadata["internal_metrics_available"] = True
+            result.metadata["internal_metrics_count"] = len(items)
+        except Exception as e:
+            result.metadata["internal_metrics_available"] = False
+            result.add_finding(
+                self.create_finding(
+                    client=client,
+                    id="health-internal-metrics-error",
+                    category="health",
+                    severity="low",
+                    title="Internal Metrics Fetch Failed",
+                    description=f"Failed to fetch internal metrics: {str(e)}",
+                    confidence_level="medium",
+                    affected_components=["metrics"],
+                    remediation_steps=[
+                        "Verify metrics endpoint access",
+                        "Check Cribl permissions for metrics",
+                        "Confirm the deployment exposes internal metrics",
+                    ],
+                    metadata={"error": str(e)},
+                )
+            )
+
     def _surface_system_messages(
         self, messages: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
@@ -688,6 +773,7 @@ class HealthAnalyzer(BaseAnalyzer):
                     title=f"System Message: {msg_title[:50]}",
                     description=f"Cribl system message ({msg_channel}): {msg_text}",
                     confidence_level="high",
+                    affected_components=["system"],
                     remediation_steps=[
                         "Review the system message in Cribl UI for full context",
                         "Address the underlying issue described in the message",
@@ -736,6 +822,7 @@ class HealthAnalyzer(BaseAnalyzer):
                     else f"Active Banner: {message}",
                     description=f"An active system banner is configured: {message}",
                     confidence_level="high",
+                    affected_components=["system"],
                     remediation_steps=[
                         "Review if the banner is still relevant",
                         "Disable banner after the event/maintenance is complete",

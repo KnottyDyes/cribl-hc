@@ -58,11 +58,20 @@ class CriblAPIClient:
             "Accept": "application/json",
             "User-Agent": "cribl-health-check/1.0",
         }
+        try:
+            import h2  # noqa: F401
+
+            http2_enabled = True
+        except ImportError:
+            http2_enabled = False
+
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             headers=headers,
             timeout=self.timeout,
             follow_redirects=True,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
+            http2=http2_enabled,
         )
         if self._is_cloud and not self._worker_group:
             await self._detect_worker_group()
@@ -379,6 +388,14 @@ class CriblAPIClient:
         except Exception:
             return {}
 
+    async def get_security_settings(self) -> dict[str, Any]:
+        try:
+            response = await self.get("/api/v1/system/security")
+            response.raise_for_status()
+            return response.json()
+        except Exception:
+            return {}
+
     async def get_system_messages(self) -> list[dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/messages")
@@ -511,7 +528,7 @@ class CriblAPIClient:
         return response.json()
 
     async def get_search_groups(self, workspace: str = "default_search") -> dict:
-        response = await self.get(f"/api/v1/m/{workspace}/search/groups")
+        response = await self.get("/api/v1/search/usage-groups")
         response.raise_for_status()
         return response.json()
 
@@ -525,19 +542,19 @@ class CriblAPIClient:
         response.raise_for_status()
         return response.json()
 
-    async def get_lake_datasets(self, include_metrics: bool = False) -> dict:
+    async def get_lake_groups(self) -> dict:
+        response = await self.get("/api/v1/products/lake/groups")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_lake_datasets(self, lake_id: str, include_metrics: bool = False) -> dict:
         params = {"includeMetrics": str(include_metrics).lower()}
-        response = await self.get("/api/v1/products/lake/datasets", params=params)
+        response = await self.get(f"/api/v1/products/lake/lakes/{lake_id}/datasets", params=params)
         response.raise_for_status()
         return response.json()
 
-    async def get_lake_lakehouses(self) -> dict:
-        response = await self.get("/api/v1/products/lake/lakehouses")
-        response.raise_for_status()
-        return response.json()
-
-    async def get_lake_storage_locations(self, lake_name: str = "default") -> dict:
-        response = await self.get(f"/api/v1/products/lake/lakes/{lake_name}/storage_locations")
+    async def get_lake_storage_locations(self, lake_id: str) -> dict:
+        response = await self.get(f"/api/v1/products/lake/lakes/{lake_id}/storage-locations")
         response.raise_for_status()
         return response.json()
 
