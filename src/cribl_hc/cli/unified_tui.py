@@ -11,9 +11,13 @@ This serves as the foundation for the future GUI implementation.
 
 import asyncio
 
+
+from rich.align import Align
+from rich.columns import Columns
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
+from rich.rule import Rule
 from rich.text import Text
 
 from cribl_hc.cli.config_tui import ConfigTUI
@@ -21,6 +25,18 @@ from cribl_hc.cli.tui import HealthCheckTUI
 from cribl_hc.utils.logger import get_logger
 
 log = get_logger(__name__)
+
+# --- Color Palette ---
+PRIMARY_COLOR = "cyan"
+SECONDARY_COLOR = "blue"
+SUCCESS_COLOR = "green"
+WARNING_COLOR = "yellow"
+ERROR_COLOR = "red"
+DIM_COLOR = "dim"
+BACKGROUND_COLOR = "rgb(15,23,42)"  # slate-900
+PANEL_BACKGROUND_COLOR = "rgb(30,41,59)"  # slate-800
+PANEL_BORDER_COLOR = "rgb(56,189,248)"  # sky-400
+ACCENT_COLOR = "bold rgb(14,165,233)"  # sky-500
 
 
 class UnifiedTUI:
@@ -37,9 +53,9 @@ class UnifiedTUI:
 
     def __init__(self):
         """Initialize the unified TUI."""
-        self.console = Console()
-        self.config_tui = ConfigTUI()
-        self.results_tui = HealthCheckTUI()
+        self.console = Console(style=f"white on {BACKGROUND_COLOR}")
+        self.config_tui = ConfigTUI(self.console)
+        self.results_tui = HealthCheckTUI(self.console)
         self.running = True
 
     def run(self) -> None:
@@ -63,66 +79,127 @@ class UnifiedTUI:
                 elif choice.lower() in ["q", "quit", "exit"]:
                     self._quit()
                 else:
-                    self.console.print("[yellow]Invalid choice. Please try again.[/yellow]\n")
+                    self.console.print(
+                        f"[{WARNING_COLOR}]Invalid choice. Please try again.[/]",
+                        justify="center",
+                    )
+                    self.console.line()
 
             except KeyboardInterrupt:
                 self._quit()
             except Exception as e:
                 log.error("unified_tui_error", error=str(e))
-                self.console.print(f"[red]Error:[/red] {str(e)}\n")
+                self.console.print(f"[{ERROR_COLOR}]Error:[/red] {str(e)}\n")
 
     def _show_welcome(self) -> None:
         """Display welcome banner."""
-        welcome_text = Text()
-        welcome_text.append("Cribl Health Check", style="bold cyan")
-        welcome_text.append("\nInteractive Terminal Interface\n", style="dim")
-        welcome_text.append("\nManage deployments, run analyses, and view results", style="dim")
+        title = Text(
+            "Cribl Health Check", justify="center", style="bold rgb(14,165,233) on rgb(15,23,42)"
+        )
+        subtitle = Text(
+            "Interactive Terminal Interface",
+            justify="center",
+            style=f"{DIM_COLOR} on {BACKGROUND_COLOR}",
+        )
+        welcome_text = Text(
+            "\nManage deployments, run analyses, and view results.",
+            justify="center",
+            style=f"white on {BACKGROUND_COLOR}",
+        )
 
         panel = Panel(
-            welcome_text,
-            border_style="cyan",
-            padding=(1, 2)
+            Text.assemble(title, "\n", subtitle, welcome_text),
+            border_style=PANEL_BORDER_COLOR,
+            padding=(2, 4),
+            expand=False,
+            style=f"white on {BACKGROUND_COLOR}",
         )
-        self.console.print(panel)
-        self.console.print()
+        self.console.print(Align.center(panel))
+        self.console.line()
 
     def _show_main_menu(self) -> None:
-        """Display main menu."""
-        menu_text = Text()
-        menu_text.append("Main Menu\n\n", style="bold cyan")
-        menu_text.append("1. ", style="bold")
-        menu_text.append("Manage Deployments", style="cyan")
-        menu_text.append(" - Add, edit, delete, or test deployment credentials\n")
-
-        menu_text.append("2. ", style="bold")
-        menu_text.append("Run Health Check", style="cyan")
-        menu_text.append(" - Analyze a Cribl deployment\n")
-
-        menu_text.append("3. ", style="bold")
-        menu_text.append("View Recent Results", style="cyan")
-        menu_text.append(" - Browse previous analysis results\n")
-
-        menu_text.append("4. ", style="bold")
-        menu_text.append("Settings", style="cyan")
-        menu_text.append(" - Configure tool preferences\n\n")
-
-        menu_text.append("Q. ", style="bold")
-        menu_text.append("Quit", style="red")
-
-        panel = Panel(
-            menu_text,
-            title="[bold]Cribl Health Check[/bold]",
-            border_style="blue",
-            padding=(1, 2)
-        )
-        self.console.print(panel)
+        """Display main menu as interactive cards."""
+        menu_items = [
+            Panel(
+                Text.assemble(
+                    ("🚀", "bold magenta"),
+                    "\n\n",
+                    ("Manage Deployments\n", f"bold {PRIMARY_COLOR}"),
+                    (
+                        "Add, edit, test, and delete deployment credentials.",
+                        DIM_COLOR,
+                    ),
+                ),
+                title="[bold]1[/bold]",
+                title_align="left",
+                border_style=SECONDARY_COLOR,
+                padding=(1, 2),
+                style=f"white on {PANEL_BACKGROUND_COLOR}",
+            ),
+            Panel(
+                Text.assemble(
+                    ("❤️", "bold red"),
+                    "\n\n",
+                    ("Run Health Check\n", f"bold {PRIMARY_COLOR}"),
+                    ("Analyze a Cribl deployment for health and best practices.", DIM_COLOR),
+                ),
+                title="[bold]2[/bold]",
+                title_align="left",
+                border_style=SECONDARY_COLOR,
+                padding=(1, 2),
+                style=f"white on {PANEL_BACKGROUND_COLOR}",
+            ),
+            Panel(
+                Text.assemble(
+                    ("📊", "bold green"),
+                    "\n\n",
+                    ("View Recent Results\n", f"bold {PRIMARY_COLOR}"),
+                    ("Browse and export previous analysis results.", DIM_COLOR),
+                ),
+                title="[bold]3[/bold]",
+                title_align="left",
+                border_style=SECONDARY_COLOR,
+                padding=(1, 2),
+                style=f"white on {PANEL_BACKGROUND_COLOR}",
+            ),
+            Panel(
+                Text.assemble(
+                    ("⚙️", "bold yellow"),
+                    "\n\n",
+                    ("Settings\n", f"bold {PRIMARY_COLOR}"),
+                    ("Configure tool preferences and behavior.", DIM_COLOR),
+                ),
+                title="[bold]4[/bold]",
+                title_align="left",
+                border_style=SECONDARY_COLOR,
+                padding=(1, 2),
+                style=f"white on {PANEL_BACKGROUND_COLOR}",
+            ),
+        ]
+        self.console.print(Rule("Main Menu", style=ACCENT_COLOR))
+        self.console.line()
+        self.console.print(Columns(menu_items, equal=True, expand=True))
+        self.console.line()
 
     def _get_menu_choice(self) -> str:
         """Get user's menu choice."""
-        return Prompt.ask(
-            "\n[cyan]Select an option[/cyan]",
-            default="1"
+        self.console.print(
+            Align.center(
+                Text.assemble(
+                    (
+                        "Enter a number to select an option, or ",
+                        f"{DIM_COLOR} on {BACKGROUND_COLOR}",
+                    ),
+                    ("Q", f"bold {ERROR_COLOR} on {BACKGROUND_COLOR}"),
+                    (" to quit.", f"{DIM_COLOR} on {BACKGROUND_COLOR}"),
+                )
+            )
         )
+        return Prompt.ask(
+            f"\n[{ACCENT_COLOR}]Select an option[/]",
+            default="2",
+            console=self.console,
+        ).strip()
 
     def _manage_deployments(self) -> None:
         """Launch deployment management interface."""
@@ -166,19 +243,13 @@ class UnifiedTUI:
         menu_text.append("Back to Main Menu", style="dim")
 
         panel = Panel(
-            menu_text,
-            title="[bold]Manage Deployments[/bold]",
-            border_style="cyan",
-            padding=(1, 2)
+            menu_text, title="[bold]Manage Deployments[/bold]", border_style="cyan", padding=(1, 2)
         )
         self.console.print(panel)
 
     def _get_deployment_menu_choice(self) -> str:
         """Get deployment menu choice."""
-        return Prompt.ask(
-            "\n[cyan]Select an option[/cyan]",
-            default="1"
-        )
+        return Prompt.ask("\n[cyan]Select an option[/cyan]", default="1")
 
     def _run_health_check(self) -> None:
         """Run health check analysis."""
@@ -186,10 +257,9 @@ class UnifiedTUI:
         from cribl_hc.cli.commands.config import load_credentials
 
         self.console.clear()
-        self.console.print(Panel(
-            "[bold cyan]Run Health Check Analysis[/bold cyan]",
-            border_style="cyan"
-        ))
+        self.console.print(
+            Panel("[bold cyan]Run Health Check Analysis[/bold cyan]", border_style="cyan")
+        )
         self.console.print()
 
         # Load available deployments
@@ -203,7 +273,9 @@ class UnifiedTUI:
 
         if not credentials:
             self.console.print("[yellow]No deployments configured.[/yellow]")
-            self.console.print("[dim]Please add a deployment first (Option 1: Manage Deployments)[/dim]\n")
+            self.console.print(
+                "[dim]Please add a deployment first (Option 1: Manage Deployments)[/dim]\n"
+            )
             Prompt.ask("[dim]Press Enter to continue[/dim]", default="")
             self.console.clear()
             return
@@ -221,8 +293,7 @@ class UnifiedTUI:
         # Get deployment selection with support for numbers, names, or Enter for default
         while True:
             selection = Prompt.ask(
-                "[cyan]Select deployment (number or name)[/cyan]",
-                default=default_deployment
+                "[cyan]Select deployment (number or name)[/cyan]", default=default_deployment
             )
 
             # Handle empty input (Enter pressed) - use default
@@ -237,7 +308,9 @@ class UnifiedTUI:
                     deployment_id = deployment_list[idx]
                     break
                 else:
-                    self.console.print(f"[red]Invalid number. Please enter 1-{len(deployment_list)}[/red]")
+                    self.console.print(
+                        f"[red]Invalid number. Please enter 1-{len(deployment_list)}[/red]"
+                    )
                     continue
 
             # Try as deployment name
@@ -257,9 +330,7 @@ class UnifiedTUI:
         self.console.print(f"[dim]URL:[/dim] {url}\n")
 
         try:
-            analysis_run = asyncio.run(
-                self._run_analysis_async(url, token, deployment_id)
-            )
+            analysis_run = asyncio.run(self._run_analysis_async(url, token, deployment_id))
 
             if analysis_run:
                 # Display results
@@ -337,20 +408,24 @@ class UnifiedTUI:
             self.console.print("\n[green]✓ Analysis completed[/green]")
             self.console.print(f"[dim]Findings:[/dim] {len(analysis_run.findings)}")
             self.console.print(f"[dim]Recommendations:[/dim] {len(analysis_run.recommendations)}")
-            self.console.print(f"[dim]Health Score:[/dim] {analysis_run.health_score.overall_score if analysis_run.health_score else 'N/A'}\n")
+            self.console.print(
+                f"[dim]Health Score:[/dim] {analysis_run.health_score.overall_score if analysis_run.health_score else 'N/A'}\n"
+            )
 
             return analysis_run
 
     def _view_recent_results(self) -> None:
         """View recent analysis results."""
         self.console.clear()
-        self.console.print(Panel(
-            "[bold cyan]Recent Analysis Results[/bold cyan]\n\n"
-            "[dim]This feature will display previously saved analysis results.[/dim]\n"
-            "[dim]Feature coming soon![/dim]",
-            border_style="cyan",
-            padding=(1, 2)
-        ))
+        self.console.print(
+            Panel(
+                "[bold cyan]Recent Analysis Results[/bold cyan]\n\n"
+                "[dim]This feature will display previously saved analysis results.[/dim]\n"
+                "[dim]Feature coming soon![/dim]",
+                border_style="cyan",
+                padding=(1, 2),
+            )
+        )
         self.console.print()
         Prompt.ask("[dim]Press Enter to continue[/dim]", default="")
         self.console.clear()
@@ -358,17 +433,19 @@ class UnifiedTUI:
     def _show_settings(self) -> None:
         """Show settings menu."""
         self.console.clear()
-        self.console.print(Panel(
-            "[bold cyan]Settings[/bold cyan]\n\n"
-            "[dim]Configure tool preferences:[/dim]\n"
-            "  • Default API call limit\n"
-            "  • Default objectives to analyze\n"
-            "  • Output format preferences\n"
-            "  • Logging verbosity\n\n"
-            "[dim]Feature coming soon![/dim]",
-            border_style="cyan",
-            padding=(1, 2)
-        ))
+        self.console.print(
+            Panel(
+                "[bold cyan]Settings[/bold cyan]\n\n"
+                "[dim]Configure tool preferences:[/dim]\n"
+                "  • Default API call limit\n"
+                "  • Default objectives to analyze\n"
+                "  • Output format preferences\n"
+                "  • Logging verbosity\n\n"
+                "[dim]Feature coming soon![/dim]",
+                border_style="cyan",
+                padding=(1, 2),
+            )
+        )
         self.console.print()
         Prompt.ask("[dim]Press Enter to continue[/dim]", default="")
         self.console.clear()
