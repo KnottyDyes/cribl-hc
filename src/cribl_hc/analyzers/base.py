@@ -243,6 +243,9 @@ class BaseAnalyzer(ABC):
         For titles like "Pattern: {variable}", uses "pattern" as grouping_id.
         This enables automatic grouping of similar findings in the UI.
         """
+        if "confidence_level" not in kwargs:
+            kwargs["confidence_level"] = "high"
+
         if "source_analyzer" not in kwargs:
             kwargs["source_analyzer"] = self.objective_name
 
