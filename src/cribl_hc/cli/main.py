@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from cribl_hc.cli import test_connection
-from cribl_hc.cli.commands import analyze, config, list_analyzers
+from cribl_hc.cli.commands import analyze, api, config, list_analyzers
 
 console = Console()
 app = typer.Typer(
@@ -26,6 +26,12 @@ app.add_typer(
     config.app,
     name="config",
     help="Manage credentials and configuration",
+)
+
+app.add_typer(
+    api.app,
+    name="api",
+    help="Run the API server",
 )
 
 app.add_typer(
