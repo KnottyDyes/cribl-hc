@@ -66,7 +66,13 @@ def list_analyzers(
             "scripts": "Script inventory and validation signals",
             "lake_storage_locations": "Lake storage location (BYOS) health",
             "search_usage_groups": "Search usage group allocation hygiene",
+            "search_healthcheck": "Search healthcheck status",
+            "search_job_metrics": "Search job metrics summary",
+            "search_dataset_stats": "Search dataset stats and usage",
             "system_messages": "Core system message visibility",
+            "system_banners": "System banner visibility",
+            "system_certificates": "System certificate expiration",
+            "system_logs": "System log error summary",
         }
         description = descriptions.get(obj, "Health check analysis")
 

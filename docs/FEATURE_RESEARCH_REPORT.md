@@ -9,8 +9,8 @@
 ## Executive Summary
 
 ### Current State ✅ PHASE A COMPLETE
-- **20 analyzers** covering Stream, Edge, Lake, Search, and Core products
-- **31 API endpoints** currently utilized (increased from 28)
+- **39 analyzers** covering Stream, Edge, Lake, Search, and Core products
+- **37 API endpoints** currently utilized (increased from 28)
 - **Phase 1 analyzer gaps** complete (input, output, route coverage)
 - **P1-P2 Features**: 9/12 Complete (75% → Will be 100% after regex analyzer completion)
 - **Sensitive data scanning** implemented (PII/PCI/Secrets via SensitiveDataAnalyzer)
@@ -42,24 +42,24 @@
 
 | Product | Analyzers | Coverage Level |
 |---------|-----------|----------------|
-| Stream | 25 | ██████████ 100% |
-| Edge | 23 | █████████░ 90% |
-| Lake | 7 | ████░░░░░░ 35% |
-| Search | 9 | █████░░░░░ 40% |
+| Stream | 28 | ██████████ 100% |
+| Edge | 26 | █████████░ 95% |
+| Lake | 10 | █████░░░░░ 50% |
+| Search | 15 | ██████░░░░ 60% |
 | Core | 1 | █░░░░░░░░░ 5% |
 
-**Total**: 33 Analyzers | **API Endpoints**: 31 | **Test Coverage**: 717+ tests
+**Total**: 39 Analyzers | **API Endpoints**: 37 | **Test Coverage**: 723+ tests
 
 ### By Category
 
 | Category | Analyzers | Notes |
 |----------|-----------|-------|
-| Health & Monitoring | HealthAnalyzer, LakeHealthAnalyzer, SearchHealthAnalyzer, SystemMessagesAnalyzer | Core health covered |
+| Health & Monitoring | HealthAnalyzer, LakeHealthAnalyzer, SearchHealthAnalyzer, SearchHealthcheckAnalyzer, SystemMessagesAnalyzer, SystemBannersAnalyzer, SystemLogsAnalyzer | Core health covered |
 | Configuration | ConfigAnalyzer, VersionControlAnalyzer, ScriptsAnalyzer | Basic config validation |
 | Resources | ResourceAnalyzer, StorageAnalyzer, LakeStorageAnalyzer, LakeStorageLocationsAnalyzer | CPU/memory/disk covered |
-| Performance | BackpressureAnalyzer, PipelinePerformanceAnalyzer, SearchPerformanceAnalyzer | Pipeline metrics good |
-| Security | SecurityAnalyzer, SensitiveDataAnalyzer | PII/PCI/Secrets scanning implemented |
-| Data Quality | LookupHealthAnalyzer, SchemaQualityAnalyzer, DataFlowTopologyAnalyzer | Schema & routing covered |
+| Performance | BackpressureAnalyzer, PipelinePerformanceAnalyzer, SearchPerformanceAnalyzer, SearchJobMetricsAnalyzer | Pipeline metrics good |
+| Security | SecurityAnalyzer, SensitiveDataAnalyzer, SystemCertificatesAnalyzer | PII/PCI/Secrets scanning implemented |
+| Data Quality | LookupHealthAnalyzer, SchemaQualityAnalyzer, DataFlowTopologyAnalyzer, SearchDatasetStatsAnalyzer | Schema & routing covered |
 | Alerting | AlertingAnalyzer | Target validation implemented |
 | Fleet | FleetAnalyzer | Config drift detection implemented |
 | Cost | CostAnalyzer, SearchUsageGroupsAnalyzer | License tracking |
@@ -262,14 +262,13 @@ From Core API spec, these endpoints are available but not used:
 
 | Endpoint | Potential Use | Priority |
 |----------|---------------|----------|
-| `/system/certificates` | Cert expiration alerts | P1 |
-| `/master/groups/{id}/configVersion` | Config drift detection | P1 |
 | `/system/users/{id}/info` | User activity tracking | P1 |
-| `/system/banners` | Surface operational notices | P2 |
-| `/system/scripts` | Script inventory/validation | P3 |
-| `/products/lake/lakes/{id}/storage-locations` | Lake BYOS monitoring | P3 |
-| `/search/usage-groups` | Search cost allocation | P3 |
-| `/search/datatypes` | Data type validation | P3 |
+| `/system/policies` | Policy hygiene checks | P2 |
+| `/system/settings` | Settings drift detection | P2 |
+| `/system/licenses/usage` | License saturation alerts | P2 |
+| `/search/dataset-provider-types` | Provider type coverage | P3 |
+| `/search/dataset-providers` | Provider health checks | P3 |
+| `/search/datasets/{id}/fieldStats` | Field-level drift detection | P3 |
 
 ---
 
@@ -362,11 +361,17 @@ From Core API spec, these endpoints are available but not used:
 | PredictiveAnalyzer | predictive | stream,edge,lake,search | metrics, workers |
 | ResourceAnalyzer | resource | stream,edge | workers, metrics |
 | SchemaQualityAnalyzer | schema_quality | stream,edge | pipelines, parsers |
-| SearchHealthAnalyzer | search | search | search_jobs, search_dashboards |
-| SearchPerformanceAnalyzer | search | search | search_jobs |
+| SearchDatasetStatsAnalyzer | search_dataset_stats | search | search_datasets, search_dataset_stats, search_usage_stats |
+| SearchHealthAnalyzer | search | search | search_jobs, search_datasets, search_dashboards, search_saved, search_groups, search_cost |
+| SearchHealthcheckAnalyzer | search_healthcheck | search | search_healthcheck |
+| SearchJobMetricsAnalyzer | search_job_metrics | search | search_job_metrics |
+| SearchPerformanceAnalyzer | search | search | search_jobs, search_dashboards |
 | SearchUsageGroupsAnalyzer | search_usage_groups | search | search_usage_groups |
 | SecurityAnalyzer | security | stream,edge | outputs, inputs, system_settings |
 | StorageAnalyzer | storage | stream,edge | outputs, destinations |
+| SystemBannersAnalyzer | system_banners | stream,edge,lake,search | system_banners |
+| SystemCertificatesAnalyzer | system_certificates | stream,edge,lake,search | system_certificates |
+| SystemLogsAnalyzer | system_logs | stream,edge,lake,search | system_logs, system_logs_search |
 | SystemMessagesAnalyzer | system_messages | stream,edge,lake,search | system_messages |
 | VersionControlAnalyzer | version_control | stream,edge,lake,search,core | version_info, uncommitted_files |
 
@@ -516,9 +521,9 @@ From Core API spec, these endpoints are available but not used:
 | Metric | Value |
 |--------|-------|
 | **Phase A Completion** | 75% (9/12 complete) |
-| **Total Analyzers** | 20 |
-| **API Endpoints Used** | 31 |
-| **Test Cases** | 717+ |
+| **Total Analyzers** | 39 |
+| **API Endpoints Used** | 37 |
+| **Test Cases** | 723+ |
 | **Code Coverage** | High |
 | **Production Ready** | 10 features |
 | **In Development** | 1 feature (90%) |
@@ -551,4 +556,4 @@ From Core API spec, these endpoints are available but not used:
 
 *Report generated by /research.features skill*  
 *External research: Cribl docs, CriblVision pack, industry observability tools*
-*Last Updated: 2026-01-10*
+*Last Updated: 2026-01-11*

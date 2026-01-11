@@ -65,9 +65,7 @@ class SearchJob(BaseModel):
     display_username: str | None = Field(
         None, alias="displayUsername", description="Display name of user"
     )
-    stages: list[dict[str, Any]] | None = Field(
-        default=None, description="Query execution stages"
-    )
+    stages: list[dict[str, Any]] | None = Field(default=None, description="Query execution stages")
     cpu_metrics: CPUMetrics | None = Field(
         default=None, alias="cpuMetrics", description="CPU usage metrics"
     )
@@ -161,9 +159,7 @@ class Dashboard(BaseModel):
     schedule: DashboardSchedule | None = Field(
         default=None, description="Refresh schedule configuration"
     )
-    groups: list[str] | None = Field(
-        default=None, description="Access groups for this dashboard"
-    )
+    groups: list[str] | None = Field(default=None, description="Access groups for this dashboard")
     created_by: str | None = Field(
         default=None, alias="createdBy", description="User who created the dashboard"
     )
@@ -171,9 +167,7 @@ class Dashboard(BaseModel):
         default=None, alias="modifiedBy", description="User who last modified the dashboard"
     )
     created: int | None = Field(default=None, description="Creation timestamp (epoch ms)")
-    modified: int | None = Field(
-        default=None, description="Last modification timestamp (epoch ms)"
-    )
+    modified: int | None = Field(default=None, description="Last modification timestamp (epoch ms)")
 
     model_config = {"populate_by_name": True}
 
@@ -220,9 +214,7 @@ class SavedSearch(BaseModel):
         default=None, alias="modifiedBy", description="User who last modified"
     )
     created: int | None = Field(default=None, description="Creation timestamp (epoch ms)")
-    modified: int | None = Field(
-        default=None, description="Last modification timestamp (epoch ms)"
-    )
+    modified: int | None = Field(default=None, description="Last modification timestamp (epoch ms)")
 
     model_config = {"populate_by_name": True}
 
@@ -253,6 +245,79 @@ class SearchCost(BaseModel):
     )
     breakdown_by_query_type: dict[str, dict[str, float]] | None = Field(
         default=None, alias="breakdownByQueryType", description="Cost breakdown by query type"
+    )
+
+    model_config = {"populate_by_name": True}
+
+
+class SearchHealthCheckStatus(BaseModel):
+    status: str = Field(..., description="Health status (green/red)")
+    reported_at: int = Field(..., alias="reported_at", description="Reported timestamp (epoch ms)")
+    reason: str | None = Field(None, description="Failure reason if status is red")
+
+    model_config = {"populate_by_name": True}
+
+
+class SearchHealthCheckList(BaseModel):
+    items: list[SearchHealthCheckStatus] = Field(
+        default_factory=list, description="List of healthcheck statuses"
+    )
+    count: int = Field(..., description="Total number of statuses")
+
+
+class TimeSeriesPoint(BaseModel):
+    start_time: int = Field(..., alias="startTime", description="Start time (epoch ms)")
+    end_time: int = Field(..., alias="endTime", description="End time (epoch ms)")
+    value: float = Field(..., description="Metric value")
+
+    model_config = {"populate_by_name": True}
+
+
+class DatasetStatsResponse(BaseModel):
+    byte_counts: list[TimeSeriesPoint] = Field(
+        default_factory=list, alias="byteCounts", description="Byte counts over time"
+    )
+    event_counts: list[TimeSeriesPoint] = Field(
+        default_factory=list, alias="eventCounts", description="Event counts over time"
+    )
+    max_event_time: int | None = Field(
+        default=None, alias="maxEventTime", description="Latest event time"
+    )
+    min_event_time: int | None = Field(
+        default=None, alias="minEventTime", description="Earliest event time"
+    )
+    total_byte_count: float | None = Field(
+        default=None, alias="totalByteCount", description="Total bytes"
+    )
+    total_event_count: float | None = Field(
+        default=None, alias="totalEventCount", description="Total events"
+    )
+
+    model_config = {"populate_by_name": True}
+
+
+class DatasetUsageQueryCount(BaseModel):
+    count: float = Field(..., description="Query count")
+    start_time: int = Field(..., alias="startTime", description="Start time (epoch ms)")
+
+    model_config = {"populate_by_name": True}
+
+
+class DatasetUsageStatsResponse(BaseModel):
+    linked_dashboards: list[dict[str, Any]] | None = Field(
+        default=None, alias="linkedDashboards", description="Linked dashboards"
+    )
+    linked_notebooks: list[dict[str, Any]] | None = Field(
+        default=None, alias="linkedNotebooks", description="Linked notebooks"
+    )
+    query_counts: list[DatasetUsageQueryCount] = Field(
+        default_factory=list, alias="queryCounts", description="Query counts over time"
+    )
+    saved_queries: list[dict[str, Any]] | None = Field(
+        default=None, alias="savedQueries", description="Saved queries"
+    )
+    top_users: list[dict[str, Any]] | None = Field(
+        default=None, alias="topUsers", description="Top users"
     )
 
     model_config = {"populate_by_name": True}

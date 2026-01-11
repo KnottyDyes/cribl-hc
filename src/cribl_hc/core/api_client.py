@@ -423,6 +423,47 @@ class CriblAPIClient:
         except Exception:
             return []
 
+    async def get_system_logs(self) -> list[dict[str, Any]]:
+        try:
+            response = await self.get("/api/v1/system/logs")
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception:
+            return []
+
+    async def search_system_logs(
+        self,
+        log_type: str = "single",
+        group_id: str | None = None,
+        files: list[str] | str | None = None,
+        limit: int | None = None,
+        earliest: int | None = None,
+        latest: int | None = None,
+        filter_expr: str | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"type": log_type}
+        if group_id:
+            params["groupId"] = group_id
+        if files:
+            params["files"] = files
+        if limit is not None:
+            params["limit"] = limit
+        if earliest is not None:
+            params["et"] = earliest
+        if latest is not None:
+            params["lt"] = latest
+        if filter_expr:
+            params["filter"] = filter_expr
+
+        try:
+            response = await self.get("/api/v1/system/logs/search", params=params)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception:
+            return []
+
     async def get_certificates(self) -> list[dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/certificates")
@@ -548,6 +589,38 @@ class CriblAPIClient:
 
     async def get_search_datatypes(self, workspace: str = "default_search") -> dict:
         response = await self.get(f"/api/v1/m/{workspace}/search/datatypes")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_healthcheck(self) -> dict:
+        response = await self.get("/api/v1/search/healthcheck")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_job_metrics(self) -> dict:
+        response = await self.get("/api/v1/search/job-metrics")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_dataset_stats(
+        self, dataset_id: str, start_time: int, end_time: int, granularity: int
+    ) -> dict:
+        params = {"startTime": start_time, "endTime": end_time, "granularity": granularity}
+        response = await self.get(
+            f"/api/v1/search/datasets/{dataset_id}/datasetStats", params=params
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_dataset_usage_stats(
+        self, dataset_id: str, end_time: int | None = None, time_window: int | None = None
+    ) -> dict:
+        params: dict[str, Any] = {}
+        if end_time is not None:
+            params["endTime"] = end_time
+        if time_window is not None:
+            params["timeWindow"] = time_window
+        response = await self.get(f"/api/v1/search/datasets/{dataset_id}/usageStats", params=params)
         response.raise_for_status()
         return response.json()
 
