@@ -206,28 +206,36 @@ def add_credential_from_curl(
         )
 
         try:
-            console.print(
-                "[dim]Paste your curl command (Ctrl+D when done on Mac/Linux, Ctrl+Z then Enter on Windows):[/dim]"
-            )
+            console.print("[dim]Option 1: Paste curl command[/dim]")
+            console.print("[dim]Option 2: Enter URL and token separately[/dim]")
             console.print()
 
-            data = b""
-            try:
-                while True:
-                    chunk = os.read(sys.stdin.fileno(), 4096)
-                    if not chunk:
-                        break
-                    data += chunk
-            except (EOFError, KeyboardInterrupt):
-                pass
+            choice = typer.prompt("Choose (1 or 2)", default="2")
 
-            curl_input = data.decode("utf-8", errors="replace").rstrip()
+            if choice == "1":
+                console.print(
+                    "[dim]Paste curl command line by line (press Enter after each line, then Ctrl+D when done):[/dim]"
+                )
+                lines = []
+                try:
+                    while True:
+                        line = input()
+                        lines.append(line)
+                except EOFError:
+                    pass
+
+                curl_input = "\n".join(lines)
+            else:
+                console.print("[dim]Enter deployment URL:[/dim]")
+                url = typer.prompt("URL")
+
+                console.print("[dim]Enter bearer token:[/dim]")
+                token = typer.prompt("Token")
+
+                curl_input = f"-H 'Authorization: Bearer {token}' {url}"
         except KeyboardInterrupt:
             console.print("\n[yellow]Cancelled[/yellow]")
             raise typer.Exit(code=0)
-        except Exception as e:
-            console.print(f"[red]✗ Error reading input: {e}[/red]")
-            raise typer.Exit(code=1)
 
         if not curl_input.strip():
             console.print("[red]✗ No input provided[/red]")
