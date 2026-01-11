@@ -118,25 +118,23 @@ class AddDeploymentDialog(ModalScreen):
             token = token_input
 
             if "curl" in url_input.lower() or "authorization" in url_input.lower():
-                bearer = re.search(
-                    r"(?:Bearer\s+|bearer\s+)([A-Za-z0-9_\-.]+)", url_input, re.IGNORECASE
-                )
+                bearer = re.search(r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", url_input, re.IGNORECASE)
                 if bearer:
-                    token = bearer.group(1)
+                    token = bearer.group(1).strip()
                 url_match = re.search(r"(https?://[^\s\"'<>]+)", url_input, re.IGNORECASE)
                 if url_match:
                     try:
-                        parsed = urlparse(url_match.group(1))
+                        parsed = urlparse(url_match.group(1).strip())
                         url = f"{parsed.scheme}://{parsed.netloc}"
                     except Exception:
-                        url = url_match.group(1)
+                        url = url_match.group(1).strip()
 
             if "curl" in token_input.lower() or "authorization" in token_input.lower():
                 bearer = re.search(
-                    r"(?:Bearer\s+|bearer\s+)([A-Za-z0-9_\-.]+)", token_input, re.IGNORECASE
+                    r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", token_input, re.IGNORECASE
                 )
                 if bearer:
-                    token = bearer.group(1)
+                    token = bearer.group(1).strip()
                 url_match = re.search(r"(https?://[^\s\"'<>]+)", token_input, re.IGNORECASE)
                 if url_match and not url_input:
                     try:

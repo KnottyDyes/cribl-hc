@@ -135,13 +135,13 @@ def _extract_from_paste(text: str) -> dict[str, Optional[str]]:
     """
     result: dict[str, Optional[str]] = {"url": None, "token": None}
 
-    bearer_match = re.search(r"(?:Bearer\s+|bearer\s+)([A-Za-z0-9_\-.]+)", text, re.IGNORECASE)
+    bearer_match = re.search(r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", text, re.IGNORECASE)
     if bearer_match:
-        result["token"] = bearer_match.group(1)
+        result["token"] = bearer_match.group(1).strip()
 
     url_match = re.search(r"(https?://[^\s\"'<>]+)", text, re.IGNORECASE)
     if url_match:
-        url = url_match.group(1)
+        url = url_match.group(1).strip()
 
         try:
             from urllib.parse import urlparse
