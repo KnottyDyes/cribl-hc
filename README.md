@@ -33,6 +33,14 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 - **REST API**: Full API backend for programmatic access
 - **Docker Support**: One-command deployment with Docker Compose
 
+### Web GUI Screenshots (Dark Mode)
+
+![Credentials](docs/screenshots/credential_input.png)
+
+![Analysis Summary](docs/screenshots/analysis_completion.png)
+
+![Full Report](docs/screenshots/review_analysis_full.png)
+
 ## Supported Products
 
 **✅ Currently Supported:**
