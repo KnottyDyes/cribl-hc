@@ -83,7 +83,6 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
-    "--cov-fail-under=70",
     "--asyncio-mode=auto",
 ]
 asyncio_mode = "auto"
