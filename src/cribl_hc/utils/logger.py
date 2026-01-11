@@ -107,8 +107,8 @@ class AuditLogger:
         endpoint: str,
         status_code: int,
         duration_ms: float,
-        deployment_id: str | None = None,
-        error: str | None = None,
+        deployment_id: Optional[str] = None,
+        error: Optional[str] = None,
     ) -> None:
         """
         Log an API call for audit trail.
