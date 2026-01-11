@@ -281,7 +281,7 @@ class HealthCheckTUI:
 
         return Panel(footer_text, border_style="dim")
 
-    def show_error(self, message: str, error: Exception | None = None) -> None:
+    def show_error(self, message: str, error: Optional[Exception] = None) -> None:
         """
         Display an error message.
 

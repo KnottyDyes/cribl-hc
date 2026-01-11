@@ -29,11 +29,11 @@ class CredentialCreate(BaseModel):
     auth_type: str = Field(..., description="Authentication type: 'bearer' or 'oauth'")
 
     # Bearer token fields
-    token: str | None = Field(None, description="Bearer token (for auth_type='bearer')")
+    token: Optional[str] = Field(None, description="Bearer token (for auth_type='bearer')")
 
     # OAuth fields
-    client_id: str | None = Field(None, description="OAuth client ID (for auth_type='oauth')")
-    client_secret: str | None = Field(
+    client_id: Optional[str] = Field(None, description="OAuth client ID (for auth_type='oauth')")
+    client_secret: Optional[str] = Field(
         None, description="OAuth client secret (for auth_type='oauth')"
     )
 
@@ -52,11 +52,11 @@ class CredentialCreate(BaseModel):
 class CredentialUpdate(BaseModel):
     """Request model for updating credentials."""
 
-    url: str | None = Field(None, description="Cribl Stream API URL")
-    auth_type: str | None = Field(None, description="Authentication type")
-    token: str | None = Field(None, description="Bearer token")
-    client_id: str | None = Field(None, description="OAuth client ID")
-    client_secret: str | None = Field(None, description="OAuth client secret")
+    url: Optional[str] = Field(None, description="Cribl Stream API URL")
+    auth_type: Optional[str] = Field(None, description="Authentication type")
+    token: Optional[str] = Field(None, description="Bearer token")
+    client_id: Optional[str] = Field(None, description="OAuth client ID")
+    client_secret: Optional[str] = Field(None, description="OAuth client secret")
 
 
 class CredentialResponse(BaseModel):
@@ -67,7 +67,7 @@ class CredentialResponse(BaseModel):
     auth_type: str
     has_token: bool = Field(description="Whether bearer token is configured")
     has_oauth: bool = Field(description="Whether OAuth credentials are configured")
-    client_id: str | None = Field(None, description="OAuth client ID (not secret)")
+    client_id: Optional[str] = Field(None, description="OAuth client ID (not secret)")
 
 
 class ConnectionTestResult(BaseModel):
@@ -75,9 +75,9 @@ class ConnectionTestResult(BaseModel):
 
     success: bool
     message: str
-    cribl_version: str | None = None
-    response_time_ms: float | None = None
-    error: str | None = None
+    cribl_version: Optional[str] = None
+    response_time_ms: Optional[float] = None
+    error: Optional[str] = None
 
 
 @router.get("", response_model=list[CredentialResponse])

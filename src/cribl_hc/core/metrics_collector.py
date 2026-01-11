@@ -47,7 +47,7 @@ class MetricsCollector:
         """Initialize metrics collector."""
         self.log = get_logger(self.__class__.__name__)
 
-    def normalize_metrics(self, raw_metrics: dict[str, Any] | None) -> dict[str, Any]:
+    def normalize_metrics(self, raw_metrics: Optional[dict[str, Any]]) -> dict[str, Any]:
         """
         Convert raw API metrics to standard format.
 
@@ -350,7 +350,7 @@ class MetricsCollector:
         """
         return max(0.0, min(100.0, value))
 
-    def calculate_event_ratios(self, metrics: dict[str, Any] | None) -> dict[str, dict[str, float]]:
+    def calculate_event_ratios(self, metrics: Optional[dict[str, Any]]) -> dict[str, dict[str, float]]:
         """
         Calculate in/out/drop/error ratios per pipeline.
 
@@ -427,8 +427,8 @@ class MetricsCollector:
 
     def detect_trends(
         self,
-        current: dict[str, Any] | None,
-        historical: list[dict[str, Any]] | None,
+        current: Optional[dict[str, Any]],
+        historical: Optional[list[dict[str, Any]]],
         window_hours: int = 24,
     ) -> dict[str, Any]:
         """

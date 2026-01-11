@@ -67,7 +67,7 @@ class RateLimiter:
         self.consecutive_failures = 0
 
         # Lock for thread-safe operations (lazily initialized to avoid event loop issues)
-        self._lock: asyncio.Lock | None = None
+        self._lock: asyncio.Optional[Lock] = None
 
     async def acquire(self) -> None:
         """

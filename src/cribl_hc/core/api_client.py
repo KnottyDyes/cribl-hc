@@ -108,7 +108,7 @@ class CriblAPIClient:
                     return True
         return False
 
-    def _is_stream_group(self, group_id: str | None) -> bool:
+    def _is_stream_group(self, group_id: Optional[str]) -> bool:
         return bool(group_id and not group_id.startswith("edge_"))
 
     async def _test_group_access(self, group_id: str) -> bool:

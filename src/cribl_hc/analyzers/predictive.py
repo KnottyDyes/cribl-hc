@@ -78,7 +78,7 @@ class PredictiveAnalyzer(BaseAnalyzer):
     async def analyze(
         self,
         client: CriblAPIClient,
-        historical_data: dict[str, Any] | None = None
+        historical_data: Optional[dict[str, Any]] = None
     ) -> AnalyzerResult:
         """
         Analyze current state and historical data for predictions.

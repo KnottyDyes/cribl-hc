@@ -31,8 +31,8 @@ class ComponentHealth:
         name: str,
         score: float,
         status: str,
-        issues: list[str] | None = None,
-        metrics: dict[str, Any] | None = None,
+        issues: Optional[list[str]] = None,
+        metrics: Optional[dict[str, Any]] = None,
     ):
         self.name = name
         self.score = score

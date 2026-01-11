@@ -386,7 +386,7 @@ def delete_credential(
 
 @app.command("export-key")
 def export_key(
-    output: Path | None = typer.Option(
+    output: Optional[Path] = typer.Option(
         None,
         "--output",
         "-o",

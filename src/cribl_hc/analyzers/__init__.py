@@ -114,7 +114,7 @@ class AnalyzerRegistry:
             return True
         return False
 
-    def get_analyzer(self, objective: str) -> BaseAnalyzer | None:
+    def get_analyzer(self, objective: str) -> Optional[BaseAnalyzer]:
         """
         Get an analyzer instance by objective name.
 
@@ -134,7 +134,7 @@ class AnalyzerRegistry:
             return analyzer_class()
         return None
 
-    def get_analyzer_class(self, objective: str) -> type[BaseAnalyzer] | None:
+    def get_analyzer_class(self, objective: str) -> Optional[type[BaseAnalyzer]]:
         """
         Get an analyzer class (not instance) by objective name.
 
@@ -228,7 +228,7 @@ def register_analyzer(analyzer_class: type[BaseAnalyzer]) -> None:
     _global_registry.register(analyzer_class)
 
 
-def get_analyzer(objective: str) -> BaseAnalyzer | None:
+def get_analyzer(objective: str) -> Optional[BaseAnalyzer]:
     """
     Get an analyzer from the global registry.
 

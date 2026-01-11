@@ -20,16 +20,16 @@ class LakeDataset(BaseModel):
 
     id: str = Field(..., description="Dataset ID (e.g., 'default_logs', 'cribl_metrics')")
     bucket_name: str = Field(..., alias="bucketName", description="S3 bucket name")
-    description: str | None = Field(None, description="Human-readable description")
+    description: Optional[str] = Field(None, description="Human-readable description")
     retention_period_in_days: int = Field(
         ..., alias="retentionPeriodInDays", description="Retention period in days (e.g., 5-30)"
     )
     format: str = Field(..., description="Data format ('json' or 'parquet')")
     view_name: str = Field(..., alias="viewName", description="View name for querying")
-    metrics: dict[str, Any] | None = Field(
+    metrics: Optional[dict[str, Any]] = Field(
         default=None, description="Dataset metrics (when includeMetrics=true)"
     )
-    storage_location: str | None = Field(
+    storage_location: Optional[str] = Field(
         default=None,
         alias="storageLocation",
         description="Storage location ID where dataset is stored",
@@ -47,13 +47,13 @@ class Lakehouse(BaseModel):
     """
 
     id: str = Field(..., description="Lakehouse ID")
-    name: str | None = Field(None, description="Lakehouse name")
-    description: str | None = Field(None, description="Description")
-    dataset_ids: list[str] | None = Field(
+    name: Optional[str] = Field(None, description="Lakehouse name")
+    description: Optional[str] = Field(None, description="Description")
+    dataset_ids: Optional[list[str]] = Field(
         default=None, alias="datasetIds", description="Associated dataset IDs"
     )
-    status: str | None = Field(None, description="Lakehouse status")
-    config: dict[str, Any] | None = Field(None, description="Lakehouse configuration")
+    status: Optional[str] = Field(None, description="Lakehouse status")
+    config: Optional[dict[str, Any]] = Field(None, description="Lakehouse configuration")
 
     model_config = {"populate_by_name": True}
 
@@ -66,19 +66,19 @@ class DatasetStats(BaseModel):
     """
 
     dataset_id: str = Field(..., alias="datasetId", description="Dataset ID")
-    size_bytes: int | None = Field(
+    size_bytes: Optional[int] = Field(
         default=None, alias="sizeBytes", description="Dataset size in bytes"
     )
-    record_count: int | None = Field(
+    record_count: Optional[int] = Field(
         default=None, alias="recordCount", description="Number of records"
     )
-    last_updated: int | None = Field(
+    last_updated: Optional[int] = Field(
         default=None, alias="lastUpdated", description="Last update timestamp (epoch ms)"
     )
-    oldest_record: int | None = Field(
+    oldest_record: Optional[int] = Field(
         default=None, alias="oldestRecord", description="Oldest record timestamp (epoch ms)"
     )
-    newest_record: int | None = Field(
+    newest_record: Optional[int] = Field(
         default=None, alias="newestRecord", description="Newest record timestamp (epoch ms)"
     )
 

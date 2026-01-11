@@ -88,7 +88,7 @@ class WorkerNode(BaseModel):
         ..., description="Connection status"
     )
     last_seen: datetime = Field(default_factory=datetime.utcnow)
-    uptime_seconds: int | None = Field(None, description="Uptime in seconds", ge=0)
+    uptime_seconds: Optional[int] = Field(None, description="Uptime in seconds", ge=0)
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     @staticmethod

@@ -390,7 +390,7 @@ class AnalysisStatus(Static):
             yield Button("Run Analysis", id="btn-run-analysis", variant="primary")
             yield Button("Export Results", id="btn-export-results", variant="success")
 
-    def watch_current_deployment(self, deployment: str | None) -> None:
+    def watch_current_deployment(self, deployment: Optional[str]) -> None:
         """Update display when deployment changes."""
         label = self.query_one("#status-deployment", Label)
         if deployment:
@@ -617,8 +617,8 @@ class CriblHealthCheckApp(App):
     ]
 
     # Store current analysis results
-    current_analysis: AnalysisRun | None = None
-    current_results: dict | None = None
+    current_analysis: Optional[AnalysisRun] = None
+    current_results: Optional[dict] = None
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""

@@ -23,7 +23,7 @@ class CredentialEncryptor:
     Uses PBKDF2 key derivation from a master password/key for enhanced security.
     """
 
-    def __init__(self, master_key: bytes | None = None):
+    def __init__(self, master_key: Optional[bytes] = None):
         """
         Initialize credential encryptor.
 
@@ -122,7 +122,7 @@ class CredentialEncryptor:
         return Fernet.generate_key()
 
     @staticmethod
-    def derive_key_from_password(password: str, salt: bytes | None = None) -> tuple[bytes, bytes]:
+    def derive_key_from_password(password: str, salt: Optional[bytes] = None) -> tuple[bytes, bytes]:
         """
         Derive an encryption key from a password using PBKDF2.
 
@@ -154,7 +154,7 @@ class CredentialEncryptor:
 
 # Convenience functions for simple use cases
 
-_default_encryptor: CredentialEncryptor | None = None
+_default_encryptor: Optional[CredentialEncryptor] = None
 
 
 def get_default_encryptor() -> CredentialEncryptor:

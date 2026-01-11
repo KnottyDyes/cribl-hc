@@ -16,24 +16,24 @@ app = typer.Typer(help="Manage branding configuration")
 
 @app.command("set")
 def set_branding(
-    provider_name: str | None = typer.Option(
+    provider_name: Optional[str] = typer.Option(
         None,
         "--provider-name",
         "-p",
         help="Service provider company name",
     ),
-    provider_logo: str | None = typer.Option(
+    provider_logo: Optional[str] = typer.Option(
         None,
         "--provider-logo",
         help="Path to provider logo file",
     ),
-    client_name: str | None = typer.Option(
+    client_name: Optional[str] = typer.Option(
         None,
         "--client-name",
         "-c",
         help="Client company name",
     ),
-    client_logo: str | None = typer.Option(
+    client_logo: Optional[str] = typer.Option(
         None,
         "--client-logo",
         help="Path to client logo file",

@@ -87,20 +87,20 @@ async def _test_connection_async(
 
 @app.command()
 def test(
-    deployment: str | None = typer.Option(
+    deployment: Optional[str] = typer.Option(
         None,
         "--deployment",
         "-p",
         help="Use stored credentials for this deployment (from 'cribl-hc config set')",
     ),
-    url: str | None = typer.Option(
+    url: Optional[str] = typer.Option(
         None,
         "--url",
         "-u",
         help="Cribl leader URL (e.g., https://cribl.example.com)",
         envvar="CRIBL_URL",
     ),
-    token: str | None = typer.Option(
+    token: Optional[str] = typer.Option(
         None,
         "--token",
         "-t",

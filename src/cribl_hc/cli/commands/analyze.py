@@ -22,11 +22,11 @@ app = typer.Typer(help="Run health check analysis")
 
 
 def build_branding_config(
-    provider_name: str | None,
-    provider_logo: str | None,
-    client_name: str | None,
-    client_logo: str | None,
-) -> BrandingConfig | None:
+    provider_name: Optional[str],
+    provider_logo: Optional[str],
+    client_name: Optional[str],
+    client_logo: Optional[str],
+) -> Optional[BrandingConfig]:
     if not any([provider_name, client_name]):
         return None
 
@@ -49,20 +49,20 @@ def build_branding_config(
 
 @app.command()
 def run(
-    deployment: str | None = typer.Option(
+    deployment: Optional[str] = typer.Option(
         None,
         "--deployment",
         "-p",
         help="Use stored credentials for this deployment (from 'cribl-hc config set')",
     ),
-    url: str | None = typer.Option(
+    url: Optional[str] = typer.Option(
         None,
         "--url",
         "-u",
         help="Cribl Stream leader URL (e.g., https://cribl.example.com)",
         envvar="CRIBL_URL",
     ),
-    token: str | None = typer.Option(
+    token: Optional[str] = typer.Option(
         None,
         "--token",
         "-t",
@@ -70,13 +70,13 @@ def run(
         envvar="CRIBL_TOKEN",
         hide_input=True,
     ),
-    objectives: list[str] | None = typer.Option(
+    objectives: Optional[list[str]] = typer.Option(
         None,
         "--objective",
         "-o",
         help="Objectives to analyze (default: all registered)",
     ),
-    output_file: Path | None = typer.Option(
+    output_file: Optional[Path] = typer.Option(
         None,
         "--output",
         "-f",
@@ -110,22 +110,22 @@ def run(
         "--debug",
         help="Enable debug mode (DEBUG level logging with detailed traces)",
     ),
-    provider_name: str | None = typer.Option(
+    provider_name: Optional[str] = typer.Option(
         None,
         "--provider-name",
         help="Service provider company name (e.g., 'Acme Consulting')",
     ),
-    provider_logo: str | None = typer.Option(
+    provider_logo: Optional[str] = typer.Option(
         None,
         "--provider-logo",
         help="Path to provider logo file",
     ),
-    client_name: str | None = typer.Option(
+    client_name: Optional[str] = typer.Option(
         None,
         "--client-name",
         help="Client company name (e.g., 'Example Corp')",
     ),
-    client_logo: str | None = typer.Option(
+    client_logo: Optional[str] = typer.Option(
         None,
         "--client-logo",
         help="Path to client logo file",
@@ -236,14 +236,14 @@ def run(
 async def run_analysis_async(
     url: str,
     token: str,
-    objectives: list[str] | None,
-    output_file: Path | None,
+    objectives: Optional[list[str]],
+    output_file: Optional[Path],
     markdown: bool,
     deployment_id: str,
     max_api_calls: int,
     verbose: bool = False,
     debug: bool = False,
-    branding: BrandingConfig | None = None,
+    branding: Optional[BrandingConfig] = None,
 ):
     """
     Run analysis asynchronously.
@@ -416,7 +416,7 @@ def save_json_report(analysis_run, output_path: Path):
 
 
 def save_markdown_report(
-    analysis_run, results, output_path: Path, branding: BrandingConfig | None = None
+    analysis_run, results, output_path: Path, branding: Optional[BrandingConfig] = None
 ):
     from cribl_hc.core.report_generator import MarkdownReportGenerator
 
