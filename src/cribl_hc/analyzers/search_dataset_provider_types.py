@@ -40,6 +40,7 @@ class SearchDatasetProviderTypesAnalyzer(BaseAnalyzer):
                         description="Could not retrieve any dataset provider types.",
                         affected_components=["Search"],
                         confidence_level="high",
+                        remediation_steps=["Verify Search provider type configuration"],
                     )
                 )
 

@@ -99,7 +99,7 @@ class SystemLicenseUsageAnalyzer(BaseAnalyzer):
                 lic_id = lic.get("id", "unknown")
                 exp_date_ts = lic.get("expirationDate")
 
-                if exp_date_ts:
+                if exp_date_ts is not None:
                     try:
                         if exp_date_ts > 10000000000:
                             exp_date_ts = exp_date_ts / 1000
