@@ -166,6 +166,7 @@ class HealthCheckTUI:
         from itertools import groupby
 
         severity_order = ["critical", "high", "medium", "low", "info"]
+        severity_icons = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵", "info": "ℹ️"}
         severity_colors = {
             "critical": "red",
             "high": "orange1",
@@ -184,7 +185,9 @@ class HealthCheckTUI:
                 continue
 
             color = severity_colors.get(severity, "white")
-            findings_display.append(f"{severity.upper()}\n", style=f"bold {color}")
+            icon = severity_icons.get(severity, "•")
+            findings_display.append(f"{icon} {severity.upper()} ", style=f"bold {color}")
+            findings_display.append(f"({len(severity_findings)})\n", style="dim")
 
             keyfunc = lambda f: (f.grouping_id, f.worker_group)
             sorted_severity_findings = sorted(severity_findings, key=keyfunc)
