@@ -17,6 +17,9 @@ class EndpointHealthAnalyzer(BaseAnalyzer):
         """
         return "Endpoint Health"
 
+    def get_required_permissions(self) -> list[str]:
+        return ["read:metrics"]
+
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         """
         Perform analysis on endpoint health metrics.
