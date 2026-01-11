@@ -142,7 +142,7 @@ def _extract_from_paste(text: str) -> dict[str, Optional[str]]:
     if bearer_match:
         result["token"] = bearer_match.group(1).strip()
 
-    url_match = re.search(r"(https?://[^\s\"'<>]+)", cleaned_text, re.IGNORECASE)
+    url_match = re.search(r"['\"]?(https?://[^\s\"'<>]+)['\"]?", cleaned_text, re.IGNORECASE)
     if url_match:
         url = url_match.group(1).strip()
 
