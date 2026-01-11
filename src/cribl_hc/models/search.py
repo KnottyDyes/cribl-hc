@@ -356,3 +356,57 @@ class SearchGroupList(BaseModel):
 
     items: list[SearchGroup] = Field(default_factory=list, description="List of search groups")
     count: int = Field(..., description="Total number of groups")
+
+
+class DatasetProvider(BaseModel):
+    id: str = Field(..., description="Provider ID")
+    type: str | None = Field(None, description="Provider type")
+    description: str | None = Field(None, description="Description")
+    config: dict[str, Any] | None = Field(default=None, description="Configuration")
+
+    model_config = {"populate_by_name": True}
+
+
+class DatasetProviderType(BaseModel):
+    id: str = Field(..., description="Provider Type ID")
+    description: str | None = Field(None, description="Description")
+    category: str | None = Field(None, description="Category")
+
+    model_config = {"populate_by_name": True}
+
+
+class FieldStat(BaseModel):
+    name: str = Field(..., description="Field name")
+    type: str | None = Field(None, description="Field type")
+    count: int | None = Field(None, description="Total count")
+    null_count: int | None = Field(None, alias="nullCount", description="Null count")
+    distinct_count: int | None = Field(
+        None, alias="distinctCount", description="Distinct values count"
+    )
+    min: Any | None = Field(None, description="Minimum value")
+    max: Any | None = Field(None, description="Maximum value")
+
+    model_config = {"populate_by_name": True}
+
+
+class FieldStatsResponse(BaseModel):
+    fields: list[FieldStat] = Field(
+        default_factory=list, alias="fieldStats", description="List of field statistics"
+    )
+    total_events: int | None = Field(
+        default=None, alias="totalEvents", description="Total events analyzed"
+    )
+
+    model_config = {"populate_by_name": True}
+
+
+class DatasetProviderList(BaseModel):
+    items: list[DatasetProvider] = Field(default_factory=list, description="List of providers")
+    count: int = Field(..., description="Total number of providers")
+
+
+class DatasetProviderTypeList(BaseModel):
+    items: list[DatasetProviderType] = Field(
+        default_factory=list, description="List of provider types"
+    )
+    count: int = Field(..., description="Total number of provider types")

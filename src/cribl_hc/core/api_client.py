@@ -1,7 +1,7 @@
-from datetime import datetime
-from typing import Any, Optional
-from urllib.parse import urljoin
 import json
+from datetime import datetime
+from typing import Any
+from urllib.parse import urljoin
 
 import httpx
 from pydantic import BaseModel, Field
@@ -15,12 +15,12 @@ log = get_logger(__name__)
 class ConnectionTestResult(BaseModel):
     success: bool = Field(..., description="Connection test success status")
     message: str = Field(..., description="Human-readable status message")
-    response_time_ms: Optional[float] = Field(
+    response_time_ms: float | None = Field(
         default=None, description="API response time in milliseconds"
     )
-    cribl_version: Optional[str] = Field(default=None, description="Detected Cribl version")
+    cribl_version: str | None = Field(default=None, description="Detected Cribl version")
     api_url: str = Field(..., description="API URL tested")
-    error: Optional[str] = Field(default=None, description="Error details if failed")
+    error: str | None = Field(default=None, description="Error details if failed")
     tested_at: datetime = Field(default_factory=datetime.utcnow)
 
     model_config = {"populate_by_name": True}
@@ -33,19 +33,19 @@ class CriblAPIClient:
         auth_token: str,
         timeout: float = 30.0,
         max_retries: int = 3,
-        rate_limiter: Optional[RateLimiter] = None,
-        worker_group: Optional[str] = None,
+        rate_limiter: RateLimiter | None = None,
+        worker_group: str | None = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.auth_token = auth_token
         self.timeout = timeout
         self.max_retries = max_retries
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
         self._is_cloud = "cribl.cloud" in base_url.lower()
         self._worker_group = worker_group
         self._deployment_detected = False
-        self._product_type: Optional[str] = None
-        self._product_version: Optional[str] = None
+        self._product_type: str | None = None
+        self._product_version: str | None = None
         self.rate_limiter = rate_limiter or RateLimiter(
             max_calls=100,
             time_window_seconds=3600.0,
@@ -140,7 +140,7 @@ class CriblAPIClient:
         return self._worker_group or "default"
 
     @property
-    def product_type(self) -> Optional[str]:
+    def product_type(self) -> str | None:
         return self._product_type
 
     @property
@@ -156,7 +156,7 @@ class CriblAPIClient:
         return self._product_type == "lake"
 
     @property
-    def product_version(self) -> Optional[str]:
+    def product_version(self) -> str | None:
         return self._product_version
 
     async def _detect_product_type(self, version_info: dict[str, Any]) -> None:
@@ -188,7 +188,7 @@ class CriblAPIClient:
         self._product_type = "stream"
         self._product_version = version_info.get("version")
 
-    def _build_config_endpoint(self, resource: str, fleet: Optional[str] = None) -> str:
+    def _build_config_endpoint(self, resource: str, fleet: str | None = None) -> str:
         if self.is_edge:
             return f"/api/v1/e/{fleet}/{resource}" if fleet else f"/api/v1/edge/{resource}"
         elif self._is_cloud:
@@ -473,6 +473,50 @@ class CriblAPIClient:
         except Exception:
             return []
 
+    async def get_system_policies(self) -> dict[str, Any]:
+        response = await self.get("/api/v1/system/policies")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_system_settings(self) -> dict[str, Any]:
+        response = await self.get("/api/v1/system/settings")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_licenses(self) -> list[dict[str, Any]]:
+        response = await self.get("/api/v1/system/licenses")
+        response.raise_for_status()
+        data = response.json()
+        return data.get("items", [])
+
+    async def get_license_usage(self) -> dict[str, Any]:
+        response = await self.get("/api/v1/system/licenses/usage")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_license_info(self) -> dict[str, Any]:
+        data = await self.get_license_usage()
+        summary = data.get("summary", {}) if isinstance(data, dict) else {}
+        daily_limit = (
+            summary.get("dailyGbLimit")
+            or summary.get("daily_gb_limit")
+            or summary.get("limitGb")
+            or summary.get("limit")
+            or 0
+        )
+        daily_used = (
+            summary.get("dailyGbUsed")
+            or summary.get("daily_gb_used")
+            or summary.get("usedGb")
+            or summary.get("used")
+            or 0
+        )
+        return {
+            "daily_gb_limit": daily_limit,
+            "current_daily_gb": daily_used,
+            "raw": data,
+        }
+
     async def get_roles(self) -> list[dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/roles")
@@ -624,6 +668,21 @@ class CriblAPIClient:
         response.raise_for_status()
         return response.json()
 
+    async def get_search_dataset_providers(self) -> dict:
+        response = await self.get("/api/v1/search/dataset-providers")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_dataset_provider_types(self) -> dict:
+        response = await self.get("/api/v1/search/dataset-provider-types")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_field_stats(self, dataset_id: str) -> dict:
+        response = await self.get(f"/api/v1/search/datasets/{dataset_id}/fieldStats")
+        response.raise_for_status()
+        return response.json()
+
     async def get_lake_groups(self) -> dict:
         response = await self.get("/api/v1/products/lake/groups")
         response.raise_for_status()
@@ -646,7 +705,7 @@ class CriblAPIClient:
         max_events: int = 10,
         duration: int = 10,
         level: int = 1,
-        worker_id: Optional[str] = None,
+        worker_id: str | None = None,
     ) -> list[dict[str, Any]]:
         if not self._client:
             raise RuntimeError("Client not initialized")

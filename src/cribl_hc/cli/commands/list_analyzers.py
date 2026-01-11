@@ -73,6 +73,10 @@ def list_analyzers(
             "system_banners": "System banner visibility",
             "system_certificates": "System certificate expiration",
             "system_logs": "System log error summary",
+            "system_policies": "System policy inventory",
+            "system_settings": "System settings inventory",
+            "system_license_usage": "License usage and expiration",
+            "system_user_info": "User role hygiene",
         }
         description = descriptions.get(obj, "Health check analysis")
 
