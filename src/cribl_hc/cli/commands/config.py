@@ -198,7 +198,11 @@ def add_credential_from_curl(
             '[dim]Example:[/dim] curl -H "Authorization: Bearer TOKEN" https://cribl.example.com/api/...\n'
         )
 
-        curl_input = typer.prompt("Paste curl command or URL")
+        try:
+            curl_input = input("Paste curl command or URL: ")
+        except (EOFError, KeyboardInterrupt):
+            console.print("[yellow]Cancelled[/yellow]")
+            raise typer.Exit(code=0)
 
         if not curl_input.strip():
             console.print("[red]✗ No input provided[/red]")
@@ -215,9 +219,13 @@ def add_credential_from_curl(
 
         if not token:
             console.print("[yellow]⚠ No token found in input[/yellow]")
-            token = typer.prompt("Enter bearer token manually", hide_input=True)
+            try:
+                token = input("Enter bearer token manually: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                console.print("[yellow]Cancelled[/yellow]")
+                raise typer.Exit(code=0)
 
-            if not token.strip():
+            if not token:
                 console.print("[red]✗ Token cannot be empty[/red]")
                 raise typer.Exit(code=1)
 
