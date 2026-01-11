@@ -64,6 +64,9 @@ def list_analyzers(
             "config": "Configuration validation & best practices",
             "resource": "CPU/memory/disk capacity planning",
             "scripts": "Script inventory and validation signals",
+            "lake_storage_locations": "Lake storage location (BYOS) health",
+            "search_usage_groups": "Search usage group allocation hygiene",
+            "system_messages": "Core system message visibility",
         }
         description = descriptions.get(obj, "Health check analysis")
 

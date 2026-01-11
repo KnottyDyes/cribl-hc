@@ -20,6 +20,9 @@ Available Objectives:
 - dataflow_topology: Route validation, connectivity checking, data path analysis
 - alerting: Notification targets, alert configuration, alerting infrastructure health
 - scripts: Script inventory and validation signals
+- lake_storage_locations: Lake storage location (BYOS) health
+- search_usage_groups: Search usage group allocation hygiene
+- system_messages: Core system message visibility
 - version_control: Uncommitted changes, pending deployments, configuration drift
 """
 

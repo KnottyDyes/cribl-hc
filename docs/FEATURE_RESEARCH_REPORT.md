@@ -42,27 +42,27 @@
 
 | Product | Analyzers | Coverage Level |
 |---------|-----------|----------------|
-| Stream | 20 | ██████████ 100% |
-| Edge | 19 | █████████░ 95% |
-| Lake | 3 | ██░░░░░░░░ 15% |
-| Search | 5 | ███░░░░░░░ 25% |
+| Stream | 25 | ██████████ 100% |
+| Edge | 23 | █████████░ 90% |
+| Lake | 7 | ████░░░░░░ 35% |
+| Search | 9 | █████░░░░░ 40% |
 | Core | 1 | █░░░░░░░░░ 5% |
 
-**Total**: 20 Analyzers | **API Endpoints**: 31 | **Test Coverage**: 717+ tests
+**Total**: 33 Analyzers | **API Endpoints**: 31 | **Test Coverage**: 717+ tests
 
 ### By Category
 
 | Category | Analyzers | Notes |
 |----------|-----------|-------|
-| Health & Monitoring | HealthAnalyzer, LakeHealthAnalyzer, SearchHealthAnalyzer | Core health covered |
-| Configuration | ConfigAnalyzer, VersionControlAnalyzer | Basic config validation |
-| Resources | ResourceAnalyzer, StorageAnalyzer, LakeStorageAnalyzer | CPU/memory/disk covered |
+| Health & Monitoring | HealthAnalyzer, LakeHealthAnalyzer, SearchHealthAnalyzer, SystemMessagesAnalyzer | Core health covered |
+| Configuration | ConfigAnalyzer, VersionControlAnalyzer, ScriptsAnalyzer | Basic config validation |
+| Resources | ResourceAnalyzer, StorageAnalyzer, LakeStorageAnalyzer, LakeStorageLocationsAnalyzer | CPU/memory/disk covered |
 | Performance | BackpressureAnalyzer, PipelinePerformanceAnalyzer, SearchPerformanceAnalyzer | Pipeline metrics good |
 | Security | SecurityAnalyzer, SensitiveDataAnalyzer | PII/PCI/Secrets scanning implemented |
 | Data Quality | LookupHealthAnalyzer, SchemaQualityAnalyzer, DataFlowTopologyAnalyzer | Schema & routing covered |
 | Alerting | AlertingAnalyzer | Target validation implemented |
 | Fleet | FleetAnalyzer | Config drift detection implemented |
-| Cost | CostAnalyzer | License tracking |
+| Cost | CostAnalyzer, SearchUsageGroupsAnalyzer | License tracking |
 | Predictive | PredictiveAnalyzer | Forecasting |
 
 ---
@@ -354,7 +354,9 @@ From Core API spec, these endpoints are available but not used:
 | FleetAnalyzer | fleet | stream,edge,lake,search | workers, worker_groups |
 | HealthAnalyzer | health | stream,edge | workers, system_status |
 | LakeHealthAnalyzer | lake | lake | lake_datasets |
+| ScriptsAnalyzer | scripts | stream | system_scripts |
 | LakeStorageAnalyzer | lake | lake | lake_dataset_stats |
+| LakeStorageLocationsAnalyzer | lake_storage_locations | lake | lake_storage_locations, lake_datasets |
 | LookupHealthAnalyzer | lookup_health | stream,edge | lookups |
 | PipelinePerformanceAnalyzer | pipeline_performance | stream,edge | pipelines, metrics |
 | PredictiveAnalyzer | predictive | stream,edge,lake,search | metrics, workers |
@@ -362,8 +364,10 @@ From Core API spec, these endpoints are available but not used:
 | SchemaQualityAnalyzer | schema_quality | stream,edge | pipelines, parsers |
 | SearchHealthAnalyzer | search | search | search_jobs, search_dashboards |
 | SearchPerformanceAnalyzer | search | search | search_jobs |
+| SearchUsageGroupsAnalyzer | search_usage_groups | search | search_usage_groups |
 | SecurityAnalyzer | security | stream,edge | outputs, inputs, system_settings |
 | StorageAnalyzer | storage | stream,edge | outputs, destinations |
+| SystemMessagesAnalyzer | system_messages | stream,edge,lake,search | system_messages |
 | VersionControlAnalyzer | version_control | stream,edge,lake,search,core | version_info, uncommitted_files |
 
 ---
