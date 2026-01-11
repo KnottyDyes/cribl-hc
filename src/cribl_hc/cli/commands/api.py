@@ -33,7 +33,7 @@ def serve(
         help="Port to run on (0 for auto-assign)",
     ),
     reload: bool = typer.Option(
-        False,
+        True,
         "--reload",
         help="Enable auto-reload",
     ),
