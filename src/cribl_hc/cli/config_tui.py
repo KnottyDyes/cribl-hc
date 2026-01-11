@@ -364,9 +364,7 @@ class ConfigTUI:
         self.console.print(f"\n[green]✓ Deployment '{deployment_id}' updated successfully![/green]")
 
     def _delete_deployment(self) -> None:
-        """Delete one or more deployment configurations interactively."""
-        self.console.print("\n[bold cyan]Delete Deployments[/bold cyan]\n")
-
+        """Delete deployments with safe edit mode and checkbox selection."""
         from cribl_hc.cli.commands.config import load_credentials, save_credentials
 
         try:
@@ -379,74 +377,116 @@ class ConfigTUI:
             self.console.print("[yellow]No deployments configured yet.[/yellow]")
             return
 
-        mode = Prompt.ask(
-            "[cyan]Delete mode[/cyan]",
-            choices=["single", "multiple", "all"],
-            default="single",
-        )
+        self.console.clear()
+        self.console.print(Rule("Delete Deployments - Edit Mode", style="bold cyan"))
+        self.console.print("[dim]Select deployments to delete using the checkboxes below[/dim]\n")
 
-        to_delete = []
+        dep_list = sorted(credentials.keys())
+        selected = {}
 
-        if mode == "single":
-            self.console.print("[dim]Available deployments:[/dim]")
-            for dep_id in sorted(credentials.keys()):
-                self.console.print(f"  • {dep_id}")
+        self.console.print("[bold]Deployments:[/bold]\n")
+        for i, dep_id in enumerate(dep_list, 1):
+            url = credentials[dep_id].get("url", "Unknown")
+            self.console.print(f"  [{i}] ☐ {dep_id:<15} {url}")
 
-            deployment_id = Prompt.ask("\n[cyan]Deployment ID to delete[/cyan]")
+        self.console.print("\n[bold]Controls:[/bold]")
+        self.console.print("  [A]ll   - Select all deployments")
+        self.console.print("  [N]one  - Deselect all deployments")
+        self.console.print("  [Q]uit  - Cancel and go back\n")
 
-            if deployment_id not in credentials:
-                self.console.print(f"[red]Deployment '{deployment_id}' not found.[/red]")
+        while True:
+            self.console.print("[bold]Edit Mode:[/bold]")
+            self.console.print("  Type credential number to toggle (e.g., 1, 2, 3...)")
+            self.console.print(
+                "  Type 'A' for all, 'N' for none, 'D' to delete selected, 'Q' to quit\n"
+            )
+
+            choice = Prompt.ask("[cyan]Enter command[/cyan]", default="").lower().strip()
+
+            if choice == "q":
+                self.console.print("[yellow]Cancelled.[/yellow]")
                 return
 
-            to_delete = [deployment_id]
-
-        elif mode == "multiple":
-            self.console.print("[dim]Available deployments (type 'y' or '1' to select):[/dim]\n")
-            dep_list = sorted(credentials.keys())
-            selected = {}
-
-            for i, dep_id in enumerate(dep_list, 1):
-                url = credentials[dep_id].get("url", "Unknown")
-                response = Prompt.ask(
-                    f"  [{i}] {dep_id:<20} ({url})",
-                    choices=["y", "n", "1", "0"],
-                    default="n",
+            if choice == "a":
+                selected = {dep_id: True for dep_id in dep_list}
+                self.console.clear()
+                self.console.print(Rule("Delete Deployments - Edit Mode", style="bold cyan"))
+                self.console.print(
+                    "[dim]Select deployments to delete using the checkboxes below[/dim]\n"
                 )
-                if response.lower() in ["y", "1"]:
-                    selected[dep_id] = True
+                self.console.print("[bold]Deployments:[/bold]\n")
+                for i, dep_id in enumerate(dep_list, 1):
+                    url = credentials[dep_id].get("url", "Unknown")
+                    marker = "☑" if selected.get(dep_id) else "☐"
+                    self.console.print(f"  [{i}] {marker} {dep_id:<15} {url}")
+                self.console.print()
+                continue
 
-            to_delete = list(selected.keys())
+            if choice == "n":
+                selected = {}
+                self.console.clear()
+                self.console.print(Rule("Delete Deployments - Edit Mode", style="bold cyan"))
+                self.console.print(
+                    "[dim]Select deployments to delete using the checkboxes below[/dim]\n"
+                )
+                self.console.print("[bold]Deployments:[/bold]\n")
+                for i, dep_id in enumerate(dep_list, 1):
+                    url = credentials[dep_id].get("url", "Unknown")
+                    marker = "☑" if selected.get(dep_id) else "☐"
+                    self.console.print(f"  [{i}] {marker} {dep_id:<15} {url}")
+                self.console.print()
+                continue
 
-            if not to_delete:
-                self.console.print("[yellow]No deployments selected.[/yellow]")
+            if choice == "d":
+                to_delete = list(selected.keys())
+                if not to_delete:
+                    self.console.print("[yellow]No deployments selected.[/yellow]\n")
+                    continue
+
+                self.console.print(
+                    f"\n[bold red]⚠ WARNING:[/bold red] About to delete {len(to_delete)} deployment(s):"
+                )
+                for dep_id in to_delete:
+                    self.console.print(f"  • {dep_id}")
+
+                if not Confirm.ask(
+                    "\n[bold red]Delete these deployments permanently?[/bold red]",
+                    default=False,
+                ):
+                    self.console.print("[yellow]Cancelled.[/yellow]")
+                    return
+
+                for dep_id in to_delete:
+                    del credentials[dep_id]
+
+                save_credentials(credentials)
+                self.console.print(
+                    f"\n[green]✓ Deleted {len(to_delete)} deployment(s) successfully![/green]"
+                )
                 return
 
-        elif mode == "all":
-            to_delete = list(credentials.keys())
-
-        if not to_delete:
-            self.console.print("[yellow]No deployments to delete.[/yellow]")
-            return
-
-        self.console.print(f"\n[yellow]⚠ Will delete the following:[/yellow]")
-        for dep_id in to_delete:
-            self.console.print(f"  • {dep_id}")
-
-        if not Confirm.ask(
-            "\n[yellow]Are you sure you want to delete these deployments?[/yellow]",
-            default=False,
-        ):
-            self.console.print("[yellow]Operation cancelled.[/yellow]")
-            return
-
-        for dep_id in to_delete:
-            del credentials[dep_id]
-
-        save_credentials(credentials)
-
-        self.console.print(
-            f"\n[green]✓ Deleted {len(to_delete)} deployment(s) successfully![/green]"
-        )
+            if choice.isdigit():
+                idx = int(choice) - 1
+                if 0 <= idx < len(dep_list):
+                    dep_id = dep_list[idx]
+                    selected[dep_id] = not selected.get(dep_id, False)
+                    self.console.clear()
+                    self.console.print(Rule("Delete Deployments - Edit Mode", style="bold cyan"))
+                    self.console.print(
+                        "[dim]Select deployments to delete using the checkboxes below[/dim]\n"
+                    )
+                    self.console.print("[bold]Deployments:[/bold]\n")
+                    for i, d_id in enumerate(dep_list, 1):
+                        url = credentials[d_id].get("url", "Unknown")
+                        marker = "☑" if selected.get(d_id) else "☐"
+                        self.console.print(f"  [{i}] {marker} {d_id:<15} {url}")
+                    self.console.print()
+                else:
+                    self.console.print(f"[red]Invalid number. Choose 1-{len(dep_list)}[/red]\n")
+            else:
+                self.console.print(
+                    "[red]Invalid command. Use 1-N for numbers, A/N/D/Q for commands.[/red]\n"
+                )
 
     def _test_connection(self) -> None:
         """Test connection to a deployment."""
