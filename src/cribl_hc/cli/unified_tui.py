@@ -54,7 +54,7 @@ class UnifiedTUI:
     def __init__(self):
         """Initialize the unified TUI."""
         self.console = Console(style=f"white on {BACKGROUND_COLOR}")
-        self.config_tui = ConfigTUI(self.console)
+        self.config_tui = ConfigTUI()
         self.results_tui = HealthCheckTUI(self.console)
         self.running = True
 
