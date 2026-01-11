@@ -202,14 +202,19 @@ def add_credential_from_curl(
         )
 
         try:
-            console.print(
-                "[dim]Press Ctrl+D (Mac/Linux) or Ctrl+Z + Enter (Windows) when done[/dim]"
-            )
+            console.print("[dim]Press Enter twice when done (or Ctrl+D on Mac/Linux)[/dim]")
             lines = []
+            empty_count = 0
             while True:
                 try:
                     line = input()
-                    lines.append(line)
+                    if not line.strip():
+                        empty_count += 1
+                        if empty_count >= 1:
+                            break
+                    else:
+                        empty_count = 0
+                        lines.append(line)
                 except EOFError:
                     break
             curl_input = "\n".join(lines)
