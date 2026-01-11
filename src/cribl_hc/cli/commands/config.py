@@ -5,6 +5,7 @@ Config command for managing credentials and settings.
 import json
 import re
 import sys
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -203,25 +204,30 @@ def add_credential_from_curl(
         )
 
         try:
-            console.print("[dim]Press Enter twice when done (or Ctrl+D on Mac/Linux)[/dim]")
+            console.print(
+                "[dim]Paste your curl command. To work around terminal input limits:[/dim]"
+            )
+            console.print("[dim]1. Save curl to a file: echo 'curl ...' > /tmp/curl.txt[/dim]")
+            console.print("[dim]2. Then run: cribl-hc config set prod < /tmp/curl.txt[/dim]")
+            console.print()
+
             lines = []
-            empty_count = 0
             while True:
                 try:
-                    line = sys.stdin.readline().rstrip("\n")
-                    if not line.strip():
-                        empty_count += 1
-                        if empty_count >= 1:
-                            break
-                    else:
-                        empty_count = 0
-                        lines.append(line)
+                    line = sys.stdin.readline()
+                    if not line:
+                        break
+                    lines.append(line.rstrip("\n"))
                 except (EOFError, KeyboardInterrupt):
                     break
+
             curl_input = "\n".join(lines)
         except KeyboardInterrupt:
             console.print("[yellow]Cancelled[/yellow]")
             raise typer.Exit(code=0)
+        except Exception as e:
+            console.print(f"[red]✗ Error reading input: {e}[/red]")
+            raise typer.Exit(code=1)
 
         if not curl_input.strip():
             console.print("[red]✗ No input provided[/red]")
