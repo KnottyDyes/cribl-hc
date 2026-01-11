@@ -3,7 +3,9 @@ Config command for managing credentials and settings.
 """
 
 import json
+import re
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -113,6 +115,132 @@ def set_credential(
 
     except Exception as e:
         console.print(f"[red]✗ Failed to save credentials:[/red] {str(e)}")
+        raise typer.Exit(code=1)
+
+
+def _extract_from_paste(text: str) -> dict[str, Optional[str]]:
+    """
+    Extract URL and token from pasted content.
+
+    Handles:
+    - curl commands: curl -H "Authorization: Bearer TOKEN" https://example.com/api/v1/...
+    - Raw URLs: https://example.com/api/v1/something
+    - URLs with paths (strips to base URL)
+
+    Args:
+        text: Pasted content to parse
+
+    Returns:
+        Dictionary with 'url' and 'token' keys (values may be None)
+    """
+    result: dict[str, Optional[str]] = {"url": None, "token": None}
+
+    bearer_match = re.search(r"(?:Bearer\s+|bearer\s+)([A-Za-z0-9_\-.]+)", text, re.IGNORECASE)
+    if bearer_match:
+        result["token"] = bearer_match.group(1)
+
+    url_match = re.search(r"(https?://[^\s\"'<>]+)", text, re.IGNORECASE)
+    if url_match:
+        url = url_match.group(1)
+
+        try:
+            from urllib.parse import urlparse
+
+            parsed = urlparse(url)
+            result["url"] = f"{parsed.scheme}://{parsed.netloc}"
+        except Exception:
+            result["url"] = url
+
+    return result
+
+
+@app.command("add-from-curl")
+def add_credential_from_curl(
+    name: str = typer.Argument(
+        ..., help="Deployment name/identifier (e.g., 'prod', 'dev', 'staging')"
+    ),
+):
+    """
+    Add credentials by pasting a curl command or API request.
+
+    This command simplifies credential setup by extracting the URL and bearer token
+    from a REST call. Useful for quickly setting up credentials from browser dev tools.
+
+    How to use:
+    1. Open Cribl Settings and copy a curl command from browser dev tools
+    2. Run: cribl-hc config add-from-curl prod
+    3. Paste the curl command when prompted
+    4. Credentials are automatically extracted and saved
+
+    Example curl command (from browser dev tools):
+        curl -H "Authorization: Bearer sk_live_abc123xyz789" https://main-myorg.cribl.cloud/api/v1/system/status
+
+    Examples:
+
+        cribl-hc config add-from-curl prod
+        cribl-hc config add-from-curl dev
+    """
+    try:
+        credentials = load_credentials()
+
+        if name in credentials:
+            if not typer.confirm(
+                f"Credentials for '{name}' already exist. Overwrite?", default=False
+            ):
+                console.print("[yellow]Cancelled[/yellow]")
+                raise typer.Exit(code=0)
+
+        console.print("\n[bold cyan]Add Credentials from REST Call[/bold cyan]")
+        console.print(f"[dim]Deployment name:[/dim] {name}\n")
+
+        console.print("[dim]Paste a curl command or API URL[/dim]")
+        console.print(
+            '[dim]Example:[/dim] curl -H "Authorization: Bearer TOKEN" https://cribl.example.com/api/...\n'
+        )
+
+        curl_input = typer.prompt("Paste curl command or URL")
+
+        if not curl_input.strip():
+            console.print("[red]✗ No input provided[/red]")
+            raise typer.Exit(code=1)
+
+        extracted = _extract_from_paste(curl_input)
+        url = extracted["url"]
+        token = extracted["token"]
+
+        if not url:
+            console.print("[red]✗ Could not extract URL from input[/red]")
+            console.print("[dim]Make sure to paste a valid curl command or URL[/dim]")
+            raise typer.Exit(code=1)
+
+        if not token:
+            console.print("[yellow]⚠ No token found in input[/yellow]")
+            token = typer.prompt("Enter bearer token manually", hide_input=True)
+
+            if not token.strip():
+                console.print("[red]✗ Token cannot be empty[/red]")
+                raise typer.Exit(code=1)
+
+        console.print(f"\n[dim]Extracted URL:[/dim] {url}")
+        console.print(f"[dim]Extracted Token:[/dim] {'*' * 40}")
+
+        if not typer.confirm("\nSave these credentials?", default=True):
+            console.print("[yellow]Cancelled[/yellow]")
+            raise typer.Exit(code=0)
+
+        credentials[name] = {
+            "url": url,
+            "token": token,
+        }
+
+        save_credentials(credentials)
+
+        console.print(f"\n[green]✓ Saved credentials for deployment:[/green] {name}")
+        console.print(f"[dim]URL:[/dim] {url}")
+        console.print(f"[dim]Use with:[/dim] cribl-hc analyze run --deployment {name}")
+
+    except Exception as e:
+        console.print(f"[red]✗ Failed to add credentials:[/red] {str(e)}")
         raise typer.Exit(code=1)
 
 
