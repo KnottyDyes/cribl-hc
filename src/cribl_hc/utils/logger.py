@@ -163,9 +163,9 @@ class AuditLogger:
         deployment_id: str,
         duration_seconds: float,
         api_calls_used: int,
-        health_score: float | None = None,
+        health_score: Optional[float] = None,
         findings_count: int = 0,
-        error: str | None = None,
+        error: Optional[str] = None,
     ) -> None:
         """
         Log the completion of an analysis run.
@@ -200,7 +200,7 @@ class AuditLogger:
         operation: str,
         deployment_id: str,
         success: bool,
-        error: str | None = None,
+        error: Optional[str] = None,
     ) -> None:
         """
         Log credential operations (store, retrieve, delete).
