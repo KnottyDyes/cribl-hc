@@ -1,6 +1,6 @@
 # Cribl Health Check
 
-[![CI](https://github.com/yourusername/cribl-hc/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/cribl-hc/actions/workflows/ci.yml)
+[![CI](https://github.com/KnottyDyes/cribl-hc/actions/workflows/ci.yml/badge.svg)](https://github.com/KnottyDyes/cribl-hc/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
@@ -32,6 +32,14 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 - **Report Personalization**: Custom headers, footers, watermarks, and CSS styling
 - **REST API**: Full API backend for programmatic access
 - **Docker Support**: One-command deployment with Docker Compose
+
+### Web GUI Screenshots (Dark Mode)
+
+![Credentials](docs/screenshots/credential_input.png)
+
+![Analysis Summary](docs/screenshots/analysis_completion.png)
+
+![Full Report](docs/screenshots/review_analysis_full.png)
 
 ## Supported Products
 
@@ -179,7 +187,7 @@ export CRIBL_URL=https://cribl.example.com
 export CRIBL_TOKEN=YOUR_API_TOKEN
 ```
 
-### 2. Interactive TUI (Recommended for Getting Started)
+### 2. Interactive TUI
 
 ```bash
 # Launch the unified Terminal User Interface
@@ -478,6 +486,7 @@ This project is provided as-is for use with Cribl Stream deployments.
 Cribl Health Check Project
 Sean Armstrong
 Claude
+Sisyphus
 
 ---
 
