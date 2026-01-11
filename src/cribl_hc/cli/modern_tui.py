@@ -126,15 +126,13 @@ class AddDeploymentDialog(ModalScreen):
                 )
                 if bearer:
                     token = bearer.group(1).strip()
-                url_match = re.search(
-                    r"['\"]?(https?://[^\s\"'<>]+)['\"]?", url_input_clean, re.IGNORECASE
-                )
+                url_match = re.search(r"https?://[^\s\"'<>]+", url_input_clean, re.IGNORECASE)
                 if url_match:
                     try:
-                        parsed = urlparse(url_match.group(1).strip())
+                        parsed = urlparse(url_match.group(0).strip().strip("'\""))
                         url = f"{parsed.scheme}://{parsed.netloc}"
                     except Exception:
-                        url = url_match.group(1).strip()
+                        url = url_match.group(0).strip().strip("'\"")
 
             if "curl" in token_input.lower() or "authorization" in token_input.lower():
                 bearer = re.search(
@@ -142,15 +140,13 @@ class AddDeploymentDialog(ModalScreen):
                 )
                 if bearer:
                     token = bearer.group(1).strip()
-                url_match = re.search(
-                    r"['\"]?(https?://[^\s\"'<>]+)['\"]?", token_input_clean, re.IGNORECASE
-                )
+                url_match = re.search(r"https?://[^\s\"'<>]+", token_input_clean, re.IGNORECASE)
                 if url_match and not url_input:
                     try:
-                        parsed = urlparse(url_match.group(1).strip())
+                        parsed = urlparse(url_match.group(0).strip().strip("'\""))
                         url = f"{parsed.scheme}://{parsed.netloc}"
                     except Exception:
-                        url = url_match.group(1).strip()
+                        url = url_match.group(0).strip().strip("'\"")
 
             if not deployment_id or not url or not token:
                 self.app.notify("All fields are required", severity="error")
