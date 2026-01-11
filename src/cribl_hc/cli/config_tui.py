@@ -195,11 +195,26 @@ class ConfigTUI:
     def _add_deployment(self) -> None:
         """Add a new deployment configuration."""
         self.console.print("\n[bold cyan]Add New Deployment[/bold cyan]\n")
+        self.console.print("[dim]DEBUG: Starting _add_deployment[/dim]")
 
-        # Get deployment ID
-        deployment_id = Prompt.ask("[cyan]Deployment ID[/cyan] (e.g., 'prod', 'dev', 'staging')")
+        # Get deployment ID - use input() for better stdin handling
+        try:
+            self.console.print("[dim]DEBUG: About to ask for Deployment ID[/dim]")
+            deployment_id = input(
+                "[cyan]Deployment ID[/cyan] (e.g., 'prod', 'dev', 'staging'): "
+            ).strip()
+            self.console.print(f"[dim]DEBUG: Got deployment_id: {deployment_id}[/dim]")
+        except (EOFError, KeyboardInterrupt):
+            self.console.print("[yellow]Cancelled.[/yellow]")
+            return
 
-        if not deployment_id or not deployment_id.strip():
+        if not deployment_id:
+            self.console.print("[red]Deployment ID cannot be empty.[/red]")
+            return
+
+        self.console.print(f"[dim]DEBUG: Proceeding with deployment_id={deployment_id}[/dim]")
+
+        if not deployment_id:
             self.console.print("[red]Deployment ID cannot be empty.[/red]")
             return
 
@@ -207,7 +222,9 @@ class ConfigTUI:
         from cribl_hc.cli.commands.config import load_credentials
 
         try:
+            self.console.print("[dim]DEBUG: Loading credentials[/dim]")
             credentials = load_credentials()
+            self.console.print(f"[dim]DEBUG: Loaded {len(credentials)} credentials[/dim]")
             if deployment_id in credentials:
                 if not Confirm.ask(
                     f"\n[yellow]Deployment '{deployment_id}' already exists. Overwrite?[/yellow]",
@@ -216,7 +233,13 @@ class ConfigTUI:
                     self.console.print("[yellow]Operation cancelled.[/yellow]")
                     return
         except FileNotFoundError:
+            self.console.print("[dim]DEBUG: No credentials file found[/dim]")
             credentials = {}
+        except Exception as e:
+            self.console.print(f"[red]DEBUG: Error loading credentials: {e}[/red]")
+            credentials = {}
+
+        self.console.print("[dim]DEBUG: About to ask for deployment type[/dim]")
 
         # Get deployment type
         self.console.print("\n[dim]Deployment Types:[/dim]")
