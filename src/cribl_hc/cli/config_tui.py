@@ -14,9 +14,12 @@ import re
 from pathlib import Path
 from typing import Optional
 
+from rich.align import Align
+from rich.columns import Columns
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
+from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
@@ -24,6 +27,14 @@ from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.utils.logger import get_logger
 
 log = get_logger(__name__)
+
+COLOR_PRIMARY = "rgb(14,165,233)"
+COLOR_SECONDARY = "rgb(56,189,248)"
+COLOR_SUCCESS = "rgb(34,197,94)"
+COLOR_WARNING = "rgb(234,179,8)"
+COLOR_ERROR = "rgb(239,68,68)"
+COLOR_BG = "rgb(15,23,42)"
+COLOR_PANEL_BG = "rgb(30,41,59)"
 
 
 class ConfigTUI:
@@ -81,6 +92,31 @@ class ConfigTUI:
                 result["url"] = url
 
         return result
+
+    def _create_deployment_card(
+        self, dep_id: str, url: str, token: str, status: str = "✓"
+    ) -> Panel:
+        """Create a styled card for a deployment."""
+        status_color = COLOR_SUCCESS if status == "✓" else COLOR_ERROR
+        status_symbol = f"[{status_color}]{status}[/]"
+
+        content = Text.assemble(
+            (f"📦 ", "bold cyan"),
+            (f"{dep_id}\n", f"bold {COLOR_PRIMARY}"),
+            ("URL: ", "dim"),
+            (f"{url}\n", "white"),
+            ("Token: ", "dim"),
+            (f"{token[:8]}...{token[-4:]}\n", "dim"),
+            ("Status: ", "dim"),
+            status_symbol,
+        )
+
+        return Panel(
+            content,
+            border_style=COLOR_SECONDARY,
+            padding=(1, 2),
+            style=f"white on {COLOR_PANEL_BG}",
+        )
 
     def run(self) -> None:
         """Run the interactive configuration TUI."""
@@ -453,9 +489,7 @@ class ConfigTUI:
             self.console.print(f"\n[red]✗ Connection to '{deployment_id}' failed.[/red]")
 
     def _view_deployments(self) -> None:
-        """View all configured deployments."""
-        self.console.print("\n[bold cyan]Configured Deployments[/bold cyan]\n")
-
+        """View all configured deployments in card-based layout."""
         from cribl_hc.cli.commands.config import load_credentials
 
         try:
@@ -468,22 +502,37 @@ class ConfigTUI:
             self.console.print("[yellow]No deployments configured yet.[/yellow]")
             return
 
-        # Create table
-        table = Table(show_header=True, header_style="bold cyan", border_style="blue")
-        table.add_column("Deployment ID", style="cyan")
-        table.add_column("URL")
-        table.add_column("Token", style="dim")
+        self.console.print(Rule("Configured Deployments", style=COLOR_PRIMARY))
+        self.console.line()
 
-        for dep_id, cred in credentials.items():
-            # Mask token
-            token_masked = (
-                cred["token"][:8] + "..." + cred["token"][-4:] if len(cred["token"]) > 12 else "***"
-            )
+        dep_list = sorted(credentials.keys())
+        cards = []
 
-            table.add_row(dep_id, cred["url"], token_masked)
+        for dep_id in dep_list:
+            cred = credentials[dep_id]
+            card = self._create_deployment_card(dep_id, cred["url"], cred["token"])
+            cards.append(card)
 
-        self.console.print(table)
-        self.console.print(f"\n[dim]Total: {len(credentials)} deployment(s)[/dim]")
+        if len(cards) <= 2:
+            for card in cards:
+                self.console.print(card)
+                self.console.line()
+        else:
+            for i in range(0, len(cards), 2):
+                if i + 1 < len(cards):
+                    self.console.print(Columns([cards[i], cards[i + 1]], equal=True, expand=True))
+                else:
+                    self.console.print(cards[i])
+                self.console.line()
+
+        summary = Text.assemble(
+            ("Total: ", "dim"),
+            (f"{len(credentials)}", f"bold {COLOR_PRIMARY}"),
+            (" deployment(s) | ", "dim"),
+            ("Tip: ", "dim"),
+            ("Use 'Edit' to update or 'Delete' to remove", "dim"),
+        )
+        self.console.print(Align.center(summary))
 
     def _view_deployment_details(self) -> None:
         """View detailed information about a specific deployment."""
