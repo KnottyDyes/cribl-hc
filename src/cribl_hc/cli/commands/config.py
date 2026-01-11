@@ -4,6 +4,7 @@ Config command for managing credentials and settings.
 
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -207,7 +208,7 @@ def add_credential_from_curl(
             empty_count = 0
             while True:
                 try:
-                    line = input()
+                    line = sys.stdin.readline().rstrip("\n")
                     if not line.strip():
                         empty_count += 1
                         if empty_count >= 1:
@@ -215,7 +216,7 @@ def add_credential_from_curl(
                     else:
                         empty_count = 0
                         lines.append(line)
-                except EOFError:
+                except (EOFError, KeyboardInterrupt):
                     break
             curl_input = "\n".join(lines)
         except KeyboardInterrupt:
