@@ -63,6 +63,7 @@ def list_analyzers(
             "health": "Worker health & system status monitoring",
             "config": "Configuration validation & best practices",
             "resource": "CPU/memory/disk capacity planning",
+            "scripts": "Script inventory and validation signals",
         }
         description = descriptions.get(obj, "Health check analysis")
 
@@ -75,14 +76,10 @@ def list_analyzers(
     console.print(table)
 
     # Show total estimated API calls
-    total_calls = sum(
-        get_analyzer(obj).get_estimated_api_calls() for obj in objectives
-    )
+    total_calls = sum(get_analyzer(obj).get_estimated_api_calls() for obj in objectives)
     console.print(f"\n[dim]Total API calls if all analyzers run: {total_calls}/100[/dim]")
 
     # Show usage example
     console.print("\n[dim]Usage examples:[/dim]")
     console.print("  [cyan]cribl-hc analyze run[/cyan]                    # Run all analyzers")
-    console.print(
-        "  [cyan]cribl-hc analyze run -o health[/cyan]          # Run specific analyzer"
-    )
+    console.print("  [cyan]cribl-hc analyze run -o health[/cyan]          # Run specific analyzer")

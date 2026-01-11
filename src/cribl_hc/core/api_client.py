@@ -414,6 +414,15 @@ class CriblAPIClient:
         except Exception:
             return []
 
+    async def get_scripts(self) -> list[dict[str, Any]]:
+        try:
+            response = await self.get("/api/v1/system/scripts")
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception:
+            return []
+
     async def get_certificates(self) -> list[dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/certificates")

@@ -19,6 +19,7 @@ Available Objectives:
 - schema_quality: Parser analysis, regex optimization, schema mapping
 - dataflow_topology: Route validation, connectivity checking, data path analysis
 - alerting: Notification targets, alert configuration, alerting infrastructure health
+- scripts: Script inventory and validation signals
 - version_control: Uncommitted changes, pending deployments, configuration drift
 """
 
