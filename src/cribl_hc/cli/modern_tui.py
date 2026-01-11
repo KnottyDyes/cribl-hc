@@ -8,12 +8,13 @@ Built with Textual - provides a Pocker-style navigable interface with:
 - Interactive deployment management
 - Results history and export (JSON/MD)
 """
+
 from typing import Optional
 
 
 import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from textual.app import App, ComposeResult
@@ -835,14 +836,14 @@ class CriblHealthCheckApp(App):
                     status_widget.api_calls = orchestrator.client.get_api_calls_used()
 
                 # Run analysis
-                start_time = datetime.now(UTC)
+                start_time = datetime.now(timezone.utc)
                 results = await orchestrator.run_analysis(
                     objectives=None,
                     progress_callback=update_progress,
                 )
 
                 # Update duration
-                duration = (datetime.now(UTC) - start_time).total_seconds()
+                duration = (datetime.now(timezone.utc) - start_time).total_seconds()
                 status_widget.duration = duration
 
                 # Create analysis run
