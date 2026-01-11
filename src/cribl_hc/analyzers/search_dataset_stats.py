@@ -89,7 +89,7 @@ class SearchDatasetStatsAnalyzer(BaseAnalyzer):
                     usage = DatasetUsageStatsResponse(**usage_response)
                 except Exception as exc:
                     log.warning("dataset_usage_fetch_failed", dataset_id=dataset_id, error=str(exc))
-                    usage = DatasetUsageStatsResponse(query_counts=[])
+                    usage = DatasetUsageStatsResponse(**{"queryCounts": []})
 
                 analyzed += 1
                 total_events = stats.total_event_count or 0
@@ -160,6 +160,7 @@ class SearchDatasetStatsAnalyzer(BaseAnalyzer):
                     description=f"Failed to analyze dataset stats: {str(exc)}",
                     affected_components=["Search API"],
                     remediation_steps=["Verify Search API connectivity"],
+                    estimated_impact="Dataset stats unavailable",
                     confidence_level="high",
                 )
             )

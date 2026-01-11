@@ -55,6 +55,7 @@ class SystemLicenseUsageAnalyzer(BaseAnalyzer):
                             affected_components=["license"],
                             confidence_level="high",
                             remediation_steps=["Reduce ingestion or increase license allocation"],
+                            estimated_impact="Imminent license exhaustion",
                             metadata={"usage_percent": usage_pct},
                         )
                     )
@@ -70,6 +71,7 @@ class SystemLicenseUsageAnalyzer(BaseAnalyzer):
                             affected_components=["license"],
                             confidence_level="high",
                             remediation_steps=["Monitor usage and plan license adjustments"],
+                            estimated_impact="Reduced license headroom",
                             metadata={"usage_percent": usage_pct},
                         )
                     )
@@ -135,6 +137,7 @@ class SystemLicenseUsageAnalyzer(BaseAnalyzer):
                                     affected_components=["license"],
                                     confidence_level="high",
                                     remediation_steps=["Plan license renewal"],
+                                    estimated_impact="License expiration risk",
                                     metadata={
                                         "expiration_date": exp_date.isoformat(),
                                         "days_left": days_left,

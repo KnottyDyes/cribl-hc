@@ -65,6 +65,13 @@ class SystemMessagesAnalyzer(BaseAnalyzer):
                 message_text = msg.get("message") or msg.get("text") or "System message"
                 severity = self._map_severity(msg)
 
+                remediation_steps = ["Review system message details", "Address underlying issue"]
+                estimated_impact = (
+                    "System warnings or errors are present"
+                    if severity in {"high", "critical"}
+                    else "Informational system notice"
+                )
+
                 result.add_finding(
                     self.create_finding(
                         client=client,
@@ -75,6 +82,8 @@ class SystemMessagesAnalyzer(BaseAnalyzer):
                         description=message_text,
                         confidence_level="medium",
                         affected_components=["system"],
+                        remediation_steps=remediation_steps,
+                        estimated_impact=estimated_impact,
                         metadata={"severity": severity, "raw": msg},
                     )
                 )
@@ -94,6 +103,7 @@ class SystemMessagesAnalyzer(BaseAnalyzer):
                     description=f"Failed to analyze system messages: {str(exc)}",
                     affected_components=["system"],
                     remediation_steps=["Verify API connectivity"],
+                    estimated_impact="System message visibility unavailable",
                     confidence_level="high",
                 )
             )

@@ -71,6 +71,7 @@ class SystemLogsAnalyzer(BaseAnalyzer):
                             "Review system logs for recurring errors",
                             "Investigate configuration or connectivity issues",
                         ],
+                        estimated_impact="System errors are present in logs",
                         metadata={"error_count": len(error_items)},
                     )
                 )
@@ -90,6 +91,7 @@ class SystemLogsAnalyzer(BaseAnalyzer):
                     description=f"Failed to analyze system logs: {str(exc)}",
                     affected_components=["system"],
                     remediation_steps=["Verify API connectivity"],
+                    estimated_impact="System log visibility unavailable",
                     confidence_level="high",
                 )
             )

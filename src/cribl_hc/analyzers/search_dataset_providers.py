@@ -122,6 +122,8 @@ class SearchDatasetProvidersAnalyzer(BaseAnalyzer):
                     title="Search Dataset Providers Analysis Failed",
                     description=f"Failed to analyze dataset providers: {str(exc)}",
                     affected_components=["Search API"],
+                    remediation_steps=["Verify Search API connectivity"],
+                    estimated_impact="Search provider analysis unavailable",
                     confidence_level="high",
                 )
             )

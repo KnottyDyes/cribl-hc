@@ -67,6 +67,11 @@ class SearchHealthcheckAnalyzer(BaseAnalyzer):
                             description=f"Search healthcheck reported red status ({reason}).",
                             affected_components=["Search"],
                             confidence_level="high",
+                            remediation_steps=[
+                                "Check Search service health",
+                                "Review recent Search errors",
+                            ],
+                            estimated_impact="Search may be unavailable or degraded",
                             metadata={
                                 "reason": reason,
                                 "reported_at": status.reported_at,
@@ -89,6 +94,7 @@ class SearchHealthcheckAnalyzer(BaseAnalyzer):
                     description=f"Failed to fetch search healthcheck data: {str(exc)}",
                     affected_components=["Search API"],
                     remediation_steps=["Verify Search API connectivity"],
+                    estimated_impact="Search health cannot be assessed",
                     confidence_level="high",
                 )
             )

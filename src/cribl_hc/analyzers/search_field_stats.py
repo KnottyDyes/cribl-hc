@@ -116,6 +116,8 @@ class SearchFieldStatsAnalyzer(BaseAnalyzer):
                     title="Search Field Stats Analysis Failed",
                     description=f"Failed to analyze field stats: {str(exc)}",
                     affected_components=["Search API"],
+                    remediation_steps=["Verify Search API connectivity"],
+                    estimated_impact="Search field statistics unavailable",
                     confidence_level="high",
                 )
             )

@@ -40,6 +40,11 @@ class SearchUsageGroupsAnalyzer(BaseAnalyzer):
 
         try:
             groups_response = await client.get_search_groups(workspace)
+            if isinstance(groups_response, dict) and "count" not in groups_response:
+                groups_response = {
+                    **groups_response,
+                    "count": len(groups_response.get("items", [])),
+                }
             group_list = SearchGroupList(**groups_response)
             groups = group_list.items
 
@@ -84,6 +89,7 @@ class SearchUsageGroupsAnalyzer(BaseAnalyzer):
                     description=f"Failed to analyze usage groups: {str(exc)}",
                     affected_components=["Search API"],
                     remediation_steps=["Verify Search API connectivity"],
+                    estimated_impact="Search usage group analysis unavailable",
                     confidence_level="high",
                 )
             )

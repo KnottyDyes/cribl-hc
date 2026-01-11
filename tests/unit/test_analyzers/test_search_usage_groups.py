@@ -23,7 +23,8 @@ class TestSearchUsageGroupsAnalyzer:
                 "items": [
                     {"id": "group-1", "datasets": ["ds-1"], "dashboards": []},
                     {"id": "group-2", "datasets": [], "dashboards": []},
-                ]
+                ],
+                "count": 2,
             }
         )
         return client

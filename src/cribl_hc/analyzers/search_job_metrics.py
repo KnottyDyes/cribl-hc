@@ -81,6 +81,7 @@ class SearchJobMetricsAnalyzer(BaseAnalyzer):
                             "Inspect failed job metrics for root cause",
                             "Review Search logs for persistent errors",
                         ],
+                        estimated_impact="Search jobs may be failing or unstable",
                         metadata={"error_count": len(error_items)},
                     )
                 )
@@ -100,6 +101,7 @@ class SearchJobMetricsAnalyzer(BaseAnalyzer):
                     description=f"Failed to fetch search job metrics: {str(exc)}",
                     affected_components=["Search API"],
                     remediation_steps=["Verify Search API connectivity"],
+                    estimated_impact="Search metrics cannot be assessed",
                     confidence_level="high",
                 )
             )

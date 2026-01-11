@@ -35,7 +35,7 @@ class SearchDatasetProviderTypesAnalyzer(BaseAnalyzer):
                         client=client,
                         id="search-provider-types-empty",
                         category="search",
-                        severity="warning",
+                        severity="medium",
                         title="No Dataset Provider Types Found",
                         description="Could not retrieve any dataset provider types.",
                         affected_components=["Search"],
@@ -65,6 +65,8 @@ class SearchDatasetProviderTypesAnalyzer(BaseAnalyzer):
                     title="Search Provider Types Analysis Failed",
                     description=f"Failed to analyze provider types: {str(exc)}",
                     affected_components=["Search API"],
+                    remediation_steps=["Verify Search API connectivity"],
+                    estimated_impact="Search provider types unavailable",
                     confidence_level="high",
                 )
             )
