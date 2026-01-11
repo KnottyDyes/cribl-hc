@@ -124,6 +124,7 @@ def _extract_from_paste(text: str) -> dict[str, Optional[str]]:
 
     Handles:
     - curl commands: curl -H "Authorization: Bearer TOKEN" https://example.com/api/v1/...
+    - Multi-line curl with backslash continuations
     - Raw URLs: https://example.com/api/v1/something
     - URLs with paths (strips to base URL)
 
@@ -135,11 +136,13 @@ def _extract_from_paste(text: str) -> dict[str, Optional[str]]:
     """
     result: dict[str, Optional[str]] = {"url": None, "token": None}
 
-    bearer_match = re.search(r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", text, re.IGNORECASE)
+    cleaned_text = text.replace("\\\n", " ").replace("\n", " ")
+
+    bearer_match = re.search(r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", cleaned_text, re.IGNORECASE)
     if bearer_match:
         result["token"] = bearer_match.group(1).strip()
 
-    url_match = re.search(r"(https?://[^\s\"'<>]+)", text, re.IGNORECASE)
+    url_match = re.search(r"(https?://[^\s\"'<>]+)", cleaned_text, re.IGNORECASE)
     if url_match:
         url = url_match.group(1).strip()
 
