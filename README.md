@@ -1,6 +1,6 @@
 # Cribl Health Check
 
-[![CI](https://github.com/yourusername/cribl-hc/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/cribl-hc/actions/workflows/ci.yml)
+[![CI](https://github.com/KnottyDyes/cribl-hc/actions/workflows/ci.yml/badge.svg)](https://github.com/KnottyDyes/cribl-hc/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
@@ -179,7 +179,7 @@ export CRIBL_URL=https://cribl.example.com
 export CRIBL_TOKEN=YOUR_API_TOKEN
 ```
 
-### 2. Interactive TUI (Recommended for Getting Started)
+### 2. Interactive TUI
 
 ```bash
 # Launch the unified Terminal User Interface
@@ -478,6 +478,7 @@ This project is provided as-is for use with Cribl Stream deployments.
 Cribl Health Check Project
 Sean Armstrong
 Claude
+Sisyphus
 
 ---
 
