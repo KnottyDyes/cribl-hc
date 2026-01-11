@@ -3,6 +3,8 @@ Cribl version detection and compatibility checking.
 
 Supports Cribl Stream versions N (current), N-1, and N-2.
 """
+from typing import Optional
+
 
 import re
 

@@ -11,7 +11,7 @@ Handles:
 Priority: P2 (Medium Impact - Metrics Processing Infrastructure)
 """
 
-from typing import Any
+from typing import Any, Optional
 
 from cribl_hc.utils.logger import get_logger
 

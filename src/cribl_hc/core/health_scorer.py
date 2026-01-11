@@ -7,7 +7,7 @@ Provides consistent scoring algorithms for:
 - Overall deployment health
 """
 
-from typing import Any
+from typing import Any, Optional
 
 from cribl_hc.utils.logger import get_logger
 

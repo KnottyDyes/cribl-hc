@@ -8,6 +8,8 @@ Built with Textual - provides a Pocker-style navigable interface with:
 - Interactive deployment management
 - Results history and export (JSON/MD)
 """
+from typing import Optional
+
 
 import asyncio
 import json

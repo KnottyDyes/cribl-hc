@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+from typing import Optional
 from pathlib import Path
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer

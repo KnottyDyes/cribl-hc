@@ -5,7 +5,7 @@ This module defines Pydantic models for Cribl Lake resources including
 datasets, lakehouses, and dataset statistics.
 """
 
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 

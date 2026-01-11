@@ -1,6 +1,8 @@
 """
 Branding configuration management CLI commands.
 """
+from typing import Optional
+
 
 
 import typer

@@ -3,7 +3,7 @@ Deployment model representing a Cribl Stream environment.
 """
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, HttpUrl, SecretStr, field_validator
 

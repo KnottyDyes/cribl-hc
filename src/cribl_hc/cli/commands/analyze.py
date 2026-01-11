@@ -1,6 +1,8 @@
 """
 Analyze command for running health check analysis.
 """
+from typing import Optional
+
 
 import asyncio
 from pathlib import Path

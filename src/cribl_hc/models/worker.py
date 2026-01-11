@@ -3,7 +3,7 @@ Worker node model for Cribl Stream workers with resource utilization.
 """
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 

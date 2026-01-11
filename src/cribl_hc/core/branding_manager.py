@@ -1,6 +1,7 @@
 """Branding configuration storage and management."""
 
 from pathlib import Path
+from typing import Optional
 
 from cribl_hc.models.branding import BrandingConfig
 from cribl_hc.utils.logger import get_logger

@@ -6,6 +6,8 @@ dataset utilization patterns.
 
 Priority: P2 (Important - cost optimization)
 """
+from typing import Optional
+
 
 from datetime import datetime
 

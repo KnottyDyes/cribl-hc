@@ -5,7 +5,7 @@ This module defines Pydantic models for Cribl Search resources including
 search jobs, datasets, dashboards, and saved searches.
 """
 
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 

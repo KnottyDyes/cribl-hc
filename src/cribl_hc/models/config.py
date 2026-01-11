@@ -3,7 +3,7 @@ Configuration element model for Cribl Stream configuration components.
 """
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 

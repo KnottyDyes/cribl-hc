@@ -3,7 +3,7 @@ Historical trend model for tracking metric changes over time.
 """
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 

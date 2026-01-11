@@ -3,6 +3,8 @@ Credential encryption using cryptography Fernet for secure storage.
 
 This module provides encryption/decryption for bearer tokens and other sensitive data.
 """
+from typing import Optional
+
 
 import base64
 import os

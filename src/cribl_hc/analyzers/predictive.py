@@ -8,7 +8,7 @@ Priority: P7 (Predictive analytics - advanced feature)
 """
 
 import statistics
-from typing import Any
+from typing import Any, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

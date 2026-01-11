@@ -4,6 +4,8 @@ Rate limiter with exponential backoff for API calls.
 This module ensures the health check tool stays within the 100 API call budget
 and implements exponential backoff for retry logic.
 """
+from typing import Optional
+
 
 import asyncio
 import time

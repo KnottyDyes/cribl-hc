@@ -7,6 +7,8 @@ Provides an interactive dashboard for viewing analysis results with:
 - Top recommendations
 - Real-time updates
 """
+from typing import Optional
+
 
 from rich.console import Console
 from rich.layout import Layout
