@@ -9,8 +9,8 @@
 ## Executive Summary
 
 ### Current State ✅ PHASE A COMPLETE
-- **20 analyzers** covering Stream, Edge, Lake, Search, and Core products
-- **31 API endpoints** currently utilized (increased from 28)
+- **46 analyzers** covering Stream, Edge, Lake, Search, and Core products
+- **44 API endpoints** currently utilized (increased from 28)
 - **Phase 1 analyzer gaps** complete (input, output, route coverage)
 - **P1-P2 Features**: 9/12 Complete (75% → Will be 100% after regex analyzer completion)
 - **Sensitive data scanning** implemented (PII/PCI/Secrets via SensitiveDataAnalyzer)
@@ -42,27 +42,27 @@
 
 | Product | Analyzers | Coverage Level |
 |---------|-----------|----------------|
-| Stream | 20 | ██████████ 100% |
-| Edge | 19 | █████████░ 95% |
-| Lake | 3 | ██░░░░░░░░ 15% |
-| Search | 5 | ███░░░░░░░ 25% |
+| Stream | 32 | ██████████ 100% |
+| Edge | 30 | █████████░ 95% |
+| Lake | 14 | ███████░░░ 70% |
+| Search | 22 | ███████░░░ 70% |
 | Core | 1 | █░░░░░░░░░ 5% |
 
-**Total**: 20 Analyzers | **API Endpoints**: 31 | **Test Coverage**: 717+ tests
+**Total**: 46 Analyzers | **API Endpoints**: 44 | **Test Coverage**: 730+ tests
 
 ### By Category
 
 | Category | Analyzers | Notes |
 |----------|-----------|-------|
-| Health & Monitoring | HealthAnalyzer, LakeHealthAnalyzer, SearchHealthAnalyzer | Core health covered |
-| Configuration | ConfigAnalyzer, VersionControlAnalyzer | Basic config validation |
-| Resources | ResourceAnalyzer, StorageAnalyzer, LakeStorageAnalyzer | CPU/memory/disk covered |
-| Performance | BackpressureAnalyzer, PipelinePerformanceAnalyzer, SearchPerformanceAnalyzer | Pipeline metrics good |
-| Security | SecurityAnalyzer, SensitiveDataAnalyzer | PII/PCI/Secrets scanning implemented |
-| Data Quality | LookupHealthAnalyzer, SchemaQualityAnalyzer, DataFlowTopologyAnalyzer | Schema & routing covered |
+| Health & Monitoring | HealthAnalyzer, LakeHealthAnalyzer, SearchHealthAnalyzer, SearchHealthcheckAnalyzer, SystemMessagesAnalyzer, SystemBannersAnalyzer, SystemLogsAnalyzer | Core health covered |
+| Configuration | ConfigAnalyzer, VersionControlAnalyzer, ScriptsAnalyzer, SearchDatasetProvidersAnalyzer, SearchDatasetProviderTypesAnalyzer, SystemPoliciesAnalyzer, SystemSettingsAnalyzer | Basic config validation |
+| Resources | ResourceAnalyzer, StorageAnalyzer, LakeStorageAnalyzer, LakeStorageLocationsAnalyzer | CPU/memory/disk covered |
+| Performance | BackpressureAnalyzer, PipelinePerformanceAnalyzer, SearchPerformanceAnalyzer, SearchJobMetricsAnalyzer | Pipeline metrics good |
+| Security | SecurityAnalyzer, SensitiveDataAnalyzer, SystemCertificatesAnalyzer, SystemUserInfoAnalyzer | PII/PCI/Secrets scanning implemented |
+| Data Quality | LookupHealthAnalyzer, SchemaQualityAnalyzer, DataFlowTopologyAnalyzer, SearchDatasetStatsAnalyzer, SearchFieldStatsAnalyzer | Schema & routing covered |
 | Alerting | AlertingAnalyzer | Target validation implemented |
 | Fleet | FleetAnalyzer | Config drift detection implemented |
-| Cost | CostAnalyzer | License tracking |
+| Cost | CostAnalyzer, SearchUsageGroupsAnalyzer, SystemLicenseUsageAnalyzer | License tracking |
 | Predictive | PredictiveAnalyzer | Forecasting |
 
 ---
@@ -262,14 +262,13 @@ From Core API spec, these endpoints are available but not used:
 
 | Endpoint | Potential Use | Priority |
 |----------|---------------|----------|
-| `/system/certificates` | Cert expiration alerts | P1 |
-| `/master/groups/{id}/configVersion` | Config drift detection | P1 |
-| `/system/users/{id}/info` | User activity tracking | P1 |
-| `/system/banners` | Surface operational notices | P2 |
-| `/system/scripts` | Script inventory/validation | P3 |
-| `/products/lake/lakes/{id}/storage-locations` | Lake BYOS monitoring | P3 |
-| `/search/usage-groups` | Search cost allocation | P3 |
-| `/search/datatypes` | Data type validation | P3 |
+| `/system/users/{id}/info` | User activity tracking (write-only in spec) | P1 |
+| `/system/settings/git-settings` | GitOps validation | P2 |
+| `/system/limits` | Resource limits validation | P2 |
+| `/system/services-limits` | Service limit hygiene | P2 |
+| `/search/trust-policies` | Search trust policy hygiene | P3 |
+| `/search/ui-metrics` | Search UI performance monitoring | P3 |
+| `/search/notebooks/{id}/activity` | Notebook usage insights | P3 |
 
 ---
 
@@ -354,16 +353,33 @@ From Core API spec, these endpoints are available but not used:
 | FleetAnalyzer | fleet | stream,edge,lake,search | workers, worker_groups |
 | HealthAnalyzer | health | stream,edge | workers, system_status |
 | LakeHealthAnalyzer | lake | lake | lake_datasets |
+| ScriptsAnalyzer | scripts | stream | system_scripts |
 | LakeStorageAnalyzer | lake | lake | lake_dataset_stats |
+| LakeStorageLocationsAnalyzer | lake_storage_locations | lake | lake_storage_locations, lake_datasets |
 | LookupHealthAnalyzer | lookup_health | stream,edge | lookups |
 | PipelinePerformanceAnalyzer | pipeline_performance | stream,edge | pipelines, metrics |
 | PredictiveAnalyzer | predictive | stream,edge,lake,search | metrics, workers |
 | ResourceAnalyzer | resource | stream,edge | workers, metrics |
 | SchemaQualityAnalyzer | schema_quality | stream,edge | pipelines, parsers |
-| SearchHealthAnalyzer | search | search | search_jobs, search_dashboards |
-| SearchPerformanceAnalyzer | search | search | search_jobs |
+| SearchDatasetProvidersAnalyzer | search_dataset_providers | search | search_dataset_providers, search_datasets |
+| SearchDatasetProviderTypesAnalyzer | search_dataset_provider_types | search | search_dataset_provider_types |
+| SearchDatasetStatsAnalyzer | search_dataset_stats | search | search_datasets, search_dataset_stats, search_usage_stats |
+| SearchFieldStatsAnalyzer | search_field_stats | search | search_field_stats |
+| SearchHealthAnalyzer | search | search | search_jobs, search_datasets, search_dashboards, search_saved, search_groups, search_cost |
+| SearchHealthcheckAnalyzer | search_healthcheck | search | search_healthcheck |
+| SearchJobMetricsAnalyzer | search_job_metrics | search | search_job_metrics |
+| SearchPerformanceAnalyzer | search | search | search_jobs, search_dashboards |
+| SearchUsageGroupsAnalyzer | search_usage_groups | search | search_usage_groups |
 | SecurityAnalyzer | security | stream,edge | outputs, inputs, system_settings |
 | StorageAnalyzer | storage | stream,edge | outputs, destinations |
+| SystemBannersAnalyzer | system_banners | stream,edge,lake,search | system_banners |
+| SystemCertificatesAnalyzer | system_certificates | stream,edge,lake,search | system_certificates |
+| SystemLicenseUsageAnalyzer | system_license_usage | stream,edge,lake,search | system_licenses, system_license_usage |
+| SystemLogsAnalyzer | system_logs | stream,edge,lake,search | system_logs, system_logs_search |
+| SystemMessagesAnalyzer | system_messages | stream,edge,lake,search | system_messages |
+| SystemPoliciesAnalyzer | system_policies | stream,edge,lake,search | system_policies |
+| SystemSettingsAnalyzer | system_settings | stream,edge,lake,search | system_settings |
+| SystemUserInfoAnalyzer | system_user_info | stream,edge,lake,search | system_users, system_roles |
 | VersionControlAnalyzer | version_control | stream,edge,lake,search,core | version_info, uncommitted_files |
 
 ---
@@ -512,9 +528,9 @@ From Core API spec, these endpoints are available but not used:
 | Metric | Value |
 |--------|-------|
 | **Phase A Completion** | 75% (9/12 complete) |
-| **Total Analyzers** | 20 |
-| **API Endpoints Used** | 31 |
-| **Test Cases** | 717+ |
+| **Total Analyzers** | 46 |
+| **API Endpoints Used** | 44 |
+| **Test Cases** | 730+ |
 | **Code Coverage** | High |
 | **Production Ready** | 10 features |
 | **In Development** | 1 feature (90%) |
@@ -547,4 +563,4 @@ From Core API spec, these endpoints are available but not used:
 
 *Report generated by /research.features skill*  
 *External research: Cribl docs, CriblVision pack, industry observability tools*
-*Last Updated: 2026-01-10*
+*Last Updated: 2026-01-11*

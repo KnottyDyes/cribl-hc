@@ -19,6 +19,23 @@ Available Objectives:
 - schema_quality: Parser analysis, regex optimization, schema mapping
 - dataflow_topology: Route validation, connectivity checking, data path analysis
 - alerting: Notification targets, alert configuration, alerting infrastructure health
+- scripts: Script inventory and validation signals
+- lake_storage_locations: Lake storage location (BYOS) health
+- search_usage_groups: Search usage group allocation hygiene
+- search_healthcheck: Search healthcheck status
+- search_job_metrics: Search job metrics summary
+- search_dataset_stats: Search dataset stats and usage
+- search_dataset_providers: Search dataset providers and usage
+- search_dataset_provider_types: Search dataset provider types availability
+- search_field_stats: Search dataset field statistics and quality
+- system_messages: Core system message visibility
+- system_banners: System banner visibility
+- system_certificates: System certificate expiration
+- system_logs: System log error summary
+- system_policies: System policy inventory
+- system_settings: System settings inventory
+- system_license_usage: License usage and expiration
+- system_user_info: User role hygiene
 - version_control: Uncommitted changes, pending deployments, configuration drift
 """
 
