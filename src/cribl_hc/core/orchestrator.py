@@ -77,6 +77,20 @@ class AnalyzerOrchestrator:
     ) -> dict[str, AnalyzerResult]:
         """
         Run health check analysis for specified objectives.
+
+        Available objectives include:
+        - health: Overall health assessment
+        - config: Configuration validation
+        - security: Security posture analysis
+        - resource: Resource utilization and sizing
+        - backpressure: Destination backpressure monitoring
+        - pipeline_performance: Pipeline efficiency analysis
+        - pipeline_bottleneck: Pipeline throughput bottleneck detection (requires metrics)
+        - (and other objectives as registered in analyzers)
+
+        Pipeline bottleneck analysis requires metrics availability. For Cribl Cloud
+        deployments, metrics may be unavailable via API and analysis will gracefully
+        degrade with an info-level finding.
         """
         self.start_time = datetime.utcnow()
         if objectives is None:
@@ -280,7 +294,15 @@ class AnalyzerOrchestrator:
                 category = "security"
             elif objective in ("config", "schema_quality", "dataflow_topology"):
                 category = "config"
-            elif objective in ("resource", "storage", "backpressure", "pipeline_performance"):
+            elif objective in (
+                "resource",
+                "storage",
+                "backpressure",
+                "pipeline_performance",
+                "pipeline_bottleneck",
+                "worker_group_balance",
+                "endpoint_health",
+            ):
                 category = "resource"
             elif objective in ("fleet",):
                 category = "fleet"
