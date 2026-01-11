@@ -328,8 +328,8 @@ class ConfigTUI:
         self.console.print(f"\n[green]✓ Deployment '{deployment_id}' updated successfully![/green]")
 
     def _delete_deployment(self) -> None:
-        """Delete a deployment configuration."""
-        self.console.print("\n[bold cyan]Delete Deployment[/bold cyan]\n")
+        """Delete one or more deployment configurations interactively."""
+        self.console.print("\n[bold cyan]Delete Deployments[/bold cyan]\n")
 
         from cribl_hc.cli.commands.config import load_credentials, save_credentials
 
@@ -343,29 +343,74 @@ class ConfigTUI:
             self.console.print("[yellow]No deployments configured yet.[/yellow]")
             return
 
-        # Show available deployments
-        self.console.print("[dim]Available deployments:[/dim]")
-        for dep_id in credentials.keys():
-            self.console.print(f"  • {dep_id}")
+        mode = Prompt.ask(
+            "[cyan]Delete mode[/cyan]",
+            choices=["single", "multiple", "all"],
+            default="single",
+        )
 
-        deployment_id = Prompt.ask("\n[cyan]Deployment ID to delete[/cyan]")
+        to_delete = []
 
-        if deployment_id not in credentials:
-            self.console.print(f"[red]Deployment '{deployment_id}' not found.[/red]")
+        if mode == "single":
+            self.console.print("[dim]Available deployments:[/dim]")
+            for dep_id in sorted(credentials.keys()):
+                self.console.print(f"  • {dep_id}")
+
+            deployment_id = Prompt.ask("\n[cyan]Deployment ID to delete[/cyan]")
+
+            if deployment_id not in credentials:
+                self.console.print(f"[red]Deployment '{deployment_id}' not found.[/red]")
+                return
+
+            to_delete = [deployment_id]
+
+        elif mode == "multiple":
+            self.console.print("[dim]Available deployments (type 'y' or '1' to select):[/dim]\n")
+            dep_list = sorted(credentials.keys())
+            selected = {}
+
+            for i, dep_id in enumerate(dep_list, 1):
+                url = credentials[dep_id].get("url", "Unknown")
+                response = Prompt.ask(
+                    f"  [{i}] {dep_id:<20} ({url})",
+                    choices=["y", "n", "1", "0"],
+                    default="n",
+                )
+                if response.lower() in ["y", "1"]:
+                    selected[dep_id] = True
+
+            to_delete = list(selected.keys())
+
+            if not to_delete:
+                self.console.print("[yellow]No deployments selected.[/yellow]")
+                return
+
+        elif mode == "all":
+            to_delete = list(credentials.keys())
+
+        if not to_delete:
+            self.console.print("[yellow]No deployments to delete.[/yellow]")
             return
 
-        # Confirm deletion
+        self.console.print(f"\n[yellow]⚠ Will delete the following:[/yellow]")
+        for dep_id in to_delete:
+            self.console.print(f"  • {dep_id}")
+
         if not Confirm.ask(
-            f"\n[yellow]Are you sure you want to delete '{deployment_id}'?[/yellow]", default=False
+            "\n[yellow]Are you sure you want to delete these deployments?[/yellow]",
+            default=False,
         ):
             self.console.print("[yellow]Operation cancelled.[/yellow]")
             return
 
-        # Delete
-        del credentials[deployment_id]
+        for dep_id in to_delete:
+            del credentials[dep_id]
+
         save_credentials(credentials)
 
-        self.console.print(f"\n[green]✓ Deployment '{deployment_id}' deleted successfully![/green]")
+        self.console.print(
+            f"\n[green]✓ Deleted {len(to_delete)} deployment(s) successfully![/green]"
+        )
 
     def _test_connection(self) -> None:
         """Test connection to a deployment."""

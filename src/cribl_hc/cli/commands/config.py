@@ -312,7 +312,7 @@ def list_credentials():
 
 @app.command("delete")
 def delete_credential(
-    name: str = typer.Argument(..., help="Deployment name"),
+    name: str = typer.Argument(None, help="Deployment name or '*' to delete all"),
     yes: bool = typer.Option(
         False,
         "--yes",
@@ -321,30 +321,63 @@ def delete_credential(
     ),
 ):
     """
-    Delete stored credentials for a deployment.
+    Delete stored credentials for a deployment or all deployments.
+
+    Use '*' as the deployment name to delete all credentials at once.
+    Useful for cleaning up test credentials after testing.
 
     Examples:
 
         cribl-hc config delete prod
         cribl-hc config delete dev --yes
+        cribl-hc config delete '*' --yes
+        cribl-hc config delete '*'
     """
     try:
         credentials = load_credentials()
 
-        if name not in credentials:
-            console.print(f"[red]✗ No credentials found for:[/red] {name}")
+        if not credentials:
+            console.print("[yellow]No credentials stored[/yellow]")
             raise typer.Exit(code=1)
 
-        if not yes:
-            confirm = typer.confirm(f"Delete credentials for '{name}'?")
-            if not confirm:
-                console.print("[yellow]Cancelled[/yellow]")
-                raise typer.Exit(code=0)
+        if name == "*":
+            if not yes:
+                console.print(
+                    f"[yellow]⚠ This will delete ALL {len(credentials)} stored credentials:[/yellow]"
+                )
+                for cred_name in sorted(credentials.keys()):
+                    console.print(f"  • {cred_name}")
+                confirm = typer.confirm("\nDelete all credentials?", default=False)
+                if not confirm:
+                    console.print("[yellow]Cancelled[/yellow]")
+                    raise typer.Exit(code=0)
 
-        del credentials[name]
-        save_credentials(credentials)
+            credentials.clear()
+            save_credentials(credentials)
 
-        console.print(f"[green]✓ Deleted credentials for:[/green] {name}")
+            console.print(
+                f"[green]✓ Deleted all credentials ({len(list(credentials.keys()))} removed)[/green]"
+            )
+
+        else:
+            if name is None:
+                console.print("[red]✗ Please specify a deployment name or '*' to delete all[/red]")
+                raise typer.Exit(code=1)
+
+            if name not in credentials:
+                console.print(f"[red]✗ No credentials found for:[/red] {name}")
+                raise typer.Exit(code=1)
+
+            if not yes:
+                confirm = typer.confirm(f"Delete credentials for '{name}'?")
+                if not confirm:
+                    console.print("[yellow]Cancelled[/yellow]")
+                    raise typer.Exit(code=0)
+
+            del credentials[name]
+            save_credentials(credentials)
+
+            console.print(f"[green]✓ Deleted credentials for:[/green] {name}")
 
     except Exception as e:
         console.print(f"[red]✗ Failed to delete credentials:[/red] {str(e)}")
