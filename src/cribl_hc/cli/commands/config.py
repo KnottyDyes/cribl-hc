@@ -202,8 +202,18 @@ def add_credential_from_curl(
         )
 
         try:
-            curl_input = input("Paste curl command or URL: ")
-        except (EOFError, KeyboardInterrupt):
+            console.print(
+                "[dim]Press Ctrl+D (Mac/Linux) or Ctrl+Z + Enter (Windows) when done[/dim]"
+            )
+            lines = []
+            while True:
+                try:
+                    line = input()
+                    lines.append(line)
+                except EOFError:
+                    break
+            curl_input = "\n".join(lines)
+        except KeyboardInterrupt:
             console.print("[yellow]Cancelled[/yellow]")
             raise typer.Exit(code=0)
 
