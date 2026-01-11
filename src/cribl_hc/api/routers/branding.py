@@ -2,6 +2,7 @@
 
 import base64
 import io
+from typing import Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from PIL import Image
