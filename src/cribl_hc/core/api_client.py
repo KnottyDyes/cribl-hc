@@ -16,12 +16,12 @@ log = get_logger(__name__)
 class ConnectionTestResult(BaseModel):
     success: bool = Field(..., description="Connection test success status")
     message: str = Field(..., description="Human-readable status message")
-    response_time_ms: float | None = Field(
+    response_time_ms: Optional[float] = Field(
         default=None, description="API response time in milliseconds"
     )
-    cribl_version: str | None = Field(default=None, description="Detected Cribl version")
+    cribl_version: Optional[str] = Field(default=None, description="Detected Cribl version")
     api_url: str = Field(..., description="API URL tested")
-    error: str | None = Field(default=None, description="Error details if failed")
+    error: Optional[str] = Field(default=None, description="Error details if failed")
     tested_at: datetime = Field(default_factory=datetime.utcnow)
 
     model_config = {"populate_by_name": True}
@@ -34,19 +34,19 @@ class CriblAPIClient:
         auth_token: str,
         timeout: float = 30.0,
         max_retries: int = 3,
-        rate_limiter: RateLimiter | None = None,
-        worker_group: str | None = None,
+        rate_limiter: Optional[RateLimiter] = None,
+        worker_group: Optional[str] = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.auth_token = auth_token
         self.timeout = timeout
         self.max_retries = max_retries
-        self._client: httpx.AsyncClient | None = None
+        self._client: httpx.Optional[AsyncClient] = None
         self._is_cloud = "cribl.cloud" in base_url.lower()
         self._worker_group = worker_group
         self._deployment_detected = False
-        self._product_type: str | None = None
-        self._product_version: str | None = None
+        self._product_type: Optional[str] = None
+        self._product_version: Optional[str] = None
         self.rate_limiter = rate_limiter or RateLimiter(
             max_calls=100,
             time_window_seconds=3600.0,
@@ -141,7 +141,7 @@ class CriblAPIClient:
         return self._worker_group or "default"
 
     @property
-    def product_type(self) -> str | None:
+    def product_type(self) -> Optional[str]:
         return self._product_type
 
     @property
@@ -157,7 +157,7 @@ class CriblAPIClient:
         return self._product_type == "lake"
 
     @property
-    def product_version(self) -> str | None:
+    def product_version(self) -> Optional[str]:
         return self._product_version
 
     async def _detect_product_type(self, version_info: Dict[str, Any]) -> None:
@@ -189,7 +189,7 @@ class CriblAPIClient:
         self._product_type = "stream"
         self._product_version = version_info.get("version")
 
-    def _build_config_endpoint(self, resource: str, fleet: str | None = None) -> str:
+    def _build_config_endpoint(self, resource: str, fleet: Optional[str] = None) -> str:
         if self.is_edge:
             return f"/api/v1/e/{fleet}/{resource}" if fleet else f"/api/v1/edge/{resource}"
         elif self._is_cloud:
@@ -436,12 +436,12 @@ class CriblAPIClient:
     async def search_system_logs(
         self,
         log_type: str = "single",
-        group_id: str | None = None,
-        files: List[str] | str | None = None,
-        limit: int | None = None,
-        earliest: int | None = None,
-        latest: int | None = None,
-        filter_expr: str | None = None,
+        group_id: Optional[str] = None,
+        files: List[str] | Optional[str] = None,
+        limit: Optional[int] = None,
+        earliest: Optional[int] = None,
+        latest: Optional[int] = None,
+        filter_expr: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         params: Dict[str, Any] = {"type": log_type}
         if group_id:
@@ -658,7 +658,7 @@ class CriblAPIClient:
         return response.json()
 
     async def get_search_dataset_usage_stats(
-        self, dataset_id: str, end_time: int | None = None, time_window: int | None = None
+        self, dataset_id: str, end_time: Optional[int] = None, time_window: Optional[int] = None
     ) -> dict:
         params: Dict[str, Any] = {}
         if end_time is not None:
@@ -706,7 +706,7 @@ class CriblAPIClient:
         max_events: int = 10,
         duration: int = 10,
         level: int = 1,
-        worker_id: str | None = None,
+        worker_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         if not self._client:
             raise RuntimeError("Client not initialized")

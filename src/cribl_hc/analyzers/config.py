@@ -55,7 +55,7 @@ class ConfigAnalyzer(BaseAnalyzer):
         self.rule_loader = RuleLoader()
         self.rule_evaluator = RuleEvaluator()
         self._rules_cache = None
-        self._current_worker_group: str | None = "default"
+        self._current_worker_group: Optional[str] = "default"
 
     @property
     def objective_name(self) -> str:
