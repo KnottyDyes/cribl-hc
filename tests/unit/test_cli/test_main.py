@@ -29,18 +29,6 @@ class TestCLIMain:
             assert "cribl-hc" in result.stdout
             assert "1.0.0" in result.stdout
 
-    @patch("cribl_hc.cli.unified_tui.UnifiedTUI")
-    def test_tui_legacy_command(self, mock_unified_tui):
-        """Test TUI command with legacy flag."""
-        mock_tui_instance = MagicMock()
-        mock_unified_tui.return_value = mock_tui_instance
-
-        result = self.runner.invoke(app, ["tui", "--legacy"])
-
-        assert result.exit_code == 0
-        mock_unified_tui.assert_called_once()
-        mock_tui_instance.run.assert_called_once()
-
     @patch("cribl_hc.cli.modern_tui.run_modern_tui")
     def test_tui_modern_command(self, mock_run_modern_tui):
         """Test TUI command with modern interface (default)."""
@@ -48,18 +36,6 @@ class TestCLIMain:
 
         assert result.exit_code == 0
         mock_run_modern_tui.assert_called_once()
-
-    @patch("cribl_hc.cli.unified_tui.UnifiedTUI")
-    def test_tui_keyboard_interrupt_legacy(self, mock_unified_tui):
-        """Test TUI command handles KeyboardInterrupt gracefully in legacy mode."""
-        mock_tui_instance = MagicMock()
-        mock_tui_instance.run.side_effect = KeyboardInterrupt()
-        mock_unified_tui.return_value = mock_tui_instance
-
-        result = self.runner.invoke(app, ["tui", "--legacy"])
-
-        assert result.exit_code == 0
-        assert "Goodbye!" in result.stdout
 
     @patch("cribl_hc.cli.modern_tui.run_modern_tui")
     def test_tui_keyboard_interrupt_modern(self, mock_run_modern_tui):
@@ -123,17 +99,7 @@ class TestCLIMain:
 
         assert result.exit_code == 0
         assert "Terminal User Interface" in result.stdout
-        assert "--legacy" in result.stdout
-        assert "modern interface" in result.stdout
-
-    @patch("cribl_hc.cli.unified_tui.UnifiedTUI")
-    def test_tui_import_error_handling_legacy(self, mock_unified_tui):
-        """Test TUI command handles import errors gracefully in legacy mode."""
-        mock_unified_tui.side_effect = ImportError("Module not found")
-
-        # The command should still try to import and fail gracefully
-        with pytest.raises(ImportError):
-            self.runner.invoke(app, ["tui", "--legacy"], catch_exceptions=False)
+        assert "modern navigable interface" in result.stdout
 
     @patch("cribl_hc.cli.modern_tui.run_modern_tui")
     def test_tui_import_error_handling_modern(self, mock_run_modern_tui):

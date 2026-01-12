@@ -19,6 +19,23 @@ Available Objectives:
 - schema_quality: Parser analysis, regex optimization, schema mapping
 - dataflow_topology: Route validation, connectivity checking, data path analysis
 - alerting: Notification targets, alert configuration, alerting infrastructure health
+- scripts: Script inventory and validation signals
+- lake_storage_locations: Lake storage location (BYOS) health
+- search_usage_groups: Search usage group allocation hygiene
+- search_healthcheck: Search healthcheck status
+- search_job_metrics: Search job metrics summary
+- search_dataset_stats: Search dataset stats and usage
+- search_dataset_providers: Search dataset providers and usage
+- search_dataset_provider_types: Search dataset provider types availability
+- search_field_stats: Search dataset field statistics and quality
+- system_messages: Core system message visibility
+- system_banners: System banner visibility
+- system_certificates: System certificate expiration
+- system_logs: System log error summary
+- system_policies: System policy inventory
+- system_settings: System settings inventory
+- system_license_usage: License usage and expiration
+- system_user_info: User role hygiene
 - version_control: Uncommitted changes, pending deployments, configuration drift
 """
 
@@ -26,6 +43,7 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+from typing import Dict, List, Optional, Type
 from pathlib import Path
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
@@ -54,10 +72,10 @@ class AnalyzerRegistry:
 
     def __init__(self):
         """Initialize empty analyzer registry."""
-        self._analyzers: dict[str, type[BaseAnalyzer]] = {}
-        self._analyzer_classes: list[type[BaseAnalyzer]] = []
+        self._analyzers: Dict[str, Type[BaseAnalyzer]] = {}
+        self._analyzer_classes: List[Type[BaseAnalyzer]] = []
 
-    def register(self, analyzer_class: type[BaseAnalyzer]) -> None:
+    def register(self, analyzer_class: Type[BaseAnalyzer]) -> None:
         """
         Register an analyzer class.
 
@@ -114,7 +132,7 @@ class AnalyzerRegistry:
             return True
         return False
 
-    def get_analyzer(self, objective: str) -> BaseAnalyzer | None:
+    def get_analyzer(self, objective: str) -> Optional[BaseAnalyzer]:
         """
         Get an analyzer instance by objective name.
 
@@ -134,7 +152,7 @@ class AnalyzerRegistry:
             return analyzer_class()
         return None
 
-    def get_analyzer_class(self, objective: str) -> type[BaseAnalyzer] | None:
+    def get_analyzer_class(self, objective: str) -> Optional[Type[BaseAnalyzer]]:
         """
         Get an analyzer class (not instance) by objective name.
 
@@ -146,7 +164,7 @@ class AnalyzerRegistry:
         """
         return self._analyzers.get(objective)
 
-    def list_objectives(self) -> list[str]:
+    def list_objectives(self) -> List[str]:
         """
         Get list of all registered objective names.
 
@@ -159,7 +177,7 @@ class AnalyzerRegistry:
         """
         return sorted(self._analyzers.keys())
 
-    def list_analyzers(self) -> list[type[BaseAnalyzer]]:
+    def list_analyzers(self) -> List[Type[BaseAnalyzer]]:
         """
         Get list of all registered analyzer classes.
 
@@ -214,7 +232,7 @@ def get_global_registry() -> AnalyzerRegistry:
     return _global_registry
 
 
-def register_analyzer(analyzer_class: type[BaseAnalyzer]) -> None:
+def register_analyzer(analyzer_class: Type[BaseAnalyzer]) -> None:
     """
     Register an analyzer in the global registry.
 
@@ -228,7 +246,7 @@ def register_analyzer(analyzer_class: type[BaseAnalyzer]) -> None:
     _global_registry.register(analyzer_class)
 
 
-def get_analyzer(objective: str) -> BaseAnalyzer | None:
+def get_analyzer(objective: str) -> Optional[BaseAnalyzer]:
     """
     Get an analyzer from the global registry.
 
@@ -245,7 +263,7 @@ def get_analyzer(objective: str) -> BaseAnalyzer | None:
     return _global_registry.get_analyzer(objective)
 
 
-def list_objectives() -> list[str]:
+def list_objectives() -> List[str]:
     """
     List all available objectives from the global registry.
 

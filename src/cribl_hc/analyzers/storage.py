@@ -8,7 +8,7 @@ Priority: P3 (Optimization)
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -60,7 +60,7 @@ class StorageAnalyzer(BaseAnalyzer):
         return "storage"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Storage analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -70,7 +70,7 @@ class StorageAnalyzer(BaseAnalyzer):
         """
         return 4
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:routes",
@@ -168,7 +168,7 @@ class StorageAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _fetch_outputs(self, client: CriblAPIClient) -> list[dict[str, Any]]:
+    async def _fetch_outputs(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
         """Fetch output destinations."""
         try:
             outputs = await client.get_outputs()
@@ -178,7 +178,7 @@ class StorageAnalyzer(BaseAnalyzer):
             log.warning("outputs_fetch_failed", error=str(e))
             return []
 
-    async def _fetch_routes(self, client: CriblAPIClient) -> list[dict[str, Any]]:
+    async def _fetch_routes(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
         """Fetch routes."""
         try:
             routes = await client.get_routes()
@@ -188,7 +188,7 @@ class StorageAnalyzer(BaseAnalyzer):
             log.warning("routes_fetch_failed", error=str(e))
             return []
 
-    async def _fetch_pipelines(self, client: CriblAPIClient) -> list[dict[str, Any]]:
+    async def _fetch_pipelines(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
         """Fetch pipelines."""
         try:
             pipelines = await client.get_pipelines()
@@ -198,7 +198,7 @@ class StorageAnalyzer(BaseAnalyzer):
             log.warning("pipelines_fetch_failed", error=str(e))
             return []
 
-    async def _fetch_metrics(self, client: CriblAPIClient) -> dict[str, Any]:
+    async def _fetch_metrics(self, client: CriblAPIClient) -> Dict[str, Any]:
         """Fetch metrics data."""
         try:
             metrics = await client.get_system_status()
@@ -209,8 +209,8 @@ class StorageAnalyzer(BaseAnalyzer):
             return {}
 
     def _calculate_storage_by_destination(
-        self, outputs: list[dict[str, Any]]
-    ) -> dict[str, int]:
+        self, outputs: List[Dict[str, Any]]
+    ) -> Dict[str, int]:
         """Calculate storage consumption by destination."""
         storage_by_dest = {}
 
@@ -226,8 +226,8 @@ class StorageAnalyzer(BaseAnalyzer):
 
     def _identify_high_volume_destinations(
         self,
-        outputs: list[dict[str, Any]],
-        storage_by_dest: dict[str, int],
+        outputs: List[Dict[str, Any]],
+        storage_by_dest: Dict[str, int],
         result: AnalyzerResult
     ) -> None:
         """Identify destinations consuming significant storage."""
@@ -267,9 +267,9 @@ class StorageAnalyzer(BaseAnalyzer):
 
     def _identify_sampling_opportunities(
         self,
-        routes: list[dict[str, Any]],
-        outputs: list[dict[str, Any]],
-        storage_by_dest: dict[str, int],
+        routes: List[Dict[str, Any]],
+        outputs: List[Dict[str, Any]],
+        storage_by_dest: Dict[str, int],
         result: AnalyzerResult
     ) -> None:
         """Identify routes that could benefit from sampling."""
@@ -339,9 +339,9 @@ class StorageAnalyzer(BaseAnalyzer):
 
     def _identify_filtering_opportunities(
         self,
-        routes: list[dict[str, Any]],
-        outputs: list[dict[str, Any]],
-        storage_by_dest: dict[str, int],
+        routes: List[Dict[str, Any]],
+        outputs: List[Dict[str, Any]],
+        storage_by_dest: Dict[str, int],
         result: AnalyzerResult
     ) -> None:
         """Identify routes that could benefit from filtering."""
@@ -401,10 +401,10 @@ class StorageAnalyzer(BaseAnalyzer):
 
     def _identify_aggregation_opportunities(
         self,
-        routes: list[dict[str, Any]],
-        pipelines: list[dict[str, Any]],
-        outputs: list[dict[str, Any]],
-        storage_by_dest: dict[str, int],
+        routes: List[Dict[str, Any]],
+        pipelines: List[Dict[str, Any]],
+        outputs: List[Dict[str, Any]],
+        storage_by_dest: Dict[str, int],
         result: AnalyzerResult
     ) -> None:
         """Identify opportunities for aggregation/rollup (primarily metrics)."""
@@ -485,10 +485,10 @@ class StorageAnalyzer(BaseAnalyzer):
 
     def _generate_storage_recommendations(
         self,
-        outputs: list[dict[str, Any]],
-        routes: list[dict[str, Any]],
-        pipelines: list[dict[str, Any]],
-        storage_by_dest: dict[str, int],
+        outputs: List[Dict[str, Any]],
+        routes: List[Dict[str, Any]],
+        pipelines: List[Dict[str, Any]],
+        storage_by_dest: Dict[str, int],
         result: AnalyzerResult
     ) -> None:
         """Generate actionable storage optimization recommendations."""

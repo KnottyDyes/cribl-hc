@@ -7,6 +7,8 @@ Provides an interactive dashboard for viewing analysis results with:
 - Top recommendations
 - Real-time updates
 """
+from typing import Optional
+
 
 from rich.console import Console
 from rich.layout import Layout
@@ -166,6 +168,7 @@ class HealthCheckTUI:
         from itertools import groupby
 
         severity_order = ["critical", "high", "medium", "low", "info"]
+        severity_icons = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵", "info": "ℹ️"}
         severity_colors = {
             "critical": "red",
             "high": "orange1",
@@ -184,7 +187,9 @@ class HealthCheckTUI:
                 continue
 
             color = severity_colors.get(severity, "white")
-            findings_display.append(f"{severity.upper()}\n", style=f"bold {color}")
+            icon = severity_icons.get(severity, "•")
+            findings_display.append(f"{icon} {severity.upper()} ", style=f"bold {color}")
+            findings_display.append(f"({len(severity_findings)})\n", style="dim")
 
             keyfunc = lambda f: (f.grouping_id, f.worker_group)
             sorted_severity_findings = sorted(severity_findings, key=keyfunc)
@@ -278,7 +283,7 @@ class HealthCheckTUI:
 
         return Panel(footer_text, border_style="dim")
 
-    def show_error(self, message: str, error: Exception | None = None) -> None:
+    def show_error(self, message: str, error: Optional[Exception] = None) -> None:
         """
         Display an error message.
 

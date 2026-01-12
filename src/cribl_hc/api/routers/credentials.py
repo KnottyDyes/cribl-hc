@@ -5,6 +5,7 @@ Provides CRUD operations for deployment credentials with support for
 both Bearer Token and OAuth authentication methods.
 """
 
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -22,16 +23,19 @@ log = get_logger(__name__)
 
 class CredentialCreate(BaseModel):
     """Request model for creating credentials."""
+
     name: str = Field(..., description="Deployment identifier")
     url: str = Field(..., description="Cribl Stream API URL")
     auth_type: str = Field(..., description="Authentication type: 'bearer' or 'oauth'")
 
     # Bearer token fields
-    token: str | None = Field(None, description="Bearer token (for auth_type='bearer')")
+    token: Optional[str] = Field(None, description="Bearer token (for auth_type='bearer')")
 
     # OAuth fields
-    client_id: str | None = Field(None, description="OAuth client ID (for auth_type='oauth')")
-    client_secret: str | None = Field(None, description="OAuth client secret (for auth_type='oauth')")
+    client_id: Optional[str] = Field(None, description="OAuth client ID (for auth_type='oauth')")
+    client_secret: Optional[str] = Field(
+        None, description="OAuth client secret (for auth_type='oauth')"
+    )
 
     class Config:
         json_schema_extra = {
@@ -40,40 +44,43 @@ class CredentialCreate(BaseModel):
                 "url": "https://main-myorg.cribl.cloud",
                 "auth_type": "oauth",
                 "client_id": "your_client_id",
-                "client_secret": "your_client_secret"
+                "client_secret": "your_client_secret",
             }
         }
 
 
 class CredentialUpdate(BaseModel):
     """Request model for updating credentials."""
-    url: str | None = Field(None, description="Cribl Stream API URL")
-    auth_type: str | None = Field(None, description="Authentication type")
-    token: str | None = Field(None, description="Bearer token")
-    client_id: str | None = Field(None, description="OAuth client ID")
-    client_secret: str | None = Field(None, description="OAuth client secret")
+
+    url: Optional[str] = Field(None, description="Cribl Stream API URL")
+    auth_type: Optional[str] = Field(None, description="Authentication type")
+    token: Optional[str] = Field(None, description="Bearer token")
+    client_id: Optional[str] = Field(None, description="OAuth client ID")
+    client_secret: Optional[str] = Field(None, description="OAuth client secret")
 
 
 class CredentialResponse(BaseModel):
     """Response model for credential data (masked secrets)."""
+
     name: str
     url: str
     auth_type: str
     has_token: bool = Field(description="Whether bearer token is configured")
     has_oauth: bool = Field(description="Whether OAuth credentials are configured")
-    client_id: str | None = Field(None, description="OAuth client ID (not secret)")
+    client_id: Optional[str] = Field(None, description="OAuth client ID (not secret)")
 
 
 class ConnectionTestResult(BaseModel):
     """Result of connection test."""
+
     success: bool
     message: str
-    cribl_version: str | None = None
-    response_time_ms: float | None = None
-    error: str | None = None
+    cribl_version: Optional[str] = None
+    response_time_ms: Optional[float] = None
+    error: Optional[str] = None
 
 
-@router.get("", response_model=list[CredentialResponse])
+@router.get("", response_model=List[CredentialResponse])
 async def list_credentials():
     """
     List all configured credentials.
@@ -87,14 +94,16 @@ async def list_credentials():
         for name, cred in credentials.items():
             auth_type = cred.get("auth_type", "bearer")
 
-            response.append(CredentialResponse(
-                name=name,
-                url=cred["url"],
-                auth_type=auth_type,
-                has_token="token" in cred,
-                has_oauth="client_id" in cred and "client_secret" in cred,
-                client_id=cred.get("client_id") if auth_type == "oauth" else None,
-            ))
+            response.append(
+                CredentialResponse(
+                    name=name,
+                    url=cred["url"],
+                    auth_type=auth_type,
+                    has_token="token" in cred,
+                    has_oauth="client_id" in cred and "client_secret" in cred,
+                    client_id=cred.get("client_id") if auth_type == "oauth" else None,
+                )
+            )
 
         return response
 
@@ -102,7 +111,7 @@ async def list_credentials():
         log.error("list_credentials_error", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list credentials: {str(e)}"
+            detail=f"Failed to list credentials: {str(e)}",
         )
 
 
@@ -120,7 +129,7 @@ async def create_credential(credential: CredentialCreate):
         if credential.name in credentials:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Credential '{credential.name}' already exists"
+                detail=f"Credential '{credential.name}' already exists",
             )
 
         # Validate auth method
@@ -128,7 +137,7 @@ async def create_credential(credential: CredentialCreate):
             if not credential.token:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Bearer token is required for auth_type='bearer'"
+                    detail="Bearer token is required for auth_type='bearer'",
                 )
             new_cred = {
                 "url": credential.url,
@@ -140,7 +149,7 @@ async def create_credential(credential: CredentialCreate):
             if not credential.client_id or not credential.client_secret:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Both client_id and client_secret are required for auth_type='oauth'"
+                    detail="Both client_id and client_secret are required for auth_type='oauth'",
                 )
             new_cred = {
                 "url": credential.url,
@@ -152,7 +161,7 @@ async def create_credential(credential: CredentialCreate):
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid auth_type: {credential.auth_type}. Must be 'bearer' or 'oauth'"
+                detail=f"Invalid auth_type: {credential.auth_type}. Must be 'bearer' or 'oauth'",
             )
 
         # Save credentials
@@ -176,7 +185,7 @@ async def create_credential(credential: CredentialCreate):
         log.error("create_credential_error", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create credential: {str(e)}"
+            detail=f"Failed to create credential: {str(e)}",
         )
 
 
@@ -192,8 +201,7 @@ async def get_credential(name: str):
 
         if name not in credentials:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Credential '{name}' not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Credential '{name}' not found"
             )
 
         cred = credentials[name]
@@ -214,7 +222,7 @@ async def get_credential(name: str):
         log.error("get_credential_error", name=name, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get credential: {str(e)}"
+            detail=f"Failed to get credential: {str(e)}",
         )
 
 
@@ -230,8 +238,7 @@ async def update_credential(name: str, updates: CredentialUpdate):
 
         if name not in credentials:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Credential '{name}' not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Credential '{name}' not found"
             )
 
         cred = credentials[name]
@@ -277,7 +284,7 @@ async def update_credential(name: str, updates: CredentialUpdate):
         log.error("update_credential_error", name=name, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update credential: {str(e)}"
+            detail=f"Failed to update credential: {str(e)}",
         )
 
 
@@ -293,8 +300,7 @@ async def delete_credential(name: str):
 
         if name not in credentials:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Credential '{name}' not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Credential '{name}' not found"
             )
 
         del credentials[name]
@@ -310,7 +316,7 @@ async def delete_credential(name: str):
         log.error("delete_credential_error", name=name, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete credential: {str(e)}"
+            detail=f"Failed to delete credential: {str(e)}",
         )
 
 
@@ -326,8 +332,7 @@ async def test_connection(name: str):
 
         if name not in credentials:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Credential '{name}' not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"Credential '{name}' not found"
             )
 
         cred = credentials[name]
