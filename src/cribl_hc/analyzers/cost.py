@@ -8,7 +8,7 @@ Priority: P5 (Financial planning and license compliance)
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -62,9 +62,9 @@ class CostAnalyzer(BaseAnalyzer):
     def __init__(self):
         """Initialize CostAnalyzer with optional pricing configuration."""
         super().__init__()
-        self._pricing_config: dict[str, dict[str, float]] = {}
+        self._pricing_config: Dict[str, Dict[str, float]] = {}
 
-    def set_pricing_config(self, pricing_config: dict[str, dict[str, float]]) -> None:
+    def set_pricing_config(self, pricing_config: Dict[str, Dict[str, float]]) -> None:
         """
         Set pricing configuration for TCO calculations.
 
@@ -83,7 +83,7 @@ class CostAnalyzer(BaseAnalyzer):
         return "cost"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Cost analyzer primarily supports Stream (licensing model)."""
         return ["stream"]
 
@@ -93,7 +93,7 @@ class CostAnalyzer(BaseAnalyzer):
         """
         return 3
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:system",  # For license info
@@ -180,7 +180,7 @@ class CostAnalyzer(BaseAnalyzer):
 
     # === Data Fetching ===
 
-    async def _fetch_license_info(self, client: CriblAPIClient) -> dict[str, Any]:
+    async def _fetch_license_info(self, client: CriblAPIClient) -> Dict[str, Any]:
         """Fetch license information."""
         try:
             return await client.get_license_info() or {}
@@ -188,7 +188,7 @@ class CostAnalyzer(BaseAnalyzer):
             log.warning("failed_to_fetch_license_info", error=str(e))
             return {}
 
-    async def _fetch_outputs(self, client: CriblAPIClient) -> list[dict[str, Any]]:
+    async def _fetch_outputs(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
         """Fetch output configurations."""
         try:
             return await client.get_outputs() or []
@@ -200,9 +200,9 @@ class CostAnalyzer(BaseAnalyzer):
 
     def _analyze_license_consumption(
         self,
-        license_info: dict[str, Any],
+        license_info: Dict[str, Any],
         result: AnalyzerResult
-    ) -> dict[str, Any]:
+    ) -> Dict[str, Any]:
         """
         Analyze current license consumption.
 
@@ -296,8 +296,8 @@ class CostAnalyzer(BaseAnalyzer):
 
     def _predict_license_exhaustion(
         self,
-        license_info: dict[str, Any],
-        license_metrics: dict[str, Any],
+        license_info: Dict[str, Any],
+        license_metrics: Dict[str, Any],
         result: AnalyzerResult
     ) -> None:
         """
@@ -398,7 +398,7 @@ class CostAnalyzer(BaseAnalyzer):
                 )
             )
 
-    def _calculate_linear_regression(self, history: list[dict[str, Any]]) -> float:
+    def _calculate_linear_regression(self, history: List[Dict[str, Any]]) -> float:
         """
         Calculate linear regression to determine growth rate.
 
@@ -433,8 +433,8 @@ class CostAnalyzer(BaseAnalyzer):
 
     def _calculate_tco_by_destination(
         self,
-        outputs: list[dict[str, Any]],
-        pricing: dict[str, dict[str, float]],
+        outputs: List[Dict[str, Any]],
+        pricing: Dict[str, Dict[str, float]],
         result: AnalyzerResult
     ) -> None:
         """
@@ -484,8 +484,8 @@ class CostAnalyzer(BaseAnalyzer):
 
     def _generate_cost_recommendations(
         self,
-        license_metrics: dict[str, Any],
-        outputs: list[dict[str, Any]],
+        license_metrics: Dict[str, Any],
+        outputs: List[Dict[str, Any]],
         result: AnalyzerResult
     ) -> None:
         """Generate cost optimization recommendations."""

@@ -146,6 +146,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
                     title=f"Output Destination Unreachable: {output_id}",
                     description=f"Output '{output_id}' is reporting status '{status}'. Data loss risk.",
                     confidence_level="high",
+                    affected_components=[output_id],
                     estimated_impact="Potential data loss or queuing.",
                     remediation_steps=[
                         f"Check network connectivity to {output.get('type')} destination",
@@ -177,6 +178,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
                         title=f"Missing Authentication: {output_id}",
                         description=f"Output '{output_id}' ({output_type}) is missing required authentication token.",
                         confidence_level="high",
+                        affected_components=[output_id],
                         estimated_impact="Output will fail to deliver data without authentication.",
                         remediation_steps=[
                             "Configure authentication token for the output",
@@ -197,6 +199,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
                     title=f"Deprecated Output Type: {output_id}",
                     description=f"Output '{output_id}' uses deprecated type '{output_type}'.",
                     confidence_level="high",
+                    affected_components=[output_id],
                     remediation_steps=[
                         f"Migrate output '{output_id}' to a supported type",
                         "Consult Cribl documentation for migration guide",
@@ -250,6 +253,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
                         title=f"Critical Output Error Rate: {output_id}",
                         description=f"Output '{output_id}' has >10% failure rate ({error_rate:.1f}%).",
                         confidence_level="high",
+                        affected_components=[output_id],
                         estimated_impact="Significant data loss occurring.",
                         remediation_steps=[
                             "Check destination availability",
@@ -270,6 +274,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
                         title=f"Elevated Output Error Rate: {output_id}",
                         description=f"Output '{output_id}' has >5% failure rate ({error_rate:.1f}%).",
                         confidence_level="high",
+                        affected_components=[output_id],
                         estimated_impact=f"Approximately {error_rate:.1f}% of data may be lost.",
                         remediation_steps=[
                             "Monitor destination performance",
@@ -308,6 +313,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
                     title=f"Critical Queue Depth: {output_id}",
                     description=f"Output '{output_id}' queue size is critical ({queue_size} events).",
                     confidence_level="high",
+                    affected_components=[output_id],
                     estimated_impact="High latency and potential backpressure.",
                     remediation_steps=[
                         "Check destination ingestion rate",
@@ -328,6 +334,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
                     title=f"Queue Backing Up: {output_id}",
                     description=f"Output '{output_id}' queue size is growing ({queue_size} events).",
                     confidence_level="medium",
+                    affected_components=[output_id],
                     remediation_steps=[
                         "Monitor queue growth trend",
                         "Check destination performance",
@@ -360,6 +367,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
                         title=f"Delivery Confirmation Disabled: {output_id}",
                         description=f"Critical output '{output_id}' ({output_type}) has delivery confirmation disabled.",
                         confidence_level="high",
+                        affected_components=[output_id],
                         estimated_impact="Data loss may go undetected if destination accepts but fails to persist.",
                         remediation_steps=[
                             "Enable Delivery Confirmation/Acknowledgments in output settings",

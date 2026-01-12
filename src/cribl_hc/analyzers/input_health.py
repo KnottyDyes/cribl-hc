@@ -5,7 +5,7 @@ Analyzes input connectivity, data freshness/lag, error rates, and queue depth.
 """
 
 import time
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -35,7 +35,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
         return "input_health"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         return ["stream", "edge"]
 
     def get_description(self) -> str:
@@ -44,7 +44,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
     def get_estimated_api_calls(self) -> int:
         return 2
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         return [
             "read:inputs",
             "read:metrics",
@@ -162,7 +162,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
 
         return result
 
-    def _extract_input_metrics(self, metrics: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    def _extract_input_metrics(self, metrics: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         input_metrics = {}
 
         inputs_data = metrics.get("inputs", {})
@@ -183,7 +183,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
 
         return input_metrics
 
-    def _get_last_event_timestamp(self, input_item: dict[str, Any]) -> Optional[float]:
+    def _get_last_event_timestamp(self, input_item: Dict[str, Any]) -> Optional[float]:
         status = input_item.get("status")
         if isinstance(status, dict):
             ts = status.get("lastEventTime") or status.get("lastEvent")
@@ -195,7 +195,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
 
     def _report_connectivity_issue(
         self,
-        input_item: dict[str, Any],
+        input_item: Dict[str, Any],
         status: str,
         result: AnalyzerResult,
         client: CriblAPIClient,
@@ -252,7 +252,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
 
     def _report_data_lag(
         self,
-        input_item: dict[str, Any],
+        input_item: Dict[str, Any],
         lag_minutes: float,
         severity_level: str,
         result: AnalyzerResult,
@@ -282,7 +282,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
 
     def _report_error_rate(
         self,
-        input_item: dict[str, Any],
+        input_item: Dict[str, Any],
         error_rate: float,
         error_count: int,
         severity_level: str,
@@ -317,7 +317,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
 
     def _report_queue_depth(
         self,
-        input_item: dict[str, Any],
+        input_item: Dict[str, Any],
         queue_size: int,
         severity_level: str,
         result: AnalyzerResult,

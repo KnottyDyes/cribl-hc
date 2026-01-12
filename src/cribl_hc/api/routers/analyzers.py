@@ -19,13 +19,13 @@ class AnalyzerInfo(BaseModel):
     name: str
     description: str
     api_calls: int
-    permissions: list[str]
-    categories: list[str]
+    permissions: List[str]
+    categories: List[str]
 
 
 class AnalyzersListResponse(BaseModel):
     """Response for list analyzers endpoint."""
-    analyzers: list[AnalyzerInfo]
+    analyzers: List[AnalyzerInfo]
     total_count: int
     total_api_calls: int
 

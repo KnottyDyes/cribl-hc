@@ -8,7 +8,7 @@ Analyzes lookup table configurations to identify:
 - Missing lookups referenced by pipelines
 """
 
-from typing import Any
+from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -51,7 +51,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
         return "lookup_health"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Lookup analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -65,7 +65,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
         """
         return 2
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:lookups",
@@ -152,7 +152,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
 
         return result
 
-    def _find_lookup_references(self, pipelines: list[dict[str, Any]]) -> set[str]:
+    def _find_lookup_references(self, pipelines: List[Dict[str, Any]]) -> set[str]:
         """
         Find all lookup table references in pipeline configurations.
 
@@ -214,7 +214,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
             for item in obj:
                 self._search_for_lookup_refs(item, referenced)
 
-    def _check_lookup_size(self, result: AnalyzerResult, lookup: dict[str, Any]) -> None:
+    def _check_lookup_size(self, result: AnalyzerResult, lookup: Dict[str, Any]) -> None:
         """Check if lookup size is within recommended limits."""
         lookup_id = lookup.get("id", "unknown")
         size = lookup.get("size", 0)
@@ -248,7 +248,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
                 )
             )
 
-    def _check_memory_mode(self, result: AnalyzerResult, lookup: dict[str, Any]) -> None:
+    def _check_memory_mode(self, result: AnalyzerResult, lookup: Dict[str, Any]) -> None:
         """Check if memory mode is appropriate for lookup size."""
         lookup_id = lookup.get("id", "unknown")
         size = lookup.get("size", 0)
@@ -302,7 +302,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
     def _check_orphaned_lookups(
         self,
         result: AnalyzerResult,
-        lookups: list[dict[str, Any]],
+        lookups: List[Dict[str, Any]],
         referenced: set[str]
     ) -> None:
         """Check for lookup tables not referenced by any pipeline."""
@@ -344,7 +344,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
     def _check_missing_lookups(
         self,
         result: AnalyzerResult,
-        lookups: list[dict[str, Any]],
+        lookups: List[Dict[str, Any]],
         referenced: set[str]
     ) -> None:
         """Check for lookups referenced in pipelines but not defined."""
@@ -382,7 +382,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
     def _check_total_memory_usage(
         self,
         result: AnalyzerResult,
-        memory_lookups: list[dict[str, Any]],
+        memory_lookups: List[Dict[str, Any]],
         total_size: int
     ) -> None:
         """Check total memory usage from in-memory lookups."""
@@ -437,7 +437,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
                 )
             )
 
-    def _check_mmdb_lookups(self, result: AnalyzerResult, lookups: list[dict[str, Any]]) -> None:
+    def _check_mmdb_lookups(self, result: AnalyzerResult, lookups: List[Dict[str, Any]]) -> None:
         """Check MMDB (MaxMind database) lookup health."""
         mmdb_lookups = [l for l in lookups if l.get("id", "").endswith(".mmdb")]
 
@@ -474,9 +474,9 @@ class LookupHealthAnalyzer(BaseAnalyzer):
     def _add_summary_finding(
         self,
         result: AnalyzerResult,
-        lookups: list[dict[str, Any]],
-        memory_lookups: list[dict[str, Any]],
-        disk_lookups: list[dict[str, Any]]
+        lookups: List[Dict[str, Any]],
+        memory_lookups: List[Dict[str, Any]],
+        disk_lookups: List[Dict[str, Any]]
     ) -> None:
         """Add summary finding for lookup health."""
         total_size = sum(l.get("size", 0) for l in lookups)
