@@ -5,7 +5,7 @@ All analyzers must inherit from BaseAnalyzer and implement the analyze() method.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
@@ -35,7 +35,7 @@ class AnalyzerResult:
         objective: str,
         findings: Optional[List[Finding]] = None,
         recommendations: Optional[List[Recommendation]] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
         success: bool = True,
         error: Optional[str] = None,
         source_analyzer: Optional[str] = None,
@@ -51,8 +51,8 @@ class AnalyzerResult:
         self._source_analyzer = source_analyzer or objective
         self._default_product_tags = default_product_tags or self.PRODUCTS.copy()
 
-        self._findings_by_product: dict[str, int] = dict.fromkeys(self.PRODUCTS, 0)
-        self._recommendations_by_product: dict[str, int] = dict.fromkeys(self.PRODUCTS, 0)
+        self._findings_by_product: Dict[str, int] = dict.fromkeys(self.PRODUCTS, 0)
+        self._recommendations_by_product: Dict[str, int] = dict.fromkeys(self.PRODUCTS, 0)
 
         for finding in self.findings:
             self._increment_finding_counts(finding)
@@ -125,7 +125,7 @@ class AnalyzerResult:
         )
         return filtered_result
 
-    def get_product_summary(self) -> dict[str, dict[str, int]]:
+    def get_product_summary(self) -> Dict[str, Dict[str, int]]:
         """
         Get summary of findings and recommendations by product.
         """
@@ -137,13 +137,13 @@ class AnalyzerResult:
             for product in self.PRODUCTS
         }
 
-    def get_findings_by_product(self) -> dict[str, int]:
+    def get_findings_by_product(self) -> Dict[str, int]:
         """
         Get count of findings by product.
         """
         return self._findings_by_product.copy()
 
-    def get_recommendations_by_product(self) -> dict[str, int]:
+    def get_recommendations_by_product(self) -> Dict[str, int]:
         """
         Get count of recommendations by product.
         """
@@ -163,7 +163,7 @@ class BaseAnalyzer(ABC):
     Abstract base class for all analyzers.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize base analyzer."""
         self.log = get_logger(self.__class__.__name__)
 
@@ -238,7 +238,14 @@ class BaseAnalyzer(ABC):
     def create_finding(self, client: Optional[CriblAPIClient] = None, **kwargs) -> Finding:
         """
         Create a Finding automatically tagged with this analyzer's info.
+
+        Auto-generates grouping_id from title pattern if not explicitly provided.
+        For titles like "Pattern: {variable}", uses "pattern" as grouping_id.
+        This enables automatic grouping of similar findings in the UI.
         """
+        if "confidence_level" not in kwargs:
+            kwargs["confidence_level"] = "high"
+
         if "source_analyzer" not in kwargs:
             kwargs["source_analyzer"] = self.objective_name
 
@@ -249,8 +256,20 @@ class BaseAnalyzer(ABC):
         if "worker_group" not in kwargs:
             if "metadata" in kwargs and "worker_group_id" in kwargs["metadata"]:
                 kwargs["worker_group"] = kwargs["metadata"]["worker_group_id"]
-            elif client and hasattr(client, "worker_group"):
+            elif (
+                client and hasattr(client, "worker_group") and isinstance(client.worker_group, str)
+            ):
                 kwargs["worker_group"] = client.worker_group
+
+        # Auto-generate grouping_id from title pattern if not explicitly provided
+        if "grouping_id" not in kwargs and "title" in kwargs:
+            title = kwargs["title"]
+            # Extract pattern from titles like "Pattern: value" or "Pattern Name: value"
+            if ":" in title:
+                pattern = title.split(":")[0].strip().lower()
+                # Convert to snake_case and prefix with objective for uniqueness
+                pattern_id = pattern.replace(" ", "-")
+                kwargs["grouping_id"] = f"{self.objective_name}-{pattern_id}"
 
         finding = Finding(**kwargs)
 

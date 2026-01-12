@@ -1,5 +1,6 @@
+import json
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Dict, List
 from urllib.parse import urljoin
 import json
 
@@ -15,12 +16,12 @@ log = get_logger(__name__)
 class ConnectionTestResult(BaseModel):
     success: bool = Field(..., description="Connection test success status")
     message: str = Field(..., description="Human-readable status message")
-    response_time_ms: Optional[float] = Field(
+    response_time_ms: float | None = Field(
         default=None, description="API response time in milliseconds"
     )
-    cribl_version: Optional[str] = Field(default=None, description="Detected Cribl version")
+    cribl_version: str | None = Field(default=None, description="Detected Cribl version")
     api_url: str = Field(..., description="API URL tested")
-    error: Optional[str] = Field(default=None, description="Error details if failed")
+    error: str | None = Field(default=None, description="Error details if failed")
     tested_at: datetime = Field(default_factory=datetime.utcnow)
 
     model_config = {"populate_by_name": True}
@@ -33,19 +34,19 @@ class CriblAPIClient:
         auth_token: str,
         timeout: float = 30.0,
         max_retries: int = 3,
-        rate_limiter: Optional[RateLimiter] = None,
-        worker_group: Optional[str] = None,
+        rate_limiter: RateLimiter | None = None,
+        worker_group: str | None = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.auth_token = auth_token
         self.timeout = timeout
         self.max_retries = max_retries
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
         self._is_cloud = "cribl.cloud" in base_url.lower()
         self._worker_group = worker_group
         self._deployment_detected = False
-        self._product_type: Optional[str] = None
-        self._product_version: Optional[str] = None
+        self._product_type: str | None = None
+        self._product_version: str | None = None
         self.rate_limiter = rate_limiter or RateLimiter(
             max_calls=100,
             time_window_seconds=3600.0,
@@ -58,11 +59,20 @@ class CriblAPIClient:
             "Accept": "application/json",
             "User-Agent": "cribl-health-check/1.0",
         }
+        try:
+            import h2  # noqa: F401
+
+            http2_enabled = True
+        except ImportError:
+            http2_enabled = False
+
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             headers=headers,
             timeout=self.timeout,
             follow_redirects=True,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
+            http2=http2_enabled,
         )
         if self._is_cloud and not self._worker_group:
             await self._detect_worker_group()
@@ -99,7 +109,7 @@ class CriblAPIClient:
                     return True
         return False
 
-    def _is_stream_group(self, group_id: str | None) -> bool:
+    def _is_stream_group(self, group_id: Optional[str]) -> bool:
         return bool(group_id and not group_id.startswith("edge_"))
 
     async def _test_group_access(self, group_id: str) -> bool:
@@ -131,7 +141,7 @@ class CriblAPIClient:
         return self._worker_group or "default"
 
     @property
-    def product_type(self) -> Optional[str]:
+    def product_type(self) -> str | None:
         return self._product_type
 
     @property
@@ -147,10 +157,10 @@ class CriblAPIClient:
         return self._product_type == "lake"
 
     @property
-    def product_version(self) -> Optional[str]:
+    def product_version(self) -> str | None:
         return self._product_version
 
-    async def _detect_product_type(self, version_info: dict[str, Any]) -> None:
+    async def _detect_product_type(self, version_info: Dict[str, Any]) -> None:
         if not version_info:
             self._product_type = "stream"
             return
@@ -179,7 +189,7 @@ class CriblAPIClient:
         self._product_type = "stream"
         self._product_version = version_info.get("version")
 
-    def _build_config_endpoint(self, resource: str, fleet: Optional[str] = None) -> str:
+    def _build_config_endpoint(self, resource: str, fleet: str | None = None) -> str:
         if self.is_edge:
             return f"/api/v1/e/{fleet}/{resource}" if fleet else f"/api/v1/edge/{resource}"
         elif self._is_cloud:
@@ -274,28 +284,28 @@ class CriblAPIClient:
                 return default
             raise
 
-    async def get_pipelines(self) -> list[dict[str, Any]]:
+    async def get_pipelines(self) -> List[Dict[str, Any]]:
         return await self._get_data_or_empty(self._build_config_endpoint("pipelines"))
 
-    async def get_routes(self) -> list[dict[str, Any]]:
+    async def get_routes(self) -> List[Dict[str, Any]]:
         return await self._get_data_or_empty(self._build_config_endpoint("routes"))
 
-    async def get_inputs(self) -> list[dict[str, Any]]:
+    async def get_inputs(self) -> List[Dict[str, Any]]:
         return await self._get_data_or_empty(self._build_config_endpoint("inputs"))
 
-    async def get_outputs(self) -> list[dict[str, Any]]:
+    async def get_outputs(self) -> List[Dict[str, Any]]:
         return await self._get_data_or_empty(self._build_config_endpoint("outputs"))
 
-    async def get_parsers(self) -> list[dict[str, Any]]:
+    async def get_parsers(self) -> List[Dict[str, Any]]:
         return await self._get_data_or_empty(self._build_config_endpoint("parsers"))
 
-    async def get_workers(self) -> list[dict[str, Any]]:
+    async def get_workers(self) -> List[Dict[str, Any]]:
         return await self._get_data_or_empty("/api/v1/master/workers")
 
-    async def get_worker_groups(self) -> list[dict[str, Any]]:
+    async def get_worker_groups(self) -> List[Dict[str, Any]]:
         return await self._get_data_or_empty("/api/v1/master/groups")
 
-    def get_worker_group_type(self, group: dict[str, Any]) -> str:
+    def get_worker_group_type(self, group: Dict[str, Any]) -> str:
         """
         Determine the type of a worker group based on its properties.
 
@@ -324,7 +334,7 @@ class CriblAPIClient:
         else:
             return "hybrid"  # Customer-managed workers in cloud deployment
 
-    async def get_worker_groups_by_type(self) -> dict[str, list[dict[str, Any]]]:
+    async def get_worker_groups_by_type(self) -> Dict[str, List[Dict[str, Any]]]:
         """
         Get worker groups categorized by their deployment type.
 
@@ -351,19 +361,19 @@ class CriblAPIClient:
 
         return by_type
 
-    async def get_master_summary(self) -> dict[str, Any]:
+    async def get_master_summary(self) -> Dict[str, Any]:
         return await self._get_data_or_empty(
             "/api/v1/master/summary", default={}, extract_items=False
         )
 
-    async def get_nodes(self) -> list[dict[str, Any]]:
+    async def get_nodes(self) -> List[Dict[str, Any]]:
         endpoint = "/api/v1/edge/nodes" if self.is_edge else "/api/v1/master/workers"
         return await self._get_data_or_empty(endpoint)
 
-    def _normalize_node_data(self, node: dict[str, Any]) -> dict[str, Any]:
+    def _normalize_node_data(self, node: Dict[str, Any]) -> Dict[str, Any]:
         return node
 
-    async def get_system_status(self) -> dict[str, Any]:
+    async def get_system_status(self) -> Dict[str, Any]:
         try:
             response = await self.get("/api/v1/system/status")
             response.raise_for_status()
@@ -371,7 +381,7 @@ class CriblAPIClient:
         except Exception:
             return {}
 
-    async def get_auth_config(self) -> dict[str, Any]:
+    async def get_auth_config(self) -> Dict[str, Any]:
         try:
             response = await self.get("/api/v1/system/auth")
             response.raise_for_status()
@@ -379,7 +389,15 @@ class CriblAPIClient:
         except Exception:
             return {}
 
-    async def get_system_messages(self) -> list[dict[str, Any]]:
+    async def get_security_settings(self) -> Dict[str, Any]:
+        try:
+            response = await self.get("/api/v1/system/security")
+            response.raise_for_status()
+            return response.json()
+        except Exception:
+            return {}
+
+    async def get_system_messages(self) -> List[Dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/messages")
             response.raise_for_status()
@@ -388,7 +406,7 @@ class CriblAPIClient:
         except Exception:
             return []
 
-    async def get_banners(self) -> list[dict[str, Any]]:
+    async def get_banners(self) -> List[Dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/banners")
             response.raise_for_status()
@@ -397,7 +415,57 @@ class CriblAPIClient:
         except Exception:
             return []
 
-    async def get_certificates(self) -> list[dict[str, Any]]:
+    async def get_scripts(self) -> List[Dict[str, Any]]:
+        try:
+            response = await self.get("/api/v1/system/scripts")
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception:
+            return []
+
+    async def get_system_logs(self) -> List[Dict[str, Any]]:
+        try:
+            response = await self.get("/api/v1/system/logs")
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception:
+            return []
+
+    async def search_system_logs(
+        self,
+        log_type: str = "single",
+        group_id: str | None = None,
+        files: List[str] | str | None = None,
+        limit: int | None = None,
+        earliest: int | None = None,
+        latest: int | None = None,
+        filter_expr: str | None = None,
+    ) -> List[Dict[str, Any]]:
+        params: Dict[str, Any] = {"type": log_type}
+        if group_id:
+            params["groupId"] = group_id
+        if files:
+            params["files"] = files
+        if limit is not None:
+            params["limit"] = limit
+        if earliest is not None:
+            params["et"] = earliest
+        if latest is not None:
+            params["lt"] = latest
+        if filter_expr:
+            params["filter"] = filter_expr
+
+        try:
+            response = await self.get("/api/v1/system/logs/search", params=params)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("items", [])
+        except Exception:
+            return []
+
+    async def get_certificates(self) -> List[Dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/certificates")
             response.raise_for_status()
@@ -406,7 +474,51 @@ class CriblAPIClient:
         except Exception:
             return []
 
-    async def get_roles(self) -> list[dict[str, Any]]:
+    async def get_system_policies(self) -> Dict[str, Any]:
+        response = await self.get("/api/v1/system/policies")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_system_settings(self) -> Dict[str, Any]:
+        response = await self.get("/api/v1/system/settings")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_licenses(self) -> List[Dict[str, Any]]:
+        response = await self.get("/api/v1/system/licenses")
+        response.raise_for_status()
+        data = response.json()
+        return data.get("items", [])
+
+    async def get_license_usage(self) -> Dict[str, Any]:
+        response = await self.get("/api/v1/system/licenses/usage")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_license_info(self) -> Dict[str, Any]:
+        data = await self.get_license_usage()
+        summary = data.get("summary", {}) if isinstance(data, dict) else {}
+        daily_limit = (
+            summary.get("dailyGbLimit")
+            or summary.get("daily_gb_limit")
+            or summary.get("limitGb")
+            or summary.get("limit")
+            or 0
+        )
+        daily_used = (
+            summary.get("dailyGbUsed")
+            or summary.get("daily_gb_used")
+            or summary.get("usedGb")
+            or summary.get("used")
+            or 0
+        )
+        return {
+            "daily_gb_limit": daily_limit,
+            "current_daily_gb": daily_used,
+            "raw": data,
+        }
+
+    async def get_roles(self) -> List[Dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/roles")
             response.raise_for_status()
@@ -415,7 +527,7 @@ class CriblAPIClient:
         except Exception:
             return []
 
-    async def get_users(self) -> list[dict[str, Any]]:
+    async def get_users(self) -> List[Dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/users")
             response.raise_for_status()
@@ -424,7 +536,7 @@ class CriblAPIClient:
         except Exception:
             return []
 
-    async def get_api_keys(self) -> list[dict[str, Any]]:
+    async def get_api_keys(self) -> List[Dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/keys")
             response.raise_for_status()
@@ -433,7 +545,7 @@ class CriblAPIClient:
         except Exception:
             return []
 
-    async def get_teams(self) -> list[dict[str, Any]]:
+    async def get_teams(self) -> List[Dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/teams")
             response.raise_for_status()
@@ -442,10 +554,10 @@ class CriblAPIClient:
         except Exception:
             return []
 
-    async def get_lookups(self) -> list[dict[str, Any]]:
+    async def get_lookups(self) -> List[Dict[str, Any]]:
         return await self._get_data_or_empty(self._build_config_endpoint("lookups"))
 
-    async def get_notification_targets(self) -> list[dict[str, Any]]:
+    async def get_notification_targets(self) -> List[Dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/notifications/targets")
             response.raise_for_status()
@@ -453,7 +565,7 @@ class CriblAPIClient:
         except Exception:
             return []
 
-    async def get_notifications(self) -> list[dict[str, Any]]:
+    async def get_notifications(self) -> List[Dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/notifications")
             response.raise_for_status()
@@ -461,7 +573,7 @@ class CriblAPIClient:
         except Exception:
             return []
 
-    async def get_metrics(self, time_range: str = "1h") -> dict[str, Any]:
+    async def get_metrics(self, time_range: str = "1h") -> Dict[str, Any]:
         if self._is_cloud:
             endpoint = f"/api/v1/m/{self.worker_group}/system/metrics"
         else:
@@ -482,7 +594,7 @@ class CriblAPIClient:
             )
             return {}
 
-    async def get_version_info(self) -> dict[str, Any]:
+    async def get_version_info(self) -> Dict[str, Any]:
         try:
             response = await self.get("/api/v1/system/info")
             response.raise_for_status()
@@ -511,7 +623,7 @@ class CriblAPIClient:
         return response.json()
 
     async def get_search_groups(self, workspace: str = "default_search") -> dict:
-        response = await self.get(f"/api/v1/m/{workspace}/search/groups")
+        response = await self.get("/api/v1/search/usage-groups")
         response.raise_for_status()
         return response.json()
 
@@ -525,19 +637,66 @@ class CriblAPIClient:
         response.raise_for_status()
         return response.json()
 
-    async def get_lake_datasets(self, include_metrics: bool = False) -> dict:
+    async def get_search_healthcheck(self) -> dict:
+        response = await self.get("/api/v1/search/healthcheck")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_job_metrics(self) -> dict:
+        response = await self.get("/api/v1/search/job-metrics")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_dataset_stats(
+        self, dataset_id: str, start_time: int, end_time: int, granularity: int
+    ) -> dict:
+        params = {"startTime": start_time, "endTime": end_time, "granularity": granularity}
+        response = await self.get(
+            f"/api/v1/search/datasets/{dataset_id}/datasetStats", params=params
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_dataset_usage_stats(
+        self, dataset_id: str, end_time: int | None = None, time_window: int | None = None
+    ) -> dict:
+        params: Dict[str, Any] = {}
+        if end_time is not None:
+            params["endTime"] = end_time
+        if time_window is not None:
+            params["timeWindow"] = time_window
+        response = await self.get(f"/api/v1/search/datasets/{dataset_id}/usageStats", params=params)
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_dataset_providers(self) -> dict:
+        response = await self.get("/api/v1/search/dataset-providers")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_dataset_provider_types(self) -> dict:
+        response = await self.get("/api/v1/search/dataset-provider-types")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_search_field_stats(self, dataset_id: str) -> dict:
+        response = await self.get(f"/api/v1/search/datasets/{dataset_id}/fieldStats")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_lake_groups(self) -> dict:
+        response = await self.get("/api/v1/products/lake/groups")
+        response.raise_for_status()
+        return response.json()
+
+    async def get_lake_datasets(self, lake_id: str, include_metrics: bool = False) -> dict:
         params = {"includeMetrics": str(include_metrics).lower()}
-        response = await self.get("/api/v1/products/lake/datasets", params=params)
+        response = await self.get(f"/api/v1/products/lake/lakes/{lake_id}/datasets", params=params)
         response.raise_for_status()
         return response.json()
 
-    async def get_lake_lakehouses(self) -> dict:
-        response = await self.get("/api/v1/products/lake/lakehouses")
-        response.raise_for_status()
-        return response.json()
-
-    async def get_lake_storage_locations(self, lake_name: str = "default") -> dict:
-        response = await self.get(f"/api/v1/products/lake/lakes/{lake_name}/storage_locations")
+    async def get_lake_storage_locations(self, lake_id: str) -> dict:
+        response = await self.get(f"/api/v1/products/lake/lakes/{lake_id}/storage-locations")
         response.raise_for_status()
         return response.json()
 
@@ -547,8 +706,8 @@ class CriblAPIClient:
         max_events: int = 10,
         duration: int = 10,
         level: int = 1,
-        worker_id: Optional[str] = None,
-    ) -> list[dict[str, Any]]:
+        worker_id: str | None = None,
+    ) -> List[Dict[str, Any]]:
         if not self._client:
             raise RuntimeError("Client not initialized")
 

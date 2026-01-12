@@ -15,13 +15,13 @@ class MarkdownReportGenerator:
     Generate Markdown reports from analysis results.
     """
 
-    def __init__(self, branding: BrandingConfig | None = None):
+    def __init__(self, branding: Optional[BrandingConfig] = None):
         self.branding = branding or BrandingConfig.default()
 
     def generate(
         self,
         analysis_run: AnalysisRun,
-        results: dict[str, AnalyzerResult] | None = None,
+        results: Optional[Dict[str, AnalyzerResult]] = None,
     ) -> str:
         sections = []
         sections.append(self._generate_header(analysis_run))
@@ -202,14 +202,14 @@ class HTMLReportGenerator:
     """Generate HTML reports with full branding support."""
 
     def __init__(
-        self, branding: BrandingConfig | None = None, theme_mode: ThemeMode = ThemeMode.LIGHT
+        self, branding: Optional[BrandingConfig] = None, theme_mode: ThemeMode = ThemeMode.LIGHT
     ):
         self.branding = branding or BrandingConfig.default()
         self.theme_mode = theme_mode
         self.colors = self.branding.get_active_theme(theme_mode)
 
     def generate(
-        self, analysis_run: AnalysisRun, results: dict[str, AnalyzerResult] | None = None
+        self, analysis_run: AnalysisRun, results: Optional[Dict[str, AnalyzerResult]] = None
     ) -> str:
         findings_html = ""
         if results:
@@ -292,7 +292,7 @@ class HTMLReportGenerator:
         score = analysis_run.health_score.overall_score if analysis_run.health_score else "N/A"
         return f"<section><h2>Summary</h2><p>Score: {score}/100</p></section>"
 
-    def _generate_findings_html(self, results: dict[str, AnalyzerResult]) -> str:
+    def _generate_findings_html(self, results: Dict[str, AnalyzerResult]) -> str:
         html = ""
         for obj, res in results.items():
             f_html = ""

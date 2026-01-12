@@ -3,6 +3,8 @@ Cribl version detection and compatibility checking.
 
 Supports Cribl Stream versions N (current), N-1, and N-2.
 """
+from typing import Optional
+
 
 import re
 
@@ -28,7 +30,7 @@ class CriblVersion(BaseModel):
     major: int = Field(..., description="Major version", ge=0)
     minor: int = Field(..., description="Minor version", ge=0)
     patch: int = Field(..., description="Patch version", ge=0)
-    build: str | None = Field(None, description="Build number")
+    build: Optional[str] = Field(None, description="Build number")
     raw: str = Field(..., description="Raw version string")
 
     @field_validator("raw")
@@ -121,7 +123,7 @@ def parse_version(version_string: str) -> CriblVersion:
     )
 
 
-def detect_version(version_data: dict) -> CriblVersion | None:
+def detect_version(version_data: dict) -> Optional[CriblVersion]:
     """
     Detect Cribl version from API response data.
 
@@ -161,7 +163,7 @@ def detect_version(version_data: dict) -> CriblVersion | None:
         return None
 
 
-def is_version_supported(version: CriblVersion, current_version: CriblVersion | None = None) -> bool:
+def is_version_supported(version: CriblVersion, current_version: Optional[CriblVersion] = None) -> bool:
     """
     Check if a Cribl version is supported (N, N-1, or N-2).
 
@@ -226,7 +228,7 @@ def is_version_supported(version: CriblVersion, current_version: CriblVersion | 
     return True
 
 
-def get_version_compatibility_message(version: CriblVersion, current_version: CriblVersion | None = None) -> str:
+def get_version_compatibility_message(version: CriblVersion, current_version: Optional[CriblVersion] = None) -> str:
     """
     Get a human-readable compatibility message for a version.
 

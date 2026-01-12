@@ -38,7 +38,7 @@ class SensitiveDataAnalyzer(BaseAnalyzer):
         },
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.log = get_logger(__name__)
 
@@ -47,7 +47,7 @@ class SensitiveDataAnalyzer(BaseAnalyzer):
         return "sensitive_data"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         return ["stream", "edge"]
 
     def get_description(self) -> str:
@@ -56,7 +56,7 @@ class SensitiveDataAnalyzer(BaseAnalyzer):
     def get_estimated_api_calls(self) -> int:
         return 1
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         return ["read:system", "execute:capture"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:

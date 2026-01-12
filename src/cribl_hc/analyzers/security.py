@@ -10,7 +10,7 @@ Priority: P2 (Security - critical for compliance and data protection)
 import json
 import re
 from datetime import datetime
-from typing import Any, List
+from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -61,7 +61,7 @@ class SecurityAnalyzer(BaseAnalyzer):
         return "security"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Security analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -69,15 +69,15 @@ class SecurityAnalyzer(BaseAnalyzer):
         """
         Estimate API calls needed.
         """
-        return 9
+        return 10
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:outputs",
             "read:inputs",
             "read:auth",
-            "read:system",
+            "read:security",
             "read:certificates",
             "read:roles",
             "read:users",
@@ -97,14 +97,59 @@ class SecurityAnalyzer(BaseAnalyzer):
                 "security_analysis_started", product=client.product_type, product_name=product_name
             )
 
-            outputs = await client.get_outputs() or []
-            inputs = await client.get_inputs() or []
-            auth_config = await client.get_auth_config() or {}
-            certificates = await client.get_certificates() or []
-            roles = await client.get_roles() or []
-            users = await client.get_users() or []
-            api_keys = await client.get_api_keys() or []
-            teams = await client.get_teams() or []
+            try:
+                outputs = await client.get_outputs() or []
+            except Exception as e:
+                log.warning("outputs_fetch_failed", error=str(e))
+                outputs = []
+
+            try:
+                inputs = await client.get_inputs() or []
+            except Exception as e:
+                log.warning("inputs_fetch_failed", error=str(e))
+                inputs = []
+
+            try:
+                auth_config = await client.get_auth_config() or {}
+            except Exception as e:
+                log.warning("auth_config_fetch_failed", error=str(e))
+                auth_config = {}
+
+            try:
+                security_settings = await client.get_security_settings() or {}
+            except Exception as e:
+                log.warning("security_settings_fetch_failed", error=str(e))
+                security_settings = {}
+
+            try:
+                certificates = await client.get_certificates() or []
+            except Exception as e:
+                log.warning("certificates_fetch_failed", error=str(e))
+                certificates = []
+
+            try:
+                roles = await client.get_roles() or []
+            except Exception as e:
+                log.warning("roles_fetch_failed", error=str(e))
+                roles = []
+
+            try:
+                users = await client.get_users() or []
+            except Exception as e:
+                log.warning("users_fetch_failed", error=str(e))
+                users = []
+
+            try:
+                api_keys = await client.get_api_keys() or []
+            except Exception as e:
+                log.warning("api_keys_fetch_failed", error=str(e))
+                api_keys = []
+
+            try:
+                teams = await client.get_teams() or []
+            except Exception as e:
+                log.warning("teams_fetch_failed", error=str(e))
+                teams = []
 
             tls_issues = self._analyze_tls_configuration(outputs, inputs, result, client)
             secret_issues = self._analyze_secrets(outputs, inputs, result, client)
@@ -113,6 +158,7 @@ class SecurityAnalyzer(BaseAnalyzer):
             self._analyze_rbac(roles, users, result, client)
             self._analyze_api_keys(api_keys, result, client)
             self._analyze_teams(teams, result, client)
+            self._analyze_guard_policies(security_settings, result, client)
 
             security_score = self._calculate_security_score(
                 outputs, inputs, auth_config, tls_issues, secret_issues, auth_issues
@@ -152,11 +198,11 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def _analyze_tls_configuration(
         self,
-        outputs: list[dict[str, Any]],
-        inputs: list[dict[str, Any]],
+        outputs: List[Dict[str, Any]],
+        inputs: List[Dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Analyze TLS configuration for outputs and inputs."""
         tls_issues = []
 
@@ -180,6 +226,28 @@ class SecurityAnalyzer(BaseAnalyzer):
                         confidence_level="high",
                         remediation_steps=[f"Enable TLS for output '{output_id}'"],
                         estimated_impact="Data transmitted in plaintext",
+                    )
+                )
+
+            if tls_conf.get("rejectUnauthorized") is False:
+                tls_issues.append(
+                    {"component": output_id, "type": "output", "issue": "cert_validation_disabled"}
+                )
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id=f"security-cert-validation-disabled-output-{output_id}",
+                        category="security",
+                        severity="high",
+                        title=f"Certificate Validation Disabled: {output_id}",
+                        description=f"Output '{output_id}' disables certificate validation (rejectUnauthorized=false).",
+                        affected_components=[output_id],
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Enable certificate validation for output '{output_id}'",
+                            "Verify destination certificates are trusted",
+                        ],
+                        estimated_impact="Increased risk of man-in-the-middle attacks",
                     )
                 )
 
@@ -209,11 +277,11 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def _analyze_secrets(
         self,
-        outputs: list[dict[str, Any]],
-        inputs: list[dict[str, Any]],
+        outputs: List[Dict[str, Any]],
+        inputs: List[Dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Scan configurations for hardcoded secrets."""
         secret_issues = []
 
@@ -270,8 +338,8 @@ class SecurityAnalyzer(BaseAnalyzer):
         return any(p in value.lower() for p in placeholders)
 
     def _analyze_authentication(
-        self, auth_config: dict[str, Any], result: AnalyzerResult, client: CriblAPIClient
-    ) -> list[dict[str, Any]]:
+        self, auth_config: Dict[str, Any], result: AnalyzerResult, client: CriblAPIClient
+    ) -> List[Dict[str, Any]]:
         """Analyze authentication configuration."""
         issues = []
         if auth_config.get("disabled") is True:
@@ -312,10 +380,10 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def _analyze_certificates(
         self,
-        certificates: list[dict[str, Any]],
+        certificates: List[Dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Analyze certificate configurations for expiration."""
         issues = []
         now = datetime.utcnow()
@@ -343,6 +411,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                             title=f"Certificate Expired: {cert_id}",
                             description=f"Certificate '{cert_id}' expired {abs(days_until)} days ago.",
                             confidence_level="high",
+                            affected_components=[cert_id],
                             remediation_steps=[f"Renew certificate '{cert_id}' immediately"],
                             estimated_impact="Service disruption for components using this certificate",
                         )
@@ -359,6 +428,7 @@ class SecurityAnalyzer(BaseAnalyzer):
                             title=f"Certificate Expiring Soon: {cert_id}",
                             description=f"Certificate '{cert_id}' expires in {days_until} days.",
                             confidence_level="high",
+                            affected_components=[cert_id],
                             remediation_steps=[f"Renew certificate '{cert_id}'"],
                             estimated_impact="Potential future service disruption",
                         )
@@ -370,13 +440,13 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def _analyze_rbac(
         self,
-        roles: list[dict[str, Any]],
-        users: list[dict[str, Any]],
+        roles: List[Dict[str, Any]],
+        users: List[Dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Analyze RBAC and user activity."""
-        issues = []
+        issues: List[Dict[str, Any]] = []
         now = datetime.utcnow()
 
         admin_roles = set()
@@ -394,15 +464,26 @@ class SecurityAnalyzer(BaseAnalyzer):
                         title=f"Overly Permissive Role: {role_id}",
                         description=f"Role '{role_id}' has wildcard or admin permissions.",
                         confidence_level="high",
+                        affected_components=[role_id],
                         remediation_steps=[f"Review and restrict permissions for role '{role_id}'"],
                         estimated_impact="Users with this role have excessive power",
+                        metadata={"role_id": role_id, "permissions": perms},
                     )
                 )
 
         inactive_users = 0
+        admin_user_count = 0
+        used_role_ids = set()
         for user in users:
+            if user.get("disabled"):
+                continue
             user_id = user.get("id", user.get("username", "unknown"))
             last_login_str = user.get("lastLogin") or user.get("last_login")
+
+            user_roles = user.get("roles", [])
+            used_role_ids.update(user_roles)
+            if any(role in admin_roles for role in user_roles):
+                admin_user_count += 1
 
             if last_login_str:
                 try:
@@ -426,12 +507,69 @@ class SecurityAnalyzer(BaseAnalyzer):
                                 title=f"Inactive User Account: {user_id}",
                                 description=f"User '{user_id}' has not logged in for {days_inactive} days.",
                                 confidence_level="medium",
+                                affected_components=[user_id],
                                 remediation_steps=[f"Disable or remove inactive user '{user_id}'"],
                                 estimated_impact="Increased risk of credential misuse",
                             )
                         )
                 except Exception:
                     pass
+            else:
+                created_at = user.get("created") or user.get("createdAt")
+                if not created_at:
+                    continue
+                try:
+                    if isinstance(created_at, (int, float)):
+                        created_ts = datetime.utcfromtimestamp(created_at / 1000)
+                    else:
+                        created_ts = datetime.fromisoformat(
+                            created_at.replace("Z", "+00:00").split("+")[0]
+                        )
+                    days_since_created = (now - created_ts).days
+                    if days_since_created > 30:
+                        result.add_finding(
+                            self.create_finding(
+                                client=client,
+                                id=f"security-user-never-logged-in-{user_id}",
+                                category="security",
+                                severity="medium",
+                                title=f"Never Logged In User: {user_id}",
+                                description=f"User '{user_id}' has never logged in since creation ({days_since_created} days).",
+                                confidence_level="medium",
+                                affected_components=[user_id],
+                                remediation_steps=[
+                                    f"Review account '{user_id}' and disable if unused."
+                                ],
+                                estimated_impact="Unused accounts increase the attack surface.",
+                                metadata={"created_at": created_at},
+                            )
+                        )
+                except Exception:
+                    pass
+
+        admin_user_threshold = 3
+        if admin_user_count > admin_user_threshold:
+            result.add_finding(
+                self.create_finding(
+                    client=client,
+                    id="security-rbac-too-many-admins",
+                    category="security",
+                    severity="medium",
+                    title="High Number of Admin Users",
+                    description=f"Found {admin_user_count} users with administrative privileges, which exceeds the recommended maximum of {admin_user_threshold}.",
+                    confidence_level="high",
+                    affected_components=[
+                        user.get("id", user.get("username", "unknown"))
+                        for user in users
+                        if any(role in admin_roles for role in user.get("roles", []))
+                    ],
+                    remediation_steps=[
+                        "Review the list of administrative users.",
+                        "Remove unnecessary administrative privileges based on the principle of least privilege.",
+                    ],
+                    estimated_impact="Increased risk of unauthorized changes and security breaches.",
+                )
+            )
 
         if len(users) > 0 and (inactive_users / len(users)) > 0.25:
             result.add_recommendation(
@@ -457,13 +595,39 @@ class SecurityAnalyzer(BaseAnalyzer):
                 )
             )
 
+        all_role_ids = {role.get("id") for role in roles if role.get("id")}
+        orphaned_roles = all_role_ids - used_role_ids
+
+        default_roles = {"default", "admin", "user"}
+        orphaned_roles -= default_roles
+
+        for role_id in orphaned_roles:
+            result.add_finding(
+                self.create_finding(
+                    client=client,
+                    id=f"security-rbac-orphaned-role-{role_id}",
+                    category="security",
+                    severity="low",
+                    title=f"Orphaned Role: {role_id}",
+                    description=f"Role '{role_id}' is defined but not assigned to any user.",
+                    confidence_level="medium",
+                    affected_components=[role_id],
+                    remediation_steps=[
+                        f"If role '{role_id}' is no longer needed, consider deleting it to simplify configuration."
+                    ],
+                    estimated_impact="Reduces configuration clutter and potential for misassignment.",
+                )
+            )
+
         return issues
 
     def _analyze_api_keys(
-        self, api_keys: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
-    ) -> list[dict[str, Any]]:
+        self, api_keys: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+    ) -> List[Dict[str, Any]]:
         """Analyze API key security."""
-        issues = []
+        issues: List[Dict[str, Any]] = []
+        now = datetime.utcnow()
+
         for key in api_keys:
             key_id = key.get("id", "unknown")
             if not key.get("expiresAt") and not key.get("expires_at"):
@@ -476,14 +640,84 @@ class SecurityAnalyzer(BaseAnalyzer):
                         title=f"API Key Without Expiration: {key_id}",
                         description=f"API key '{key_id}' does not have an expiration date.",
                         confidence_level="high",
+                        affected_components=[key_id],
                         remediation_steps=[f"Set an expiration date for API key '{key_id}'"],
                         estimated_impact="API keys that never expire increase long-term risk",
+                        metadata={"key_id": key_id},
+                    )
+                )
+
+            last_used_str = key.get("lastUsed")
+            if not last_used_str:
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id=f"security-api-key-never-used-{key_id}",
+                        category="security",
+                        severity="low",
+                        title=f"API Key Never Used: {key_id}",
+                        description=f"API key '{key_id}' has never been used.",
+                        confidence_level="medium",
+                        affected_components=[key_id],
+                        remediation_steps=[
+                            f"Validate if the API key '{key_id}' is still required. If not, delete it."
+                        ],
+                        estimated_impact="Reduces attack surface by removing unused credentials.",
+                        metadata={"key_id": key_id},
+                    )
+                )
+            else:
+                try:
+                    if isinstance(last_used_str, (int, float)):
+                        last_used = datetime.utcfromtimestamp(last_used_str / 1000)
+                    else:
+                        last_used = datetime.fromisoformat(
+                            last_used_str.replace("Z", "+00:00").split("+")[0]
+                        )
+                    days_since_used = (now - last_used).days
+                    if days_since_used > 90:
+                        result.add_finding(
+                            self.create_finding(
+                                client=client,
+                                id=f"security-api-key-inactive-{key_id}",
+                                category="security",
+                                severity="medium",
+                                title=f"Inactive API Key: {key_id}",
+                                description=f"API key '{key_id}' has not been used in {days_since_used} days.",
+                                confidence_level="medium",
+                                affected_components=[key_id],
+                                remediation_steps=[
+                                    f"Consider rotating or deleting the inactive API key '{key_id}'."
+                                ],
+                                estimated_impact="Increased risk from potentially forgotten but active credentials.",
+                                metadata={"key_id": key_id, "days_since_used": days_since_used},
+                            )
+                        )
+                except Exception:
+                    log.warning("failed_to_parse_api_key_last_used", key=key_id)
+
+            perms = key.get("permissions", [])
+            if any(p == "admin" or "*" in str(p) for p in perms):
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id=f"security-api-key-overly-permissive-{key_id}",
+                        category="security",
+                        severity="high",
+                        title=f"Overly Permissive API Key: {key_id}",
+                        description=f"API key '{key_id}' has wildcard or admin permissions.",
+                        confidence_level="high",
+                        affected_components=[key_id],
+                        remediation_steps=[
+                            f"Review and restrict permissions for API key '{key_id}' to the minimum required."
+                        ],
+                        estimated_impact="A compromised key could grant full administrative access.",
                     )
                 )
         return issues
 
     def _analyze_teams(
-        self, teams: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, teams: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze team configurations."""
         for team in teams:
@@ -497,30 +731,98 @@ class SecurityAnalyzer(BaseAnalyzer):
                         title=f"Empty Team: {team.get('id')}",
                         description=f"Team '{team.get('id')}' has no members.",
                         confidence_level="high",
+                        affected_components=[team.get("id", "unknown")],
                         remediation_steps=["Remove empty teams to simplify configuration"],
                         estimated_impact="Unnecessary configuration complexity",
                     )
                 )
 
+    def _analyze_guard_policies(
+        self, security_settings: Dict[str, Any], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
+        if not isinstance(security_settings, dict) or not security_settings:
+            return
+
+        policies: List[Dict[str, Any]] = []
+        candidates = [security_settings]
+        guard_settings = security_settings.get("guard")
+        if isinstance(guard_settings, dict):
+            candidates.append(guard_settings)
+        masking_settings = security_settings.get("masking")
+        if isinstance(masking_settings, dict):
+            candidates.append(masking_settings)
+
+        for candidate in candidates:
+            if not isinstance(candidate, dict):
+                continue
+            for key in ("maskingPolicies", "masking_policies", "policies", "maskingPoliciesList"):
+                value = candidate.get(key)
+                if isinstance(value, list):
+                    policies = value
+                    break
+            if policies:
+                break
+
+        enabled_policies = [p for p in policies if p.get("enabled", True)]
+        result.metadata["guard_policy_count"] = len(policies)
+        result.metadata["guard_policy_enabled_count"] = len(enabled_policies)
+
+        if enabled_policies:
+            return
+
+        affected = [p.get("id", "unknown") for p in policies] if policies else ["guard"]
+        result.add_finding(
+            self.create_finding(
+                client=client,
+                id="security-guard-masking-policies",
+                grouping_id="security-guard-masking-policies",
+                category="security",
+                severity="medium",
+                title="Cribl Guard Masking Policies Not Active",
+                description="No enabled masking policies were detected for Cribl Guard.",
+                confidence_level="high",
+                affected_components=affected,
+                remediation_steps=[
+                    "Review Cribl Guard masking policies",
+                    "Enable masking policies for high-risk sources",
+                    "Verify Guard is configured for sensitive data",
+                ],
+                metadata={
+                    "policy_count": len(policies),
+                    "enabled_policy_count": len(enabled_policies),
+                },
+            )
+        )
+
     def _calculate_security_score(
-        self, outputs, inputs, auth_config, tls_issues, secret_issues, auth_issues
+        self,
+        outputs: List[Dict[str, Any]],
+        inputs: List[Dict[str, Any]],
+        auth_config: Dict[str, Any],
+        tls_issues: List[Dict[str, Any]],
+        secret_issues: List[Dict[str, Any]],
+        auth_issues: List[Dict[str, Any]],
     ) -> int:
         """Calculate overall security score (0-100)."""
         score = 100
         if auth_config.get("disabled") is True:
             score -= self.SCORE_WEIGHTS["authentication_configured"]
+        if tls_issues:
+            score -= self.SCORE_WEIGHTS["tls_enabled"]
         if secret_issues:
-            score -= min(len(secret_issues) * 5, self.SCORE_WEIGHTS["no_hardcoded_secrets"])
+            score -= self.SCORE_WEIGHTS["no_hardcoded_secrets"]
+        if auth_issues:
+            score -= min(len(auth_issues) * 5, self.SCORE_WEIGHTS["authentication_configured"])
         return max(0, min(100, int(score)))
 
     def _generate_security_recommendations(
         self,
-        outputs,
-        inputs,
-        auth_config,
-        tls_issues,
-        secret_issues,
-        auth_issues,
+        outputs: List[Dict[str, Any]],
+        inputs: List[Dict[str, Any]],
+        auth_config: Dict[str, Any],
+        tls_issues: List[Dict[str, Any]],
+        secret_issues: List[Dict[str, Any]],
+        auth_issues: List[Dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """Generate security recommendations."""

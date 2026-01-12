@@ -6,7 +6,7 @@ import { ResultsSummary } from '../components/results/ResultsSummary'
 import { FindingCard } from '../components/results/FindingCard'
 import { GroupedFindingCard } from '../components/results/GroupedFindingCard'
 import { Button, Select, SkeletonFindingCard } from '../components/common'
-import { ArrowLeftIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, ArrowDownTrayIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import type { AnalysisResultResponse, CriblProduct, Finding } from '../api/types'
 
 const SEVERITY_ORDER = { critical: 5, high: 4, medium: 3, low: 2, info: 1 } as const
@@ -17,6 +17,7 @@ export function ResultsPage() {
   const [severityFilter, setSeverityFilter] = useState<string>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [productFilter, setProductFilter] = useState<string>('all')
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
   const { data: results, isLoading, error } = useQuery({
     queryKey: ['analysis-results', id],
@@ -91,30 +92,53 @@ export function ResultsPage() {
   }, [enrichedResults, severityFilter, categoryFilter, productFilter])
 
   const groupedFindings = useMemo(() => {
-    const groups: { [key: string]: Finding[] } = {}
-    
-    filteredFindings.forEach((finding) => {
-      const groupKey = `${finding.grouping_id || finding.id}-${finding.worker_group || 'default'}`
-      if (!groups[groupKey]) {
-        groups[groupKey] = []
+     const workerGroupMap: { [key: string]: { [key: string]: Finding[] } } = {}
+     
+     filteredFindings.forEach((finding) => {
+       // Global findings (no worker_group) are separate from default worker group
+       const workerGroup = finding.worker_group === null || finding.worker_group === undefined ? '__global__' : finding.worker_group
+       if (!workerGroupMap[workerGroup]) {
+         workerGroupMap[workerGroup] = {}
+       }
+      
+      const groupKey = finding.grouping_id || finding.id
+      if (!workerGroupMap[workerGroup][groupKey]) {
+        workerGroupMap[workerGroup][groupKey] = []
       }
-      groups[groupKey].push(finding)
+      workerGroupMap[workerGroup][groupKey].push(finding)
     })
 
-    return Object.values(groups).map((findings) => {
-      const first = findings[0]
-      const isGrouped = first.grouping_id && findings.length > 1
-      const groupTitle = isGrouped ? first.title.split(':')[0] : first.title
-      
-      return {
-        findings,
-        groupTitle,
-        workerGroup: first.worker_group,
-        isGrouped,
-        severity: first.severity,
+    const result: Array<{
+      findings: Finding[]
+      groupTitle: string
+      workerGroup: string
+      isGrouped: boolean
+      severity: string
+    }> = []
+
+    Object.entries(workerGroupMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([workerGroup, groups]) => {
+        Object.entries(groups).forEach(([, findings]) => {
+          const first = findings[0]
+          const isGrouped = !!first.grouping_id && findings.length > 1
+          const groupTitle = isGrouped ? first.title.split(':')[0] : first.title
+          
+          result.push({
+            findings,
+            groupTitle,
+            workerGroup,
+            isGrouped,
+            severity: first.severity,
+          })
+        })
+      })
+
+    return result.sort((a, b) => {
+      if (a.workerGroup !== b.workerGroup) {
+        return a.workerGroup.localeCompare(b.workerGroup)
       }
-    }).sort((a, b) => {
-      const severityDiff = SEVERITY_ORDER[b.severity] - SEVERITY_ORDER[a.severity]
+      const severityDiff = SEVERITY_ORDER[b.severity as keyof typeof SEVERITY_ORDER] - SEVERITY_ORDER[a.severity as keyof typeof SEVERITY_ORDER]
       if (severityDiff !== 0) return severityDiff
       return a.groupTitle.localeCompare(b.groupTitle)
     })
@@ -135,6 +159,16 @@ export function ResultsPage() {
     } catch {
       alert('Failed to export results')
     }
+  }
+
+  const toggleWorkerGroupCollapse = (workerGroup: string) => {
+    const newCollapsed = new Set(collapsedGroups)
+    if (newCollapsed.has(workerGroup)) {
+      newCollapsed.delete(workerGroup)
+    } else {
+      newCollapsed.add(workerGroup)
+    }
+    setCollapsedGroups(newCollapsed)
   }
 
   if (isLoading) {
@@ -273,24 +307,68 @@ export function ResultsPage() {
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           {groupedFindings.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
               <p className="text-gray-500 dark:text-gray-400">No findings match the selected filters.</p>
             </div>
           ) : (
-            groupedFindings.map((group, idx) => (
-              group.isGrouped ? (
-                <GroupedFindingCard
-                  key={`${group.findings[0].grouping_id}-${group.workerGroup}-${idx}`}
-                  findings={group.findings}
-                  groupTitle={group.groupTitle}
-                  workerGroup={group.workerGroup}
-                />
-              ) : (
-                <FindingCard key={group.findings[0].id} finding={group.findings[0]} />
+             Object.entries(
+               groupedFindings.reduce(
+                 (acc, group) => {
+                   const wg = group.workerGroup
+                   if (!acc[wg]) acc[wg] = []
+                   acc[wg].push(group)
+                   return acc
+                 },
+                 {} as Record<string, typeof groupedFindings>
+               )
+             ).map(([workerGroup, groups]) => {
+               const isCollapsed = collapsedGroups.has(workerGroup)
+               const displayName = 
+                 workerGroup === '__global__' ? 'Global Findings' :
+                 workerGroup === 'default' ? 'Default Worker Group' : 
+                 `Worker Group: ${workerGroup}`
+               return (
+                 <div key={workerGroup} className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                   <button
+                     onClick={() => toggleWorkerGroupCollapse(workerGroup)}
+                     className="w-full px-4 py-4 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                   >
+                     {isCollapsed ? (
+                       <ChevronRightIcon className="h-5 w-5 text-gray-400" />
+                     ) : (
+                       <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+                     )}
+                     <div className="flex-1 text-left">
+                       <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                         {displayName}
+                       </h2>
+                     </div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {groups.length} finding{groups.length !== 1 ? 's' : ''}
+                    </span>
+                  </button>
+
+                  {!isCollapsed && (
+                    <div className="px-4 pb-4 pt-0 space-y-4 border-t border-gray-200 dark:border-gray-700">
+                      {groups.map((group, idx) => (
+                        group.isGrouped ? (
+                          <GroupedFindingCard
+                            key={`${group.findings[0].grouping_id}-${group.workerGroup}-${idx}`}
+                            findings={group.findings}
+                            groupTitle={group.groupTitle}
+                            workerGroup={group.workerGroup}
+                          />
+                        ) : (
+                          <FindingCard key={group.findings[0].id} finding={group.findings[0]} />
+                        )
+                      ))}
+                    </div>
+                  )}
+                </div>
               )
-            ))
+            })
           )}
         </div>
       </div>

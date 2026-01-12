@@ -9,7 +9,7 @@ Priority: P2 (Configuration Management - critical for operational stability)
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -55,7 +55,7 @@ class VersionControlAnalyzer(BaseAnalyzer):
         return "version_control"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Version control analyzer applies to all products."""
         return ["stream", "edge", "lake", "search", "core"]
 
@@ -72,7 +72,7 @@ class VersionControlAnalyzer(BaseAnalyzer):
         """
         return 5
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """List required API permissions."""
         return [
             "read:version",
@@ -100,9 +100,9 @@ class VersionControlAnalyzer(BaseAnalyzer):
             version_info = await client.get_version_info()
 
             # These methods are not yet implemented in CriblAPIClient
-            version_status = {}
-            uncommitted_files = []
-            deployment_status = {}
+            version_status: Dict[str, any] = {}
+            uncommitted_files: List[str] = []
+            deployment_status: Dict[str, any] = {}
 
             # Store metadata
             result.metadata["git_enabled"] = version_info.get("enabled", False)
@@ -149,8 +149,8 @@ class VersionControlAnalyzer(BaseAnalyzer):
 
     def _analyze_uncommitted_changes(
         self,
-        version_status: dict[str, Any],
-        uncommitted_files: list[dict[str, Any]],
+        version_status: Dict[str, Any],
+        uncommitted_files: List[Dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """Analyze uncommitted configuration changes and undeployed commits."""
@@ -303,7 +303,7 @@ class VersionControlAnalyzer(BaseAnalyzer):
 
     def _analyze_pending_deployments(
         self,
-        deployment_status: dict[str, Any],
+        deployment_status: Dict[str, Any],
         result: AnalyzerResult,
     ) -> None:
         """Analyze pending deployments and config drift."""
@@ -399,7 +399,7 @@ class VersionControlAnalyzer(BaseAnalyzer):
 
     def _analyze_git_configuration(
         self,
-        version_info: dict[str, Any],
+        version_info: Dict[str, Any],
         result: AnalyzerResult,
     ) -> None:
         """Analyze Git/version control configuration."""

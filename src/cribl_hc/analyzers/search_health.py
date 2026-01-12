@@ -8,7 +8,6 @@ Priority: P2 (Important)
 """
 
 from datetime import datetime
-from typing import List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -51,14 +50,14 @@ class SearchHealthAnalyzer(BaseAnalyzer):
     VERY_HIGH_CPU_THRESHOLD = 300.0
 
     @property
-    def objective_name(self) -> str:
-        """Return the objective name for this analyzer."""
-        return "search"
-
-    @property
     def supported_products(self) -> List[str]:
         """Search health analyzer is specific to Cribl Search."""
         return ["search"]
+
+    @property
+    def objective_name(self) -> str:
+        """Return the objective name for this analyzer."""
+        return "search"
 
     def get_estimated_api_calls(self) -> int:
         """
@@ -111,6 +110,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             running_jobs = [j for j in jobs if j.status == "running"]
             failed_jobs = [j for j in jobs if j.status == "failed"]
             completed_jobs = [j for j in jobs if j.status == "completed"]
+            canceled_jobs = [j for j in jobs if j.status == "canceled"]
 
             result.metadata.update(
                 {
@@ -119,6 +119,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                     "running_jobs": len(running_jobs),
                     "failed_jobs": len(failed_jobs),
                     "completed_jobs": len(completed_jobs),
+                    "canceled_jobs": len(canceled_jobs),
                     "total_datasets": len(datasets),
                     "enabled_datasets": sum(1 for d in datasets if d.enabled),
                     "total_dashboards": len(dashboards),
@@ -195,6 +196,10 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 self._report_failed_job(job, result, client)
                 continue
 
+            if job.status == "canceled":
+                self._report_canceled_job(job, result, client)
+                continue
+
             if job.status == "running" and job.time_started:
                 start_time = datetime.fromtimestamp(job.time_started / 1000)
                 duration_seconds = (current_time - start_time).total_seconds()
@@ -220,7 +225,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 client=client,
                 id=f"search-job-failed-{job.id}",
                 category="search",
-                severity="high",
+                severity="critical",
                 title=f"Failed Search Job: {job.id}",
                 description=(
                     f"Search job '{job.id}' failed. "
@@ -239,6 +244,33 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                     "job_id": job.id,
                     "query": job.query,
                     "error": job.error,
+                    "user": job.user,
+                },
+            )
+        )
+
+    def _report_canceled_job(
+        self, job: SearchJob, result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
+        """Report a canceled search job."""
+        result.add_finding(
+            self.create_finding(
+                client=client,
+                id=f"search-job-canceled-{job.id}",
+                category="search",
+                severity="medium",
+                title=f"Canceled Search Job: {job.id}",
+                description=f"Search job '{job.id}' was canceled by a user.",
+                affected_components=["Search", job.id],
+                remediation_steps=[
+                    "Investigate why the job was canceled",
+                    "If the cancellation was unintentional, re-run the search.",
+                ],
+                estimated_impact="Potential data loss or incomplete analysis",
+                confidence_level="high",
+                metadata={
+                    "job_id": job.id,
+                    "query": job.query,
                     "user": job.user,
                 },
             )

@@ -19,10 +19,32 @@ Available Objectives:
 - schema_quality: Parser analysis, regex optimization, schema mapping
 - dataflow_topology: Route validation, connectivity checking, data path analysis
 - alerting: Notification targets, alert configuration, alerting infrastructure health
+- scripts: Script inventory and validation signals
+- lake_storage_locations: Lake storage location (BYOS) health
+- search_usage_groups: Search usage group allocation hygiene
+- search_healthcheck: Search healthcheck status
+- search_job_metrics: Search job metrics summary
+- search_dataset_stats: Search dataset stats and usage
+- search_dataset_providers: Search dataset providers and usage
+- search_dataset_provider_types: Search dataset provider types availability
+- search_field_stats: Search dataset field statistics and quality
+- system_messages: Core system message visibility
+- system_banners: System banner visibility
+- system_certificates: System certificate expiration
+- system_logs: System log error summary
+- system_policies: System policy inventory
+- system_settings: System settings inventory
+- system_license_usage: License usage and expiration
+- system_user_info: User role hygiene
 - version_control: Uncommitted changes, pending deployments, configuration drift
 """
 
 from __future__ import annotations
+
+import importlib
+import pkgutil
+from typing import Dict, List, Optional, Type
+from pathlib import Path
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.utils.logger import get_logger
@@ -50,9 +72,10 @@ class AnalyzerRegistry:
 
     def __init__(self):
         """Initialize empty analyzer registry."""
-        self._analyzers: dict[str, type[BaseAnalyzer]] = {}
+        self._analyzers: Dict[str, Type[BaseAnalyzer]] = {}
+        self._analyzer_classes: List[Type[BaseAnalyzer]] = []
 
-    def register(self, analyzer_class: type[BaseAnalyzer]) -> None:
+    def register(self, analyzer_class: Type[BaseAnalyzer]) -> None:
         """
         Register an analyzer class.
 
@@ -84,11 +107,11 @@ class AnalyzerRegistry:
         except Exception as e:
             raise ValueError(f"Failed to get objective_name from {analyzer_class.__name__}: {e}")
 
-        if objective in self._analyzers:
-            existing = self._analyzers[objective].__name__
-            raise ValueError(f"Objective '{objective}' already registered by {existing}")
+        # Register primary analyzer (first one loaded per objective) and track all
+        if objective not in self._analyzers:
+            self._analyzers[objective] = analyzer_class
 
-        self._analyzers[objective] = analyzer_class
+        self._analyzer_classes.append(analyzer_class)
         # Note: Logging removed to avoid logger initialization issues during import
         # log.info("analyzer_registered", objective=objective, analyzer_class=analyzer_class.__name__)
 
@@ -109,7 +132,7 @@ class AnalyzerRegistry:
             return True
         return False
 
-    def get_analyzer(self, objective: str) -> BaseAnalyzer | None:
+    def get_analyzer(self, objective: str) -> Optional[BaseAnalyzer]:
         """
         Get an analyzer instance by objective name.
 
@@ -129,7 +152,7 @@ class AnalyzerRegistry:
             return analyzer_class()
         return None
 
-    def get_analyzer_class(self, objective: str) -> type[BaseAnalyzer] | None:
+    def get_analyzer_class(self, objective: str) -> Optional[Type[BaseAnalyzer]]:
         """
         Get an analyzer class (not instance) by objective name.
 
@@ -141,7 +164,7 @@ class AnalyzerRegistry:
         """
         return self._analyzers.get(objective)
 
-    def list_objectives(self) -> list[str]:
+    def list_objectives(self) -> List[str]:
         """
         Get list of all registered objective names.
 
@@ -154,7 +177,7 @@ class AnalyzerRegistry:
         """
         return sorted(self._analyzers.keys())
 
-    def list_analyzers(self) -> list[type[BaseAnalyzer]]:
+    def list_analyzers(self) -> List[Type[BaseAnalyzer]]:
         """
         Get list of all registered analyzer classes.
 
@@ -209,7 +232,7 @@ def get_global_registry() -> AnalyzerRegistry:
     return _global_registry
 
 
-def register_analyzer(analyzer_class: type[BaseAnalyzer]) -> None:
+def register_analyzer(analyzer_class: Type[BaseAnalyzer]) -> None:
     """
     Register an analyzer in the global registry.
 
@@ -223,7 +246,7 @@ def register_analyzer(analyzer_class: type[BaseAnalyzer]) -> None:
     _global_registry.register(analyzer_class)
 
 
-def get_analyzer(objective: str) -> BaseAnalyzer | None:
+def get_analyzer(objective: str) -> Optional[BaseAnalyzer]:
     """
     Get an analyzer from the global registry.
 
@@ -240,7 +263,7 @@ def get_analyzer(objective: str) -> BaseAnalyzer | None:
     return _global_registry.get_analyzer(objective)
 
 
-def list_objectives() -> list[str]:
+def list_objectives() -> List[str]:
     """
     List all available objectives from the global registry.
 
@@ -265,39 +288,29 @@ __all__ = [
     "list_objectives",
 ]
 
-# Auto-register built-in analyzers
-from cribl_hc.analyzers.alerting import AlertingAnalyzer  # noqa: E402
-from cribl_hc.analyzers.backpressure import BackpressureAnalyzer  # noqa: E402
-from cribl_hc.analyzers.config import ConfigAnalyzer  # noqa: E402
-from cribl_hc.analyzers.cost import CostAnalyzer  # noqa: E402
-from cribl_hc.analyzers.dataflow_topology import DataFlowTopologyAnalyzer  # noqa: E402
-from cribl_hc.analyzers.fleet import FleetAnalyzer  # noqa: E402
-from cribl_hc.analyzers.freshness import FreshnessAnalyzer  # noqa: E402
-from cribl_hc.analyzers.health import HealthAnalyzer  # noqa: E402
-from cribl_hc.analyzers.lookup_health import LookupHealthAnalyzer  # noqa: E402
-from cribl_hc.analyzers.pipeline_performance import PipelinePerformanceAnalyzer  # noqa: E402
-from cribl_hc.analyzers.predictive import PredictiveAnalyzer  # noqa: E402
-from cribl_hc.analyzers.resource import ResourceAnalyzer  # noqa: E402
-from cribl_hc.analyzers.schema_quality import SchemaQualityAnalyzer  # noqa: E402
-from cribl_hc.analyzers.security import SecurityAnalyzer  # noqa: E402
-from cribl_hc.analyzers.sensitive_data import SensitiveDataAnalyzer  # noqa: E402
-from cribl_hc.analyzers.storage import StorageAnalyzer  # noqa: E402
-from cribl_hc.analyzers.version_control import VersionControlAnalyzer  # noqa: E402
 
-register_analyzer(HealthAnalyzer)
-register_analyzer(ConfigAnalyzer)
-register_analyzer(ResourceAnalyzer)
-register_analyzer(StorageAnalyzer)
-register_analyzer(SecurityAnalyzer)
-register_analyzer(SensitiveDataAnalyzer)
-register_analyzer(CostAnalyzer)
-register_analyzer(FleetAnalyzer)
-register_analyzer(PredictiveAnalyzer)
-register_analyzer(BackpressureAnalyzer)
-register_analyzer(PipelinePerformanceAnalyzer)
-register_analyzer(LookupHealthAnalyzer)
-register_analyzer(SchemaQualityAnalyzer)
-register_analyzer(DataFlowTopologyAnalyzer)
-register_analyzer(AlertingAnalyzer)
-register_analyzer(VersionControlAnalyzer)
-register_analyzer(FreshnessAnalyzer)
+def _auto_discover_and_register_analyzers() -> None:
+    package_dir = Path(__file__).parent
+    for _, module_name, _ in pkgutil.iter_modules([str(package_dir)]):
+        if module_name in ("base", "__init__"):
+            continue
+        try:
+            module = importlib.import_module(f"cribl_hc.analyzers.{module_name}")
+            for attr_name in dir(module):
+                attr = getattr(module, attr_name)
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, BaseAnalyzer)
+                    and attr is not BaseAnalyzer
+                ):
+                    register_analyzer(attr)
+        except Exception as e:
+            import sys
+
+            print(
+                f"Warning: Failed to auto-discover analyzers from {module_name}: {e}",
+                file=sys.stderr,
+            )
+
+
+_auto_discover_and_register_analyzers()

@@ -16,7 +16,7 @@ from cribl_hc.models.finding import Finding
 
 
 def display_analysis_results(
-    results: dict[str, AnalyzerResult],
+    results: Dict[str, AnalyzerResult],
     analysis_run: AnalysisRun,
     console: Console,
 ):
