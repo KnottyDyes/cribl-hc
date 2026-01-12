@@ -258,6 +258,79 @@ class SearchCost(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class SearchHealthCheckStatus(BaseModel):
+    status: str = Field(..., description="Health status (green/red)")
+    reported_at: int = Field(..., alias="reported_at", description="Reported timestamp (epoch ms)")
+    reason: str | None = Field(None, description="Failure reason if status is red")
+
+    model_config = {"populate_by_name": True}
+
+
+class SearchHealthCheckList(BaseModel):
+    items: list[SearchHealthCheckStatus] = Field(
+        default_factory=list, description="List of healthcheck statuses"
+    )
+    count: int = Field(..., description="Total number of statuses")
+
+
+class TimeSeriesPoint(BaseModel):
+    start_time: int = Field(..., alias="startTime", description="Start time (epoch ms)")
+    end_time: int = Field(..., alias="endTime", description="End time (epoch ms)")
+    value: float = Field(..., description="Metric value")
+
+    model_config = {"populate_by_name": True}
+
+
+class DatasetStatsResponse(BaseModel):
+    byte_counts: list[TimeSeriesPoint] = Field(
+        default_factory=list, alias="byteCounts", description="Byte counts over time"
+    )
+    event_counts: list[TimeSeriesPoint] = Field(
+        default_factory=list, alias="eventCounts", description="Event counts over time"
+    )
+    max_event_time: int | None = Field(
+        default=None, alias="maxEventTime", description="Latest event time"
+    )
+    min_event_time: int | None = Field(
+        default=None, alias="minEventTime", description="Earliest event time"
+    )
+    total_byte_count: float | None = Field(
+        default=None, alias="totalByteCount", description="Total bytes"
+    )
+    total_event_count: float | None = Field(
+        default=None, alias="totalEventCount", description="Total events"
+    )
+
+    model_config = {"populate_by_name": True}
+
+
+class DatasetUsageQueryCount(BaseModel):
+    count: float = Field(..., description="Query count")
+    start_time: int = Field(..., alias="startTime", description="Start time (epoch ms)")
+
+    model_config = {"populate_by_name": True}
+
+
+class DatasetUsageStatsResponse(BaseModel):
+    linked_dashboards: list[dict[str, Any]] | None = Field(
+        default=None, alias="linkedDashboards", description="Linked dashboards"
+    )
+    linked_notebooks: list[dict[str, Any]] | None = Field(
+        default=None, alias="linkedNotebooks", description="Linked notebooks"
+    )
+    query_counts: list[DatasetUsageQueryCount] = Field(
+        default_factory=list, alias="queryCounts", description="Query counts over time"
+    )
+    saved_queries: list[dict[str, Any]] | None = Field(
+        default=None, alias="savedQueries", description="Saved queries"
+    )
+    top_users: list[dict[str, Any]] | None = Field(
+        default=None, alias="topUsers", description="Top users"
+    )
+
+    model_config = {"populate_by_name": True}
+
+
 class SearchJobList(BaseModel):
     """Response model for listing Search jobs."""
 
@@ -291,3 +364,57 @@ class SearchGroupList(BaseModel):
 
     items: list[SearchGroup] = Field(default_factory=list, description="List of search groups")
     count: int = Field(..., description="Total number of groups")
+
+
+class DatasetProvider(BaseModel):
+    id: str = Field(..., description="Provider ID")
+    type: str | None = Field(None, description="Provider type")
+    description: str | None = Field(None, description="Description")
+    config: dict[str, Any] | None = Field(default=None, description="Configuration")
+
+    model_config = {"populate_by_name": True}
+
+
+class DatasetProviderType(BaseModel):
+    id: str = Field(..., description="Provider Type ID")
+    description: str | None = Field(None, description="Description")
+    category: str | None = Field(None, description="Category")
+
+    model_config = {"populate_by_name": True}
+
+
+class FieldStat(BaseModel):
+    name: str = Field(..., description="Field name")
+    type: str | None = Field(None, description="Field type")
+    count: int | None = Field(None, description="Total count")
+    null_count: int | None = Field(None, alias="nullCount", description="Null count")
+    distinct_count: int | None = Field(
+        None, alias="distinctCount", description="Distinct values count"
+    )
+    min: Any | None = Field(None, description="Minimum value")
+    max: Any | None = Field(None, description="Maximum value")
+
+    model_config = {"populate_by_name": True}
+
+
+class FieldStatsResponse(BaseModel):
+    fields: list[FieldStat] = Field(
+        default_factory=list, alias="fieldStats", description="List of field statistics"
+    )
+    total_events: int | None = Field(
+        default=None, alias="totalEvents", description="Total events analyzed"
+    )
+
+    model_config = {"populate_by_name": True}
+
+
+class DatasetProviderList(BaseModel):
+    items: list[DatasetProvider] = Field(default_factory=list, description="List of providers")
+    count: int = Field(..., description="Total number of providers")
+
+
+class DatasetProviderTypeList(BaseModel):
+    items: list[DatasetProviderType] = Field(
+        default_factory=list, description="List of provider types"
+    )
+    count: int = Field(..., description="Total number of provider types")

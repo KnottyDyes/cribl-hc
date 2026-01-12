@@ -1,6 +1,6 @@
 # Cribl Health Check - Development Roadmap
 
-**Last Updated**: 2025-12-29
+**Last Updated**: 2026-01-11
 **Project Status**: Phase 11 - Polish & Integration (Complete)
 
 ---
@@ -502,7 +502,22 @@ Phase 12+: Future Architecture    ░░░░░░░░░░░░░░░�
 
 ## 🎉 Recent Achievements
 
-### 2025-12-29 (Latest)
+### 2026-01-11 (Latest)
+- ✅ Expanded Search analyzer coverage
+  - Added dataset provider, provider type, dataset stats, job metrics, and healthcheck analyzers
+  - Added field stats analysis for null-field drift detection
+- ✅ Expanded Core analyzer coverage
+  - Added system policies, settings, license usage, and user role hygiene analyzers
+- ✅ Added Lake storage locations analyzer for BYOS health
+- ✅ Updated coverage reporting to 46 analyzers / 44 endpoints
+- ✅ Bumped version to 0.6.0
+
+### 2026-01-10
+- ✅ Added Web GUI screenshots (dark mode) to README
+- ✅ Introduced screenshot sync helper for docs updates
+- ✅ Added `cribl-hc api serve` CLI command
+
+### 2025-12-29
 - ✅ Phase 10: Data Quality & Topology (Complete)
   - LookupHealthAnalyzer (520 lines)
     - Lookup table size and mode optimization
