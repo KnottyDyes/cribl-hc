@@ -4,6 +4,8 @@ Rate limiter with exponential backoff for API calls.
 This module ensures the health check tool stays within the 100 API call budget
 and implements exponential backoff for retry logic.
 """
+from typing import List, Optional
+
 
 import asyncio
 import time
@@ -67,7 +69,7 @@ class RateLimiter:
         self.consecutive_failures = 0
 
         # Lock for thread-safe operations (lazily initialized to avoid event loop issues)
-        self._lock: asyncio.Lock | None = None
+        self._lock: asyncio.Optional[Lock] = None
 
     async def acquire(self) -> None:
         """
@@ -218,7 +220,7 @@ class SimpleSyncRateLimiter:
         """
         self.max_calls = max_calls
         self.time_window_seconds = time_window_seconds
-        self.call_timestamps: list[float] = []
+        self.call_timestamps: List[float] = []
         self.total_calls_made = 0
 
     def acquire(self) -> None:

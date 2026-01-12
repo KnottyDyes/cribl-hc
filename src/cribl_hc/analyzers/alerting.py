@@ -7,7 +7,7 @@ alerting infrastructure is properly configured for operational visibility.
 Priority: P3 (Alerting - important for operational awareness)
 """
 
-from typing import Any
+from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -48,7 +48,7 @@ class AlertingAnalyzer(BaseAnalyzer):
         return "alerting"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Alerting analyzer applies to Stream, Edge, and Search."""
         return ["stream", "edge", "search"]
 
@@ -64,7 +64,7 @@ class AlertingAnalyzer(BaseAnalyzer):
         """
         return 2
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """List required API permissions."""
         return [
             "read:notification-targets",
@@ -134,9 +134,7 @@ class AlertingAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _fetch_notification_targets(
-        self, client: CriblAPIClient
-    ) -> list[dict[str, Any]]:
+    async def _fetch_notification_targets(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
         """Fetch notification target configurations."""
         try:
             return await client.get_notification_targets() or []
@@ -144,9 +142,7 @@ class AlertingAnalyzer(BaseAnalyzer):
             self.log.warning("failed_to_fetch_notification_targets", error=str(e))
             return []
 
-    async def _fetch_notifications(
-        self, client: CriblAPIClient
-    ) -> list[dict[str, Any]]:
+    async def _fetch_notifications(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
         """Fetch notification configurations."""
         try:
             return await client.get_notifications() or []
@@ -155,10 +151,8 @@ class AlertingAnalyzer(BaseAnalyzer):
             return []
 
     def _analyze_notification_targets(
-        self,
-        targets: list[dict[str, Any]],
-        result: AnalyzerResult
-    ) -> list[dict[str, Any]]:
+        self, targets: List[Dict[str, Any]], result: AnalyzerResult
+    ) -> List[Dict[str, Any]]:
         """
         Analyze notification target configurations.
 
@@ -174,40 +168,40 @@ class AlertingAnalyzer(BaseAnalyzer):
         Returns:
             List of target issues found
         """
-        target_issues: list[dict[str, Any]] = []
+        target_issues: List[Dict[str, Any]] = []
 
         # Check for no targets configured
         if not targets:
-            result.add_finding(Finding(
-                id="alerting-no-targets",
-                category="alerting",
-                severity="high",
-                title="No Notification Targets Configured",
-                description=(
-                    "No notification targets are configured. Alerts and notifications "
-                    "will not be delivered. Configure at least one notification target "
-                    "(Slack, PagerDuty, email, or webhook) for operational visibility."
-                ),
-                confidence_level="high",
-                estimated_impact="No alerts will be delivered for system issues",
-                remediation_steps=[
-                    "Configure at least one notification target in Settings > Notification Targets",
-                    "Recommended: Configure Slack for team notifications",
-                    "Recommended: Configure PagerDuty for critical alerts",
-                    "Test notification delivery after configuration"
-                ],
-                documentation_links=[
-                    "https://docs.cribl.io/stream/notifications-targets/"
-                ],
-                metadata={}
-            ))
+            result.add_finding(
+                Finding(
+                    id="alerting-no-targets",
+                    category="alerting",
+                    severity="high",
+                    title="No Notification Targets Configured",
+                    description=(
+                        "No notification targets are configured. Alerts and notifications "
+                        "will not be delivered. Configure at least one notification target "
+                        "(Slack, PagerDuty, email, or webhook) for operational visibility."
+                    ),
+                    confidence_level="high",
+                    estimated_impact="No alerts will be delivered for system issues",
+                    remediation_steps=[
+                        "Configure at least one notification target in Settings > Notification Targets",
+                        "Recommended: Configure Slack for team notifications",
+                        "Recommended: Configure PagerDuty for critical alerts",
+                        "Test notification delivery after configuration",
+                    ],
+                    documentation_links=["https://docs.cribl.io/stream/notifications-targets/"],
+                    metadata={},
+                )
+            )
             target_issues.append({"issue": "no_targets"})
             return target_issues
 
         # Analyze target types
         target_types: set[str] = set()
-        disabled_targets: list[str] = []
-        targets_by_type: dict[str, list[str]] = {}
+        disabled_targets: List[str] = []
+        targets_by_type: Dict[str, List[str]] = {}
 
         for target in targets:
             target_id = target.get("id", "unknown")
@@ -225,60 +219,64 @@ class AlertingAnalyzer(BaseAnalyzer):
 
         # Check for disabled targets
         if disabled_targets:
-            result.add_finding(Finding(
-                id="alerting-disabled-targets",
-                category="alerting",
-                severity="low",
-                title=f"Disabled Notification Targets: {len(disabled_targets)} Found",
-                description=(
-                    f"{len(disabled_targets)} notification target(s) are disabled: "
-                    f"{', '.join(disabled_targets)}. Ensure these are intentionally disabled."
-                ),
-                confidence_level="high",
-                remediation_steps=[
-                    "Review disabled targets to ensure they're intentionally disabled",
-                    "Re-enable targets that should be active",
-                    "Remove targets that are no longer needed"
-                ],
-                affected_components=disabled_targets,
-                metadata={"disabled_targets": disabled_targets}
-            ))
+            result.add_finding(
+                Finding(
+                    id="alerting-disabled-targets",
+                    category="alerting",
+                    severity="low",
+                    title=f"Disabled Notification Targets: {len(disabled_targets)} Found",
+                    description=(
+                        f"{len(disabled_targets)} notification target(s) are disabled: "
+                        f"{', '.join(disabled_targets)}. Ensure these are intentionally disabled."
+                    ),
+                    confidence_level="high",
+                    remediation_steps=[
+                        "Review disabled targets to ensure they're intentionally disabled",
+                        "Re-enable targets that should be active",
+                        "Remove targets that are no longer needed",
+                    ],
+                    affected_components=disabled_targets,
+                    metadata={"disabled_targets": disabled_targets},
+                )
+            )
             target_issues.append({"issue": "disabled_targets", "count": len(disabled_targets)})
 
         # Check for missing critical target types
         has_critical = bool(target_types & self.CRITICAL_TARGET_TYPES)
         if not has_critical:
-            result.add_finding(Finding(
-                id="alerting-no-critical-targets",
-                category="alerting",
-                severity="medium",
-                title="No Critical Alerting Integration",
-                description=(
-                    "No critical alerting integration (PagerDuty or Slack) is configured. "
-                    "Consider adding at least one for timely incident response."
-                ),
-                confidence_level="high",
-                remediation_steps=[
-                    "Configure PagerDuty integration for on-call alerting",
-                    "Or configure Slack integration for team notifications",
-                    "Ensure critical alerts are routed to these targets"
-                ],
-                documentation_links=[
-                    "https://docs.cribl.io/stream/pager-duty-notification-targets/",
-                    "https://docs.cribl.io/stream/slack-notification-targets/"
-                ],
-                metadata={"configured_types": list(target_types)}
-            ))
+            result.add_finding(
+                Finding(
+                    id="alerting-no-critical-targets",
+                    category="alerting",
+                    severity="medium",
+                    title="No Critical Alerting Integration",
+                    description=(
+                        "No critical alerting integration (PagerDuty or Slack) is configured. "
+                        "Consider adding at least one for timely incident response."
+                    ),
+                    confidence_level="high",
+                    remediation_steps=[
+                        "Configure PagerDuty integration for on-call alerting",
+                        "Or configure Slack integration for team notifications",
+                        "Ensure critical alerts are routed to these targets",
+                    ],
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/pager-duty-notification-targets/",
+                        "https://docs.cribl.io/stream/slack-notification-targets/",
+                    ],
+                    metadata={"configured_types": list(target_types)},
+                )
+            )
             target_issues.append({"issue": "no_critical_targets"})
 
         return target_issues
 
     def _analyze_notifications(
         self,
-        notifications: list[dict[str, Any]],
-        targets: list[dict[str, Any]],
-        result: AnalyzerResult
-    ) -> list[dict[str, Any]]:
+        notifications: List[Dict[str, Any]],
+        targets: List[Dict[str, Any]],
+        result: AnalyzerResult,
+    ) -> List[Dict[str, Any]]:
         """
         Analyze notification configurations.
 
@@ -296,28 +294,30 @@ class AlertingAnalyzer(BaseAnalyzer):
         Returns:
             List of notification issues found
         """
-        notification_issues: list[dict[str, Any]] = []
+        notification_issues: List[Dict[str, Any]] = []
 
         if not notifications:
             # Only warn if targets exist but no notifications use them
             if targets:
-                result.add_finding(Finding(
-                    id="alerting-no-notifications",
-                    category="alerting",
-                    severity="medium",
-                    title="No Notifications Configured",
-                    description=(
-                        "Notification targets are configured but no notifications are defined. "
-                        "Configure notifications to receive alerts for system events."
-                    ),
-                    confidence_level="high",
-                    remediation_steps=[
-                        "Create notifications for critical events (worker offline, high CPU, etc.)",
-                        "Assign appropriate notification targets",
-                        "Test notification delivery"
-                    ],
-                    metadata={"target_count": len(targets)}
-                ))
+                result.add_finding(
+                    Finding(
+                        id="alerting-no-notifications",
+                        category="alerting",
+                        severity="medium",
+                        title="No Notifications Configured",
+                        description=(
+                            "Notification targets are configured but no notifications are defined. "
+                            "Configure notifications to receive alerts for system events."
+                        ),
+                        confidence_level="high",
+                        remediation_steps=[
+                            "Create notifications for critical events (worker offline, high CPU, etc.)",
+                            "Assign appropriate notification targets",
+                            "Test notification delivery",
+                        ],
+                        metadata={"target_count": len(targets)},
+                    )
+                )
                 notification_issues.append({"issue": "no_notifications"})
             return notification_issues
 
@@ -327,7 +327,7 @@ class AlertingAnalyzer(BaseAnalyzer):
         # Analyze each notification
         disabled_count = 0
         no_targets_count = 0
-        invalid_targets: list[dict[str, Any]] = []
+        invalid_targets: List[Dict[str, Any]] = []
 
         for notification in notifications:
             notification_id = notification.get("id", "unknown")
@@ -340,81 +340,87 @@ class AlertingAnalyzer(BaseAnalyzer):
             # Check for notifications without targets
             if not notification_targets:
                 no_targets_count += 1
-                result.add_finding(Finding(
-                    id=f"alerting-notification-no-targets-{notification_id}",
-                    category="alerting",
-                    severity="medium",
-                    title=f"Notification Without Targets: {notification_id}",
-                    description=(
-                        f"Notification '{notification_id}' has no targets configured. "
-                        f"This notification will not be delivered."
-                    ),
-                    confidence_level="high",
-                    remediation_steps=[
-                        f"Add notification targets to '{notification_id}'",
-                        "Or disable/remove if no longer needed"
-                    ],
-                    metadata={"notification_id": notification_id}
-                ))
+                result.add_finding(
+                    Finding(
+                        id=f"alerting-notification-no-targets-{notification_id}",
+                        category="alerting",
+                        severity="medium",
+                        title=f"Notification Without Targets: {notification_id}",
+                        description=(
+                            f"Notification '{notification_id}' has no targets configured. "
+                            f"This notification will not be delivered."
+                        ),
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Add notification targets to '{notification_id}'",
+                            "Or disable/remove if no longer needed",
+                        ],
+                        metadata={"notification_id": notification_id},
+                    )
+                )
                 notification_issues.append({"issue": "no_targets", "notification": notification_id})
 
             # Check for invalid target references
             for target_ref in notification_targets:
                 target_id = target_ref if isinstance(target_ref, str) else target_ref.get("id")
                 if target_id and target_id not in valid_target_ids:
-                    invalid_targets.append({
-                        "notification": notification_id,
-                        "invalid_target": target_id
-                    })
+                    invalid_targets.append(
+                        {"notification": notification_id, "invalid_target": target_id}
+                    )
 
         # Report disabled notifications
         if disabled_count > 0:
-            result.add_finding(Finding(
-                id="alerting-disabled-notifications",
-                category="alerting",
-                severity="low",
-                title=f"Disabled Notifications: {disabled_count} Found",
-                description=(
-                    f"{disabled_count} notification(s) are disabled. "
-                    f"Review to ensure these are intentionally disabled."
-                ),
-                confidence_level="high",
-                remediation_steps=[
-                    "Review disabled notifications",
-                    "Re-enable or remove as appropriate"
-                ],
-                metadata={"disabled_count": disabled_count}
-            ))
+            result.add_finding(
+                Finding(
+                    id="alerting-disabled-notifications",
+                    category="alerting",
+                    severity="low",
+                    title=f"Disabled Notifications: {disabled_count} Found",
+                    description=(
+                        f"{disabled_count} notification(s) are disabled. "
+                        f"Review to ensure these are intentionally disabled."
+                    ),
+                    confidence_level="high",
+                    remediation_steps=[
+                        "Review disabled notifications",
+                        "Re-enable or remove as appropriate",
+                    ],
+                    metadata={"disabled_count": disabled_count},
+                )
+            )
             notification_issues.append({"issue": "disabled_notifications", "count": disabled_count})
 
         # Report invalid target references
         if invalid_targets:
-            result.add_finding(Finding(
-                id="alerting-invalid-target-refs",
-                category="alerting",
-                severity="high",
-                title=f"Notifications with Invalid Targets: {len(invalid_targets)} Found",
-                description=(
-                    "Some notifications reference targets that don't exist. "
-                    "These notifications will fail to deliver."
-                ),
-                confidence_level="high",
-                remediation_steps=[
-                    "Update notifications to use valid target IDs",
-                    "Or create the missing notification targets",
-                    "Remove orphaned target references"
-                ],
-                metadata={"invalid_targets": invalid_targets}
-            ))
+            result.add_finding(
+                Finding(
+                    id="alerting-invalid-target-refs",
+                    category="alerting",
+                    severity="high",
+                    title=f"Notifications with Invalid Targets: {len(invalid_targets)} Found",
+                    description=(
+                        "Some notifications reference targets that don't exist. "
+                        "These notifications will fail to deliver."
+                    ),
+                    confidence_level="high",
+                    estimated_impact="system_unavailability",
+                    remediation_steps=[
+                        "Update notifications to use valid target IDs",
+                        "Or create the missing notification targets",
+                        "Remove orphaned target references",
+                    ],
+                    metadata={"invalid_targets": invalid_targets},
+                )
+            )
             notification_issues.append({"issue": "invalid_targets", "count": len(invalid_targets)})
 
         return notification_issues
 
     def _check_critical_alerting_gaps(
         self,
-        targets: list[dict[str, Any]],
-        notifications: list[dict[str, Any]],
-        result: AnalyzerResult
+        targets: List[Dict[str, Any]],
+        notifications: List[Dict[str, Any]],
+        result: AnalyzerResult,
     ) -> None:
         """
         Check for critical gaps in alerting infrastructure.
@@ -429,37 +435,39 @@ class AlertingAnalyzer(BaseAnalyzer):
         enabled_notifications = [n for n in notifications if n.get("enabled", True)]
 
         if not enabled_targets or not enabled_notifications:
-            result.add_finding(Finding(
-                id="alerting-no-active-alerts",
-                category="alerting",
-                severity="high",
-                title="No Active Alerting Configuration",
-                description=(
-                    "No active alerting configuration detected. "
-                    f"Enabled targets: {len(enabled_targets)}, "
-                    f"Enabled notifications: {len(enabled_notifications)}. "
-                    "System events will not trigger alerts."
-                ),
-                confidence_level="high",
-                estimated_impact="No visibility into system issues through alerts",
-                remediation_steps=[
-                    "Enable at least one notification target",
-                    "Configure notifications for critical events",
-                    "Test end-to-end alert delivery"
-                ],
-                metadata={
-                    "enabled_targets": len(enabled_targets),
-                    "enabled_notifications": len(enabled_notifications)
-                }
-            ))
+            result.add_finding(
+                Finding(
+                    id="alerting-no-active-alerts",
+                    category="alerting",
+                    severity="high",
+                    title="No Active Alerting Configuration",
+                    description=(
+                        "No active alerting configuration detected. "
+                        f"Enabled targets: {len(enabled_targets)}, "
+                        f"Enabled notifications: {len(enabled_notifications)}. "
+                        "System events will not trigger alerts."
+                    ),
+                    confidence_level="high",
+                    estimated_impact="No visibility into system issues through alerts",
+                    remediation_steps=[
+                        "Enable at least one notification target",
+                        "Configure notifications for critical events",
+                        "Test end-to-end alert delivery",
+                    ],
+                    metadata={
+                        "enabled_targets": len(enabled_targets),
+                        "enabled_notifications": len(enabled_notifications),
+                    },
+                )
+            )
 
     def _generate_alerting_recommendations(
         self,
-        targets: list[dict[str, Any]],
-        notifications: list[dict[str, Any]],
-        target_issues: list[dict[str, Any]],
-        notification_issues: list[dict[str, Any]],
-        result: AnalyzerResult
+        targets: List[Dict[str, Any]],
+        notifications: List[Dict[str, Any]],
+        target_issues: List[Dict[str, Any]],
+        notification_issues: List[Dict[str, Any]],
+        result: AnalyzerResult,
     ) -> None:
         """
         Generate recommendations for improving alerting infrastructure.
@@ -474,70 +482,72 @@ class AlertingAnalyzer(BaseAnalyzer):
         # Recommend PagerDuty if not configured
         target_types = {t.get("type", "").lower() for t in targets}
         if "pagerduty" not in target_types and targets:
-            result.add_recommendation(Recommendation(
-                id="alerting-add-pagerduty",
-                type="alerting",
-                priority="p2",
-                title="Add PagerDuty Integration for On-Call Alerting",
-                description=(
-                    "PagerDuty integration is not configured. Consider adding "
-                    "PagerDuty for on-call alerting and incident management."
-                ),
-                rationale=(
-                    "PagerDuty provides robust on-call scheduling, escalation policies, "
-                    "and incident tracking that complement Cribl's alerting"
-                ),
-                implementation_steps=[
-                    "Create PagerDuty service for Cribl alerts",
-                    "Generate integration key in PagerDuty",
-                    "Configure PagerDuty notification target in Cribl",
-                    "Route critical alerts to PagerDuty",
-                    "Configure escalation policies in PagerDuty"
-                ],
-                before_state="Alerts only sent to existing channels",
-                after_state="Critical alerts trigger PagerDuty incidents",
-                impact_estimate=ImpactEstimate(
-                    performance_improvement="Reduced MTTR through on-call integration"
-                ),
-                implementation_effort="low",
-                documentation_links=[
-                    "https://docs.cribl.io/stream/pager-duty-notification-targets/"
-                ]
-            ))
+            result.add_recommendation(
+                Recommendation(
+                    id="alerting-add-pagerduty",
+                    type="alerting",
+                    priority="p2",
+                    title="Add PagerDuty Integration for On-Call Alerting",
+                    description=(
+                        "PagerDuty integration is not configured. Consider adding "
+                        "PagerDuty for on-call alerting and incident management."
+                    ),
+                    rationale=(
+                        "PagerDuty provides robust on-call scheduling, escalation policies, "
+                        "and incident tracking that complement Cribl's alerting"
+                    ),
+                    implementation_steps=[
+                        "Create PagerDuty service for Cribl alerts",
+                        "Generate integration key in PagerDuty",
+                        "Configure PagerDuty notification target in Cribl",
+                        "Route critical alerts to PagerDuty",
+                        "Configure escalation policies in PagerDuty",
+                    ],
+                    before_state="Alerts only sent to existing channels",
+                    after_state="Critical alerts trigger PagerDuty incidents",
+                    impact_estimate=ImpactEstimate(
+                        performance_improvement="Reduced MTTR through on-call integration"
+                    ),
+                    implementation_effort="low",
+                    documentation_links=[
+                        "https://docs.cribl.io/stream/pager-duty-notification-targets/"
+                    ],
+                )
+            )
 
         # Recommend alert documentation
         if len(notifications) > 5:
-            result.add_recommendation(Recommendation(
-                id="alerting-document-alerts",
-                type="alerting",
-                priority="p3",
-                title="Document Alert Runbooks",
-                description=(
-                    f"You have {len(notifications)} notifications configured. "
-                    "Ensure runbooks exist for responding to each alert type."
-                ),
-                rationale=(
-                    "Documented runbooks reduce incident response time and "
-                    "ensure consistent handling of alerts"
-                ),
-                implementation_steps=[
-                    "Create runbook for each notification type",
-                    "Include investigation steps and remediation actions",
-                    "Link runbooks from alert messages where possible",
-                    "Review and update runbooks regularly"
-                ],
-                impact_estimate=ImpactEstimate(
-                    time_to_implement="2-4 hours"
-                ),
-                implementation_effort="medium",
-            ))
+            result.add_recommendation(
+                Recommendation(
+                    id="alerting-document-alerts",
+                    type="alerting",
+                    priority="p3",
+                    title="Document Alert Runbooks",
+                    description=(
+                        f"You have {len(notifications)} notifications configured. "
+                        "Ensure runbooks exist for responding to each alert type."
+                    ),
+                    rationale=(
+                        "Documented runbooks reduce incident response time and "
+                        "ensure consistent handling of alerts"
+                    ),
+                    implementation_steps=[
+                        "Create runbook for each notification type",
+                        "Include investigation steps and remediation actions",
+                        "Link runbooks from alert messages where possible",
+                        "Review and update runbooks regularly",
+                    ],
+                    impact_estimate=ImpactEstimate(time_to_implement="2-4 hours"),
+                    implementation_effort="medium",
+                )
+            )
 
     def _calculate_alerting_score(
         self,
-        targets: list[dict[str, Any]],
-        notifications: list[dict[str, Any]],
-        target_issues: list[dict[str, Any]],
-        notification_issues: list[dict[str, Any]]
+        targets: List[Dict[str, Any]],
+        notifications: List[Dict[str, Any]],
+        target_issues: List[Dict[str, Any]],
+        notification_issues: List[Dict[str, Any]],
     ) -> int:
         """
         Calculate alerting infrastructure health score (0-100).

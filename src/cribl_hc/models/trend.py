@@ -3,7 +3,7 @@ Historical trend model for tracking metric changes over time.
 """
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -20,7 +20,7 @@ class DataPoint(BaseModel):
 
     timestamp: datetime = Field(..., description="Measurement timestamp")
     value: float = Field(..., description="Measurement value")
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional context")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional context")
 
 
 class HistoricalTrend(BaseModel):
@@ -59,19 +59,19 @@ class HistoricalTrend(BaseModel):
 
     deployment_id: str = Field(..., description="Deployment ID", min_length=1)
     metric_name: str = Field(..., description="Metric name", min_length=1)
-    data_points: list[DataPoint] = Field(..., description="Time-series data", min_items=1)
+    data_points: List[DataPoint] = Field(..., description="Time-series data", min_items=1)
     trend_direction: Literal["improving", "stable", "declining", "volatile"] = Field(
         ..., description="Trend direction"
     )
-    anomalies_detected: list[DataPoint] = Field(
+    anomalies_detected: List[DataPoint] = Field(
         default_factory=list, description="Anomalous data points"
     )
-    forecast_next: float | None = Field(None, description="Predicted next value")
+    forecast_next: Optional[float] = Field(None, description="Predicted next value")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     @staticmethod
-    def calculate_trend_direction(values: list[float]) -> Literal["improving", "stable", "declining", "volatile"]:
+    def calculate_trend_direction(values: List[float]) -> Literal["improving", "stable", "declining", "volatile"]:
         """
         Calculate trend direction from a list of values.
 
