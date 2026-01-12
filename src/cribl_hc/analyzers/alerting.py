@@ -7,7 +7,7 @@ alerting infrastructure is properly configured for operational visibility.
 Priority: P3 (Alerting - important for operational awareness)
 """
 
-from typing import Any
+from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -48,7 +48,7 @@ class AlertingAnalyzer(BaseAnalyzer):
         return "alerting"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Alerting analyzer applies to Stream, Edge, and Search."""
         return ["stream", "edge", "search"]
 
@@ -64,7 +64,7 @@ class AlertingAnalyzer(BaseAnalyzer):
         """
         return 2
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """List required API permissions."""
         return [
             "read:notification-targets",
@@ -134,7 +134,7 @@ class AlertingAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _fetch_notification_targets(self, client: CriblAPIClient) -> list[dict[str, Any]]:
+    async def _fetch_notification_targets(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
         """Fetch notification target configurations."""
         try:
             return await client.get_notification_targets() or []
@@ -142,7 +142,7 @@ class AlertingAnalyzer(BaseAnalyzer):
             self.log.warning("failed_to_fetch_notification_targets", error=str(e))
             return []
 
-    async def _fetch_notifications(self, client: CriblAPIClient) -> list[dict[str, Any]]:
+    async def _fetch_notifications(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
         """Fetch notification configurations."""
         try:
             return await client.get_notifications() or []
@@ -151,8 +151,8 @@ class AlertingAnalyzer(BaseAnalyzer):
             return []
 
     def _analyze_notification_targets(
-        self, targets: list[dict[str, Any]], result: AnalyzerResult
-    ) -> list[dict[str, Any]]:
+        self, targets: List[Dict[str, Any]], result: AnalyzerResult
+    ) -> List[Dict[str, Any]]:
         """
         Analyze notification target configurations.
 
@@ -168,7 +168,7 @@ class AlertingAnalyzer(BaseAnalyzer):
         Returns:
             List of target issues found
         """
-        target_issues: list[dict[str, Any]] = []
+        target_issues: List[Dict[str, Any]] = []
 
         # Check for no targets configured
         if not targets:
@@ -200,8 +200,8 @@ class AlertingAnalyzer(BaseAnalyzer):
 
         # Analyze target types
         target_types: set[str] = set()
-        disabled_targets: list[str] = []
-        targets_by_type: dict[str, list[str]] = {}
+        disabled_targets: List[str] = []
+        targets_by_type: Dict[str, List[str]] = {}
 
         for target in targets:
             target_id = target.get("id", "unknown")
@@ -273,10 +273,10 @@ class AlertingAnalyzer(BaseAnalyzer):
 
     def _analyze_notifications(
         self,
-        notifications: list[dict[str, Any]],
-        targets: list[dict[str, Any]],
+        notifications: List[Dict[str, Any]],
+        targets: List[Dict[str, Any]],
         result: AnalyzerResult,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """
         Analyze notification configurations.
 
@@ -294,7 +294,7 @@ class AlertingAnalyzer(BaseAnalyzer):
         Returns:
             List of notification issues found
         """
-        notification_issues: list[dict[str, Any]] = []
+        notification_issues: List[Dict[str, Any]] = []
 
         if not notifications:
             # Only warn if targets exist but no notifications use them
@@ -327,7 +327,7 @@ class AlertingAnalyzer(BaseAnalyzer):
         # Analyze each notification
         disabled_count = 0
         no_targets_count = 0
-        invalid_targets: list[dict[str, Any]] = []
+        invalid_targets: List[Dict[str, Any]] = []
 
         for notification in notifications:
             notification_id = notification.get("id", "unknown")
@@ -418,8 +418,8 @@ class AlertingAnalyzer(BaseAnalyzer):
 
     def _check_critical_alerting_gaps(
         self,
-        targets: list[dict[str, Any]],
-        notifications: list[dict[str, Any]],
+        targets: List[Dict[str, Any]],
+        notifications: List[Dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """
@@ -463,10 +463,10 @@ class AlertingAnalyzer(BaseAnalyzer):
 
     def _generate_alerting_recommendations(
         self,
-        targets: list[dict[str, Any]],
-        notifications: list[dict[str, Any]],
-        target_issues: list[dict[str, Any]],
-        notification_issues: list[dict[str, Any]],
+        targets: List[Dict[str, Any]],
+        notifications: List[Dict[str, Any]],
+        target_issues: List[Dict[str, Any]],
+        notification_issues: List[Dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """
@@ -544,10 +544,10 @@ class AlertingAnalyzer(BaseAnalyzer):
 
     def _calculate_alerting_score(
         self,
-        targets: list[dict[str, Any]],
-        notifications: list[dict[str, Any]],
-        target_issues: list[dict[str, Any]],
-        notification_issues: list[dict[str, Any]],
+        targets: List[Dict[str, Any]],
+        notifications: List[Dict[str, Any]],
+        target_issues: List[Dict[str, Any]],
+        notification_issues: List[Dict[str, Any]],
     ) -> int:
         """
         Calculate alerting infrastructure health score (0-100).

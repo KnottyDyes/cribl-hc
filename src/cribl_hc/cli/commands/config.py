@@ -3,10 +3,16 @@ Config command for managing credentials and settings.
 """
 
 import json
+import os
+import re
+import sys
+import tempfile
 from pathlib import Path
+from typing import Dict, Optional
 
 import typer
 from rich.console import Console
+from rich.prompt import Prompt
 from rich.table import Table
 
 from cribl_hc.cli.commands.branding import app as branding_app
@@ -116,6 +122,169 @@ def set_credential(
         raise typer.Exit(code=1)
 
 
+def _extract_from_paste(text: str) -> Dict[str, Optional[str]]:
+    """
+    Extract URL and token from pasted content.
+
+    Handles:
+    - curl commands: curl -H "Authorization: Bearer TOKEN" https://example.com/api/v1/...
+    - Multi-line curl with backslash continuations
+    - Raw URLs: https://example.com/api/v1/something
+    - URLs with paths (strips to base URL)
+
+    Args:
+        text: Pasted content to parse
+
+    Returns:
+        Dictionary with 'url' and 'token' keys (values may be None)
+    """
+    result: Dict[str, Optional[str]] = {"url": None, "token": None}
+
+    cleaned_text = text.replace("\\\n", " ").replace("\n", " ")
+
+    bearer_match = re.search(r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", cleaned_text, re.IGNORECASE)
+    if bearer_match:
+        result["token"] = bearer_match.group(1).strip()
+
+    url_match = re.search(r"https?://[^\s\"'<>]+", cleaned_text, re.IGNORECASE)
+    if url_match:
+        url = url_match.group(0).strip().strip("'\"")
+
+        try:
+            from urllib.parse import urlparse
+
+            parsed = urlparse(url)
+            result["url"] = f"{parsed.scheme}://{parsed.netloc}"
+        except Exception:
+            result["url"] = url
+
+    return result
+
+
+@app.command("add-from-curl")
+def add_credential_from_curl(
+    name: str = typer.Argument(
+        ..., help="Deployment name/identifier (e.g., 'prod', 'dev', 'staging')"
+    ),
+):
+    """
+    Add credentials by pasting a curl command or API request.
+
+    This command simplifies credential setup by extracting the URL and bearer token
+    from a REST call. Useful for quickly setting up credentials from browser dev tools.
+
+    How to use:
+    1. Open Cribl Settings and copy a curl command from browser dev tools
+    2. Run: cribl-hc config add-from-curl prod
+    3. Paste the curl command when prompted
+    4. Credentials are automatically extracted and saved
+
+    Example curl command (from browser dev tools):
+        curl -H "Authorization: Bearer sk_live_abc123xyz789" https://main-myorg.cribl.cloud/api/v1/system/status
+
+    Examples:
+
+        cribl-hc config add-from-curl prod
+        cribl-hc config add-from-curl dev
+    """
+    try:
+        credentials = load_credentials()
+
+        if name in credentials:
+            if not typer.confirm(
+                f"Credentials for '{name}' already exist. Overwrite?", default=False
+            ):
+                console.print("[yellow]Cancelled[/yellow]")
+                raise typer.Exit(code=0)
+
+        console.print("\n[bold cyan]Add Credentials from REST Call[/bold cyan]")
+        console.print(f"[dim]Deployment name:[/dim] {name}\n")
+
+        console.print("[dim]Paste a curl command or API URL[/dim]")
+        console.print(
+            '[dim]Example:[/dim] curl -H "Authorization: Bearer TOKEN" https://cribl.example.com/api/...\n'
+        )
+
+        try:
+            console.print("[dim]Option 1: Paste curl command[/dim]")
+            console.print("[dim]Option 2: Enter URL and token separately[/dim]")
+            console.print()
+
+            choice = typer.prompt("Choose (1 or 2)", default="2")
+
+            if choice == "1":
+                console.print(
+                    "[dim]Paste curl command line by line (press Enter after each line, then Ctrl+D when done):[/dim]"
+                )
+                lines = []
+                try:
+                    while True:
+                        line = input()
+                        lines.append(line)
+                except EOFError:
+                    pass
+
+                curl_input = "\n".join(lines)
+            else:
+                console.print("[dim]Enter deployment URL:[/dim]")
+                url = typer.prompt("URL")
+
+                console.print("[dim]Enter bearer token:[/dim]")
+                token = typer.prompt("Token")
+
+                curl_input = f"-H 'Authorization: Bearer {token}' {url}"
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Cancelled[/yellow]")
+            raise typer.Exit(code=0)
+
+        if not curl_input.strip():
+            console.print("[red]✗ No input provided[/red]")
+            raise typer.Exit(code=1)
+
+        extracted = _extract_from_paste(curl_input)
+        url = extracted["url"]
+        token = extracted["token"]
+
+        if not url:
+            console.print("[red]✗ Could not extract URL from input[/red]")
+            console.print("[dim]Make sure to paste a valid curl command or URL[/dim]")
+            raise typer.Exit(code=1)
+
+        if not token:
+            console.print("[yellow]⚠ No token found in input[/yellow]")
+            try:
+                token = input("Enter bearer token manually: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                console.print("[yellow]Cancelled[/yellow]")
+                raise typer.Exit(code=0)
+
+            if not token:
+                console.print("[red]✗ Token cannot be empty[/red]")
+                raise typer.Exit(code=1)
+
+        console.print(f"\n[dim]Extracted URL:[/dim] {url}")
+        console.print(f"[dim]Extracted Token:[/dim] {'*' * 40}")
+
+        if not typer.confirm("\nSave these credentials?", default=True):
+            console.print("[yellow]Cancelled[/yellow]")
+            raise typer.Exit(code=0)
+
+        credentials[name] = {
+            "url": url,
+            "token": token,
+        }
+
+        save_credentials(credentials)
+
+        console.print(f"\n[green]✓ Saved credentials for deployment:[/green] {name}")
+        console.print(f"[dim]URL:[/dim] {url}")
+        console.print(f"[dim]Use with:[/dim] cribl-hc analyze run --deployment {name}")
+
+    except Exception as e:
+        console.print(f"[red]✗ Failed to add credentials:[/red] {str(e)}")
+        raise typer.Exit(code=1)
+
+
 @app.command("get")
 def get_credential(
     name: str = typer.Argument(..., help="Deployment name"),
@@ -184,7 +353,7 @@ def list_credentials():
 
 @app.command("delete")
 def delete_credential(
-    name: str = typer.Argument(..., help="Deployment name"),
+    name: str = typer.Argument(None, help="Deployment name or '*' to delete all"),
     yes: bool = typer.Option(
         False,
         "--yes",
@@ -193,30 +362,63 @@ def delete_credential(
     ),
 ):
     """
-    Delete stored credentials for a deployment.
+    Delete stored credentials for a deployment or all deployments.
+
+    Use '*' as the deployment name to delete all credentials at once.
+    Useful for cleaning up test credentials after testing.
 
     Examples:
 
         cribl-hc config delete prod
         cribl-hc config delete dev --yes
+        cribl-hc config delete '*' --yes
+        cribl-hc config delete '*'
     """
     try:
         credentials = load_credentials()
 
-        if name not in credentials:
-            console.print(f"[red]✗ No credentials found for:[/red] {name}")
+        if not credentials:
+            console.print("[yellow]No credentials stored[/yellow]")
             raise typer.Exit(code=1)
 
-        if not yes:
-            confirm = typer.confirm(f"Delete credentials for '{name}'?")
-            if not confirm:
-                console.print("[yellow]Cancelled[/yellow]")
-                raise typer.Exit(code=0)
+        if name == "*":
+            if not yes:
+                console.print(
+                    f"[yellow]⚠ This will delete ALL {len(credentials)} stored credentials:[/yellow]"
+                )
+                for cred_name in sorted(credentials.keys()):
+                    console.print(f"  • {cred_name}")
+                confirm = typer.confirm("\nDelete all credentials?", default=False)
+                if not confirm:
+                    console.print("[yellow]Cancelled[/yellow]")
+                    raise typer.Exit(code=0)
 
-        del credentials[name]
-        save_credentials(credentials)
+            credentials.clear()
+            save_credentials(credentials)
 
-        console.print(f"[green]✓ Deleted credentials for:[/green] {name}")
+            console.print(
+                f"[green]✓ Deleted all credentials ({len(list(credentials.keys()))} removed)[/green]"
+            )
+
+        else:
+            if name is None:
+                console.print("[red]✗ Please specify a deployment name or '*' to delete all[/red]")
+                raise typer.Exit(code=1)
+
+            if name not in credentials:
+                console.print(f"[red]✗ No credentials found for:[/red] {name}")
+                raise typer.Exit(code=1)
+
+            if not yes:
+                confirm = typer.confirm(f"Delete credentials for '{name}'?")
+                if not confirm:
+                    console.print("[yellow]Cancelled[/yellow]")
+                    raise typer.Exit(code=0)
+
+            del credentials[name]
+            save_credentials(credentials)
+
+            console.print(f"[green]✓ Deleted credentials for:[/green] {name}")
 
     except Exception as e:
         console.print(f"[red]✗ Failed to delete credentials:[/red] {str(e)}")
@@ -225,7 +427,7 @@ def delete_credential(
 
 @app.command("export-key")
 def export_key(
-    output: Path | None = typer.Option(
+    output: Optional[Path] = typer.Option(
         None,
         "--output",
         "-o",

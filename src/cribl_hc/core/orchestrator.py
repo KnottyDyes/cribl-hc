@@ -74,7 +74,7 @@ class AnalyzerOrchestrator:
         objectives: Optional[Sequence[str]] = None,
         products: Optional[Sequence[str]] = None,
         progress_callback: Optional[Callable[[Any], None]] = None,
-    ) -> dict[str, AnalyzerResult]:
+    ) -> Dict[str, AnalyzerResult]:
         """
         Run health check analysis for specified objectives.
 
@@ -98,7 +98,7 @@ class AnalyzerOrchestrator:
 
         if products:
             requested_products = set(products)
-            filtered_objectives: list[str] = []
+            filtered_objectives: List[str] = []
             for objective in objectives:
                 analyzer = get_analyzer(objective)
                 if analyzer and any(p in requested_products for p in analyzer.supported_products):
@@ -115,7 +115,7 @@ class AnalyzerOrchestrator:
         # Pre-collect version info for the entire deployment
         self.version_info = await self._collect_version_info()
 
-        results: dict[str, AnalyzerResult] = {}
+        results: Dict[str, AnalyzerResult] = {}
 
         # Check API budget upfront for all objectives
         api_calls_used = self.client.get_api_calls_used()
@@ -219,7 +219,7 @@ class AnalyzerOrchestrator:
 
     def create_analysis_run(
         self,
-        results: dict[str, AnalyzerResult],
+        results: Dict[str, AnalyzerResult],
         deployment_id: str,
     ) -> AnalysisRun:
         """
@@ -266,8 +266,8 @@ class AnalyzerOrchestrator:
 
     def _calculate_overall_health_score(
         self,
-        results: dict[str, AnalyzerResult],
-        findings: list[Finding],
+        results: Dict[str, AnalyzerResult],
+        findings: List[Finding],
     ) -> HealthScore:
         """
         Calculate health score with component breakdown.
@@ -283,8 +283,8 @@ class AnalyzerOrchestrator:
             "other": 0.10,
         }
 
-        component_scores: dict[str, ComponentScore] = {}
-        components_found: dict[str, dict] = {}
+        component_scores: Dict[str, ComponentScore] = {}
+        components_found: Dict[str, dict] = {}
 
         for objective, result in results.items():
             # Map objective to category
@@ -349,6 +349,6 @@ class AnalyzerOrchestrator:
     def get_progress(self) -> Optional[AnalysisProgress]:
         return self.progress
 
-    def get_api_usage_summary(self) -> dict[str, int]:
+    def get_api_usage_summary(self) -> Dict[str, int]:
         used = self.client.get_api_calls_used()
         return {"used": used, "remaining": self.max_api_calls - used, "budget": self.max_api_calls}

@@ -8,7 +8,7 @@ Priority: P2 (Important)
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -44,7 +44,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
         return "lake"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Lake analyzer is specific to Cribl Lake."""
         return ["lake"]
 
@@ -55,7 +55,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
         """
         return 5
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:lake:datasets",
@@ -335,8 +335,8 @@ class LakeHealthAnalyzer(BaseAnalyzer):
 
     def _analyze_storage_locations(
         self,
-        storage_locations: list[dict[str, Any]],
-        datasets: list[LakeDataset],
+        storage_locations: List[Dict[str, Any]],
+        datasets: List[LakeDataset],
         result: AnalyzerResult,
     ) -> None:
         """Analyze Lake storage locations for issues."""

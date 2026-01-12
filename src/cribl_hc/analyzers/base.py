@@ -5,7 +5,7 @@ All analyzers must inherit from BaseAnalyzer and implement the analyze() method.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
@@ -35,7 +35,7 @@ class AnalyzerResult:
         objective: str,
         findings: Optional[List[Finding]] = None,
         recommendations: Optional[List[Recommendation]] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
         success: bool = True,
         error: Optional[str] = None,
         source_analyzer: Optional[str] = None,
@@ -51,8 +51,8 @@ class AnalyzerResult:
         self._source_analyzer = source_analyzer or objective
         self._default_product_tags = default_product_tags or self.PRODUCTS.copy()
 
-        self._findings_by_product: dict[str, int] = dict.fromkeys(self.PRODUCTS, 0)
-        self._recommendations_by_product: dict[str, int] = dict.fromkeys(self.PRODUCTS, 0)
+        self._findings_by_product: Dict[str, int] = dict.fromkeys(self.PRODUCTS, 0)
+        self._recommendations_by_product: Dict[str, int] = dict.fromkeys(self.PRODUCTS, 0)
 
         for finding in self.findings:
             self._increment_finding_counts(finding)
@@ -125,7 +125,7 @@ class AnalyzerResult:
         )
         return filtered_result
 
-    def get_product_summary(self) -> dict[str, dict[str, int]]:
+    def get_product_summary(self) -> Dict[str, Dict[str, int]]:
         """
         Get summary of findings and recommendations by product.
         """
@@ -137,13 +137,13 @@ class AnalyzerResult:
             for product in self.PRODUCTS
         }
 
-    def get_findings_by_product(self) -> dict[str, int]:
+    def get_findings_by_product(self) -> Dict[str, int]:
         """
         Get count of findings by product.
         """
         return self._findings_by_product.copy()
 
-    def get_recommendations_by_product(self) -> dict[str, int]:
+    def get_recommendations_by_product(self) -> Dict[str, int]:
         """
         Get count of recommendations by product.
         """

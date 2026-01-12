@@ -6,6 +6,8 @@ dataset utilization patterns.
 
 Priority: P2 (Important - cost optimization)
 """
+from typing import List, Optional
+
 
 from datetime import datetime
 
@@ -43,7 +45,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
         return "lake"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Lake storage analyzer is specific to Cribl Lake."""
         return ["lake"]
 
@@ -54,7 +56,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
         """
         return 3
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return ["read:lake:datasets", "read:lake:stats"]
 
@@ -191,7 +193,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
         return result
 
     def _analyze_dataset_storage(
-        self, dataset: LakeDataset, stats: DatasetStats | None, result: AnalyzerResult
+        self, dataset: LakeDataset, stats: Optional[DatasetStats], result: AnalyzerResult
     ) -> float:
         """
         Analyze storage efficiency for a single dataset.

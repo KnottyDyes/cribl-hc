@@ -35,8 +35,6 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 
 ### Web GUI Screenshots (Dark Mode)
 
-![Credentials](docs/screenshots/credential_input.png)
-
 ![Analysis Summary](docs/screenshots/analysis_completion.png)
 
 ![Full Report](docs/screenshots/review_analysis_full.png)

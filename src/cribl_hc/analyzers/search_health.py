@@ -50,7 +50,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
     VERY_HIGH_CPU_THRESHOLD = 300.0
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Search health analyzer is specific to Cribl Search."""
         return ["search"]
 
@@ -65,7 +65,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         """
         return 6
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:search:jobs",
@@ -186,7 +186,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         return result
 
     def _analyze_jobs(
-        self, jobs: list[SearchJob], result: AnalyzerResult, client: CriblAPIClient
+        self, jobs: List[SearchJob], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze search job health."""
         current_time = datetime.utcnow()
@@ -450,7 +450,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             )
 
     def _analyze_datasets(
-        self, datasets: list[SearchDataset], result: AnalyzerResult, client: CriblAPIClient
+        self, datasets: List[SearchDataset], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze search dataset health."""
         disabled_datasets = [d for d in datasets if not d.enabled]
@@ -500,7 +500,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             )
 
     def _analyze_groups(
-        self, groups: list[SearchGroup], result: AnalyzerResult, client: CriblAPIClient
+        self, groups: List[SearchGroup], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze Search groups for configuration issues."""
         if not groups:
@@ -527,7 +527,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             )
 
     def _analyze_dashboards(
-        self, dashboards: list[Dashboard], result: AnalyzerResult, client: CriblAPIClient
+        self, dashboards: List[Dashboard], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze dashboard health."""
         empty_dashboards = [d for d in dashboards if not d.elements or len(d.elements) == 0]
@@ -573,7 +573,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         result.metadata["scheduled_dashboards"] = len(scheduled_dashboards)
 
     def _analyze_saved_searches(
-        self, saved_searches: list[SavedSearch], result: AnalyzerResult, client: CriblAPIClient
+        self, saved_searches: List[SavedSearch], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze saved search configurations."""
         if not saved_searches:
