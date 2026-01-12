@@ -3,7 +3,7 @@ Configuration element model for Cribl Stream configuration components.
 """
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -72,7 +72,7 @@ class ConfigurationElement(BaseModel):
     validation_warnings: list[str] = Field(
         default_factory=list, description="Validation warnings"
     )
-    last_modified: datetime | None = Field(None, description="Last modification time")
+    last_modified: Optional[datetime] = Field(None, description="Last modification time")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     class Config:

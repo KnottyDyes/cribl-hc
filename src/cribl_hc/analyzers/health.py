@@ -8,7 +8,7 @@ This analyzer focuses on:
 """
 
 import time
-from typing import Any
+from typing import Any, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -485,7 +485,7 @@ class HealthAnalyzer(BaseAnalyzer):
         health_score: float,
         total_workers: int,
         unhealthy_count: int,
-        leader_health: dict[str, Any] | None,
+        leader_health: Optional[dict[str, Any]],
         client: CriblAPIClient,
     ) -> None:
         """Add overall health summary finding."""

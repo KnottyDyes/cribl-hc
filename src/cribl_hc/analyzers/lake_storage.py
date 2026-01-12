@@ -6,6 +6,8 @@ dataset utilization patterns.
 
 Priority: P2 (Important - cost optimization)
 """
+from typing import Optional
+
 
 from datetime import datetime
 
@@ -191,7 +193,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
         return result
 
     def _analyze_dataset_storage(
-        self, dataset: LakeDataset, stats: DatasetStats | None, result: AnalyzerResult
+        self, dataset: LakeDataset, stats: Optional[DatasetStats], result: AnalyzerResult
     ) -> float:
         """
         Analyze storage efficiency for a single dataset.

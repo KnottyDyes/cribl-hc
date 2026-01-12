@@ -7,7 +7,7 @@ from YAML configuration files.
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 
@@ -28,7 +28,7 @@ class RuleLoader:
         >>> filtered = loader.filter_by_version(rules, "4.5.0")
     """
 
-    def __init__(self, rules_dir: Path | None = None):
+    def __init__(self, rules_dir: Optional[Path] = None):
         """
         Initialize the rule loader.
 
@@ -41,7 +41,7 @@ class RuleLoader:
             rules_dir = Path(__file__).parent
 
         self.rules_dir = Path(rules_dir)
-        self._rules_cache: list[BestPracticeRule] | None = None
+        self._rules_cache: Optional[list[BestPracticeRule]] = None
 
     def load_rules_from_yaml(self, filename: str = "cribl_rules.yaml") -> list[BestPracticeRule]:
         """
@@ -220,7 +220,7 @@ class RuleEvaluator:
         self,
         rule: BestPracticeRule,
         config: dict[str, Any],
-        context: dict[str, Any] | None = None
+        context: Optional[dict[str, Any]] = None
     ) -> bool:
         """
         Evaluate a single rule against a configuration.

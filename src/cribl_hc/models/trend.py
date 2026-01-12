@@ -3,7 +3,7 @@ Historical trend model for tracking metric changes over time.
 """
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -66,7 +66,7 @@ class HistoricalTrend(BaseModel):
     anomalies_detected: list[DataPoint] = Field(
         default_factory=list, description="Anomalous data points"
     )
-    forecast_next: float | None = Field(None, description="Predicted next value")
+    forecast_next: Optional[float] = Field(None, description="Predicted next value")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

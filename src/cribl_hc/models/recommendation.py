@@ -3,7 +3,7 @@ Recommendation model for actionable improvement suggestions.
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -19,14 +19,14 @@ class ImpactEstimate(BaseModel):
         time_to_implement: Estimated time to implement
     """
 
-    cost_savings_annual: float | None = Field(
+    cost_savings_annual: Optional[float] = Field(
         None, description="Annual cost savings in dollars", ge=0
     )
-    performance_improvement: str | None = Field(
+    performance_improvement: Optional[str] = Field(
         None, description="Performance improvement estimate"
     )
-    storage_reduction_gb: float | None = Field(None, description="Storage reduction in GB", ge=0)
-    time_to_implement: str | None = Field(None, description="Time to implement estimate")
+    storage_reduction_gb: Optional[float] = Field(None, description="Storage reduction in GB", ge=0)
+    time_to_implement: Optional[str] = Field(None, description="Time to implement estimate")
 
     def has_impact_metrics(self) -> bool:
         """Check if at least one impact metric is provided."""

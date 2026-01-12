@@ -5,7 +5,7 @@ This module defines Pydantic models for Cribl Search resources including
 search jobs, datasets, dashboards, and saved searches.
 """
 
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -17,15 +17,15 @@ class CPUMetrics(BaseModel):
     Tracks total, billable, and executor CPU usage for cost analysis.
     """
 
-    total_cpu_seconds: float | None = Field(
+    total_cpu_seconds: Optional[float] = Field(
         default=None, alias="totalCPUSeconds", description="Total CPU seconds consumed"
     )
-    billable_cpu_seconds: float | None = Field(
+    billable_cpu_seconds: Optional[float] = Field(
         default=None,
         alias="billableCPUSeconds",
         description="Billable CPU seconds (for cost calculation)",
     )
-    executors_cpu_seconds: float | None = Field(
+    executors_cpu_seconds: Optional[float] = Field(
         default=None, alias="executorsCPUSeconds", description="CPU seconds consumed by executors"
     )
 
@@ -39,9 +39,9 @@ class SearchJobMetadata(BaseModel):
     Contains information about datasets, providers, and operators used.
     """
 
-    datasets: list[str] | None = Field(default=None, description="Datasets queried by this job")
-    providers: list[str] | None = Field(default=None, description="Data providers used")
-    operators: list[str] | None = Field(default=None, description="Query operators used")
+    datasets: Optional[list[str]] = Field(default=None, description="Datasets queried by this job")
+    providers: Optional[list[str]] = Field(default=None, description="Data providers used")
+    operators: Optional[list[str]] = Field(default=None, description="Query operators used")
 
     model_config = {"populate_by_name": True}
 
@@ -55,34 +55,36 @@ class SearchJob(BaseModel):
     """
 
     id: str = Field(..., description="Job ID (e.g., '1766939703881.P0akH8')")
-    query: str | None = Field(None, description="KQL query string")
-    earliest: str | None = Field(None, description="Search time range start")
-    latest: str | None = Field(None, description="Search time range end")
-    status: str | None = Field(
+    query: Optional[str] = Field(None, description="KQL query string")
+    earliest: Optional[str] = Field(None, description="Search time range start")
+    latest: Optional[str] = Field(None, description="Search time range end")
+    status: Optional[str] = Field(
         None, description="Job status ('running', 'completed', 'failed', 'cancelled')"
     )
-    user: str | None = Field(None, description="User ID who created the job")
-    display_username: str | None = Field(
+    user: Optional[str] = Field(None, description="User ID who created the job")
+    display_username: Optional[str] = Field(
         None, alias="displayUsername", description="Display name of user"
     )
-    stages: list[dict[str, Any]] | None = Field(default=None, description="Query execution stages")
-    cpu_metrics: CPUMetrics | None = Field(
+    stages: Optional[list[dict[str, Any]]] = Field(
+        default=None, description="Query execution stages"
+    )
+    cpu_metrics: Optional[CPUMetrics] = Field(
         default=None, alias="cpuMetrics", description="CPU usage metrics"
     )
-    metadata: SearchJobMetadata | None = Field(
+    metadata: Optional[SearchJobMetadata] = Field(
         default=None, description="Job metadata (datasets, providers, operators)"
     )
-    time_created: int | None = Field(
+    time_created: Optional[int] = Field(
         default=None, alias="timeCreated", description="Job creation timestamp (epoch ms)"
     )
-    time_started: int | None = Field(
+    time_started: Optional[int] = Field(
         default=None, alias="timeStarted", description="Job start timestamp (epoch ms)"
     )
-    time_completed: int | None = Field(
+    time_completed: Optional[int] = Field(
         default=None, alias="timeCompleted", description="Job completion timestamp (epoch ms)"
     )
-    error: str | None = Field(None, description="Error message if job failed")
-    result_count: int | None = Field(
+    error: Optional[str] = Field(None, description="Error message if job failed")
+    result_count: Optional[int] = Field(
         default=None, alias="resultCount", description="Number of results returned"
     )
 
@@ -98,18 +100,18 @@ class SearchDataset(BaseModel):
     """
 
     id: str = Field(..., description="Dataset ID (e.g., 'cribl_edge_appscope_events')")
-    provider: str | None = Field(
+    provider: Optional[str] = Field(
         None, description="Provider name (e.g., 'cribl_edge', 's3', 'cribl_lake')"
     )
-    type: str | None = Field(None, description="Dataset type (e.g., 'cribl_edge', 's3')")
-    description: str | None = Field(None, description="Human-readable description")
-    fleets: list[str] | None = Field(
+    type: Optional[str] = Field(None, description="Dataset type (e.g., 'cribl_edge', 's3')")
+    description: Optional[str] = Field(None, description="Human-readable description")
+    fleets: Optional[list[str]] = Field(
         default=None, description="Associated fleets (e.g., ['*'] for all)"
     )
-    path: str | None = Field(None, description="Data path pattern")
-    filter: str | None = Field(None, description="Filter expression")
-    enabled: bool | None = Field(default=True, description="Whether dataset is enabled")
-    schema_fields: list[dict[str, Any]] | None = Field(
+    path: Optional[str] = Field(None, description="Data path pattern")
+    filter: Optional[str] = Field(None, description="Filter expression")
+    enabled: Optional[bool] = Field(default=True, description="Whether dataset is enabled")
+    schema_fields: Optional[list[dict[str, Any]]] = Field(
         default=None, alias="schemaFields", description="Dataset schema definition"
     )
 
@@ -121,10 +123,10 @@ class DashboardElement(BaseModel):
     Represents an element/widget on a Search dashboard.
     """
 
-    id: str | None = Field(None, description="Element ID")
-    type: str | None = Field(None, description="Element type (chart, table, etc.)")
-    query: str | None = Field(None, description="Query for this element")
-    config: dict[str, Any] | None = Field(default=None, description="Element configuration")
+    id: Optional[str] = Field(None, description="Element ID")
+    type: Optional[str] = Field(None, description="Element type (chart, table, etc.)")
+    query: Optional[str] = Field(None, description="Query for this element")
+    config: Optional[dict[str, Any]] = Field(default=None, description="Element configuration")
 
     model_config = {"populate_by_name": True}
 
@@ -134,9 +136,9 @@ class DashboardSchedule(BaseModel):
     Represents a schedule for dashboard refresh.
     """
 
-    enabled: bool | None = Field(default=False, description="Whether schedule is enabled")
-    cron: str | None = Field(None, description="Cron expression for schedule")
-    timezone: str | None = Field(None, description="Timezone for schedule")
+    enabled: Optional[bool] = Field(default=False, description="Whether schedule is enabled")
+    cron: Optional[str] = Field(None, description="Cron expression for schedule")
+    timezone: Optional[str] = Field(None, description="Timezone for schedule")
 
     model_config = {"populate_by_name": True}
 
@@ -150,24 +152,28 @@ class Dashboard(BaseModel):
     """
 
     id: str = Field(..., description="Dashboard ID")
-    name: str | None = Field(None, description="Dashboard name")
-    description: str | None = Field(None, description="Dashboard description")
-    category: str | None = Field(None, description="Dashboard category")
-    elements: list[DashboardElement] | None = Field(
+    name: Optional[str] = Field(None, description="Dashboard name")
+    description: Optional[str] = Field(None, description="Dashboard description")
+    category: Optional[str] = Field(None, description="Dashboard category")
+    elements: Optional[list[DashboardElement]] = Field(
         default=None, description="Dashboard elements/widgets"
     )
-    schedule: DashboardSchedule | None = Field(
+    schedule: Optional[DashboardSchedule] = Field(
         default=None, description="Refresh schedule configuration"
     )
-    groups: list[str] | None = Field(default=None, description="Access groups for this dashboard")
-    created_by: str | None = Field(
+    groups: Optional[list[str]] = Field(
+        default=None, description="Access groups for this dashboard"
+    )
+    created_by: Optional[str] = Field(
         default=None, alias="createdBy", description="User who created the dashboard"
     )
-    modified_by: str | None = Field(
+    modified_by: Optional[str] = Field(
         default=None, alias="modifiedBy", description="User who last modified the dashboard"
     )
-    created: int | None = Field(default=None, description="Creation timestamp (epoch ms)")
-    modified: int | None = Field(default=None, description="Last modification timestamp (epoch ms)")
+    created: Optional[int] = Field(default=None, description="Creation timestamp (epoch ms)")
+    modified: Optional[int] = Field(
+        default=None, description="Last modification timestamp (epoch ms)"
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -180,11 +186,11 @@ class SearchGroup(BaseModel):
     """
 
     id: str = Field(..., description="Group ID")
-    name: str | None = Field(None, description="Group name")
-    description: str | None = Field(None, description="Group description")
-    datasets: list[str] | None = Field(default=None, description="Associated dataset IDs")
-    dashboards: list[str] | None = Field(default=None, description="Associated dashboard IDs")
-    created_by: str | None = Field(
+    name: Optional[str] = Field(None, description="Group name")
+    description: Optional[str] = Field(None, description="Group description")
+    datasets: Optional[list[str]] = Field(default=None, description="Associated dataset IDs")
+    dashboards: Optional[list[str]] = Field(default=None, description="Associated dashboard IDs")
+    created_by: Optional[str] = Field(
         default=None, alias="createdBy", description="User who created group"
     )
 
@@ -200,21 +206,23 @@ class SavedSearch(BaseModel):
     """
 
     id: str = Field(..., description="Saved search ID")
-    name: str | None = Field(None, description="Saved search name")
-    description: str | None = Field(None, description="Description")
-    query: str | None = Field(None, description="KQL query string")
-    earliest: str | None = Field(None, description="Default time range start")
-    latest: str | None = Field(None, description="Default time range end")
-    lib: str | None = Field(None, description="Library/folder path")
-    groups: list[str] | None = Field(default=None, description="Access groups")
-    created_by: str | None = Field(
+    name: Optional[str] = Field(None, description="Saved search name")
+    description: Optional[str] = Field(None, description="Description")
+    query: Optional[str] = Field(None, description="KQL query string")
+    earliest: Optional[str] = Field(None, description="Default time range start")
+    latest: Optional[str] = Field(None, description="Default time range end")
+    lib: Optional[str] = Field(None, description="Library/folder path")
+    groups: Optional[list[str]] = Field(default=None, description="Access groups")
+    created_by: Optional[str] = Field(
         default=None, alias="createdBy", description="User who created saved search"
     )
-    modified_by: str | None = Field(
+    modified_by: Optional[str] = Field(
         default=None, alias="modifiedBy", description="User who last modified"
     )
-    created: int | None = Field(default=None, description="Creation timestamp (epoch ms)")
-    modified: int | None = Field(default=None, description="Last modification timestamp (epoch ms)")
+    created: Optional[int] = Field(default=None, description="Creation timestamp (epoch ms)")
+    modified: Optional[int] = Field(
+        default=None, description="Last modification timestamp (epoch ms)"
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -227,23 +235,23 @@ class SearchCost(BaseModel):
     for Search operations over a time period.
     """
 
-    total_cost_usd: float | None = Field(
+    total_cost_usd: Optional[float] = Field(
         default=None, alias="totalCost", description="Total cost in USD for analyzed period"
     )
-    total_cpu_seconds: float | None = Field(
+    total_cpu_seconds: Optional[float] = Field(
         default=None, alias="totalCPUSeconds", description="Total CPU seconds consumed"
     )
-    total_scanned_gb: float | None = Field(
+    total_scanned_gb: Optional[float] = Field(
         default=None, alias="totalScannedGb", description="Total data scanned in GB"
     )
-    storage_cost_usd: float | None = Field(
+    storage_cost_usd: Optional[float] = Field(
         default=None, alias="storageCost", description="Storage cost in USD"
     )
     time_period_days: int = Field(..., alias="timePeriodDays", description="Time period analyzed")
-    breakdown_by_dataset: dict[str, dict[str, float]] | None = Field(
+    breakdown_by_dataset: Optional[dict[str, dict[str, float]]] = Field(
         default=None, alias="breakdownByDataset", description="Cost breakdown by dataset ID"
     )
-    breakdown_by_query_type: dict[str, dict[str, float]] | None = Field(
+    breakdown_by_query_type: Optional[dict[str, dict[str, float]]] = Field(
         default=None, alias="breakdownByQueryType", description="Cost breakdown by query type"
     )
 

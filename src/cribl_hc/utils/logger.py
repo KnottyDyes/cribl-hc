@@ -6,7 +6,7 @@ All logs include timestamps, context, and are formatted as JSON for easy parsing
 """
 
 import sys
-from typing import Any
+from typing import Any, Optional
 
 import structlog
 from structlog.types import Processor
@@ -64,7 +64,7 @@ def configure_logging(
     )
 
 
-def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
+def get_logger(name: Optional[str] = None) -> structlog.stdlib.BoundLogger:
     """
     Get a structured logger instance.
 
@@ -107,8 +107,8 @@ class AuditLogger:
         endpoint: str,
         status_code: int,
         duration_ms: float,
-        deployment_id: str | None = None,
-        error: str | None = None,
+        deployment_id: Optional[str] = None,
+        error: Optional[str] = None,
     ) -> None:
         """
         Log an API call for audit trail.
@@ -163,9 +163,9 @@ class AuditLogger:
         deployment_id: str,
         duration_seconds: float,
         api_calls_used: int,
-        health_score: float | None = None,
+        health_score: Optional[float] = None,
         findings_count: int = 0,
-        error: str | None = None,
+        error: Optional[str] = None,
     ) -> None:
         """
         Log the completion of an analysis run.
@@ -200,7 +200,7 @@ class AuditLogger:
         operation: str,
         deployment_id: str,
         success: bool,
-        error: str | None = None,
+        error: Optional[str] = None,
     ) -> None:
         """
         Log credential operations (store, retrieve, delete).

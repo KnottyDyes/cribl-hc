@@ -8,7 +8,7 @@ Priority: P7 (Predictive analytics - advanced feature)
 """
 
 import statistics
-from typing import Any
+from typing import Any, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -78,7 +78,7 @@ class PredictiveAnalyzer(BaseAnalyzer):
     async def analyze(
         self,
         client: CriblAPIClient,
-        historical_data: dict[str, Any] | None = None
+        historical_data: Optional[dict[str, Any]] = None
     ) -> AnalyzerResult:
         """
         Analyze current state and historical data for predictions.

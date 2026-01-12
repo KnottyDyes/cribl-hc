@@ -9,9 +9,12 @@ Built with Textual - provides a Pocker-style navigable interface with:
 - Results history and export (JSON/MD)
 """
 
+from typing import Optional
+
+
 import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from textual.app import App, ComposeResult
@@ -104,16 +107,51 @@ class AddDeploymentDialog(ModalScreen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "btn-save":
-            # Get input values
+            import re
+            from urllib.parse import urlparse
+
             deployment_id = self.query_one("#input-id", Input).value.strip()
-            url = self.query_one("#input-url", Input).value.strip()
-            token = self.query_one("#input-token", Input).value.strip()
+            url_input = self.query_one("#input-url", Input).value.strip()
+            token_input = self.query_one("#input-token", Input).value.strip()
+
+            url = url_input
+            token = token_input
+
+            url_input_clean = url_input.replace("\\\n", " ").replace("\n", " ")
+            token_input_clean = token_input.replace("\\\n", " ").replace("\n", " ")
+
+            if "curl" in url_input.lower() or "authorization" in url_input.lower():
+                bearer = re.search(
+                    r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", url_input_clean, re.IGNORECASE
+                )
+                if bearer:
+                    token = bearer.group(1).strip()
+                url_match = re.search(r"https?://[^\s\"'<>]+", url_input_clean, re.IGNORECASE)
+                if url_match:
+                    try:
+                        parsed = urlparse(url_match.group(0).strip().strip("'\""))
+                        url = f"{parsed.scheme}://{parsed.netloc}"
+                    except Exception:
+                        url = url_match.group(0).strip().strip("'\"")
+
+            if "curl" in token_input.lower() or "authorization" in token_input.lower():
+                bearer = re.search(
+                    r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", token_input_clean, re.IGNORECASE
+                )
+                if bearer:
+                    token = bearer.group(1).strip()
+                url_match = re.search(r"https?://[^\s\"'<>]+", token_input_clean, re.IGNORECASE)
+                if url_match and not url_input:
+                    try:
+                        parsed = urlparse(url_match.group(0).strip().strip("'\""))
+                        url = f"{parsed.scheme}://{parsed.netloc}"
+                    except Exception:
+                        url = url_match.group(0).strip().strip("'\"")
 
             if not deployment_id or not url or not token:
                 self.app.notify("All fields are required", severity="error")
                 return
 
-            # Save credentials
             try:
                 credentials = load_credentials()
                 credentials[deployment_id] = {"url": url, "token": token}
@@ -390,7 +428,7 @@ class AnalysisStatus(Static):
             yield Button("Run Analysis", id="btn-run-analysis", variant="primary")
             yield Button("Export Results", id="btn-export-results", variant="success")
 
-    def watch_current_deployment(self, deployment: str | None) -> None:
+    def watch_current_deployment(self, deployment: Optional[str]) -> None:
         """Update display when deployment changes."""
         label = self.query_one("#status-deployment", Label)
         if deployment:
@@ -617,8 +655,8 @@ class CriblHealthCheckApp(App):
     ]
 
     # Store current analysis results
-    current_analysis: AnalysisRun | None = None
-    current_results: dict | None = None
+    current_analysis: Optional[AnalysisRun] = None
+    current_results: Optional[dict] = None
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -833,14 +871,14 @@ class CriblHealthCheckApp(App):
                     status_widget.api_calls = orchestrator.client.get_api_calls_used()
 
                 # Run analysis
-                start_time = datetime.now(UTC)
+                start_time = datetime.now(timezone.utc)
                 results = await orchestrator.run_analysis(
                     objectives=None,
                     progress_callback=update_progress,
                 )
 
                 # Update duration
-                duration = (datetime.now(UTC) - start_time).total_seconds()
+                duration = (datetime.now(timezone.utc) - start_time).total_seconds()
                 status_widget.duration = duration
 
                 # Create analysis run
