@@ -954,8 +954,8 @@ class CriblHealthCheckApp(App):
     }
 
     Button {
-        min-width: 12;
-        width: 80%;
+        min-width: 8;
+        width: auto;
         margin: 0 1;
         border: solid #61afef;
     }
