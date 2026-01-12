@@ -7,7 +7,7 @@ Priority: P2 (Important)
 """
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -26,7 +26,7 @@ class LakeStorageLocationsAnalyzer(BaseAnalyzer):
         return "lake_storage_locations"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         return ["lake"]
 
     def get_estimated_api_calls(self) -> int:
@@ -36,7 +36,7 @@ class LakeStorageLocationsAnalyzer(BaseAnalyzer):
         """
         return 5
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         return [
             "read:lake:datasets",
             "read:lake:storage_locations",
@@ -65,8 +65,8 @@ class LakeStorageLocationsAnalyzer(BaseAnalyzer):
                 result.success = True
                 return result
 
-            all_locations: list[dict[str, Any]] = []
-            all_datasets: list[dict[str, Any]] = []
+            all_locations: List[Dict[str, Any]] = []
+            all_datasets: List[Dict[str, Any]] = []
 
             for lake in lakes:
                 lake_id = lake.get("id")
@@ -106,7 +106,7 @@ class LakeStorageLocationsAnalyzer(BaseAnalyzer):
                 result.success = True
                 return result
 
-            usage_by_location: dict[str, int] = {}
+            usage_by_location: Dict[str, int] = {}
             for dataset in all_datasets:
                 loc_id = dataset.get("storageLocationId") or dataset.get("storage_location")
                 if loc_id:

@@ -8,7 +8,7 @@ Priority: P7 (Predictive analytics - advanced feature)
 """
 
 import statistics
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -55,7 +55,7 @@ class PredictiveAnalyzer(BaseAnalyzer):
         return "predictive"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Predictive analyzer supports all products."""
         return ["stream", "edge", "lake", "search"]
 
@@ -67,7 +67,7 @@ class PredictiveAnalyzer(BaseAnalyzer):
         """
         return 3
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:workers",
@@ -78,7 +78,7 @@ class PredictiveAnalyzer(BaseAnalyzer):
     async def analyze(
         self,
         client: CriblAPIClient,
-        historical_data: Optional[dict[str, Any]] = None
+        historical_data: Optional[Dict[str, Any]] = None
     ) -> AnalyzerResult:
         """
         Analyze current state and historical data for predictions.
@@ -146,7 +146,7 @@ class PredictiveAnalyzer(BaseAnalyzer):
     async def _predict_worker_capacity(
         self,
         client: CriblAPIClient,
-        historical_data: dict[str, Any],
+        historical_data: Dict[str, Any],
         result: AnalyzerResult
     ) -> None:
         """
@@ -204,7 +204,7 @@ class PredictiveAnalyzer(BaseAnalyzer):
     async def _predict_license_exhaustion(
         self,
         client: CriblAPIClient,
-        historical_data: dict[str, Any],
+        historical_data: Dict[str, Any],
         result: AnalyzerResult
     ) -> None:
         """
@@ -270,7 +270,7 @@ class PredictiveAnalyzer(BaseAnalyzer):
     async def _predict_destination_backpressure(
         self,
         client: CriblAPIClient,
-        historical_data: dict[str, Any],
+        historical_data: Dict[str, Any],
         result: AnalyzerResult
     ) -> None:
         """
@@ -328,7 +328,7 @@ class PredictiveAnalyzer(BaseAnalyzer):
 
     def _detect_anomalies(
         self,
-        historical_data: dict[str, Any],
+        historical_data: Dict[str, Any],
         result: AnalyzerResult
     ) -> None:
         """
@@ -380,7 +380,7 @@ class PredictiveAnalyzer(BaseAnalyzer):
 
     def _generate_proactive_recommendations(
         self,
-        historical_data: dict[str, Any],
+        historical_data: Dict[str, Any],
         result: AnalyzerResult
     ) -> None:
         """
@@ -435,7 +435,7 @@ class PredictiveAnalyzer(BaseAnalyzer):
                 }
             ))
 
-    def _calculate_trend_slope(self, values: list[float]) -> float:
+    def _calculate_trend_slope(self, values: List[float]) -> float:
         """
         Calculate linear trend slope using simple linear regression.
 
@@ -467,9 +467,9 @@ class PredictiveAnalyzer(BaseAnalyzer):
 
     def _detect_zscore_anomalies(
         self,
-        values: list[float],
+        values: List[float],
         threshold: float = 3.0
-    ) -> list[int]:
+    ) -> List[int]:
         """
         Detect anomalies using z-score method.
 

@@ -3,7 +3,7 @@ Configuration element model for Cribl Stream configuration components.
 """
 
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -56,7 +56,7 @@ class ConfigurationElement(BaseModel):
     )
     name: str = Field(..., description="Human-readable name", min_length=1)
     group_id: str = Field(..., description="Worker group ID", min_length=1)
-    definition: dict[str, Any] = Field(..., description="Raw configuration JSON")
+    definition: Dict[str, Any] = Field(..., description="Raw configuration JSON")
     usage_status: Literal["active", "unused", "orphaned"] = Field(
         ..., description="Usage status"
     )
@@ -66,14 +66,14 @@ class ConfigurationElement(BaseModel):
     best_practice_compliance: float = Field(
         ..., description="Best practice compliance score", ge=0.0, le=1.0
     )
-    validation_errors: list[str] = Field(
+    validation_errors: List[str] = Field(
         default_factory=list, description="Validation errors"
     )
-    validation_warnings: list[str] = Field(
+    validation_warnings: List[str] = Field(
         default_factory=list, description="Validation warnings"
     )
     last_modified: Optional[datetime] = Field(None, description="Last modification time")
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     class Config:
         """Pydantic model configuration."""

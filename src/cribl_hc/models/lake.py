@@ -5,7 +5,7 @@ This module defines Pydantic models for Cribl Lake resources including
 datasets, lakehouses, and dataset statistics.
 """
 
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -26,7 +26,7 @@ class LakeDataset(BaseModel):
     )
     format: str = Field(..., description="Data format ('json' or 'parquet')")
     view_name: str = Field(..., alias="viewName", description="View name for querying")
-    metrics: Optional[dict[str, Any]] = Field(
+    metrics: Optional[Dict[str, Any]] = Field(
         default=None, description="Dataset metrics (when includeMetrics=true)"
     )
     storage_location: Optional[str] = Field(
@@ -49,11 +49,11 @@ class Lakehouse(BaseModel):
     id: str = Field(..., description="Lakehouse ID")
     name: Optional[str] = Field(None, description="Lakehouse name")
     description: Optional[str] = Field(None, description="Description")
-    dataset_ids: Optional[list[str]] = Field(
+    dataset_ids: Optional[List[str]] = Field(
         default=None, alias="datasetIds", description="Associated dataset IDs"
     )
     status: Optional[str] = Field(None, description="Lakehouse status")
-    config: Optional[dict[str, Any]] = Field(None, description="Lakehouse configuration")
+    config: Optional[Dict[str, Any]] = Field(None, description="Lakehouse configuration")
 
     model_config = {"populate_by_name": True}
 
@@ -88,19 +88,19 @@ class DatasetStats(BaseModel):
 class LakeDatasetList(BaseModel):
     """Response model for listing Lake datasets."""
 
-    items: list[LakeDataset] = Field(default_factory=list, description="List of datasets")
+    items: List[LakeDataset] = Field(default_factory=list, description="List of datasets")
     count: int = Field(..., description="Total number of datasets")
 
 
 class LakehouseList(BaseModel):
     """Response model for listing Lakehouses."""
 
-    items: list[Lakehouse] = Field(default_factory=list, description="List of lakehouses")
+    items: List[Lakehouse] = Field(default_factory=list, description="List of lakehouses")
     count: int = Field(..., description="Total number of lakehouses")
 
 
 class DatasetStatsList(BaseModel):
     """Response model for dataset statistics."""
 
-    items: list[DatasetStats] = Field(default_factory=list, description="List of dataset stats")
+    items: List[DatasetStats] = Field(default_factory=list, description="List of dataset stats")
     count: int = Field(..., description="Total number of stats entries")

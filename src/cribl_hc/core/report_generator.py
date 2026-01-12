@@ -21,7 +21,7 @@ class MarkdownReportGenerator:
     def generate(
         self,
         analysis_run: AnalysisRun,
-        results: Optional[dict[str, AnalyzerResult]] = None,
+        results: Optional[Dict[str, AnalyzerResult]] = None,
     ) -> str:
         sections = []
         sections.append(self._generate_header(analysis_run))
@@ -209,7 +209,7 @@ class HTMLReportGenerator:
         self.colors = self.branding.get_active_theme(theme_mode)
 
     def generate(
-        self, analysis_run: AnalysisRun, results: Optional[dict[str, AnalyzerResult]] = None
+        self, analysis_run: AnalysisRun, results: Optional[Dict[str, AnalyzerResult]] = None
     ) -> str:
         findings_html = ""
         if results:
@@ -292,7 +292,7 @@ class HTMLReportGenerator:
         score = analysis_run.health_score.overall_score if analysis_run.health_score else "N/A"
         return f"<section><h2>Summary</h2><p>Score: {score}/100</p></section>"
 
-    def _generate_findings_html(self, results: dict[str, AnalyzerResult]) -> str:
+    def _generate_findings_html(self, results: Dict[str, AnalyzerResult]) -> str:
         html = ""
         for obj, res in results.items():
             f_html = ""

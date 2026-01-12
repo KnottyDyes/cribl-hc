@@ -3,7 +3,7 @@ Utility module for grouping findings by worker group and grouping ID.
 Mimics the GUI's grouping logic from ResultsPage.tsx.
 """
 
-from typing import Optional
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 
 from cribl_hc.models.finding import Finding
@@ -12,7 +12,7 @@ from cribl_hc.models.finding import Finding
 @dataclass
 class GroupedFinding:
     """Represents a group of similar findings."""
-    findings: list[Finding]
+    findings: List[Finding]
     group_title: str
     worker_group: str
     is_grouped: bool
@@ -20,7 +20,7 @@ class GroupedFinding:
     finding_count: int
 
 
-def group_findings(findings: list[Finding]) -> list[GroupedFinding]:
+def group_findings(findings: List[Finding]) -> List[GroupedFinding]:
     """
     Group findings by worker group, then by grouping ID.
     
@@ -36,7 +36,7 @@ def group_findings(findings: list[Finding]) -> list[GroupedFinding]:
         List of GroupedFinding objects sorted by worker group and severity
     """
     # Build worker group map
-    worker_group_map: dict[str, dict[str, list[Finding]]] = {}
+    worker_group_map: Dict[str, Dict[str, List[Finding]]] = {}
     
     for finding in findings:
         # Global findings (no worker_group) are separate from default
@@ -53,7 +53,7 @@ def group_findings(findings: list[Finding]) -> list[GroupedFinding]:
         worker_group_map[worker_group][group_key].append(finding)
     
     # Build result list
-    result: list[GroupedFinding] = []
+    result: List[GroupedFinding] = []
     
     for worker_group in sorted(worker_group_map.keys()):
         for group_key in sorted(worker_group_map[worker_group].keys()):
@@ -91,7 +91,7 @@ def group_findings(findings: list[Finding]) -> list[GroupedFinding]:
     return result
 
 
-def get_severity_counts(findings: list[Finding]) -> dict[str, int]:
+def get_severity_counts(findings: List[Finding]) -> Dict[str, int]:
     """
     Get count of findings by severity.
     

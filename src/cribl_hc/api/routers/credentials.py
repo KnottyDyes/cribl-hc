@@ -5,7 +5,7 @@ Provides CRUD operations for deployment credentials with support for
 both Bearer Token and OAuth authentication methods.
 """
 
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
@@ -80,7 +80,7 @@ class ConnectionTestResult(BaseModel):
     error: Optional[str] = None
 
 
-@router.get("", response_model=list[CredentialResponse])
+@router.get("", response_model=List[CredentialResponse])
 async def list_credentials():
     """
     List all configured credentials.

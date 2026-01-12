@@ -21,13 +21,13 @@ class SearchDatasetStatsAnalyzer(BaseAnalyzer):
         return "search_dataset_stats"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         return ["search"]
 
     def get_estimated_api_calls(self) -> int:
         return 5
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         return ["read:search:datasets"]
 
     async def analyze(

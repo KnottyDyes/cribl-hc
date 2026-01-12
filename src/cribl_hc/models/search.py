@@ -5,7 +5,7 @@ This module defines Pydantic models for Cribl Search resources including
 search jobs, datasets, dashboards, and saved searches.
 """
 
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -39,9 +39,9 @@ class SearchJobMetadata(BaseModel):
     Contains information about datasets, providers, and operators used.
     """
 
-    datasets: Optional[list[str]] = Field(default=None, description="Datasets queried by this job")
-    providers: Optional[list[str]] = Field(default=None, description="Data providers used")
-    operators: Optional[list[str]] = Field(default=None, description="Query operators used")
+    datasets: Optional[List[str]] = Field(default=None, description="Datasets queried by this job")
+    providers: Optional[List[str]] = Field(default=None, description="Data providers used")
+    operators: Optional[List[str]] = Field(default=None, description="Query operators used")
 
     model_config = {"populate_by_name": True}
 
@@ -65,7 +65,7 @@ class SearchJob(BaseModel):
     display_username: Optional[str] = Field(
         None, alias="displayUsername", description="Display name of user"
     )
-    stages: Optional[list[dict[str, Any]]] = Field(
+    stages: Optional[List[Dict[str, Any]]] = Field(
         default=None, description="Query execution stages"
     )
     cpu_metrics: Optional[CPUMetrics] = Field(
@@ -105,13 +105,13 @@ class SearchDataset(BaseModel):
     )
     type: Optional[str] = Field(None, description="Dataset type (e.g., 'cribl_edge', 's3')")
     description: Optional[str] = Field(None, description="Human-readable description")
-    fleets: Optional[list[str]] = Field(
+    fleets: Optional[List[str]] = Field(
         default=None, description="Associated fleets (e.g., ['*'] for all)"
     )
     path: Optional[str] = Field(None, description="Data path pattern")
     filter: Optional[str] = Field(None, description="Filter expression")
     enabled: Optional[bool] = Field(default=True, description="Whether dataset is enabled")
-    schema_fields: Optional[list[dict[str, Any]]] = Field(
+    schema_fields: Optional[List[Dict[str, Any]]] = Field(
         default=None, alias="schemaFields", description="Dataset schema definition"
     )
 
@@ -126,7 +126,7 @@ class DashboardElement(BaseModel):
     id: Optional[str] = Field(None, description="Element ID")
     type: Optional[str] = Field(None, description="Element type (chart, table, etc.)")
     query: Optional[str] = Field(None, description="Query for this element")
-    config: Optional[dict[str, Any]] = Field(default=None, description="Element configuration")
+    config: Optional[Dict[str, Any]] = Field(default=None, description="Element configuration")
 
     model_config = {"populate_by_name": True}
 
@@ -155,13 +155,13 @@ class Dashboard(BaseModel):
     name: Optional[str] = Field(None, description="Dashboard name")
     description: Optional[str] = Field(None, description="Dashboard description")
     category: Optional[str] = Field(None, description="Dashboard category")
-    elements: Optional[list[DashboardElement]] = Field(
+    elements: Optional[List[DashboardElement]] = Field(
         default=None, description="Dashboard elements/widgets"
     )
     schedule: Optional[DashboardSchedule] = Field(
         default=None, description="Refresh schedule configuration"
     )
-    groups: Optional[list[str]] = Field(
+    groups: Optional[List[str]] = Field(
         default=None, description="Access groups for this dashboard"
     )
     created_by: Optional[str] = Field(
@@ -188,8 +188,8 @@ class SearchGroup(BaseModel):
     id: str = Field(..., description="Group ID")
     name: Optional[str] = Field(None, description="Group name")
     description: Optional[str] = Field(None, description="Group description")
-    datasets: Optional[list[str]] = Field(default=None, description="Associated dataset IDs")
-    dashboards: Optional[list[str]] = Field(default=None, description="Associated dashboard IDs")
+    datasets: Optional[List[str]] = Field(default=None, description="Associated dataset IDs")
+    dashboards: Optional[List[str]] = Field(default=None, description="Associated dashboard IDs")
     created_by: Optional[str] = Field(
         default=None, alias="createdBy", description="User who created group"
     )
@@ -212,7 +212,7 @@ class SavedSearch(BaseModel):
     earliest: Optional[str] = Field(None, description="Default time range start")
     latest: Optional[str] = Field(None, description="Default time range end")
     lib: Optional[str] = Field(None, description="Library/folder path")
-    groups: Optional[list[str]] = Field(default=None, description="Access groups")
+    groups: Optional[List[str]] = Field(default=None, description="Access groups")
     created_by: Optional[str] = Field(
         default=None, alias="createdBy", description="User who created saved search"
     )
@@ -248,10 +248,10 @@ class SearchCost(BaseModel):
         default=None, alias="storageCost", description="Storage cost in USD"
     )
     time_period_days: int = Field(..., alias="timePeriodDays", description="Time period analyzed")
-    breakdown_by_dataset: Optional[dict[str, dict[str, float]]] = Field(
+    breakdown_by_dataset: Optional[Dict[str, Dict[str, float]]] = Field(
         default=None, alias="breakdownByDataset", description="Cost breakdown by dataset ID"
     )
-    breakdown_by_query_type: Optional[dict[str, dict[str, float]]] = Field(
+    breakdown_by_query_type: Optional[Dict[str, Dict[str, float]]] = Field(
         default=None, alias="breakdownByQueryType", description="Cost breakdown by query type"
     )
 
@@ -267,7 +267,7 @@ class SearchHealthCheckStatus(BaseModel):
 
 
 class SearchHealthCheckList(BaseModel):
-    items: list[SearchHealthCheckStatus] = Field(
+    items: List[SearchHealthCheckStatus] = Field(
         default_factory=list, description="List of healthcheck statuses"
     )
     count: int = Field(..., description="Total number of statuses")
@@ -282,10 +282,10 @@ class TimeSeriesPoint(BaseModel):
 
 
 class DatasetStatsResponse(BaseModel):
-    byte_counts: list[TimeSeriesPoint] = Field(
+    byte_counts: List[TimeSeriesPoint] = Field(
         default_factory=list, alias="byteCounts", description="Byte counts over time"
     )
-    event_counts: list[TimeSeriesPoint] = Field(
+    event_counts: List[TimeSeriesPoint] = Field(
         default_factory=list, alias="eventCounts", description="Event counts over time"
     )
     max_event_time: int | None = Field(
@@ -312,19 +312,19 @@ class DatasetUsageQueryCount(BaseModel):
 
 
 class DatasetUsageStatsResponse(BaseModel):
-    linked_dashboards: list[dict[str, Any]] | None = Field(
+    linked_dashboards: List[Dict[str, Any]] | None = Field(
         default=None, alias="linkedDashboards", description="Linked dashboards"
     )
-    linked_notebooks: list[dict[str, Any]] | None = Field(
+    linked_notebooks: List[Dict[str, Any]] | None = Field(
         default=None, alias="linkedNotebooks", description="Linked notebooks"
     )
-    query_counts: list[DatasetUsageQueryCount] = Field(
+    query_counts: List[DatasetUsageQueryCount] = Field(
         default_factory=list, alias="queryCounts", description="Query counts over time"
     )
-    saved_queries: list[dict[str, Any]] | None = Field(
+    saved_queries: List[Dict[str, Any]] | None = Field(
         default=None, alias="savedQueries", description="Saved queries"
     )
-    top_users: list[dict[str, Any]] | None = Field(
+    top_users: List[Dict[str, Any]] | None = Field(
         default=None, alias="topUsers", description="Top users"
     )
 
@@ -334,35 +334,35 @@ class DatasetUsageStatsResponse(BaseModel):
 class SearchJobList(BaseModel):
     """Response model for listing Search jobs."""
 
-    items: list[SearchJob] = Field(default_factory=list, description="List of search jobs")
+    items: List[SearchJob] = Field(default_factory=list, description="List of search jobs")
     count: int = Field(..., description="Total number of jobs")
 
 
 class SearchDatasetList(BaseModel):
     """Response model for listing Search datasets."""
 
-    items: list[SearchDataset] = Field(default_factory=list, description="List of datasets")
+    items: List[SearchDataset] = Field(default_factory=list, description="List of datasets")
     count: int = Field(..., description="Total number of datasets")
 
 
 class DashboardList(BaseModel):
     """Response model for listing dashboards."""
 
-    items: list[Dashboard] = Field(default_factory=list, description="List of dashboards")
+    items: List[Dashboard] = Field(default_factory=list, description="List of dashboards")
     count: int = Field(..., description="Total number of dashboards")
 
 
 class SavedSearchList(BaseModel):
     """Response model for listing saved searches."""
 
-    items: list[SavedSearch] = Field(default_factory=list, description="List of saved searches")
+    items: List[SavedSearch] = Field(default_factory=list, description="List of saved searches")
     count: int = Field(..., description="Total number of saved searches")
 
 
 class SearchGroupList(BaseModel):
     """Response model for listing Search groups."""
 
-    items: list[SearchGroup] = Field(default_factory=list, description="List of search groups")
+    items: List[SearchGroup] = Field(default_factory=list, description="List of search groups")
     count: int = Field(..., description="Total number of groups")
 
 
@@ -370,7 +370,7 @@ class DatasetProvider(BaseModel):
     id: str = Field(..., description="Provider ID")
     type: str | None = Field(None, description="Provider type")
     description: str | None = Field(None, description="Description")
-    config: dict[str, Any] | None = Field(default=None, description="Configuration")
+    config: Dict[str, Any] | None = Field(default=None, description="Configuration")
 
     model_config = {"populate_by_name": True}
 
@@ -398,7 +398,7 @@ class FieldStat(BaseModel):
 
 
 class FieldStatsResponse(BaseModel):
-    fields: list[FieldStat] = Field(
+    fields: List[FieldStat] = Field(
         default_factory=list, alias="fieldStats", description="List of field statistics"
     )
     total_events: int | None = Field(
@@ -409,12 +409,12 @@ class FieldStatsResponse(BaseModel):
 
 
 class DatasetProviderList(BaseModel):
-    items: list[DatasetProvider] = Field(default_factory=list, description="List of providers")
+    items: List[DatasetProvider] = Field(default_factory=list, description="List of providers")
     count: int = Field(..., description="Total number of providers")
 
 
 class DatasetProviderTypeList(BaseModel):
-    items: list[DatasetProviderType] = Field(
+    items: List[DatasetProviderType] = Field(
         default_factory=list, description="List of provider types"
     )
     count: int = Field(..., description="Total number of provider types")

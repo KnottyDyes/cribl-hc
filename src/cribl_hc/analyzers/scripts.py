@@ -21,13 +21,13 @@ class ScriptsAnalyzer(BaseAnalyzer):
         return "scripts"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         return ["stream"]
 
     def get_estimated_api_calls(self) -> int:
         return 1
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         return ["read:system"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:

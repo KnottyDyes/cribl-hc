@@ -10,7 +10,7 @@ Priority: P2 (Security - critical for compliance and data protection)
 import json
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -61,7 +61,7 @@ class SecurityAnalyzer(BaseAnalyzer):
         return "security"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Security analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -71,7 +71,7 @@ class SecurityAnalyzer(BaseAnalyzer):
         """
         return 10
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:outputs",
@@ -198,11 +198,11 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def _analyze_tls_configuration(
         self,
-        outputs: list[dict[str, Any]],
-        inputs: list[dict[str, Any]],
+        outputs: List[Dict[str, Any]],
+        inputs: List[Dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Analyze TLS configuration for outputs and inputs."""
         tls_issues = []
 
@@ -277,11 +277,11 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def _analyze_secrets(
         self,
-        outputs: list[dict[str, Any]],
-        inputs: list[dict[str, Any]],
+        outputs: List[Dict[str, Any]],
+        inputs: List[Dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Scan configurations for hardcoded secrets."""
         secret_issues = []
 
@@ -338,8 +338,8 @@ class SecurityAnalyzer(BaseAnalyzer):
         return any(p in value.lower() for p in placeholders)
 
     def _analyze_authentication(
-        self, auth_config: dict[str, Any], result: AnalyzerResult, client: CriblAPIClient
-    ) -> list[dict[str, Any]]:
+        self, auth_config: Dict[str, Any], result: AnalyzerResult, client: CriblAPIClient
+    ) -> List[Dict[str, Any]]:
         """Analyze authentication configuration."""
         issues = []
         if auth_config.get("disabled") is True:
@@ -380,10 +380,10 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def _analyze_certificates(
         self,
-        certificates: list[dict[str, Any]],
+        certificates: List[Dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Analyze certificate configurations for expiration."""
         issues = []
         now = datetime.utcnow()
@@ -440,13 +440,13 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def _analyze_rbac(
         self,
-        roles: list[dict[str, Any]],
-        users: list[dict[str, Any]],
+        roles: List[Dict[str, Any]],
+        users: List[Dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
-    ) -> list[dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """Analyze RBAC and user activity."""
-        issues: list[dict[str, Any]] = []
+        issues: List[Dict[str, Any]] = []
         now = datetime.utcnow()
 
         admin_roles = set()
@@ -622,10 +622,10 @@ class SecurityAnalyzer(BaseAnalyzer):
         return issues
 
     def _analyze_api_keys(
-        self, api_keys: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
-    ) -> list[dict[str, Any]]:
+        self, api_keys: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+    ) -> List[Dict[str, Any]]:
         """Analyze API key security."""
-        issues: list[dict[str, Any]] = []
+        issues: List[Dict[str, Any]] = []
         now = datetime.utcnow()
 
         for key in api_keys:
@@ -717,7 +717,7 @@ class SecurityAnalyzer(BaseAnalyzer):
         return issues
 
     def _analyze_teams(
-        self, teams: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, teams: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze team configurations."""
         for team in teams:
@@ -738,12 +738,12 @@ class SecurityAnalyzer(BaseAnalyzer):
                 )
 
     def _analyze_guard_policies(
-        self, security_settings: dict[str, Any], result: AnalyzerResult, client: CriblAPIClient
+        self, security_settings: Dict[str, Any], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         if not isinstance(security_settings, dict) or not security_settings:
             return
 
-        policies: list[dict[str, Any]] = []
+        policies: List[Dict[str, Any]] = []
         candidates = [security_settings]
         guard_settings = security_settings.get("guard")
         if isinstance(guard_settings, dict):
@@ -796,12 +796,12 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def _calculate_security_score(
         self,
-        outputs: list[dict[str, Any]],
-        inputs: list[dict[str, Any]],
-        auth_config: dict[str, Any],
-        tls_issues: list[dict[str, Any]],
-        secret_issues: list[dict[str, Any]],
-        auth_issues: list[dict[str, Any]],
+        outputs: List[Dict[str, Any]],
+        inputs: List[Dict[str, Any]],
+        auth_config: Dict[str, Any],
+        tls_issues: List[Dict[str, Any]],
+        secret_issues: List[Dict[str, Any]],
+        auth_issues: List[Dict[str, Any]],
     ) -> int:
         """Calculate overall security score (0-100)."""
         score = 100
@@ -817,12 +817,12 @@ class SecurityAnalyzer(BaseAnalyzer):
 
     def _generate_security_recommendations(
         self,
-        outputs: list[dict[str, Any]],
-        inputs: list[dict[str, Any]],
-        auth_config: dict[str, Any],
-        tls_issues: list[dict[str, Any]],
-        secret_issues: list[dict[str, Any]],
-        auth_issues: list[dict[str, Any]],
+        outputs: List[Dict[str, Any]],
+        inputs: List[Dict[str, Any]],
+        auth_config: Dict[str, Any],
+        tls_issues: List[Dict[str, Any]],
+        secret_issues: List[Dict[str, Any]],
+        auth_issues: List[Dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """Generate security recommendations."""

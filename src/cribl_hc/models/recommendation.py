@@ -3,7 +3,7 @@ Recommendation model for actionable improvement suggestions.
 """
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -88,19 +88,19 @@ class Recommendation(BaseModel):
     title: str = Field(..., description="Brief title", min_length=1, max_length=255)
     description: str = Field(..., description="Detailed description", min_length=1)
     rationale: str = Field(..., description="Rationale for recommendation", min_length=1)
-    implementation_steps: list[str] = Field(..., description="Implementation steps")
+    implementation_steps: List[str] = Field(..., description="Implementation steps")
     before_state: str = Field(default="", description="Current state")
     after_state: str = Field(default="", description="Expected state after")
     impact_estimate: ImpactEstimate = Field(..., description="Impact estimates")
     implementation_effort: Literal["low", "medium", "high"] = Field(
         ..., description="Implementation effort"
     )
-    related_findings: list[str] = Field(default_factory=list, description="Related finding IDs")
-    product_tags: list[Literal["stream", "edge", "lake", "search"]] = Field(
+    related_findings: List[str] = Field(default_factory=list, description="Related finding IDs")
+    product_tags: List[Literal["stream", "edge", "lake", "search"]] = Field(
         default_factory=lambda: ["stream", "edge", "lake", "search"],
         description="Products this recommendation applies to",
     )
-    documentation_links: list[str] = Field(default_factory=list, description="Documentation URLs")
+    documentation_links: List[str] = Field(default_factory=list, description="Documentation URLs")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     @field_validator("impact_estimate")

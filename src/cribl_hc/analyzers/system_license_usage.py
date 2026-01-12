@@ -13,13 +13,13 @@ class SystemLicenseUsageAnalyzer(BaseAnalyzer):
         return "system_license_usage"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         return ["stream", "edge", "lake", "search"]
 
     def get_estimated_api_calls(self) -> int:
         return 2
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         return ["read:system", "read:license"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:

@@ -41,7 +41,7 @@ class WorkerGroupBalanceAnalyzer(BaseAnalyzer):
     def get_description(self) -> str:
         return "Analyzes load balance and resource utilization variance across workers."
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         return ["read:metrics"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:

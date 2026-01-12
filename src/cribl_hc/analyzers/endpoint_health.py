@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
 from cribl_hc.core.api_client import CriblAPIClient
@@ -17,7 +17,7 @@ class EndpointHealthAnalyzer(BaseAnalyzer):
         """
         return "Endpoint Health"
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         return ["read:metrics"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
