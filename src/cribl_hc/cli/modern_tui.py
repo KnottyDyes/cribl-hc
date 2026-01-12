@@ -9,14 +9,19 @@ Built with Textual - provides a Pocker-style navigable interface with:
 - Results history and export (JSON/MD)
 """
 
+from typing import Any, Optional
+
+
 import asyncio
 import json
-from datetime import UTC, datetime
+import random
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widgets import (
@@ -33,9 +38,15 @@ from textual.widgets import (
     Static,
     TabbedContent,
     TabPane,
+    TextArea,
 )
 
 from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    group_findings,
+    get_severity_counts,
+    get_worker_group_display_name,
+)
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.core.orchestrator import AnalyzerOrchestrator
 from cribl_hc.core.report_generator import MarkdownReportGenerator
@@ -45,8 +56,111 @@ from cribl_hc.utils.logger import get_logger
 log = get_logger(__name__)
 
 
+class PasteCurlDialog(ModalScreen):
+    BINDINGS = [("escape", "cancel")]
+
+    CSS = """
+    PasteCurlDialog {
+        align: center middle;
+    }
+
+    #paste-dialog {
+        width: 80;
+        height: 22;
+        padding: 1 2;
+        border: round #61afef;
+        background: #282c34;
+    }
+
+    #paste-title {
+        width: 100%;
+        text-align: center;
+        padding-bottom: 1;
+        text-style: bold;
+        color: #56b6c2;
+    }
+
+    #paste-hint {
+        width: 100%;
+        color: #5c6370;
+        margin-bottom: 1;
+    }
+
+    #paste-area {
+        height: 1fr;
+        background: #1e222a;
+        border: solid #61afef;
+    }
+
+    #paste-area:focus {
+        border: solid #56b6c2;
+    }
+
+    #paste-button-row {
+        width: 100%;
+        align: center middle;
+        padding-top: 1;
+        height: auto;
+    }
+
+    #paste-button-row Button {
+        margin: 0 1;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        with Container(id="paste-dialog"):
+            yield Label("Paste Curl Command or Token", id="paste-title")
+            yield Label("Paste the full command or a bearer token below.", id="paste-hint")
+            yield TextArea(id="paste-area")
+            with Horizontal(classes="button-row", id="paste-button-row"):
+                yield Button("Parse", variant="success", id="btn-parse")
+                yield Button("Cancel", variant="default", id="btn-cancel-paste")
+
+    def _parse_curl_command(self, text: str) -> tuple[Optional[str], Optional[str]]:
+        import re
+        from urllib.parse import urlparse
+
+        url = None
+        token = None
+        text_clean = text.replace("\\\n", " ").replace("\n", " ")
+
+        bearer_match = re.search(r"[Bb]earer\s+([A-Za-z0-9_\-\.]+)", text_clean)
+        if bearer_match:
+            token = bearer_match.group(1).strip()
+
+        url_match = re.search(r"https?://[^\s\"'<>]+", text_clean)
+        if url_match:
+            try:
+                parsed = urlparse(url_match.group(0).strip().strip("'\""))
+                url = f"{parsed.scheme}://{parsed.netloc}"
+            except Exception:
+                pass
+
+        if not token and not url and len(text.strip()) > 20:
+            token = text.strip()
+
+        return url, token
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-parse":
+            text = self.query_one("#paste-area", TextArea).text
+            if text.strip():
+                url, token = self._parse_curl_command(text)
+                self.dismiss((url, token))
+            else:
+                self.app.notify("No text to parse", severity="warning")
+        elif event.button.id == "btn-cancel-paste":
+            self.dismiss(None)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
 class AddDeploymentDialog(ModalScreen):
     """Modal dialog for adding a new deployment."""
+
+    BINDINGS = [("escape", "cancel")]
 
     CSS = """
     AddDeploymentDialog {
@@ -54,33 +168,36 @@ class AddDeploymentDialog(ModalScreen):
     }
 
     #dialog {
-        width: 60;
-        height: 28;
-        border: thick $primary;
-        background: $surface;
-        padding: 1 2;
+        width: 64;
+        height: auto;
+        padding: 0 1;
+        border: round $primary;
+        background: $panel;
     }
 
     #dialog-title {
+        width: 100%;
+        text-align: center;
+        padding: 1;
         text-style: bold;
         color: $accent;
-        margin-bottom: 1;
     }
 
     .input-row {
-        height: 4;
-        margin: 1 0;
+        padding: 0 2;
+        margin-bottom: 1;
+    }
+    
+    .input-row Label {
+        margin-bottom: 1;
+        color: $text-muted;
     }
 
     .button-row {
-        height: 5;
+        margin-top: 1;
+        padding: 1;
+        width: 100%;
         align: center middle;
-        margin-top: 2;
-    }
-
-    .button-row Button {
-        min-width: 12;
-        margin: 0 1;
     }
     """
 
@@ -98,22 +215,73 @@ class AddDeploymentDialog(ModalScreen):
                 yield Label("Token:")
                 yield Input(placeholder="Your bearer token", password=True, id="input-token")
             with Horizontal(classes="button-row"):
+                yield Button("Paste Curl/Token", variant="primary", id="btn-paste-token")
+            with Horizontal(classes="button-row"):
                 yield Button("Save", variant="success", id="btn-save")
                 yield Button("Cancel", variant="default", id="btn-cancel")
 
+    def _handle_paste_result(self, result: Optional[tuple[Optional[str], Optional[str]]]) -> None:
+        if result is None:
+            return
+        url, token = result
+        if url:
+            self.query_one("#input-url", Input).value = url
+        if token:
+            self.query_one("#input-token", Input).value = token
+        if url or token:
+            msg = f"Applied: {'URL + ' if url else ''}{'Token' if token else ''}"
+            self.app.notify(msg, severity="information")
+        else:
+            self.app.notify("No URL or token found in pasted text", severity="warning")
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button presses."""
+        if event.button.id == "btn-paste-token":
+            self.app.push_screen(PasteCurlDialog(), self._handle_paste_result)
+            return
+
         if event.button.id == "btn-save":
-            # Get input values
             deployment_id = self.query_one("#input-id", Input).value.strip()
-            url = self.query_one("#input-url", Input).value.strip()
-            token = self.query_one("#input-token", Input).value.strip()
+            url_input = self.query_one("#input-url", Input).value.strip()
+            token_input = self.query_one("#input-token", Input).value.strip()
+
+            url = url_input
+            token = token_input
+
+            url_input_clean = url_input.replace("\\\n", " ").replace("\n", " ")
+            token_input_clean = token_input.replace("\\\n", " ").replace("\n", " ")
+
+            if "curl" in url_input.lower() or "authorization" in url_input.lower():
+                bearer = re.search(
+                    r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", url_input_clean, re.IGNORECASE
+                )
+                if bearer:
+                    token = bearer.group(1).strip()
+                url_match = re.search(r"https?://[^\s\"'<>]+", url_input_clean, re.IGNORECASE)
+                if url_match:
+                    try:
+                        parsed = urlparse(url_match.group(0).strip().strip("'\""))
+                        url = f"{parsed.scheme}://{parsed.netloc}"
+                    except Exception:
+                        url = url_match.group(0).strip().strip("'\"")
+
+            if "curl" in token_input.lower() or "authorization" in token_input.lower():
+                bearer = re.search(
+                    r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", token_input_clean, re.IGNORECASE
+                )
+                if bearer:
+                    token = bearer.group(1).strip()
+                url_match = re.search(r"https?://[^\s\"'<>]+", token_input_clean, re.IGNORECASE)
+                if url_match and not url_input:
+                    try:
+                        parsed = urlparse(url_match.group(0).strip().strip("'\""))
+                        url = f"{parsed.scheme}://{parsed.netloc}"
+                    except Exception:
+                        url = url_match.group(0).strip().strip("'\"")
 
             if not deployment_id or not url or not token:
                 self.app.notify("All fields are required", severity="error")
                 return
 
-            # Save credentials
             try:
                 credentials = load_credentials()
                 credentials[deployment_id] = {"url": url, "token": token}
@@ -127,9 +295,14 @@ class AddDeploymentDialog(ModalScreen):
         else:
             self.dismiss(False)
 
+    def action_cancel(self) -> None:
+        self.dismiss(False)
+
 
 class EditDeploymentDialog(ModalScreen):
     """Modal dialog for editing an existing deployment."""
+
+    BINDINGS = [("escape", "cancel")]
 
     CSS = """
     EditDeploymentDialog {
@@ -137,33 +310,36 @@ class EditDeploymentDialog(ModalScreen):
     }
 
     #dialog {
-        width: 60;
-        height: 25;
-        border: thick $primary;
-        background: $surface;
-        padding: 1 2;
+        width: 64;
+        height: auto;
+        padding: 0 1;
+        border: round $primary;
+        background: $panel;
     }
 
     #dialog-title {
+        width: 100%;
+        text-align: center;
+        padding: 1;
         text-style: bold;
         color: $accent;
-        margin-bottom: 1;
     }
 
     .input-row {
-        height: 4;
-        margin: 1 0;
+        padding: 0 2;
+        margin-bottom: 1;
+    }
+    
+    .input-row Label {
+        margin-bottom: 1;
+        color: $text-muted;
     }
 
     .button-row {
-        height: 5;
+        margin-top: 1;
+        padding: 1;
+        width: 100%;
         align: center middle;
-        margin-top: 2;
-    }
-
-    .button-row Button {
-        min-width: 12;
-        margin: 0 1;
     }
     """
 
@@ -184,13 +360,31 @@ class EditDeploymentDialog(ModalScreen):
                 yield Label("Token:")
                 yield Input(value=self.initial_token, password=True, id="input-token")
             with Horizontal(classes="button-row"):
+                yield Button("Paste Curl/Token", variant="primary", id="btn-paste-token")
+            with Horizontal(classes="button-row"):
                 yield Button("Save", variant="success", id="btn-save")
                 yield Button("Cancel", variant="default", id="btn-cancel")
 
+    def _handle_paste_result(self, result: Optional[tuple[Optional[str], Optional[str]]]) -> None:
+        if result is None:
+            return
+        url, token = result
+        if url:
+            self.query_one("#input-url", Input).value = url
+        if token:
+            self.query_one("#input-token", Input).value = token
+        if url or token:
+            msg = f"Applied: {'URL + ' if url else ''}{'Token' if token else ''}"
+            self.app.notify(msg, severity="information")
+        else:
+            self.app.notify("No URL or token found in pasted text", severity="warning")
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button presses."""
+        if event.button.id == "btn-paste-token":
+            self.app.push_screen(PasteCurlDialog(), self._handle_paste_result)
+            return
+
         if event.button.id == "btn-save":
-            # Get input values
             url = self.query_one("#input-url", Input).value.strip()
             token = self.query_one("#input-token", Input).value.strip()
 
@@ -198,7 +392,6 @@ class EditDeploymentDialog(ModalScreen):
                 self.app.notify("All fields are required", severity="error")
                 return
 
-            # Update credentials
             try:
                 credentials = load_credentials()
                 credentials[self.deployment_id] = {"url": url, "token": token}
@@ -213,9 +406,14 @@ class EditDeploymentDialog(ModalScreen):
         else:
             self.dismiss(False)
 
+    def action_cancel(self) -> None:
+        self.dismiss(False)
+
 
 class ExportResultsDialog(ModalScreen):
     """Modal dialog for exporting analysis results."""
+
+    BINDINGS = [("escape", "cancel")]
 
     CSS = """
     ExportResultsDialog {
@@ -223,33 +421,36 @@ class ExportResultsDialog(ModalScreen):
     }
 
     #export-dialog {
-        width: 60;
-        height: 23;
-        border: thick $primary;
-        background: $surface;
-        padding: 1 2;
+        width: 64;
+        height: auto;
+        padding: 0 1;
+        border: round $primary;
+        background: $panel;
     }
 
     #export-title {
+        width: 100%;
+        text-align: center;
+        padding: 1;
         text-style: bold;
         color: $accent;
-        margin-bottom: 1;
     }
 
     .export-row {
-        height: 4;
-        margin: 1 0;
+        padding: 0 2;
+        margin-bottom: 1;
+    }
+    
+    .export-row Label {
+        margin-bottom: 1;
+        color: $text-muted;
     }
 
     .button-row {
-        height: 5;
+        margin-top: 1;
+        padding: 1;
+        width: 100%;
         align: center middle;
-        margin-top: 2;
-    }
-
-    .button-row Button {
-        min-width: 12;
-        margin: 0 1;
     }
     """
 
@@ -287,7 +488,6 @@ class ExportResultsDialog(ModalScreen):
                 self.app.notify("Filename is required", severity="error")
                 return
 
-            # Add extension
             filename = f"{base_filename}.{format_type}"
             filepath = Path(filename)
 
@@ -304,6 +504,9 @@ class ExportResultsDialog(ModalScreen):
         else:
             self.dismiss(False)
 
+    def action_cancel(self) -> None:
+        self.dismiss(False)
+
     def _export_json(self, filepath: Path) -> None:
         """Export results as JSON."""
         with open(filepath, "w") as f:
@@ -316,11 +519,249 @@ class ExportResultsDialog(ModalScreen):
         filepath.write_text(markdown_content)
 
 
+class ResultsScreen(ModalScreen):
+    """Modal screen for displaying grouped analysis results."""
+
+    BINDINGS = [("escape", "cancel")]
+
+    CSS = """
+    ResultsScreen {
+        align: left top;
+    }
+
+    #results-container {
+        width: 100%;
+        height: 100%;
+        border: round $primary;
+        background: $panel;
+        padding: 0;
+    }
+
+    #results-header {
+        dock: top;
+        height: 3;
+        padding: 0 1;
+        background: $primary;
+        color: $panel;
+        text-style: bold;
+    }
+
+    #results-title {
+        text-align: center;
+        width: 100%;
+    }
+
+    #results-scroll {
+        height: 1fr;
+        padding: 1 2;
+    }
+
+    #results-footer {
+        dock: bottom;
+        height: 3;
+        align: center middle;
+        padding: 0 1;
+        background: $panel;
+        border-top: solid $primary;
+    }
+
+    .summary-table {
+        margin: 1 2;
+        padding: 1;
+        border: solid $primary;
+        background: $surface;
+    }
+
+    .worker-group-header {
+        padding: 0 1;
+        margin-top: 2;
+        margin-right: 2;
+        margin-bottom: 1;
+        margin-left: 2;
+        text-style: bold;
+        color: $accent;
+        border-bottom: heavy $accent;
+    }
+
+    .finding-card {
+        margin: 1 2;
+        padding: 1;
+        border: solid $primary;
+        background: $surface;
+    }
+    """
+
+    def __init__(self, analysis: AnalysisRun):
+        super().__init__()
+        self.analysis = analysis
+
+    def compose(self) -> ComposeResult:
+        """Create the results screen layout."""
+        with Container(id="results-container"):
+            with Container(id="results-header"):
+                yield Label("Analysis Results", id="results-title")
+
+            with VerticalScroll(id="results-scroll"):
+                # Summary section
+                yield Static(self._render_summary(), classes="summary-table")
+
+                # Grouped findings
+                if self.analysis.findings:
+                    grouped = group_findings(self.analysis.findings)
+                    current_worker_group = None
+
+                    for group in grouped:
+                        # Worker group header
+                        if group.worker_group != current_worker_group:
+                            current_worker_group = group.worker_group
+                            group_name = get_worker_group_display_name(group.worker_group)
+                            yield Static(f"━━━ {group_name} ━━━", classes="worker-group-header")
+
+                        # Finding card
+                        yield Static(self._render_finding(group), classes="finding-card")
+                else:
+                    yield Static("[yellow]No findings to display[/yellow]")
+
+            with Horizontal(id="results-footer"):
+                yield Button("Close", variant="primary", id="btn-close-results")
+                yield Button("Export", variant="success", id="btn-export-from-results")
+
+    def _render_summary(self) -> str:
+        """Render the summary section as Rich markup."""
+        counts = get_severity_counts(self.analysis.findings)
+        total = len(self.analysis.findings)
+
+        lines = [
+            "[bold cyan]━━━ Analysis Summary ━━━[/bold cyan]",
+            "",
+            f"[bold]Total Findings:[/bold] {total}",
+            f"[bold red]Critical:[/bold red] {counts['critical']}",
+            f"[bold #ff8c00]High:[/bold #ff8c00] {counts['high']}",
+            f"[bold yellow]Medium:[/bold yellow] {counts['medium']}",
+            f"[bold cyan]Low:[/bold cyan] {counts['low']}",
+            f"[bold]Info:[/bold] {counts['info']}",
+        ]
+
+        if self.analysis.health_score:
+            score = self.analysis.health_score.overall_score
+            if score >= 80:
+                color = "green"
+            elif score >= 60:
+                color = "yellow"
+            else:
+                color = "red"
+            lines.append(f"[bold]Health Score:[/bold] [{color}]{score:.1f}%[/{color}]")
+
+        return "\n".join(lines)
+
+    def _render_finding(self, group) -> str:
+        """Render a single finding group as Rich markup."""
+        first = group.findings[0]
+
+        # Severity color mapping
+        severity_colors = {
+            "critical": "red",
+            "high": "#ff8c00",
+            "medium": "yellow",
+            "low": "cyan",
+            "info": "white",
+        }
+        color = severity_colors.get(group.severity, "white")
+
+        # Build badges line
+        badges = [f"[bold {color}]{group.severity.upper()}[/bold {color}]"]
+        badges.append(f"[bold blue]{first.category}[/bold blue]")
+        if group.is_grouped:
+            badges.append(f"[bold magenta]{group.finding_count} instances[/bold magenta]")
+
+        lines = [
+            " • ".join(badges),
+            f"[bold]{group.group_title}[/bold]",
+        ]
+
+        # Description (first sentence)
+        desc = first.description.split(".")[0] + "." if first.description else ""
+        if desc:
+            lines.append(f"[dim]{desc}[/dim]")
+
+        # Affected components
+        if first.affected_components:
+            all_components = []
+            for finding in group.findings:
+                all_components.extend(finding.affected_components)
+            unique_components = list(dict.fromkeys(all_components))
+            components_str = ", ".join(unique_components)
+            lines.append(f"[dim]Components: {components_str}[/dim]")
+
+        if first.estimated_impact:
+            lines.append(f"[yellow]Impact: {first.estimated_impact}[/yellow]")
+
+        if first.remediation_steps:
+            lines.append("[cyan]Remediation:[/cyan]")
+            for i, step in enumerate(first.remediation_steps, 1):
+                lines.append(f"  {i}. {step}")
+
+        return "\n".join(lines)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses."""
+        if event.button.id == "btn-close-results":
+            self.dismiss(None)
+        elif event.button.id == "btn-export-from-results":
+            self.dismiss("export")
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
+@dataclass
+class DeploymentStatusInfo:
+    """Holds status information for a deployment."""
+
+    health_status: str  # "healthy", "warning", "critical", "unknown"
+    last_analyzed: Optional[datetime] = None
+
+
+class DeploymentListItem(ListItem):
+    """A ListItem that displays detailed deployment information."""
+
+    def __init__(self, deployment_id: str, url: str, status_info: DeploymentStatusInfo):
+        super().__init__(id=f"deploy-{deployment_id}")
+        self.deployment_id = deployment_id
+        self.url = url
+        self.status_info = status_info
+
+    def compose(self) -> ComposeResult:
+        """Render the list item content."""
+        from rich.text import Text
+
+        status_map = {
+            "healthy": ("[green]●[/green]", "Healthy"),
+            "warning": ("[yellow]⚠[/yellow]", "Warning"),
+            "critical": ("[red]✗[/red]", "Critical"),
+            "unknown": ("[#5c6370]○[/#5c6370]", "Unknown"),
+        }
+        icon, _ = status_map.get(self.status_info.health_status, status_map["unknown"])
+
+        main_line_text = Text.from_markup(f"{icon} {self.deployment_id}", style="bold")
+        url_line_text = Text(f"  {self.url}", style="#61afef")
+
+        if self.status_info.last_analyzed:
+            timestamp = self.status_info.last_analyzed.strftime("%Y-%m-%d %H:%M:%S")
+            last_analyzed_text = Text(f"  Analyzed: {timestamp}", style="#5c6370")
+        else:
+            last_analyzed_text = Text("  Analyzed: Never", style="#5c6370")
+
+        yield Static(main_line_text)
+        yield Static(url_line_text)
+        yield Static(last_analyzed_text)
+
+
 class DeploymentList(Static):
     """Widget displaying configured deployments with health indicators."""
 
     deployments = reactive({})
-    selected_deployment = reactive(None)
+    selected_deployment: reactive[Optional[str]] = reactive(None)
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
@@ -354,11 +795,17 @@ class DeploymentList(Static):
 
         for deployment_id, config in sorted(self.deployments.items()):
             url = config.get("url", "Unknown")
-            # TODO: Add health indicator based on last analysis
-            status_icon = "○"  # ● for healthy, ⚠ for warning, ✗ for error
-            item = ListItem(
-                Label(f"{status_icon} {deployment_id}\n  {url}"), id=f"deploy-{deployment_id}"
+
+            # TODO: Replace with actual persisted status
+            mock_status = random.choice(["healthy", "warning", "critical", "unknown"])
+            mock_last_analyzed = datetime.now(timezone.utc) if mock_status != "unknown" else None
+
+            status_info = DeploymentStatusInfo(
+                health_status=mock_status,
+                last_analyzed=mock_last_analyzed,
             )
+
+            item = DeploymentListItem(deployment_id, url, status_info)
             list_view.append(item)
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
@@ -371,52 +818,95 @@ class DeploymentList(Static):
 class AnalysisStatus(Static):
     """Widget showing current analysis status and progress."""
 
-    current_deployment = reactive(None)
+    current_deployment: Optional[str] = reactive(None)
     status = reactive("Idle")
-    progress = reactive(0)
+    progress = reactive(0.0)
     api_calls = reactive(0)
     max_api_calls = reactive(100)
     duration = reactive(0.0)
+    health_score: reactive[Optional[float]] = reactive(None)
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
         yield Label("Analysis Status", classes="panel-title")
-        yield Label(id="status-deployment")
-        yield Label(id="status-state")
+        with Grid(id="status-grid"):
+            yield Vertical(
+                Label("Status", classes="status-label"),
+                Label(self.status, id="status-state"),
+                classes="status-box",
+            )
+            yield Vertical(
+                Label("Health Score", classes="status-label"),
+                Label("N/A", id="health-score-value"),
+                classes="status-box",
+            )
+            yield Vertical(
+                Label("API Calls", classes="status-label"),
+                Label(f"{self.api_calls}/{self.max_api_calls}", id="status-api-calls"),
+                classes="status-box",
+            )
+            yield Vertical(
+                Label("Duration", classes="status-label"),
+                Label(f"{self.duration:.1f}s", id="status-duration"),
+                classes="status-box",
+            )
         yield ProgressBar(id="status-progress", total=100)
-        yield Label(id="status-api-calls")
-        yield Label(id="status-duration")
         with Horizontal(classes="button-row"):
             yield Button("Run Analysis", id="btn-run-analysis", variant="primary")
             yield Button("Export Results", id="btn-export-results", variant="success")
 
-    def watch_current_deployment(self, deployment: str | None) -> None:
+    def watch_current_deployment(self, deployment: Optional[str]) -> None:
         """Update display when deployment changes."""
-        label = self.query_one("#status-deployment", Label)
-        if deployment:
-            label.update(f"Current: {deployment}")
-        else:
-            label.update("Current: None")
+        pass
 
     def watch_status(self, status: str) -> None:
         """Update display when status changes."""
-        label = self.query_one("#status-state", Label)
-        label.update(f"Status: {status}")
+        try:
+            self.query_one("#status-state", Label).update(status)
+        except Exception:
+            pass
 
-    def watch_progress(self, progress: int) -> None:
+    def watch_progress(self, progress: float) -> None:
         """Update progress bar."""
-        bar = self.query_one("#status-progress", ProgressBar)
-        bar.update(progress=progress)
+        try:
+            self.query_one("#status-progress", ProgressBar).update(progress=progress)
+        except Exception:
+            pass
 
     def watch_api_calls(self, calls: int) -> None:
         """Update API call count."""
-        label = self.query_one("#status-api-calls", Label)
-        label.update(f"API Calls: {calls}/{self.max_api_calls}")
+        try:
+            label = self.query_one("#status-api-calls", Label)
+            label.update(f"{calls}/{self.max_api_calls}")
+        except Exception:
+            pass
 
     def watch_duration(self, duration: float) -> None:
         """Update duration display."""
-        label = self.query_one("#status-duration", Label)
-        label.update(f"Duration: {duration:.1f}s")
+        try:
+            label = self.query_one("#status-duration", Label)
+            label.update(f"{duration:.1f}s")
+        except Exception:
+            pass
+
+    def watch_health_score(self, score: Optional[float]) -> None:
+        """Update health score display."""
+        try:
+            label = self.query_one("#health-score-value", Label)
+            if score is None:
+                label.update("[#5c6370]N/A[/#5c6370]")
+                return
+
+            if score >= 80:
+                color = "#98c379"
+            elif score >= 60:
+                color = "#d19a66"
+            else:
+                color = "#e06c75"
+
+            label.update(f"[{color}]{score:.1f}%[/{color}]")
+        except Exception:
+            pass
 
 
 class FindingsPanel(Static):
@@ -444,36 +934,43 @@ class FindingsPanel(Static):
         table = self.query_one("#findings-table", DataTable)
         table.clear()
 
-        # Show all findings, sorted by severity
-        severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-        sorted_findings = sorted(findings, key=lambda f: severity_order.get(f.severity, 4))[
-            :15
-        ]  # Limit to 15 for better viewport fit
+        if not findings:
+            table.add_row(
+                Text(
+                    "No findings from the last analysis.", justify="center", style="italic #5c6370"
+                )
+            )
+            return
+
+        severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+        sorted_findings = sorted(findings, key=lambda f: severity_order.get(f.severity, 5))
 
         for finding in sorted_findings:
-            # Icon and color scheme based on severity
-            severity_display = {
-                "critical": ("⚠", "red"),
-                "high": ("⚠", "red"),
-                "medium": ("ℹ", "yellow"),
-                "low": ("·", "green"),
+            severity = finding.severity
+
+            severity_map = {
+                "critical": ("red", "black"),
+                "high": ("#d19a66", "black"),
+                "medium": ("yellow", "black"),
+                "low": ("#98c379", "black"),
+                "info": ("#5c6370", "white"),
             }
+            bg_color, color = severity_map.get(severity, ("white", "black"))
 
-            icon, color = severity_display.get(finding.severity, ("·", "white"))
-
-            # Create colored severity text
-            severity_text = Text()
-            severity_text.append(f"{icon} ", style=color)
-            severity_text.append(finding.severity.upper(), style=f"bold {color}")
+            severity_text = Text(f" {severity.upper()} ", style=f"{color} on {bg_color}")
 
             component = ", ".join(finding.affected_components[:2])
             if len(finding.affected_components) > 2:
-                component += f" +{len(finding.affected_components) - 2}"
+                component += f" … (+{len(finding.affected_components) - 2})"
+
+            title = finding.title
+            if len(title) > 50:
+                title = title[:47] + "..."
 
             table.add_row(
                 severity_text,
                 finding.category,
-                finding.title[:40],  # Truncate long titles
+                title,
                 component,
             )
 
@@ -499,81 +996,160 @@ class CriblHealthCheckApp(App):
     """Modern TUI for Cribl Health Check - Pocker-style interface."""
 
     CSS = """
+    /* 
+     * Refined Industrial/Utilitarian Theme
+     * Color Palette:
+     * - surface: #1e222a (deep slate)
+     * - panel: #282c34 (dark gray)
+     * - primary: #61afef (muted blue)
+     * - accent: #56b6c2 (vibrant cyan)
+     * - success: #98c379 (green)
+     * - warning: #d19a66 (orange)
+     * - error: #e06c75 (red)
+     * - text: #abb2bf
+     * - text-muted: #5c6370
+     */
+
     Screen {
-        background: $surface;
+        background: #1e222a;
+        color: #abb2bf;
     }
 
-    .panel-title {
-        color: $accent;
+    App {
+        background: #1e222a;
+    }
+
+    Header {
+        background: #282c34;
+        border-bottom: heavy #61afef;
+        color: #abb2bf;
         text-style: bold;
-        margin: 1;
     }
 
-    .help-text {
-        color: $text-muted;
-        text-style: italic;
-        margin: 1;
+    Footer {
+        background: #282c34;
+        border-top: solid #61afef;
     }
 
-    #deployment-list {
-        height: auto;
-        min-height: 10;
-        max-height: 20;
-        border: solid $primary;
-        margin: 1;
+    TabbedContent > .tabs {
+        background: #1e222a;
+    }
+    
+    TabbedContent > .tabs > .tab--highlight {
+         background: #56b6c2;
+         color: #282c34;
     }
 
-    .button-row {
-        height: auto;
-        align: center middle;
+    .panel {
+        border: round #61afef;
+        background: #282c34;
+        padding: 0 1;
         margin: 1;
-        padding: 1;
-    }
-
-    Button {
-        margin: 0 1;
-        min-width: 10;
     }
 
     #left-panel {
         width: 35%;
-        border-right: solid $primary;
-        padding: 1;
+        min-width: 30;
     }
 
     #right-panel {
-        width: 65%;
+        width: 1fr;
+    }
+    
+    .panel-title {
+        color: #56b6c2;
+        text-style: bold;
         padding: 1;
-        height: 100%;
+        background: #282c34;
+        width: 100%;
+        text-align: center;
+    }
+
+    .help-text {
+        color: #5c6370;
+        text-style: italic;
+        padding: 0 1;
     }
 
     #deployment-list-widget {
         height: 100%;
     }
 
-    #deployment-buttons {
-        dock: bottom;
+    #deployment-list {
+        height: 1fr;
+        border: none;
+        background: #282c34;
+        margin: 0;
+    }
+
+    #deployment-list > ListItem {
+        padding: 1;
+        border-bottom: solid #5c6370;
+    }
+
+    #deployment-list > ListItem.--highlight {
+        background: #61afef;
+        color: #282c34;
+        text-style: bold;
+    }
+
+    .button-row {
+        width: 100%;
+        align: center middle;
+        padding-top: 1;
+    }
+
+    Button {
+        min-width: 8;
+        width: auto;
+        margin: 0 1;
+        border: solid #61afef;
+    }
+    
+    Button:hover {
+        border: solid #56b6c2;
+        color: #56b6c2;
     }
 
     #analysis-status {
-        border: solid $primary;
+        height: auto;
+        padding: 0 1;
+    }
+
+    #status-grid {
+        grid-size: 2;
+        grid-gutter: 1;
+        padding-top: 1;
+    }
+
+    .status-box {
+        height: auto;
         padding: 1;
-        margin: 1;
-        height: 18;
-        max-height: 18;
+        border: solid #61afef;
+        align: center middle;
+    }
+
+    #health-score-value {
+        text-style: bold;
+        margin-top: 1;
+    }
+
+    ProgressBar {
+        margin-top: 1;
+        background: #1e222a;
+        color: #56b6c2;
     }
 
     #findings-panel {
-        border: solid $primary;
-        padding: 1;
-        margin: 1;
         height: 1fr;
         min-height: 10;
+        padding-bottom: 1;
     }
 
     #findings-scroll {
-        height: 100%;
+        height: 1fr;
         width: 100%;
+        background: #282c34;
     }
 
     #findings-table {
@@ -581,27 +1157,23 @@ class CriblHealthCheckApp(App):
         width: 100%;
     }
 
+    #findings-table > .datatable--header {
+        background: #61afef;
+        color: #282c34;
+        text-style: bold;
+    }
+
     #results-history {
-        border: solid $primary;
-        padding: 1;
-        margin: 1;
         height: 100%;
     }
 
-    DataTable {
-        height: auto;
+    Input, Select {
+        background: #1e222a;
+        border: solid #61afef;
     }
 
-    ProgressBar {
-        margin: 1 0;
-    }
-
-    Input {
-        width: 100%;
-    }
-
-    Select {
-        width: 100%;
+    Input:focus, Select:focus {
+        border: solid #56b6c2;
     }
     """
 
@@ -617,8 +1189,8 @@ class CriblHealthCheckApp(App):
     ]
 
     # Store current analysis results
-    current_analysis: AnalysisRun | None = None
-    current_results: dict | None = None
+    current_analysis: Optional[AnalysisRun] = None
+    current_results: Optional[dict] = None
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -639,11 +1211,6 @@ class CriblHealthCheckApp(App):
                 yield ResultsHistory(id="results-history")
 
         yield Footer()
-
-    def on_mount(self) -> None:
-        """Initialize the app on mount."""
-        self.title = self.TITLE
-        self.sub_title = self.SUB_TITLE
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
@@ -717,7 +1284,7 @@ class CriblHealthCheckApp(App):
     def action_add_deployment(self) -> None:
         """Add new deployment via modal dialog."""
 
-        def check_result(added: bool) -> None:
+        def check_result(added: Any) -> None:
             if added:
                 self.action_refresh()
 
@@ -744,7 +1311,7 @@ class CriblHealthCheckApp(App):
             token = current.get("token", "")
 
             # Show edit dialog
-            def check_result(updated: bool) -> None:
+            def check_result(updated: Any) -> None:
                 if updated:
                     self.action_refresh()
 
@@ -805,7 +1372,10 @@ class CriblHealthCheckApp(App):
             # Update status
             status_widget.current_deployment = deployment_id
             status_widget.status = "Connecting..."
-            status_widget.progress = 0
+            status_widget.progress = 0.0
+            status_widget.health_score = None
+            status_widget.api_calls = 0
+            status_widget.duration = 0.0
 
             # Test connection
             async with CriblAPIClient(url, token) as client:
@@ -817,7 +1387,7 @@ class CriblHealthCheckApp(App):
                     return
 
                 status_widget.status = "Running analysis..."
-                status_widget.progress = 10
+                status_widget.progress = 10.0
 
                 # Initialize orchestrator
                 orchestrator = AnalyzerOrchestrator(
@@ -829,18 +1399,18 @@ class CriblHealthCheckApp(App):
                 # Progress callback
                 def update_progress(analysis_progress):
                     percentage = analysis_progress.get_percentage()
-                    status_widget.progress = int(percentage)
+                    status_widget.progress = percentage
                     status_widget.api_calls = orchestrator.client.get_api_calls_used()
 
                 # Run analysis
-                start_time = datetime.now(UTC)
+                start_time = datetime.now(timezone.utc)
                 results = await orchestrator.run_analysis(
                     objectives=None,
                     progress_callback=update_progress,
                 )
 
                 # Update duration
-                duration = (datetime.now(UTC) - start_time).total_seconds()
+                duration = (datetime.now(timezone.utc) - start_time).total_seconds()
                 status_widget.duration = duration
 
                 # Create analysis run
@@ -855,16 +1425,27 @@ class CriblHealthCheckApp(App):
 
                 # Update status
                 status_widget.status = "Completed"
-                status_widget.progress = 100
+                status_widget.progress = 100.0
+                if analysis_run.health_score:
+                    status_widget.health_score = analysis_run.health_score.overall_score
 
-                health_score = (
-                    analysis_run.health_score.overall_score if analysis_run.health_score else "N/A"
+                health_score_display = (
+                    f"{analysis_run.health_score.overall_score:.1f}%"
+                    if analysis_run.health_score
+                    else "N/A"
                 )
                 self.notify(
-                    f"Analysis complete: {len(analysis_run.findings)} findings, Health Score: {health_score}",
+                    f"Analysis complete: {len(analysis_run.findings)} findings, Health Score: {health_score_display}",
                     severity="information",
                     timeout=5,
                 )
+
+                # Show grouped results in modal
+                def handle_results_dismiss(action: Any) -> None:
+                    if action == "export":
+                        self.action_export()
+
+                self.push_screen(ResultsScreen(analysis_run), handle_results_dismiss)
 
         except Exception as e:
             log.error("analysis_failed", error=str(e), deployment_id=deployment_id)

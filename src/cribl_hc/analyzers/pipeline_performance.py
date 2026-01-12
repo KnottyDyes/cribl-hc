@@ -9,7 +9,7 @@ Priority: P1 (High Impact - Production Operations)
 
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -60,7 +60,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
         return "pipeline_performance"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Pipeline performance analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -74,7 +74,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
         """
         return 2
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:pipelines",
@@ -175,7 +175,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
 
         return result
 
-    def _extract_pipeline_metrics(self, metrics: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    def _extract_pipeline_metrics(self, metrics: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         """
         Extract pipeline-specific metrics from the metrics response.
 
@@ -213,8 +213,8 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
 
     def _analyze_pipeline(
         self,
-        pipeline: dict[str, Any],
-        pipeline_metrics: dict[str, dict[str, Any]],
+        pipeline: Dict[str, Any],
+        pipeline_metrics: Dict[str, Dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """Analyze a single pipeline for performance issues."""
@@ -236,7 +236,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
             self._analyze_function(pipeline_id, idx, func, result)
 
     def _analyze_function(
-        self, pipeline_id: str, func_idx: int, func: dict[str, Any], result: AnalyzerResult
+        self, pipeline_id: str, func_idx: int, func: Dict[str, Any], result: AnalyzerResult
     ) -> None:
         """Analyze a single function for performance issues."""
         func_id = func.get("id", f"func-{func_idx}")
@@ -261,7 +261,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
             self._analyze_geoip_function(pipeline_id, func_id, func_conf, result)
 
     def _analyze_regex_function(
-        self, pipeline_id: str, func_id: str, conf: dict[str, Any], result: AnalyzerResult
+        self, pipeline_id: str, func_id: str, conf: Dict[str, Any], result: AnalyzerResult
     ) -> None:
         """Analyze regex function for complexity issues."""
         # Get regex pattern from various possible locations
@@ -322,7 +322,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
             result.metadata["regex_issues"] = result.metadata.get("regex_issues", 0) + 1
 
     def _analyze_javascript_function(
-        self, pipeline_id: str, func_id: str, conf: dict[str, Any], result: AnalyzerResult
+        self, pipeline_id: str, func_id: str, conf: Dict[str, Any], result: AnalyzerResult
     ) -> None:
         """Analyze JavaScript/eval function for anti-patterns."""
         # Get code from various possible locations
@@ -386,7 +386,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
             result.metadata["js_antipatterns"] = result.metadata.get("js_antipatterns", 0) + 1
 
     def _analyze_lookup_function(
-        self, pipeline_id: str, func_id: str, conf: dict[str, Any], result: AnalyzerResult
+        self, pipeline_id: str, func_id: str, conf: Dict[str, Any], result: AnalyzerResult
     ) -> None:
         """Analyze lookup function for potential issues."""
         lookup_type = conf.get("type", "file")
@@ -421,7 +421,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
             )
 
     def _analyze_geoip_function(
-        self, pipeline_id: str, func_id: str, conf: dict[str, Any], result: AnalyzerResult
+        self, pipeline_id: str, func_id: str, conf: Dict[str, Any], result: AnalyzerResult
     ) -> None:
         """Analyze GeoIP function for potential issues."""
         # GeoIP is inherently heavy - flag if used without filtering
@@ -461,7 +461,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
         result.metadata["slow_pipelines"] = result.metadata.get("slow_pipelines", 0) + 1
 
     def _analyze_function_ordering(
-        self, pipelines: list[dict[str, Any]], result: AnalyzerResult
+        self, pipelines: List[Dict[str, Any]], result: AnalyzerResult
     ) -> None:
         """Analyze function ordering for optimization opportunities."""
         pipelines_with_ordering_issues = []
@@ -549,7 +549,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
             )
 
     def _check_timing_instrumentation(
-        self, pipelines: list[dict[str, Any]], result: AnalyzerResult
+        self, pipelines: List[Dict[str, Any]], result: AnalyzerResult
     ) -> None:
         """Check which pipelines have timing instrumentation enabled."""
         pipelines_without_timing = []

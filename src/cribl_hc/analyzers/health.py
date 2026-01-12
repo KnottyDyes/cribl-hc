@@ -8,7 +8,7 @@ This analyzer focuses on:
 """
 
 import time
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -34,7 +34,7 @@ class HealthAnalyzer(BaseAnalyzer):
         return "health"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Health analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -48,7 +48,7 @@ class HealthAnalyzer(BaseAnalyzer):
         """
         return 5
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """List required API permissions."""
         return [
             "read:workers",
@@ -161,7 +161,7 @@ class HealthAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _fetch_workers(self, client: CriblAPIClient) -> list[dict[str, Any]]:
+    async def _fetch_workers(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
         """Fetch worker/node data from API."""
         try:
             nodes = await client.get_nodes()
@@ -173,7 +173,7 @@ class HealthAnalyzer(BaseAnalyzer):
             self.log.error("nodes_fetch_failed", error=str(e))
             return []
 
-    async def _fetch_system_status(self, client: CriblAPIClient) -> dict[str, Any]:
+    async def _fetch_system_status(self, client: CriblAPIClient) -> Dict[str, Any]:
         """Fetch system status from API."""
         try:
             status = await client.get_system_status()
@@ -183,7 +183,7 @@ class HealthAnalyzer(BaseAnalyzer):
             self.log.error("system_status_fetch_failed", error=str(e))
             return {}
 
-    async def _fetch_leader_health(self, client: CriblAPIClient) -> dict[str, Any]:
+    async def _fetch_leader_health(self, client: CriblAPIClient) -> Dict[str, Any]:
         """Fetch leader health from API."""
         try:
             response = await client.get("/api/v1/health")
@@ -195,7 +195,7 @@ class HealthAnalyzer(BaseAnalyzer):
             return {}
 
     def _check_leader_health(
-        self, leader_health: dict[str, Any], result: AnalyzerResult, client: CriblAPIClient
+        self, leader_health: Dict[str, Any], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Check leader health status."""
         if not leader_health:
@@ -230,7 +230,7 @@ class HealthAnalyzer(BaseAnalyzer):
             )
 
     def _check_deployment_architecture(
-        self, workers: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, workers: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Check deployment architecture for best practices."""
         worker_count = len(workers)
@@ -308,8 +308,8 @@ class HealthAnalyzer(BaseAnalyzer):
                     )
 
     def _analyze_worker_health(
-        self, workers: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
-    ) -> list[dict[str, Any]]:
+        self, workers: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+    ) -> List[Dict[str, Any]]:
         """Analyze worker/node health and generate findings."""
         unhealthy_workers = []
         current_time = int(time.time() * 1000)
@@ -416,7 +416,7 @@ class HealthAnalyzer(BaseAnalyzer):
         return unhealthy_workers
 
     def _calculate_health_score(
-        self, workers: list[dict[str, Any]], unhealthy_workers: list[dict[str, Any]]
+        self, workers: List[Dict[str, Any]], unhealthy_workers: List[Dict[str, Any]]
     ) -> float:
         """Calculate overall health score based on worker health."""
         if not workers:
@@ -432,7 +432,7 @@ class HealthAnalyzer(BaseAnalyzer):
 
         return round(base_score, 2)
 
-    def _calculate_health_score_from_leader(self, leader_health: dict[str, Any]) -> float:
+    def _calculate_health_score_from_leader(self, leader_health: Dict[str, Any]) -> float:
         """Calculate health score based on leader health endpoint."""
         if not leader_health:
             return 50.0
@@ -448,7 +448,7 @@ class HealthAnalyzer(BaseAnalyzer):
         else:
             return 50.0
 
-    def _count_worker_issues(self, worker: dict[str, Any]) -> int:
+    def _count_worker_issues(self, worker: Dict[str, Any]) -> int:
         """Count number of issues for a worker."""
         issues = 0
         if worker.get("status") != "healthy":
@@ -485,7 +485,7 @@ class HealthAnalyzer(BaseAnalyzer):
         health_score: float,
         total_workers: int,
         unhealthy_count: int,
-        leader_health: dict[str, Any] | None,
+        leader_health: Optional[Dict[str, Any]],
         client: CriblAPIClient,
     ) -> None:
         """Add overall health summary finding."""
@@ -577,7 +577,7 @@ class HealthAnalyzer(BaseAnalyzer):
     def _generate_worker_recommendations(
         self,
         result: AnalyzerResult,
-        unhealthy_workers: list[dict[str, Any]],
+        unhealthy_workers: List[Dict[str, Any]],
     ) -> None:
         """Generate recommendations for unhealthy workers."""
         for worker in unhealthy_workers:
@@ -637,7 +637,7 @@ class HealthAnalyzer(BaseAnalyzer):
                 )
             )
 
-    async def _fetch_system_messages(self, client: CriblAPIClient) -> list[dict[str, Any]]:
+    async def _fetch_system_messages(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
         """Fetch system messages from Core API."""
         try:
             return await client.get_system_messages() or []
@@ -645,7 +645,7 @@ class HealthAnalyzer(BaseAnalyzer):
             self.log.warning("failed_to_fetch_system_messages", error=str(e))
             return []
 
-    async def _fetch_banners(self, client: CriblAPIClient) -> list[dict[str, Any]]:
+    async def _fetch_banners(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
         """Fetch system banners from Core API."""
         try:
             return await client.get_banners() or []
@@ -654,7 +654,7 @@ class HealthAnalyzer(BaseAnalyzer):
             return []
 
     def _check_insights_alerts(
-        self, messages: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, messages: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         if not messages:
             return
@@ -739,7 +739,7 @@ class HealthAnalyzer(BaseAnalyzer):
             )
 
     def _surface_system_messages(
-        self, messages: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, messages: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Surface system messages as findings."""
         if not messages:
@@ -789,7 +789,7 @@ class HealthAnalyzer(BaseAnalyzer):
             )
 
     def _surface_banners(
-        self, banners: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, banners: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Surface active system banners as informational findings."""
         if not banners:

@@ -2,6 +2,7 @@
 
 import base64
 import io
+from typing import Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from PIL import Image
@@ -22,38 +23,38 @@ router = APIRouter()
 
 
 class ThemeColorsUpdate(BaseModel):
-    primary: str | None = None
-    primary_hover: str | None = None
-    primary_foreground: str | None = None
-    secondary: str | None = None
-    secondary_hover: str | None = None
-    secondary_foreground: str | None = None
-    accent: str | None = None
-    accent_hover: str | None = None
-    accent_foreground: str | None = None
-    background: str | None = None
-    background_secondary: str | None = None
-    background_tertiary: str | None = None
-    foreground: str | None = None
-    foreground_secondary: str | None = None
-    foreground_muted: str | None = None
-    border: str | None = None
-    border_focus: str | None = None
-    severity_critical: str | None = None
-    severity_high: str | None = None
-    severity_medium: str | None = None
-    severity_low: str | None = None
-    severity_info: str | None = None
-    success: str | None = None
-    warning: str | None = None
-    error: str | None = None
+    primary: Optional[str] = None
+    primary_hover: Optional[str] = None
+    primary_foreground: Optional[str] = None
+    secondary: Optional[str] = None
+    secondary_hover: Optional[str] = None
+    secondary_foreground: Optional[str] = None
+    accent: Optional[str] = None
+    accent_hover: Optional[str] = None
+    accent_foreground: Optional[str] = None
+    background: Optional[str] = None
+    background_secondary: Optional[str] = None
+    background_tertiary: Optional[str] = None
+    foreground: Optional[str] = None
+    foreground_secondary: Optional[str] = None
+    foreground_muted: Optional[str] = None
+    border: Optional[str] = None
+    border_focus: Optional[str] = None
+    severity_critical: Optional[str] = None
+    severity_high: Optional[str] = None
+    severity_medium: Optional[str] = None
+    severity_low: Optional[str] = None
+    severity_info: Optional[str] = None
+    success: Optional[str] = None
+    warning: Optional[str] = None
+    error: Optional[str] = None
 
 
 class BrandingUpdateRequest(BaseModel):
-    provider: ServiceProviderBranding | None = None
-    client: ClientBranding | None = None
-    theme: UITheme | None = None
-    report: ReportBranding | None = None
+    provider: Optional[ServiceProviderBranding] = None
+    client: Optional[ClientBranding] = None
+    theme: Optional[UITheme] = None
+    report: Optional[ReportBranding] = None
 
 
 class ThemeModeRequest(BaseModel):
@@ -159,7 +160,7 @@ async def get_theme_colors(mode: str):
     return config.get_active_theme(theme_mode)
 
 
-@router.get("/provider", response_model=ServiceProviderBranding | None)
+@router.get("/provider", response_model=Optional[ServiceProviderBranding])
 async def get_provider_branding():
     """Get service provider branding."""
     manager = get_branding_manager()
@@ -195,7 +196,7 @@ async def delete_provider_branding():
     return updated
 
 
-@router.get("/client", response_model=ClientBranding | None)
+@router.get("/client", response_model=Optional[ClientBranding])
 async def get_client_branding():
     """Get client branding."""
     manager = get_branding_manager()
