@@ -241,8 +241,42 @@ class AddDeploymentDialog(ModalScreen):
 
         if event.button.id == "btn-save":
             deployment_id = self.query_one("#input-id", Input).value.strip()
-            url = self.query_one("#input-url", Input).value.strip()
-            token = self.query_one("#input-token", Input).value.strip()
+            url_input = self.query_one("#input-url", Input).value.strip()
+            token_input = self.query_one("#input-token", Input).value.strip()
+
+            url = url_input
+            token = token_input
+
+            url_input_clean = url_input.replace("\\\n", " ").replace("\n", " ")
+            token_input_clean = token_input.replace("\\\n", " ").replace("\n", " ")
+
+            if "curl" in url_input.lower() or "authorization" in url_input.lower():
+                bearer = re.search(
+                    r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", url_input_clean, re.IGNORECASE
+                )
+                if bearer:
+                    token = bearer.group(1).strip()
+                url_match = re.search(r"https?://[^\s\"'<>]+", url_input_clean, re.IGNORECASE)
+                if url_match:
+                    try:
+                        parsed = urlparse(url_match.group(0).strip().strip("'\""))
+                        url = f"{parsed.scheme}://{parsed.netloc}"
+                    except Exception:
+                        url = url_match.group(0).strip().strip("'\"")
+
+            if "curl" in token_input.lower() or "authorization" in token_input.lower():
+                bearer = re.search(
+                    r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", token_input_clean, re.IGNORECASE
+                )
+                if bearer:
+                    token = bearer.group(1).strip()
+                url_match = re.search(r"https?://[^\s\"'<>]+", token_input_clean, re.IGNORECASE)
+                if url_match and not url_input:
+                    try:
+                        parsed = urlparse(url_match.group(0).strip().strip("'\""))
+                        url = f"{parsed.scheme}://{parsed.netloc}"
+                    except Exception:
+                        url = url_match.group(0).strip().strip("'\"")
 
             if not deployment_id or not url or not token:
                 self.app.notify("All fields are required", severity="error")
