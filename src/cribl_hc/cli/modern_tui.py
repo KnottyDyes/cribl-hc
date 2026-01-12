@@ -111,52 +111,84 @@ class AddDeploymentDialog(ModalScreen):
                 yield Label("Token:")
                 yield Input(placeholder="Your bearer token", password=True, id="input-token")
             with Horizontal(classes="button-row"):
+                yield Button("Paste Curl/Token", variant="primary", id="btn-paste-token")
+            with Horizontal(classes="button-row"):
                 yield Button("Save", variant="success", id="btn-save")
                 yield Button("Cancel", variant="default", id="btn-cancel")
 
+    def _paste_from_clipboard(self) -> Optional[str]:
+        """Read text from system clipboard."""
+        import subprocess
+        import sys
+
+        try:
+            if sys.platform == "darwin":
+                result = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=5)
+                return result.stdout.strip() if result.returncode == 0 else None
+            elif sys.platform == "linux":
+                for cmd in [
+                    ["xclip", "-selection", "clipboard", "-o"],
+                    ["xsel", "--clipboard", "--output"],
+                ]:
+                    try:
+                        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                        if result.returncode == 0:
+                            return result.stdout.strip()
+                    except FileNotFoundError:
+                        continue
+            return None
+        except Exception:
+            return None
+
+    def _parse_curl_command(self, text: str) -> tuple[Optional[str], Optional[str]]:
+        """Extract URL and bearer token from curl command or raw token."""
+        import re
+        from urllib.parse import urlparse
+
+        url = None
+        token = None
+        text_clean = text.replace("\\\n", " ").replace("\n", " ")
+
+        bearer_match = re.search(r"[Bb]earer\s+([A-Za-z0-9_\-\.]+)", text_clean)
+        if bearer_match:
+            token = bearer_match.group(1).strip()
+
+        url_match = re.search(r"https?://[^\s\"'<>]+", text_clean)
+        if url_match:
+            try:
+                parsed = urlparse(url_match.group(0).strip().strip("'\""))
+                url = f"{parsed.scheme}://{parsed.netloc}"
+            except Exception:
+                pass
+
+        if not token and not url and len(text.strip()) > 20:
+            token = text.strip()
+
+        return url, token
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
+        if event.button.id == "btn-paste-token":
+            clipboard = self._paste_from_clipboard()
+            if clipboard:
+                url, token = self._parse_curl_command(clipboard)
+                if url:
+                    self.query_one("#input-url", Input).value = url
+                if token:
+                    self.query_one("#input-token", Input).value = token
+                if url or token:
+                    msg = f"Pasted: {'URL + ' if url else ''}{'Token' if token else ''}"
+                    self.app.notify(msg, severity="information")
+                else:
+                    self.app.notify("No URL or token found in clipboard", severity="warning")
+            else:
+                self.app.notify("Could not read clipboard", severity="warning")
+            return
+
         if event.button.id == "btn-save":
-            import re
-            from urllib.parse import urlparse
-
             deployment_id = self.query_one("#input-id", Input).value.strip()
-            url_input = self.query_one("#input-url", Input).value.strip()
-            token_input = self.query_one("#input-token", Input).value.strip()
-
-            url = url_input
-            token = token_input
-
-            url_input_clean = url_input.replace("\\\n", " ").replace("\n", " ")
-            token_input_clean = token_input.replace("\\\n", " ").replace("\n", " ")
-
-            if "curl" in url_input.lower() or "authorization" in url_input.lower():
-                bearer = re.search(
-                    r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", url_input_clean, re.IGNORECASE
-                )
-                if bearer:
-                    token = bearer.group(1).strip()
-                url_match = re.search(r"https?://[^\s\"'<>]+", url_input_clean, re.IGNORECASE)
-                if url_match:
-                    try:
-                        parsed = urlparse(url_match.group(0).strip().strip("'\""))
-                        url = f"{parsed.scheme}://{parsed.netloc}"
-                    except Exception:
-                        url = url_match.group(0).strip().strip("'\"")
-
-            if "curl" in token_input.lower() or "authorization" in token_input.lower():
-                bearer = re.search(
-                    r"(?:Bearer\s+|bearer\s+)([^\s\"']+)", token_input_clean, re.IGNORECASE
-                )
-                if bearer:
-                    token = bearer.group(1).strip()
-                url_match = re.search(r"https?://[^\s\"'<>]+", token_input_clean, re.IGNORECASE)
-                if url_match and not url_input:
-                    try:
-                        parsed = urlparse(url_match.group(0).strip().strip("'\""))
-                        url = f"{parsed.scheme}://{parsed.netloc}"
-                    except Exception:
-                        url = url_match.group(0).strip().strip("'\"")
+            url = self.query_one("#input-url", Input).value.strip()
+            token = self.query_one("#input-token", Input).value.strip()
 
             if not deployment_id or not url or not token:
                 self.app.notify("All fields are required", severity="error")
@@ -235,13 +267,81 @@ class EditDeploymentDialog(ModalScreen):
                 yield Label("Token:")
                 yield Input(value=self.initial_token, password=True, id="input-token")
             with Horizontal(classes="button-row"):
+                yield Button("Paste Curl/Token", variant="primary", id="btn-paste-token")
+            with Horizontal(classes="button-row"):
                 yield Button("Save", variant="success", id="btn-save")
                 yield Button("Cancel", variant="default", id="btn-cancel")
 
+    def _paste_from_clipboard(self) -> Optional[str]:
+        """Read text from system clipboard."""
+        import subprocess
+        import sys
+
+        try:
+            if sys.platform == "darwin":
+                result = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=5)
+                return result.stdout.strip() if result.returncode == 0 else None
+            elif sys.platform == "linux":
+                for cmd in [
+                    ["xclip", "-selection", "clipboard", "-o"],
+                    ["xsel", "--clipboard", "--output"],
+                ]:
+                    try:
+                        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                        if result.returncode == 0:
+                            return result.stdout.strip()
+                    except FileNotFoundError:
+                        continue
+            return None
+        except Exception:
+            return None
+
+    def _parse_curl_command(self, text: str) -> tuple[Optional[str], Optional[str]]:
+        """Extract URL and bearer token from curl command or raw token."""
+        import re
+        from urllib.parse import urlparse
+
+        url = None
+        token = None
+        text_clean = text.replace("\\\n", " ").replace("\n", " ")
+
+        bearer_match = re.search(r"[Bb]earer\s+([A-Za-z0-9_\-\.]+)", text_clean)
+        if bearer_match:
+            token = bearer_match.group(1).strip()
+
+        url_match = re.search(r"https?://[^\s\"'<>]+", text_clean)
+        if url_match:
+            try:
+                parsed = urlparse(url_match.group(0).strip().strip("'\""))
+                url = f"{parsed.scheme}://{parsed.netloc}"
+            except Exception:
+                pass
+
+        if not token and not url and len(text.strip()) > 20:
+            token = text.strip()
+
+        return url, token
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
+        if event.button.id == "btn-paste-token":
+            clipboard = self._paste_from_clipboard()
+            if clipboard:
+                url, token = self._parse_curl_command(clipboard)
+                if url:
+                    self.query_one("#input-url", Input).value = url
+                if token:
+                    self.query_one("#input-token", Input).value = token
+                if url or token:
+                    msg = f"Pasted: {'URL + ' if url else ''}{'Token' if token else ''}"
+                    self.app.notify(msg, severity="information")
+                else:
+                    self.app.notify("No URL or token found in clipboard", severity="warning")
+            else:
+                self.app.notify("Could not read clipboard", severity="warning")
+            return
+
         if event.button.id == "btn-save":
-            # Get input values
             url = self.query_one("#input-url", Input).value.strip()
             token = self.query_one("#input-token", Input).value.strip()
 
@@ -249,7 +349,6 @@ class EditDeploymentDialog(ModalScreen):
                 self.app.notify("All fields are required", severity="error")
                 return
 
-            # Update credentials
             try:
                 credentials = load_credentials()
                 credentials[self.deployment_id] = {"url": url, "token": token}
