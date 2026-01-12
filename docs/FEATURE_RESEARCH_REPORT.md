@@ -1,36 +1,175 @@
 # Feature Research Report
 
-**Generated**: 2025-01-04  
-**Research Method**: Local docs analysis + API spec review + external research  
+**Generated**: 2026-01-10  
+**Research Method**: Local docs analysis + API spec review + external research + recent implementation review  
 **Tool**: cribl-hc Feature Research Agent
 
 ---
 
 ## Executive Summary
 
-### Current State ✅ PHASE A COMPLETE
-- **19 analyzers** covering Stream, Edge, Lake, and Search products
-- **31 API endpoints** currently utilized (increased from 28)
-- **90% coverage** for Stream, Edge, Lake, and Search products
-- **P1-P2 Features**: 9/12 Complete (75% → Will be 100% after regex analyzer completion)
-- **Security depth**, alerting validation, and operational monitoring all implemented
+### Current State
+- **21 analyzers** covering Stream, Edge, Lake, and Search products
+- **~30 API endpoints** currently utilized
+- **Strong coverage** for health, config, resources, security, and compliance
+- **Recently added**: Sensitive data detection, data freshness monitoring
+- **Recent UX improvements**: Grouped findings, worker group context
 
 ### Implementation Status
 
-| Priority | Feature | Status | Completion |
-|----------|---------|--------|------------|
-| 🔴 P1 | Certificate Expiration Monitoring | ✅ COMPLETE | 100% |
-| 🔴 P1 | Enhanced RBAC/User Audit | ✅ COMPLETE | 100% |
-| 🔴 P1 | Config Drift Detection | ✅ COMPLETE | 100% |
-| 🟡 P2 | Notification Target Validation | ✅ COMPLETE | 100% |
-| 🟡 P2 | API Key Lifecycle Management | ✅ COMPLETE | 100% |
-| 🟡 P2 | System Messages Surfacing | ✅ COMPLETE | 100% |
-| 🟡 P2 | Regex Efficiency Analyzer | 🟧 IN PROGRESS | 90% |
-| 🟢 P3 | Multi-Deployment Comparison | ⭕ PLANNED | 0% |
-| 🟢 P3 | Historical Data Persistence | ⭕ PLANNED | 0% |
-| 🟢 P3 | Scheduled Health Checks | ⭕ PLANNED | 0% |
-| 🟢 P3 | PII/PHI Leakage Detection | ⭕ PLANNED | 0% |
-| 🟢 P3 | Schema Drift Detection | ⭕ PLANNED | 0% |
+| Priority | Feature | Value | Effort | Status |
+|----------|---------|-------|--------|--------|
+| ~~🔴 P1~~ | ~~Certificate Expiration Monitoring~~ | ~~HIGH~~ | ~~LOW~~ | ✅ **COMPLETE** |
+| 🔴 P1 | Enhanced RBAC/User Audit | HIGH | MEDIUM | 📋 Planned |
+| ~~🔴 P1~~ | ~~Config Drift Detection~~ | ~~HIGH~~ | ~~LOW~~ | ✅ **COMPLETE** |
+| 🟡 P2 | Notification Target Validation | MEDIUM | LOW | 📋 Planned |
+| 🟡 P2 | API Key Lifecycle Management | MEDIUM | LOW | 📋 Planned |
+| 🟡 P2 | System Messages Surfacing | MEDIUM | LOW | 📋 Planned |
+| ~~🟢 P3~~ | ~~PII/PHI Leakage Detection~~ | ~~HIGH~~ | ~~HIGH~~ | ✅ **COMPLETE** |
+| 🟢 P3 | Report Branding/Customization | MEDIUM | HIGH | 📋 Planned |
+| 🟢 P3 | Multi-Deployment Comparison | HIGH | HIGH | 📋 Planned |
+
+---
+
+## Recently Completed Features (January 2026)
+
+### ✅ PII/PHI Leakage Detection (P3 - COMPLETE)
+
+**Status**: Implemented as **SensitiveDataAnalyzer**
+
+**Original Priority**: P3 (HIGH value, HIGH effort)  
+**Actual Effort**: Medium (implemented in Phase 12)
+
+**Features Delivered**:
+- SSN detection with validation (no 000, 666, 9xx patterns)
+- Credit card number detection (13-16 digit patterns)
+- AWS access key detection (`AKIA[0-9A-Z]{16}`)
+- Private key detection (PEM format)
+- Generic API key/secret pattern matching
+- Critical/high severity findings for compliance
+
+**Value**: SOC2/HIPAA/GDPR compliance, security posture improvement
+
+**API Endpoints**: Uses event sampling (not direct API endpoint)
+
+**Location**: `src/cribl_hc/analyzers/sensitive_data.py`
+
+---
+
+### ✅ Data Freshness Monitoring (NEW)
+
+**Status**: Implemented as **FreshnessAnalyzer**
+
+**Priority**: Not in original research (discovered need during production deployment)
+
+**Features Delivered**:
+- Event lag detection (event _time vs current time)
+- Clock skew detection (future timestamps)
+- Warning threshold: 5 minutes
+- Critical threshold: 15 minutes
+- Pipeline latency monitoring
+
+**Value**: Identifies silent lag issues, prevents downstream breakage
+
+**API Endpoints**: Uses event sampling
+
+**Location**: `src/cribl_hc/analyzers/freshness.py`
+
+---
+
+### ✅ Certificate Expiration Monitoring (P1 - COMPLETE)
+
+**Status**: Already implemented in **SecurityAnalyzer**
+
+**Original Priority**: P1 (HIGH value, LOW effort)  
+**Implementation Date**: Pre-Phase 12 (already existed)
+
+**Features Delivered**:
+- Expired certificate detection (negative days until expiration)
+- 7-day warning threshold (high severity)
+- 30-day warning threshold (medium severity)
+- Proper ISO 8601 date parsing with timezone handling
+- Graceful error handling for malformed dates
+
+**Severity Mapping**:
+- **Expired** (< 0 days): **CRITICAL** - "Service disruption for components using this certificate"
+- **≤ 7 days**: **HIGH** - "Potential future service disruption"
+- **≤ 30 days**: **MEDIUM** - "Certificate needs renewal soon"
+
+**Value**: Prevents outages from expired TLS certificates, enables proactive maintenance
+
+**API Endpoint**: `/api/v1/system/certificates` (already in use)
+
+**Location**: `src/cribl_hc/analyzers/security.py` (method: `_analyze_certificates`)
+
+---
+
+### ✅ Config Drift Detection (P1 - COMPLETE)
+
+**Status**: Already implemented in **FleetAnalyzer**
+
+**Original Priority**: P1 (HIGH value, LOW effort)  
+**Implementation Date**: Pre-Phase 12 (already existed)
+
+**Features Delivered**:
+- **Leader vs Worker Group Drift**: Detects when worker groups fall behind leader's config version
+- **Individual Worker Drift**: Identifies workers out of sync with their group
+- **Deployment Tracking**: Monitors in-progress config deployments
+- **Cross-Environment Drift**: Aggregates drift patterns across fleet
+
+**Severity Mapping**:
+- **≥3 versions behind**: **CRITICAL** - "Worker group significantly behind leader"
+- **1-2 versions behind**: **HIGH** - "Worker group behind leader"
+- **Deployment in progress**: **LOW** - Informational finding
+
+**Detection Logic**:
+1. Compares each worker group's `configVersion` to leader's `currentVersion`
+2. Identifies workers where `worker.configVersion` != `group.configVersion`
+3. Groups drifted workers by worker group for reporting
+4. Tracks `deployingWorkerCount` for in-progress updates
+
+**Value**: Operational consistency, faster troubleshooting, prevents configuration-related incidents
+
+**API Endpoints**: 
+- `/api/v1/master/groups` (worker groups with config versions)
+- `/api/v1/master/summary` (leader current version)
+- `/api/v1/workers` (individual worker versions)
+
+**Location**: `src/cribl_hc/analyzers/fleet.py` (method: `_analyze_config_drift`)
+
+---
+
+### ✅ Worker Group Context Tracking (UX Enhancement)
+
+**Status**: Complete across all analyzers
+
+**Problem Solved**: Findings didn't indicate which worker group they applied to, making it hard to troubleshoot multi-group deployments.
+
+**Solution**:
+- Added `worker_group` field to Finding model
+- Auto-populated from API client context
+- Fixed missing tags in DataFlowTopologyAnalyzer
+- Fixed missing tags in SensitiveDataAnalyzer
+- Enhanced display in CLI, TUI, and GUI
+
+**Value**: Faster troubleshooting in fleet deployments
+
+---
+
+### ✅ Grouped Findings Display (UX Enhancement)
+
+**Status**: Complete across CLI, TUI, and GUI
+
+**Features**:
+- Similar findings grouped by `grouping_id` and `worker_group`
+- CLI: Grouped output with component counts
+- TUI: Interactive grouped view with expansion
+- GUI: `GroupedFindingCard` component with collapsible details
+- Shows all affected components in aggregate
+
+**Value**: Reduces noise, improves finding clarity
+
+**PRs**: #42, #39, #37
 
 ---
 
@@ -40,23 +179,21 @@
 
 | Product | Analyzers | Coverage Level |
 |---------|-----------|----------------|
-| Stream | 15 | █████████░ 90% |
-| Edge | 13 | ████████░░ 80% |
-| Lake | 2 | █████░░░░░ 50% |
-| Search | 2 | █████░░░░░ 50% |
-| Core | 1 | ███░░░░░░░ 30% |
-
-**Total**: 19 Analyzers | **API Endpoints**: 31 | **Test Coverage**: 258+ tests
+| Stream | 17 | █████████░ 85% |
+| Edge | 15 | ████████░░ 80% |
+| Lake | 2 | ████░░░░░░ 40% |
+| Search | 2 | ████░░░░░░ 40% |
+| Core | 1 | ██░░░░░░░░ 20% |
 
 ### By Category
 
 | Category | Analyzers | Notes |
 |----------|-----------|-------|
-| Health & Monitoring | HealthAnalyzer, LakeHealthAnalyzer, SearchHealthAnalyzer | Core health covered |
+| Health & Monitoring | HealthAnalyzer, LakeHealthAnalyzer, SearchHealthAnalyzer, FreshnessAnalyzer | ✅ **Freshness added** |
 | Configuration | ConfigAnalyzer, VersionControlAnalyzer | Basic config validation |
 | Resources | ResourceAnalyzer, StorageAnalyzer, LakeStorageAnalyzer | CPU/memory/disk covered |
 | Performance | BackpressureAnalyzer, PipelinePerformanceAnalyzer, SearchPerformanceAnalyzer | Pipeline metrics good |
-| Security | SecurityAnalyzer | **Needs expansion** |
+| Security | SecurityAnalyzer, SensitiveDataAnalyzer | ✅ **PII/PHI detection added** |
 | Data Quality | LookupHealthAnalyzer, SchemaQualityAnalyzer, DataFlowTopologyAnalyzer | Schema & routing covered |
 | Alerting | AlertingAnalyzer | **Needs target validation** |
 | Fleet | FleetAnalyzer | **Needs config drift** |
@@ -114,13 +251,14 @@ for cert in certificates:
 - `/system/users` ✅ (in client)
 - `/system/roles` ✅ (in client)
 - `/system/teams` ✅ (in client)
+- `/system/policies` ✅ (in client)
 
-**Implemented Checks**:
-- ✅ **Inactive users** (no login in 90+ days)
-- ✅ **Overly permissive roles** (wildcard permissions)
-- ✅ **Empty teams** (teams with no members)
-- ✅ **Orphaned roles** (roles not assigned to any users)
-- ✅ **Admin user count** (flags if >3 users have admin roles)
+**New Checks**:
+1. **Inactive users** (no login in 90+ days)
+2. **Overly permissive roles** (wildcard permissions)
+3. **Empty teams** (teams with no members)
+4. **Orphaned policies** (policies not attached to roles)
+5. **Admin user count** (flag if too many admins)
 
 **Example Finding**:
 ```
@@ -130,7 +268,7 @@ Recommendation: Review and disable or remove inactive accounts.
 ```
 
 **Value**: Security compliance, audit readiness  
-**Effort**: Complete
+**Effort**: ~4 hours (endpoints exist, need login tracking logic)
 
 ---
 
@@ -194,14 +332,14 @@ Recommendation: Trigger re-deployment or investigate stuck workers.
 
 **API Endpoint**: `/system/keys` ✅ (in client)
 
-**Implemented Checks**:
-- ✅ API keys never used
-- ✅ API keys not used in 90+ days
-- ✅ Keys without expiration
-- ✅ Keys with overly broad permissions
+**New Checks**:
+1. API keys never used
+2. API keys not used in 90+ days
+3. Keys without expiration
+4. Keys with overly broad permissions
 
 **Value**: Security hygiene, credential rotation compliance  
-**Effort**: Complete
+**Effort**: ~2 hours
 
 ---
 
@@ -350,6 +488,7 @@ From Core API spec, these endpoints are available but not used:
 | CostAnalyzer | cost | stream | license_info |
 | DataFlowTopologyAnalyzer | dataflow_topology | stream,edge | routes, pipelines, outputs |
 | FleetAnalyzer | fleet | stream,edge,lake,search | workers, worker_groups |
+| **FreshnessAnalyzer** ✨ | **freshness** | **stream,edge** | **event sampling** |
 | HealthAnalyzer | health | stream,edge | workers, system_status |
 | LakeHealthAnalyzer | lake | lake | lake_datasets |
 | LakeStorageAnalyzer | lake | lake | lake_dataset_stats |
@@ -361,8 +500,11 @@ From Core API spec, these endpoints are available but not used:
 | SearchHealthAnalyzer | search | search | search_jobs, search_dashboards |
 | SearchPerformanceAnalyzer | search | search | search_jobs |
 | SecurityAnalyzer | security | stream,edge | outputs, inputs, system_settings |
+| **SensitiveDataAnalyzer** ✨ | **sensitive_data** | **stream,edge** | **event sampling** |
 | StorageAnalyzer | storage | stream,edge | outputs, destinations |
 | VersionControlAnalyzer | version_control | stream,edge,lake,search,core | version_info, uncommitted_files |
+
+**Total**: 21 analyzers (2 added in January 2026: FreshnessAnalyzer ✨, SensitiveDataAnalyzer ✨)
 
 ---
 

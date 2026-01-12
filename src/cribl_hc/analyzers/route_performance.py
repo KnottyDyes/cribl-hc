@@ -10,7 +10,7 @@ Priority: P2 (Medium Impact - Performance Optimization)
 import math
 import statistics
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Dict, List, Literal
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -46,7 +46,7 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
         return "route_performance"
 
     @property
-    def supported_products(self) -> list[str]:
+    def supported_products(self) -> List[str]:
         """Route performance analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -58,7 +58,7 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
         """Estimate API calls: routes(1) + metrics(1) + pipelines(1) = 3."""
         return 3
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
         return [
             "read:routes",
@@ -211,7 +211,7 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
         )
         result.success = True
 
-    def _extract_route_metrics(self, metrics: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    def _extract_route_metrics(self, metrics: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
         """
         Extract route-specific metrics.
         Returns dict keyed by route ID.
@@ -233,7 +233,7 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
                 }
         return route_metrics
 
-    def _calculate_percentile(self, data: list[float], percentile: float) -> float:
+    def _calculate_percentile(self, data: List[float], percentile: float) -> float:
         """
         Calculate percentile from a list of values.
         percentile is 0-100.
@@ -247,7 +247,7 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
         return sorted_data[index]
 
     def _analyze_throughput(
-        self, route: dict[str, Any], metrics: dict[str, Any], result: AnalyzerResult
+        self, route: Dict[str, Any], metrics: Dict[str, Any], result: AnalyzerResult
     ) -> float:
         """
         Analyze route throughput.
@@ -282,7 +282,7 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
         return events_per_sec
 
     def _analyze_latency(
-        self, route: dict[str, Any], metrics: dict[str, Any], result: AnalyzerResult
+        self, route: Dict[str, Any], metrics: Dict[str, Any], result: AnalyzerResult
     ) -> float:
         """
         Analyze latency percentiles.
@@ -338,7 +338,7 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
         )
 
     def _analyze_error_rates(
-        self, route: dict[str, Any], metrics: dict[str, Any], result: AnalyzerResult
+        self, route: Dict[str, Any], metrics: Dict[str, Any], result: AnalyzerResult
     ) -> None:
         """Analyze error rates."""
         route_id = route.get("id", "unknown")
@@ -383,9 +383,9 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
 
     def _analyze_pipeline_overload(
         self,
-        route: dict[str, Any],
+        route: Dict[str, Any],
         throughput: float,
-        pipelines: list[dict[str, Any]],
+        pipelines: List[Dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """Check if route is overloading a pipeline."""
@@ -421,7 +421,7 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
             )
         )
 
-    def _analyze_route_balance(self, throughputs: list[float], result: AnalyzerResult) -> None:
+    def _analyze_route_balance(self, throughputs: List[float], result: AnalyzerResult) -> None:
         """Analyze traffic balance across routes using Coefficient of Variation."""
         if not throughputs or len(throughputs) < 2:
             return
