@@ -711,43 +711,56 @@ class AnalysisStatus(Static):
 
     def watch_current_deployment(self, deployment: Optional[str]) -> None:
         """Update display when deployment changes."""
-        # This widget no longer displays the current deployment directly
+        pass
 
     def watch_status(self, status: str) -> None:
         """Update display when status changes."""
-        self.query_one("#status-state", Label).update(status)
+        try:
+            self.query_one("#status-state", Label).update(status)
+        except Exception:
+            pass
 
     def watch_progress(self, progress: float) -> None:
         """Update progress bar."""
-        self.query_one("#status-progress", ProgressBar).update(progress=progress)
+        try:
+            self.query_one("#status-progress", ProgressBar).update(progress=progress)
+        except Exception:
+            pass
 
     def watch_api_calls(self, calls: int) -> None:
         """Update API call count."""
-        label = self.query_one("#status-api-calls", Label)
-        label.update(f"{calls}/{self.max_api_calls}")
+        try:
+            label = self.query_one("#status-api-calls", Label)
+            label.update(f"{calls}/{self.max_api_calls}")
+        except Exception:
+            pass
 
     def watch_duration(self, duration: float) -> None:
         """Update duration display."""
-        label = self.query_one("#status-duration", Label)
-        label.update(f"{duration:.1f}s")
+        try:
+            label = self.query_one("#status-duration", Label)
+            label.update(f"{duration:.1f}s")
+        except Exception:
+            pass
 
     def watch_health_score(self, score: Optional[float]) -> None:
         """Update health score display."""
-        label = self.query_one("#health-score-value", Label)
-        if score is None:
-            label.update("N/A")
-            label.styles.color = self.get_css_variables()["text-muted"]
-            return
+        try:
+            label = self.query_one("#health-score-value", Label)
+            if score is None:
+                label.update("[#5c6370]N/A[/#5c6370]")
+                return
 
-        if score >= 80:
-            color = self.get_css_variables()["success"]
-        elif score >= 60:
-            color = self.get_css_variables()["warning"]
-        else:
-            color = self.get_css_variables()["error"]
+            if score >= 80:
+                color = "#98c379"
+            elif score >= 60:
+                color = "#d19a66"
+            else:
+                color = "#e06c75"
 
-        label.styles.color = color
-        label.update(f"{score:.1f}%")
+            label.update(f"[{color}]{score:.1f}%[/{color}]")
+        except Exception:
+            pass
 
 
 class FindingsPanel(Static):
@@ -839,61 +852,54 @@ class CriblHealthCheckApp(App):
     CSS = """
     /* 
      * Refined Industrial/Utilitarian Theme
-     * - Dark, high-contrast palette for terminal use
-     * - Clear visual hierarchy
-     * - Consistent spacing and component styling
+     * Color Palette:
+     * - surface: #1e222a (deep slate)
+     * - panel: #282c34 (dark gray)
+     * - primary: #61afef (muted blue)
+     * - accent: #56b6c2 (vibrant cyan)
+     * - success: #98c379 (green)
+     * - warning: #d19a66 (orange)
+     * - error: #e06c75 (red)
+     * - text: #abb2bf
+     * - text-muted: #5c6370
      */
 
-    /* Color Palette */
     Screen {
-        background: #1e222a; /* deep slate */
-        color: #abb2bf; /* default text */
+        background: #1e222a;
+        color: #abb2bf;
     }
 
-    $surface: #1e222a;
-    $panel: #282c34;
-    $primary: #61afef; /* muted blue */
-    $accent: #56b6c2; /* vibrant cyan */
-    $success: #98c379; /* green */
-    $warning: #d19a66; /* orange */
-    $error: #e06c75; /* red */
-    $text: #abb2bf;
-    $text-muted: #5c6370;
-    $text-inverse: #282c34;
-    
-    /* Base Component Styling */
     App {
-        background: $surface;
+        background: #1e222a;
     }
 
     Header {
-        background: $panel;
-        border-bottom: heavy $primary;
-        color: $text;
+        background: #282c34;
+        border-bottom: heavy #61afef;
+        color: #abb2bf;
         text-style: bold;
     }
 
     Footer {
-        background: $panel;
-        border-top: thin $primary;
+        background: #282c34;
+        border-top: solid #61afef;
     }
 
     TabbedContent > .tabs {
-        background: $surface;
+        background: #1e222a;
     }
     
     TabbedContent > .tabs > .tab--highlight {
-         background: $accent;
-         color: $text-inverse;
+         background: #56b6c2;
+         color: #282c34;
     }
 
-    /* Panel and Container Styling */
-   .panel {
-        border: round $primary;
-        background: $panel;
+    .panel {
+        border: round #61afef;
+        background: #282c34;
         padding: 0 1;
         margin: 1;
-   }
+    }
 
     #left-panel {
         width: 35%;
@@ -905,21 +911,20 @@ class CriblHealthCheckApp(App):
     }
     
     .panel-title {
-        color: $accent;
+        color: #56b6c2;
         text-style: bold;
         padding: 1;
-        background: $panel;
+        background: #282c34;
         width: 100%;
         text-align: center;
     }
 
     .help-text {
-        color: $text-muted;
+        color: #5c6370;
         text-style: italic;
         padding: 0 1;
     }
 
-    /* Deployment List */
     #deployment-list-widget {
         height: 100%;
     }
@@ -927,22 +932,21 @@ class CriblHealthCheckApp(App):
     #deployment-list {
         height: 1fr;
         border: none;
-        background: $panel;
+        background: #282c34;
         margin: 0;
     }
 
     #deployment-list > ListItem {
         padding: 1;
-        border-bottom: thin $text-muted;
+        border-bottom: solid #5c6370;
     }
 
     #deployment-list > ListItem.--highlight {
-        background: $primary;
-        color: $text-inverse;
+        background: #61afef;
+        color: #282c34;
         text-style: bold;
     }
 
-    /* Buttons */
     .button-row {
         width: 100%;
         align: center middle;
@@ -953,20 +957,14 @@ class CriblHealthCheckApp(App):
         min-width: 12;
         width: 80%;
         margin: 0 1;
-        border: thin $primary;
+        border: solid #61afef;
     }
     
     Button:hover {
-        border: thin $accent;
-        color: $accent;
+        border: solid #56b6c2;
+        color: #56b6c2;
     }
 
-    Button.MounterOver {
-        border: thin $accent;
-        color: $accent;
-    }
-
-    /* Analysis Status */
     #analysis-status {
         height: auto;
         padding: 0 1;
@@ -981,24 +979,21 @@ class CriblHealthCheckApp(App):
     .status-box {
         height: auto;
         padding: 1;
-        border: thin $primary;
-        border-radius: 4px;
+        border: solid #61afef;
         align: center middle;
     }
 
     #health-score-value {
         text-style: bold;
-        font-size: 200%;
         margin-top: 1;
     }
 
     ProgressBar {
         margin-top: 1;
-        background: $surface;
-        color: $accent;
+        background: #1e222a;
+        color: #56b6c2;
     }
-    
-    /* Findings Panel */
+
     #findings-panel {
         height: 1fr;
         min-height: 10;
@@ -1008,7 +1003,7 @@ class CriblHealthCheckApp(App):
     #findings-scroll {
         height: 1fr;
         width: 100%;
-        background: $panel;
+        background: #282c34;
     }
 
     #findings-table {
@@ -1017,24 +1012,22 @@ class CriblHealthCheckApp(App):
     }
 
     #findings-table > .datatable--header {
-        background: $primary;
-        color: $text-inverse;
+        background: #61afef;
+        color: #282c34;
         text-style: bold;
     }
-    
-    /* History Tab */
+
     #results-history {
         height: 100%;
     }
 
-    /* Generic Widgets */
     Input, Select {
-        background: $surface;
-        border: thin $primary;
+        background: #1e222a;
+        border: solid #61afef;
     }
 
     Input:focus, Select:focus {
-        border: thin $accent;
+        border: solid #56b6c2;
     }
     """
 
