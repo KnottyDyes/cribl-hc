@@ -3,6 +3,7 @@ Pytest configuration and shared fixtures for Cribl Health Check tests.
 """
 
 import asyncio
+import respx
 import pytest
 from pathlib import Path
 
@@ -16,14 +17,15 @@ def test_data_dir() -> Path:
 @pytest.fixture
 def sample_deployment():
     """Create a sample Deployment model for testing."""
+    from pydantic import HttpUrl, SecretStr
     from cribl_hc.models.deployment import Deployment
 
     return Deployment(
         id="test-deployment",
         name="Test Deployment",
-        url="https://cribl.example.com",
+        url=HttpUrl("https://cribl.example.com"),
         environment_type="self-hosted",
-        auth_token="test-token-123",
+        auth_token=SecretStr("test-token-123"),
         cribl_version="4.5.2",
     )
 
@@ -76,6 +78,7 @@ def reset_analyzer_registry():
     """
     # Store the original analyzers
     from cribl_hc.analyzers import get_global_registry
+
     registry = get_global_registry()
     original_analyzers = dict(registry._analyzers)
 

@@ -3,7 +3,7 @@ Worker node model for Cribl Stream workers with resource utilization.
 """
 
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, Dict, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -89,7 +89,7 @@ class WorkerNode(BaseModel):
     )
     last_seen: datetime = Field(default_factory=datetime.utcnow)
     uptime_seconds: Optional[int] = Field(None, description="Uptime in seconds", ge=0)
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
     @staticmethod
     def determine_health_status(

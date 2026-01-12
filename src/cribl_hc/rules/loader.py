@@ -15,7 +15,6 @@ from cribl_hc.models.rule import BestPracticeRule
 from cribl_hc.utils.logger import get_logger
 from cribl_hc.utils.version import parse_version
 
-
 log = get_logger(__name__)
 
 
@@ -66,7 +65,7 @@ class RuleLoader:
             return []
 
         try:
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 data = yaml.safe_load(f)
 
             if not data or "rules" not in data:

@@ -215,6 +215,13 @@ Cloud:       /api/v1/m/{group}/{resource}
 - Stored in `~/.cribl-hc/credentials.enc`
 - Key derived from machine-specific data
 
+### Branding Storage
+- Branding configuration stored in `~/.cribl-hc/branding.json`
+- JSON format with provider, client, theme, and report settings
+- Logos stored as base64-encoded data URIs embedded in JSON
+- Configuration cached in memory (BrandingManager) for performance
+- Automatic persistence on configuration changes
+
 ### API Security
 - Bearer token authentication
 - Optional OAuth client credentials

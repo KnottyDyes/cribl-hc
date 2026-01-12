@@ -2,7 +2,7 @@
 Best practice rule model for configuration validation.
 """
 
-from typing import Literal, Optional
+from typing import List, Literal
 
 from pydantic import BaseModel, Field
 
@@ -62,15 +62,17 @@ class BestPracticeRule(BaseModel):
         ..., description="Severity when violated"
     )
     documentation_link: str = Field(..., description="Cribl docs URL", min_length=1)
-    cribl_version_min: Optional[str] = Field(
-        None,
-        description="Minimum Cribl version",
-        pattern=r"^\d+\.\d+\.\d+$"
+    remediation_steps: List[str] = Field(
+        default_factory=list, description="Steps to remediate the violation"
     )
-    cribl_version_max: Optional[str] = Field(
-        None,
-        description="Maximum Cribl version (for deprecated rules)",
-        pattern=r"^\d+\.\d+\.\d+$"
+    estimated_impact: str | None = Field(
+        None, description="Expected impact if remediation is applied"
+    )
+    cribl_version_min: str | None = Field(
+        None, description="Minimum Cribl version", pattern=r"^\d+\.\d+\.\d+$"
+    )
+    cribl_version_max: str | None = Field(
+        None, description="Maximum Cribl version (for deprecated rules)", pattern=r"^\d+\.\d+\.\d+$"
     )
     enabled: bool = Field(True, description="Whether rule is enabled")
 

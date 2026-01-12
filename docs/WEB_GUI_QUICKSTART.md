@@ -8,6 +8,9 @@ The Cribl Health Check Web GUI provides a modern, browser-based interface for ma
 - **Real-time Updates**: Live progress tracking via WebSocket during analysis
 - **Credential Management**: Add, edit, test, and delete deployment credentials
 - **Visual Results**: Interactive findings table with filtering and sorting
+- **Branding Settings**: Customize organization info, logos, and report styling
+- **Theme Customization**: Light/dark theme with configurable color schemes
+- **Report Personalization**: Custom headers, footers, watermarks, and CSS styling
 - **Export Options**: Export results as JSON or Markdown
 - **REST API**: Full API backend with interactive documentation
 
@@ -118,6 +121,52 @@ npm run dev
 - **Sort**: Automatically sorted by severity (Critical → Info)
 - **Findings**: Detailed list with descriptions and recommendations
 - **Export**: Download results as JSON or Markdown
+
+### 4. Configure Branding
+
+**Customize Organization Branding:**
+1. Navigate to "Settings" → "Branding"
+2. Fill in provider information:
+   - **Organization Name**: Your company or organization name
+   - **Contact Information**: Email, phone, and website
+   - **Tagline**: Short tagline or slogan
+   - **Footer Text**: Custom footer for reports
+3. **Logo Upload**:
+   - Drag and drop or click to upload your organization logo
+   - Supports PNG, JPG, and SVG
+   - Supports separate logos for light and dark modes
+   - Images are automatically optimized and stored in the configuration
+
+**Customize Client Branding:**
+1. Client name and identifier
+2. Custom report title for client-specific reports
+3. **Client Logo**:
+   - Upload a client-specific logo for the report
+   - Displays alongside the provider branding for a professional look
+
+**Customize Theme Colors:**
+1. Navigate to "Theme" tab
+2. Configure light theme colors:
+   - Primary color (brand color)
+   - Secondary color (UI accents)
+   - Accent color (highlights)
+3. Configure dark theme colors (same options)
+4. Changes apply immediately to preview
+
+**Customize Report Styling:**
+1. Navigate to "Report Styling" tab
+2. Enable/disable watermark
+3. Set custom watermark text (e.g., "CONFIDENTIAL")
+4. Add custom CSS for advanced styling
+5. Configure header/footer templates using Jinja2 variables
+   - `{{ organization_name }}` - Your organization name
+   - `{{ client_name }}` - Client name
+   - `{{ date }}` - Report generation date
+6. Click "Save Changes"
+
+**Reset to Defaults:**
+- Click "Reset to Defaults" to clear all branding settings
+- Restores default theme colors and removes custom styling
 
 ## API Documentation
 

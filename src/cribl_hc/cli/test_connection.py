@@ -1,18 +1,18 @@
 """
 CLI command for testing connection to Cribl API.
 """
+from typing import Optional
+
 
 import asyncio
 import sys
-from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from cribl_hc.core.api_client import CriblAPIClient, ConnectionTestResult
-
+from cribl_hc.core.api_client import ConnectionTestResult, CriblAPIClient
 
 console = Console()
 app = typer.Typer(help="Test connection to Cribl Stream API")
@@ -147,7 +147,7 @@ def test(
             if deployment not in credentials:
                 console.print(f"[red]✗ No credentials found for deployment:[/red] {deployment}")
                 console.print(f"[dim]Use 'cribl-hc config set {deployment}' to add credentials[/dim]")
-                console.print(f"[dim]Or use 'cribl-hc config list' to see available deployments[/dim]")
+                console.print("[dim]Or use 'cribl-hc config list' to see available deployments[/dim]")
                 sys.exit(1)
 
             cred = credentials[deployment]

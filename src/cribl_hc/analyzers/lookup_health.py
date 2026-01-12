@@ -8,12 +8,12 @@ Analyzes lookup table configurations to identify:
 - Missing lookups referenced by pipelines
 """
 
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List
 
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.utils.logger import get_logger
 
 
@@ -152,7 +152,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
 
         return result
 
-    def _find_lookup_references(self, pipelines: List[Dict[str, Any]]) -> Set[str]:
+    def _find_lookup_references(self, pipelines: List[Dict[str, Any]]) -> set[str]:
         """
         Find all lookup table references in pipeline configurations.
 
@@ -196,7 +196,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
 
         return referenced
 
-    def _search_for_lookup_refs(self, obj: Any, referenced: Set[str]) -> None:
+    def _search_for_lookup_refs(self, obj: Any, referenced: set[str]) -> None:
         """Recursively search for lookup references in config objects."""
         import re
 
@@ -232,7 +232,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
                     category="lookup_health",
                     confidence_level="high",
                     affected_components=[f"lookup:{lookup_id}"],
-                    estimated_impact=f"Large lookups can slow down pipeline processing and increase memory usage",
+                    estimated_impact="Large lookups can slow down pipeline processing and increase memory usage",
                     remediation_steps=[
                         f"Switch '{lookup_id}' to disk mode if not already",
                         "Consider reducing lookup size by removing unused columns",
@@ -303,7 +303,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
         self,
         result: AnalyzerResult,
         lookups: List[Dict[str, Any]],
-        referenced: Set[str]
+        referenced: set[str]
     ) -> None:
         """Check for lookup tables not referenced by any pipeline."""
         lookup_ids = {l.get("id", "") for l in lookups if l.get("id")}
@@ -345,7 +345,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
         self,
         result: AnalyzerResult,
         lookups: List[Dict[str, Any]],
-        referenced: Set[str]
+        referenced: set[str]
     ) -> None:
         """Check for lookups referenced in pipelines but not defined."""
         lookup_ids = {l.get("id", "") for l in lookups if l.get("id")}

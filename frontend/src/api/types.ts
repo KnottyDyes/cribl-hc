@@ -74,6 +74,7 @@ export interface AnalysisRequest {
 export interface AnalysisRequestInput {
   credential_name: string
   analyzers: string[]
+  products?: CriblProduct[]
 }
 
 export interface AnalysisResponse {
@@ -109,6 +110,22 @@ export interface Finding {
   source_analyzer?: string
   detected_at?: string
   metadata?: Record<string, unknown>
+  worker_group?: string | null
+  grouping_id?: string | null
+}
+
+export interface ComponentVersion {
+  name: string
+  version: string
+  status: string
+  metadata: Record<string, unknown>
+}
+
+export interface VersionInfo {
+  leader_version?: string
+  product_type?: string
+  product_versions: Record<string, string>
+  component_versions: ComponentVersion[]
 }
 
 export interface AnalysisResultResponse {
@@ -121,6 +138,7 @@ export interface AnalysisResultResponse {
   recommendations_count: number
   completed_at: string | null
   duration_seconds: number | null
+  version_info: VersionInfo
   summary?: {
     total_findings: number
     critical_count: number
@@ -213,6 +231,96 @@ export type WebSocketMessage =
   | WebSocketErrorMessage
   | WebSocketKeepaliveMessage
   | WebSocketPongMessage
+
+// ============================================================================
+// Branding
+// ============================================================================
+
+export interface ThemeColors {
+  primary: string
+  primary_hover: string
+  primary_foreground: string
+  secondary: string
+  secondary_hover: string
+  secondary_foreground: string
+  accent: string
+  accent_hover: string
+  accent_foreground: string
+  background: string
+  background_secondary: string
+  background_tertiary: string
+  foreground: string
+  foreground_secondary: string
+  foreground_muted: string
+  border: string
+  border_focus: string
+  severity_critical: string
+  severity_high: string
+  severity_medium: string
+  severity_low: string
+  severity_info: string
+  success: string
+  warning: string
+  error: string
+}
+
+export type ThemeMode = 'light' | 'dark' | 'system'
+
+export interface UITheme {
+  default_mode: ThemeMode
+  light: ThemeColors
+  dark: ThemeColors
+  font_family?: string
+  font_family_mono?: string
+  border_radius: string
+  border_radius_lg: string
+}
+
+export interface ServiceProviderBranding {
+  name: string
+  logo_path?: string
+  logo_path_dark?: string
+  logo_url?: string
+  logo_url_dark?: string
+  logo_base64?: string
+  logo_dark_base64?: string
+  primary_color?: string
+  secondary_color?: string
+  contact_email?: string
+  website?: string
+  footer_text?: string
+  tagline?: string
+}
+
+export interface ClientBranding {
+  name: string
+  logo_path?: string
+  logo_path_dark?: string
+  logo_url?: string
+  logo_url_dark?: string
+  logo_base64?: string
+  logo_dark_base64?: string
+  identifier?: string
+  report_title?: string
+}
+
+export interface ReportBranding {
+  show_provider_logo: boolean
+  show_client_logo: boolean
+  show_footer: boolean
+  show_watermark: boolean
+  watermark_text?: string
+  custom_css?: string
+  header_template?: string
+  footer_template?: string
+}
+
+export interface BrandingConfig {
+  provider?: ServiceProviderBranding
+  client?: ClientBranding
+  theme: UITheme
+  report: ReportBranding
+}
 
 // ============================================================================
 // API Error

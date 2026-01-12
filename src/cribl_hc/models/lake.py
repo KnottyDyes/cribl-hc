@@ -22,19 +22,20 @@ class LakeDataset(BaseModel):
     bucket_name: str = Field(..., alias="bucketName", description="S3 bucket name")
     description: Optional[str] = Field(None, description="Human-readable description")
     retention_period_in_days: int = Field(
-        ...,
-        alias="retentionPeriodInDays",
-        description="Retention period in days (e.g., 5-30)"
+        ..., alias="retentionPeriodInDays", description="Retention period in days (e.g., 5-30)"
     )
     format: str = Field(..., description="Data format ('json' or 'parquet')")
     view_name: str = Field(..., alias="viewName", description="View name for querying")
     metrics: Optional[Dict[str, Any]] = Field(
+        default=None, description="Dataset metrics (when includeMetrics=true)"
+    )
+    storage_location: Optional[str] = Field(
         default=None,
-        description="Dataset metrics (when includeMetrics=true)"
+        alias="storageLocation",
+        description="Storage location ID where dataset is stored",
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = {"populate_by_name": True}
 
 
 class Lakehouse(BaseModel):
@@ -49,15 +50,12 @@ class Lakehouse(BaseModel):
     name: Optional[str] = Field(None, description="Lakehouse name")
     description: Optional[str] = Field(None, description="Description")
     dataset_ids: Optional[List[str]] = Field(
-        default=None,
-        alias="datasetIds",
-        description="Associated dataset IDs"
+        default=None, alias="datasetIds", description="Associated dataset IDs"
     )
     status: Optional[str] = Field(None, description="Lakehouse status")
     config: Optional[Dict[str, Any]] = Field(None, description="Lakehouse configuration")
 
-    class Config:
-        populate_by_name = True
+    model_config = {"populate_by_name": True}
 
 
 class DatasetStats(BaseModel):
@@ -69,33 +67,22 @@ class DatasetStats(BaseModel):
 
     dataset_id: str = Field(..., alias="datasetId", description="Dataset ID")
     size_bytes: Optional[int] = Field(
-        default=None,
-        alias="sizeBytes",
-        description="Dataset size in bytes"
+        default=None, alias="sizeBytes", description="Dataset size in bytes"
     )
     record_count: Optional[int] = Field(
-        default=None,
-        alias="recordCount",
-        description="Number of records"
+        default=None, alias="recordCount", description="Number of records"
     )
     last_updated: Optional[int] = Field(
-        default=None,
-        alias="lastUpdated",
-        description="Last update timestamp (epoch ms)"
+        default=None, alias="lastUpdated", description="Last update timestamp (epoch ms)"
     )
     oldest_record: Optional[int] = Field(
-        default=None,
-        alias="oldestRecord",
-        description="Oldest record timestamp (epoch ms)"
+        default=None, alias="oldestRecord", description="Oldest record timestamp (epoch ms)"
     )
     newest_record: Optional[int] = Field(
-        default=None,
-        alias="newestRecord",
-        description="Newest record timestamp (epoch ms)"
+        default=None, alias="newestRecord", description="Newest record timestamp (epoch ms)"
     )
 
-    class Config:
-        populate_by_name = True
+    model_config = {"populate_by_name": True}
 
 
 class LakeDatasetList(BaseModel):

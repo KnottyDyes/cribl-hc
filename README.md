@@ -1,6 +1,6 @@
 # Cribl Health Check
 
-[![CI](https://github.com/yourusername/cribl-hc/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/cribl-hc/actions/workflows/ci.yml)
+[![CI](https://github.com/KnottyDyes/cribl-hc/actions/workflows/ci.yml/badge.svg)](https://github.com/KnottyDyes/cribl-hc/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
@@ -8,6 +8,8 @@
 [![React](https://img.shields.io/badge/React-19.2-blue?logo=react)](https://react.dev/)
 
 Comprehensive health checking tool for Cribl Stream deployments. Provides actionable insights across health assessment, configuration validation, performance optimization, security auditing, and cost management.
+
+**🔒 Data Privacy**: This tool adheres to strict data governance standards. See [DATA_PRIVACY.md](docs/DATA_PRIVACY.md) for details on how we handle transient event data.
 
 ## Features
 
@@ -25,8 +27,17 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 - **Real-time Updates**: Live progress tracking via WebSocket during analysis
 - **Credential Management**: Add, edit, and test deployment credentials from the browser
 - **Visual Results**: Interactive findings table with filtering and sorting
+- **Branding Settings**: Customize organization name, contact info, logos, and report styling
+- **Theme Customization**: Light/dark theme with configurable color schemes
+- **Report Personalization**: Custom headers, footers, watermarks, and CSS styling
 - **REST API**: Full API backend for programmatic access
 - **Docker Support**: One-command deployment with Docker Compose
+
+### Web GUI Screenshots (Dark Mode)
+
+![Analysis Summary](docs/screenshots/analysis_completion.png)
+
+![Full Report](docs/screenshots/review_analysis_full.png)
 
 ## Supported Products
 
@@ -135,6 +146,8 @@ open http://localhost:8080/api/docs
 - Add/edit/test credentials via web interface
 - Start analyses with real-time progress updates
 - View findings in interactive table
+- Configure branding settings (organization info, logos, themes)
+- Customize report styling and appearance
 - WebSocket live updates during analysis
 
 **Documentation**: See [docs/WEB_GUI_QUICKSTART.md](docs/WEB_GUI_QUICKSTART.md)
@@ -172,7 +185,7 @@ export CRIBL_URL=https://cribl.example.com
 export CRIBL_TOKEN=YOUR_API_TOKEN
 ```
 
-### 2. Interactive TUI (Recommended for Getting Started)
+### 2. Interactive TUI
 
 ```bash
 # Launch the unified Terminal User Interface
@@ -471,6 +484,7 @@ This project is provided as-is for use with Cribl Stream deployments.
 Cribl Health Check Project
 Sean Armstrong
 Claude
+Sisyphus
 
 ---
 

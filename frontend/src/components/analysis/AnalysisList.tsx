@@ -48,8 +48,8 @@ export function AnalysisList() {
       <div>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Health Check Analyses</h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Health Check Analyses</h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
               Loading analyses...
             </p>
           </div>
@@ -67,8 +67,8 @@ export function AnalysisList() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Health Check Analyses</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Health Check Analyses</h2>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Start new analyses or view results from previous runs
           </p>
         </div>
@@ -79,8 +79,8 @@ export function AnalysisList() {
       </div>
 
       {analyses && analyses.length === 0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <p className="text-gray-500">No analyses run yet.</p>
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <p className="text-gray-500 dark:text-gray-400">No analyses run yet.</p>
           <Button className="mt-4" onClick={() => setIsModalOpen(true)}>
             Start Your First Analysis
           </Button>

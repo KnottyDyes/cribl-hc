@@ -6,8 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from cribl_hc.analyzers import list_objectives, get_analyzer
-
+from cribl_hc.analyzers import get_analyzer, list_objectives
 
 console = Console()
 app = typer.Typer(help="List available analyzers")
@@ -64,6 +63,20 @@ def list_analyzers(
             "health": "Worker health & system status monitoring",
             "config": "Configuration validation & best practices",
             "resource": "CPU/memory/disk capacity planning",
+            "scripts": "Script inventory and validation signals",
+            "lake_storage_locations": "Lake storage location (BYOS) health",
+            "search_usage_groups": "Search usage group allocation hygiene",
+            "search_healthcheck": "Search healthcheck status",
+            "search_job_metrics": "Search job metrics summary",
+            "search_dataset_stats": "Search dataset stats and usage",
+            "system_messages": "Core system message visibility",
+            "system_banners": "System banner visibility",
+            "system_certificates": "System certificate expiration",
+            "system_logs": "System log error summary",
+            "system_policies": "System policy inventory",
+            "system_settings": "System settings inventory",
+            "system_license_usage": "License usage and expiration",
+            "system_user_info": "User role hygiene",
         }
         description = descriptions.get(obj, "Health check analysis")
 
@@ -76,14 +89,10 @@ def list_analyzers(
     console.print(table)
 
     # Show total estimated API calls
-    total_calls = sum(
-        get_analyzer(obj).get_estimated_api_calls() for obj in objectives
-    )
+    total_calls = sum(get_analyzer(obj).get_estimated_api_calls() for obj in objectives)
     console.print(f"\n[dim]Total API calls if all analyzers run: {total_calls}/100[/dim]")
 
     # Show usage example
     console.print("\n[dim]Usage examples:[/dim]")
-    console.print(f"  [cyan]cribl-hc analyze run[/cyan]                    # Run all analyzers")
-    console.print(
-        f"  [cyan]cribl-hc analyze run -o health[/cyan]          # Run specific analyzer"
-    )
+    console.print("  [cyan]cribl-hc analyze run[/cyan]                    # Run all analyzers")
+    console.print("  [cyan]cribl-hc analyze run -o health[/cyan]          # Run specific analyzer")
