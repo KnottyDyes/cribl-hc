@@ -9,7 +9,6 @@ Provides an interactive dashboard for viewing analysis results with:
 """
 from typing import Optional
 
-
 from rich.console import Console
 from rich.layout import Layout
 from rich.panel import Panel
