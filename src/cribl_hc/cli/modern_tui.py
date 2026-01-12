@@ -39,6 +39,11 @@ from textual.widgets import (
 )
 
 from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    group_findings,
+    get_severity_counts,
+    get_worker_group_display_name,
+)
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.core.orchestrator import AnalyzerOrchestrator
 from cribl_hc.core.report_generator import MarkdownReportGenerator
@@ -354,6 +359,233 @@ class ExportResultsDialog(ModalScreen):
         filepath.write_text(markdown_content)
 
 
+class ResultsScreen(ModalScreen):
+    """Modal screen for displaying grouped analysis results."""
+
+    CSS = """
+    ResultsScreen {
+        align: center middle;
+    }
+
+    #results-container {
+        width: 90%;
+        height: 90%;
+        border: thick $primary;
+        background: $surface;
+        padding: 1 2;
+    }
+
+    #results-header {
+        dock: top;
+        height: 3;
+        background: $primary;
+        padding: 0 1;
+    }
+
+    #results-title {
+        text-style: bold;
+        color: $text;
+    }
+
+    #results-scroll {
+        height: 1fr;
+        width: 100%;
+        padding: 1;
+    }
+
+    #results-footer {
+        dock: bottom;
+        height: 3;
+        align: center middle;
+    }
+
+    .summary-table {
+        margin: 1 0;
+    }
+
+    .worker-group-header {
+        background: $primary-darken-2;
+        padding: 0 1;
+        margin: 1 0 0 0;
+        text-style: bold;
+        color: $accent;
+    }
+
+    .finding-card {
+        margin: 1 0;
+        padding: 1;
+        border: solid $primary;
+    }
+
+    .severity-critical {
+        color: red;
+    }
+
+    .severity-high {
+        color: #ff8c00;
+    }
+
+    .severity-medium {
+        color: yellow;
+    }
+
+    .severity-low {
+        color: cyan;
+    }
+
+    .severity-info {
+        color: white;
+    }
+
+    .finding-title {
+        text-style: bold;
+    }
+
+    .finding-meta {
+        color: $text-muted;
+    }
+
+    .remediation-header {
+        color: cyan;
+        margin-top: 1;
+    }
+
+    .remediation-step {
+        color: $text-muted;
+        padding-left: 2;
+    }
+    """
+
+    def __init__(self, analysis: AnalysisRun):
+        super().__init__()
+        self.analysis = analysis
+
+    def compose(self) -> ComposeResult:
+        """Create the results screen layout."""
+        with Container(id="results-container"):
+            with Container(id="results-header"):
+                yield Label("Analysis Results", id="results-title")
+
+            with VerticalScroll(id="results-scroll"):
+                # Summary section
+                yield Static(self._render_summary(), classes="summary-table")
+
+                # Grouped findings
+                if self.analysis.findings:
+                    grouped = group_findings(self.analysis.findings)
+                    current_worker_group = None
+
+                    for group in grouped:
+                        # Worker group header
+                        if group.worker_group != current_worker_group:
+                            current_worker_group = group.worker_group
+                            group_name = get_worker_group_display_name(group.worker_group)
+                            yield Static(f"━━━ {group_name} ━━━", classes="worker-group-header")
+
+                        # Finding card
+                        yield Static(self._render_finding(group), classes="finding-card")
+                else:
+                    yield Static("[yellow]No findings to display[/yellow]")
+
+            with Horizontal(id="results-footer"):
+                yield Button("Close", variant="primary", id="btn-close-results")
+                yield Button("Export", variant="success", id="btn-export-from-results")
+
+    def _render_summary(self) -> str:
+        """Render the summary section as Rich markup."""
+        counts = get_severity_counts(self.analysis.findings)
+        total = len(self.analysis.findings)
+
+        lines = [
+            "[bold cyan]━━━ Analysis Summary ━━━[/bold cyan]",
+            "",
+            f"[bold]Total Findings:[/bold] {total}",
+            f"[bold red]Critical:[/bold red] {counts['critical']}",
+            f"[bold #ff8c00]High:[/bold #ff8c00] {counts['high']}",
+            f"[bold yellow]Medium:[/bold yellow] {counts['medium']}",
+            f"[bold cyan]Low:[/bold cyan] {counts['low']}",
+            f"[bold]Info:[/bold] {counts['info']}",
+        ]
+
+        if self.analysis.health_score:
+            score = self.analysis.health_score.overall_score
+            if score >= 80:
+                color = "green"
+            elif score >= 60:
+                color = "yellow"
+            else:
+                color = "red"
+            lines.append(f"[bold]Health Score:[/bold] [{color}]{score:.1f}%[/{color}]")
+
+        return "\n".join(lines)
+
+    def _render_finding(self, group) -> str:
+        """Render a single finding group as Rich markup."""
+        first = group.findings[0]
+
+        # Severity color mapping
+        severity_colors = {
+            "critical": "red",
+            "high": "#ff8c00",
+            "medium": "yellow",
+            "low": "cyan",
+            "info": "white",
+        }
+        color = severity_colors.get(group.severity, "white")
+
+        # Build badges line
+        badges = [f"[bold {color}]{group.severity.upper()}[/bold {color}]"]
+        badges.append(f"[bold blue]{first.category}[/bold blue]")
+        if group.is_grouped:
+            badges.append(f"[bold magenta]{group.finding_count} instances[/bold magenta]")
+
+        lines = [
+            " • ".join(badges),
+            f"[bold]{group.group_title}[/bold]",
+        ]
+
+        # Description (first sentence)
+        desc = first.description.split(".")[0] + "." if first.description else ""
+        if desc:
+            lines.append(f"[dim]{desc}[/dim]")
+
+        # Affected components
+        if first.affected_components:
+            all_components = []
+            for finding in group.findings:
+                all_components.extend(finding.affected_components)
+            unique_components = list(dict.fromkeys(all_components))
+
+            if len(unique_components) <= 3:
+                components_str = ", ".join(unique_components)
+            else:
+                components_str = (
+                    ", ".join(unique_components[:3]) + f" (+{len(unique_components) - 3})"
+                )
+            lines.append(f"[dim]Components: {components_str}[/dim]")
+
+        # Impact
+        if first.estimated_impact:
+            lines.append(f"[yellow]Impact: {first.estimated_impact}[/yellow]")
+
+        # Remediation (first 2 steps)
+        if first.remediation_steps:
+            lines.append("[cyan]Remediation:[/cyan]")
+            for i, step in enumerate(first.remediation_steps[:2], 1):
+                lines.append(f"  {i}. {step}")
+            if len(first.remediation_steps) > 2:
+                lines.append(f"  [dim]... +{len(first.remediation_steps) - 2} more[/dim]")
+
+        return "\n".join(lines)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        """Handle button presses."""
+        if event.button.id == "btn-close-results":
+            self.dismiss(None)
+        elif event.button.id == "btn-export-from-results":
+            self.dismiss("export")
+
+
 class DeploymentList(Static):
     """Widget displaying configured deployments with health indicators."""
 
@@ -409,7 +641,7 @@ class DeploymentList(Static):
 class AnalysisStatus(Static):
     """Widget showing current analysis status and progress."""
 
-    current_deployment = reactive(None)
+    current_deployment: Optional[str] = reactive(None)
     status = reactive("Idle")
     progress = reactive(0)
     api_calls = reactive(0)
@@ -603,15 +835,16 @@ class CriblHealthCheckApp(App):
 
     #findings-panel {
         border: solid $primary;
-        padding: 1;
+        padding: 0;
         margin: 1;
         height: 1fr;
         min-height: 10;
     }
 
     #findings-scroll {
-        height: 100%;
+        height: 1fr;
         width: 100%;
+        border: none;
     }
 
     #findings-table {
@@ -903,6 +1136,13 @@ class CriblHealthCheckApp(App):
                     severity="information",
                     timeout=5,
                 )
+
+                # Show grouped results in modal
+                def handle_results_dismiss(action):
+                    if action == "export":
+                        self.action_export()
+
+                self.push_screen(ResultsScreen(analysis_run), handle_results_dismiss)
 
         except Exception as e:
             log.error("analysis_failed", error=str(e), deployment_id=deployment_id)
