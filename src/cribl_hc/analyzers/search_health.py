@@ -8,19 +8,20 @@ Priority: P2 (Important)
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
 from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.models.search import (
     Dashboard,
     DashboardList,
     SavedSearch,
     SavedSearchList,
+    SearchCost,
     SearchDataset,
     SearchDatasetList,
+    SearchGroup,
+    SearchGroupList,
     SearchJob,
     SearchJobList,
 )
@@ -39,33 +40,30 @@ class SearchHealthAnalyzer(BaseAnalyzer):
     - Datasets with connectivity issues
     - Dashboards without schedules
     - Unused or stale saved searches
-
-    Priority: P2 (Important - ensures search functionality)
+    - Search cost and resource consumption
     """
 
-    # Job thresholds
-    LONG_RUNNING_SECONDS = 300  # 5 minutes
-    VERY_LONG_RUNNING_SECONDS = 900  # 15 minutes
+    LONG_RUNNING_SECONDS = 300
+    VERY_LONG_RUNNING_SECONDS = 900
 
-    # CPU usage thresholds (billable CPU seconds)
-    HIGH_CPU_THRESHOLD = 60.0  # 1 minute billable CPU
-    VERY_HIGH_CPU_THRESHOLD = 300.0  # 5 minutes billable CPU
-
-    @property
-    def objective_name(self) -> str:
-        """Return the objective name for this analyzer."""
-        return "search"
+    HIGH_CPU_THRESHOLD = 60.0
+    VERY_HIGH_CPU_THRESHOLD = 300.0
 
     @property
     def supported_products(self) -> List[str]:
         """Search health analyzer is specific to Cribl Search."""
         return ["search"]
 
+    @property
+    def objective_name(self) -> str:
+        """Return the objective name for this analyzer."""
+        return "search"
+
     def get_estimated_api_calls(self) -> int:
         """
-        Estimate API calls: jobs(1) + datasets(1) + dashboards(1) + saved(1) = 4.
+        Estimate API calls: jobs(1) + datasets(1) + dashboards(1) + saved(1) + groups(1) + cost(1) = 6.
         """
-        return 4
+        return 6
 
     def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
@@ -73,65 +71,69 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             "read:search:jobs",
             "read:search:datasets",
             "read:search:dashboards",
-            "read:search:saved"
+            "read:search:saved",
+            "read:search:groups",
+            "read:search:cost",
         ]
 
-    async def analyze(self, client: CriblAPIClient, workspace: str = "default_search") -> AnalyzerResult:
+    async def analyze(
+        self, client: CriblAPIClient, workspace: str = "default_search"
+    ) -> AnalyzerResult:
         """
         Analyze Cribl Search health and configuration.
-
-        Args:
-            client: Authenticated Cribl API client
-            workspace: Search workspace name (default: "default_search")
-
-        Returns:
-            AnalyzerResult with Search health findings and recommendations
         """
-        result = AnalyzerResult(objective=self.objective_name)
+        result = self.create_result()
 
         try:
             log.info("search_health_analysis_started", workspace=workspace)
 
-            # Fetch Search data
             jobs_response = await client.get_search_jobs(workspace)
             datasets_response = await client.get_search_datasets(workspace)
             dashboards_response = await client.get_search_dashboards(workspace)
             saved_response = await client.get_search_saved_searches(workspace)
+            groups_response = await client.get_search_groups(workspace)
+            cost_response = await client.get_search_cost(workspace, days=30)
 
-            # Parse responses
             job_list = SearchJobList(**jobs_response)
             dataset_list = SearchDatasetList(**datasets_response)
             dashboard_list = DashboardList(**dashboards_response)
             saved_list = SavedSearchList(**saved_response)
+            group_list = SearchGroupList(**groups_response)
+            cost_data = SearchCost(**cost_response)
 
             jobs = job_list.items
             datasets = dataset_list.items
             dashboards = dashboard_list.items
             saved_searches = saved_list.items
+            groups = group_list.items
 
-            # Categorize jobs by status
             running_jobs = [j for j in jobs if j.status == "running"]
             failed_jobs = [j for j in jobs if j.status == "failed"]
             completed_jobs = [j for j in jobs if j.status == "completed"]
+            canceled_jobs = [j for j in jobs if j.status == "canceled"]
 
-            # Initialize metadata
-            result.metadata.update({
-                "workspace": workspace,
-                "total_jobs": len(jobs),
-                "running_jobs": len(running_jobs),
-                "failed_jobs": len(failed_jobs),
-                "completed_jobs": len(completed_jobs),
-                "total_datasets": len(datasets),
-                "enabled_datasets": sum(1 for d in datasets if d.enabled),
-                "total_dashboards": len(dashboards),
-                "total_saved_searches": len(saved_searches),
-                "analysis_timestamp": datetime.utcnow().isoformat()
-            })
+            result.metadata.update(
+                {
+                    "workspace": workspace,
+                    "total_jobs": len(jobs),
+                    "running_jobs": len(running_jobs),
+                    "failed_jobs": len(failed_jobs),
+                    "completed_jobs": len(completed_jobs),
+                    "canceled_jobs": len(canceled_jobs),
+                    "total_datasets": len(datasets),
+                    "enabled_datasets": sum(1 for d in datasets if d.enabled),
+                    "total_dashboards": len(dashboards),
+                    "total_saved_searches": len(saved_searches),
+                    "total_groups": len(groups),
+                    "total_cost_30d": cost_data.total_cost_usd,
+                    "analysis_timestamp": datetime.utcnow().isoformat(),
+                }
+            )
 
-            # Handle empty state
             if not any([jobs, datasets, dashboards, saved_searches]):
                 result.add_finding(
-                    Finding(
+                    self.create_finding(
+                        client=client,
                         id="search-no-resources",
                         category="search",
                         severity="info",
@@ -139,23 +141,18 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                         description=f"No search resources configured in workspace '{workspace}'.",
                         affected_components=["Search"],
                         confidence_level="high",
-                        metadata={"workspace": workspace}
+                        metadata={"workspace": workspace},
                     )
                 )
                 result.success = True
                 return result
 
-            # Analyze jobs
-            self._analyze_jobs(jobs, result)
-
-            # Analyze datasets
-            self._analyze_datasets(datasets, result)
-
-            # Analyze dashboards
-            self._analyze_dashboards(dashboards, result)
-
-            # Analyze saved searches
-            self._analyze_saved_searches(saved_searches, result)
+            self._analyze_jobs(jobs, result, client)
+            self._analyze_datasets(datasets, result, client)
+            self._analyze_groups(groups, result, client)
+            self._analyze_dashboards(dashboards, result, client)
+            self._analyze_saved_searches(saved_searches, result, client)
+            self._analyze_cost(cost_data, result, client)
 
             result.success = True
             log.info(
@@ -163,10 +160,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 workspace=workspace,
                 jobs=len(jobs),
                 datasets=len(datasets),
-                dashboards=len(dashboards),
-                saved_searches=len(saved_searches),
                 findings=len(result.findings),
-                recommendations=len(result.recommendations)
             )
 
         except Exception as e:
@@ -174,7 +168,8 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             result.success = False
             result.metadata["error"] = str(e)
             result.add_finding(
-                Finding(
+                self.create_finding(
+                    client=client,
                     id="search-analysis-error",
                     category="search",
                     severity="critical",
@@ -184,47 +179,53 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                     remediation_steps=["Check API connectivity", "Verify Search workspace exists"],
                     estimated_impact="Cannot assess Search health",
                     confidence_level="high",
-                    metadata={"error": str(e)}
+                    metadata={"error": str(e)},
                 )
             )
 
         return result
 
-    def _analyze_jobs(self, jobs: List[SearchJob], result: AnalyzerResult) -> None:
+    def _analyze_jobs(
+        self, jobs: List[SearchJob], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
         """Analyze search job health."""
         current_time = datetime.utcnow()
 
         for job in jobs:
-            # Check for failed jobs
             if job.status == "failed":
-                self._report_failed_job(job, result)
+                self._report_failed_job(job, result, client)
                 continue
 
-            # Check for long-running jobs
+            if job.status == "canceled":
+                self._report_canceled_job(job, result, client)
+                continue
+
             if job.status == "running" and job.time_started:
                 start_time = datetime.fromtimestamp(job.time_started / 1000)
                 duration_seconds = (current_time - start_time).total_seconds()
 
                 if duration_seconds >= self.VERY_LONG_RUNNING_SECONDS:
-                    self._report_stuck_job(job, duration_seconds, result)
+                    self._report_stuck_job(job, duration_seconds, result, client)
                 elif duration_seconds >= self.LONG_RUNNING_SECONDS:
-                    self._report_long_running_job(job, duration_seconds, result)
+                    self._report_long_running_job(job, duration_seconds, result, client)
 
-            # Check for high CPU usage in completed jobs
             if job.status == "completed" and job.cpu_metrics:
                 billable_cpu = job.cpu_metrics.billable_cpu_seconds or 0
                 if billable_cpu >= self.VERY_HIGH_CPU_THRESHOLD:
-                    self._report_high_cpu_job(job, billable_cpu, "very_high", result)
+                    self._report_high_cpu_job(job, billable_cpu, "very_high", result, client)
                 elif billable_cpu >= self.HIGH_CPU_THRESHOLD:
-                    self._report_high_cpu_job(job, billable_cpu, "high", result)
+                    self._report_high_cpu_job(job, billable_cpu, "high", result, client)
 
-    def _report_failed_job(self, job: SearchJob, result: AnalyzerResult) -> None:
+    def _report_failed_job(
+        self, job: SearchJob, result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
         """Report a failed search job."""
         result.add_finding(
-            Finding(
+            self.create_finding(
+                client=client,
                 id=f"search-job-failed-{job.id}",
                 category="search",
-                severity="high",
+                severity="critical",
                 title=f"Failed Search Job: {job.id}",
                 description=(
                     f"Search job '{job.id}' failed. "
@@ -235,7 +236,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                     "Review the query syntax for errors",
                     "Check if referenced datasets are available",
                     "Verify user has required permissions",
-                    "Check Search workspace health"
+                    "Check Search workspace health",
                 ],
                 estimated_impact="Query results not available",
                 confidence_level="high",
@@ -243,17 +244,49 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                     "job_id": job.id,
                     "query": job.query,
                     "error": job.error,
-                    "user": job.user
-                }
+                    "user": job.user,
+                },
+            )
+        )
+
+    def _report_canceled_job(
+        self, job: SearchJob, result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
+        """Report a canceled search job."""
+        result.add_finding(
+            self.create_finding(
+                client=client,
+                id=f"search-job-canceled-{job.id}",
+                category="search",
+                severity="medium",
+                title=f"Canceled Search Job: {job.id}",
+                description=f"Search job '{job.id}' was canceled by a user.",
+                affected_components=["Search", job.id],
+                remediation_steps=[
+                    "Investigate why the job was canceled",
+                    "If the cancellation was unintentional, re-run the search.",
+                ],
+                estimated_impact="Potential data loss or incomplete analysis",
+                confidence_level="high",
+                metadata={
+                    "job_id": job.id,
+                    "query": job.query,
+                    "user": job.user,
+                },
             )
         )
 
     def _report_stuck_job(
-        self, job: SearchJob, duration_seconds: float, result: AnalyzerResult
+        self,
+        job: SearchJob,
+        duration_seconds: float,
+        result: AnalyzerResult,
+        client: CriblAPIClient,
     ) -> None:
         """Report a potentially stuck search job."""
         result.add_finding(
-            Finding(
+            self.create_finding(
+                client=client,
                 id=f"search-job-stuck-{job.id}",
                 category="search",
                 severity="high",
@@ -266,7 +299,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 remediation_steps=[
                     "Consider cancelling the job if not needed",
                     "Review query complexity and optimize",
-                    "Check for resource constraints in the Search cluster"
+                    "Check for resource constraints in the Search cluster",
                 ],
                 estimated_impact="Resources tied up, potential timeout",
                 confidence_level="medium",
@@ -274,12 +307,11 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                     "job_id": job.id,
                     "query": job.query,
                     "duration_seconds": round(duration_seconds, 0),
-                    "user": job.user
-                }
+                    "user": job.user,
+                },
             )
         )
 
-        # Add recommendation to optimize or cancel
         result.add_recommendation(
             Recommendation(
                 id=f"rec-search-optimize-job-{job.id}",
@@ -294,24 +326,32 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 implementation_steps=[
                     "Navigate to Search > Jobs",
                     f"Locate job {job.id}",
-                    "Either cancel the job or review query for optimization opportunities"
+                    "Either cancel the job or review query for optimization opportunities",
                 ],
                 before_state=f"Job running for {int(duration_seconds / 60)} minutes",
                 after_state="Job cancelled or optimized query submitted",
                 impact_estimate=ImpactEstimate(
-                    performance_improvement="Frees up Search resources"
+                    performance_improvement="Frees up Search resources",
+                    cost_savings_annual=0.0,
+                    storage_reduction_gb=0.0,
+                    time_to_implement="5 minutes",
                 ),
                 implementation_effort="low",
-                product_tags=["search"]
+                product_tags=["search"],
             )
         )
 
     def _report_long_running_job(
-        self, job: SearchJob, duration_seconds: float, result: AnalyzerResult
+        self,
+        job: SearchJob,
+        duration_seconds: float,
+        result: AnalyzerResult,
+        client: CriblAPIClient,
     ) -> None:
         """Report a long-running search job."""
         result.add_finding(
-            Finding(
+            self.create_finding(
+                client=client,
                 id=f"search-job-long-{job.id}",
                 category="search",
                 severity="medium",
@@ -324,26 +364,32 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                 remediation_steps=[
                     "Monitor job progress in Search UI",
                     "Consider optimizing the query if it runs frequently",
-                    "Check for resource constraints if jobs consistently take long"
+                    "Check for resource constraints if jobs consistently take long",
                 ],
                 estimated_impact="Extended resource usage",
                 confidence_level="high",
                 metadata={
                     "job_id": job.id,
                     "query": job.query,
-                    "duration_seconds": round(duration_seconds, 0)
-                }
+                    "duration_seconds": round(duration_seconds, 0),
+                },
             )
         )
 
     def _report_high_cpu_job(
-        self, job: SearchJob, billable_cpu: float, severity_level: str, result: AnalyzerResult
+        self,
+        job: SearchJob,
+        billable_cpu: float,
+        severity_level: str,
+        result: AnalyzerResult,
+        client: CriblAPIClient,
     ) -> None:
         """Report a job with high CPU usage."""
         severity = "high" if severity_level == "very_high" else "medium"
 
         result.add_finding(
-            Finding(
+            self.create_finding(
+                client=client,
                 id=f"search-job-high-cpu-{job.id}",
                 category="search",
                 severity=severity,
@@ -357,7 +403,7 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                     "Review query for optimization opportunities",
                     "Use more specific time ranges",
                     "Add filters to reduce data scanned",
-                    "Consider using Lakehouse for frequently queried data"
+                    "Consider using Lakehouse for frequently queried data",
                 ],
                 estimated_impact=f"{round(billable_cpu, 1)} CPU seconds per execution",
                 confidence_level="high",
@@ -365,21 +411,20 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                     "job_id": job.id,
                     "query": job.query,
                     "billable_cpu_seconds": round(billable_cpu, 2),
-                    "total_cpu_seconds": round(
-                        job.cpu_metrics.total_cpu_seconds or 0, 2
-                    ) if job.cpu_metrics else 0
-                }
+                    "total_cpu_seconds": round(job.cpu_metrics.total_cpu_seconds or 0, 2)
+                    if job.cpu_metrics
+                    else 0,
+                },
             )
         )
 
-        # Add optimization recommendation for very high CPU
         if severity_level == "very_high":
             result.add_recommendation(
                 Recommendation(
                     id=f"rec-search-optimize-cpu-{job.id}",
                     type="optimization",
                     priority="p1",
-                    title=f"Optimize High-CPU Query",
+                    title="Optimize High-CPU Query",
                     description=(
                         f"Query consumed {round(billable_cpu, 1)} billable CPU seconds. "
                         "Optimizing could significantly reduce costs."
@@ -389,26 +434,31 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                         "Review the query pattern and identify optimization opportunities",
                         "Add time range filters to limit data scanned",
                         "Use specific dataset filters instead of wildcards",
-                        "Consider creating a Lakehouse for frequently queried data"
+                        "Consider creating a Lakehouse for frequently queried data",
                     ],
                     before_state=f"Query uses {round(billable_cpu, 1)} CPU seconds",
                     after_state="Optimized query with reduced CPU usage",
                     impact_estimate=ImpactEstimate(
-                        cost_savings_monthly=round(billable_cpu * 0.001, 2),  # Rough estimate
-                        performance_improvement="Faster query execution"
+                        cost_savings_annual=round(billable_cpu * 0.001 * 12, 2),
+                        performance_improvement="Faster query execution",
+                        storage_reduction_gb=0.0,
+                        time_to_implement="1 hour",
                     ),
                     implementation_effort="medium",
-                    product_tags=["search"]
+                    product_tags=["search"],
                 )
             )
 
-    def _analyze_datasets(self, datasets: List[SearchDataset], result: AnalyzerResult) -> None:
+    def _analyze_datasets(
+        self, datasets: List[SearchDataset], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
         """Analyze search dataset health."""
         disabled_datasets = [d for d in datasets if not d.enabled]
 
         if disabled_datasets:
             result.add_finding(
-                Finding(
+                self.create_finding(
+                    client=client,
                     id="search-datasets-disabled",
                     category="search",
                     severity="low",
@@ -416,103 +466,164 @@ class SearchHealthAnalyzer(BaseAnalyzer):
                     description=(
                         f"Found {len(disabled_datasets)} disabled dataset(s): "
                         f"{', '.join(d.id for d in disabled_datasets[:5])}"
-                        f"{'...' if len(disabled_datasets) > 5 else ''}"
                     ),
                     affected_components=["Search"] + [d.id for d in disabled_datasets[:5]],
                     confidence_level="high",
                     metadata={
                         "disabled_count": len(disabled_datasets),
-                        "disabled_ids": [d.id for d in disabled_datasets]
-                    }
+                        "disabled_ids": [d.id for d in disabled_datasets],
+                    },
                 )
             )
 
-        # Check for datasets without providers
         orphan_datasets = [d for d in datasets if not d.provider]
         if orphan_datasets:
             result.add_finding(
-                Finding(
+                self.create_finding(
+                    client=client,
                     id="search-datasets-no-provider",
                     category="search",
                     severity="medium",
                     title=f"{len(orphan_datasets)} Dataset(s) Without Provider",
-                    description=(
-                        f"Found {len(orphan_datasets)} dataset(s) without a configured provider."
-                    ),
+                    description="Found dataset(s) without a configured provider.",
                     affected_components=["Search"] + [d.id for d in orphan_datasets[:5]],
                     remediation_steps=[
                         "Configure a data provider for each dataset",
-                        "Remove datasets that are no longer needed"
+                        "Remove datasets that are no longer needed",
                     ],
                     confidence_level="high",
                     metadata={
                         "orphan_count": len(orphan_datasets),
-                        "orphan_ids": [d.id for d in orphan_datasets]
-                    }
+                        "orphan_ids": [d.id for d in orphan_datasets],
+                    },
                 )
             )
 
-    def _analyze_dashboards(self, dashboards: List[Dashboard], result: AnalyzerResult) -> None:
+    def _analyze_groups(
+        self, groups: List[SearchGroup], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
+        """Analyze Search groups for configuration issues."""
+        if not groups:
+            return
+
+        empty_groups = [g for g in groups if not g.datasets and not g.dashboards]
+
+        if empty_groups:
+            result.add_finding(
+                self.create_finding(
+                    client=client,
+                    id="search-groups-empty",
+                    category="search",
+                    severity="info",
+                    title=f"{len(empty_groups)} Empty Group(s)",
+                    description="Found group(s) without datasets or dashboards.",
+                    affected_components=["Search"] + [g.id for g in empty_groups[:5]],
+                    confidence_level="high",
+                    metadata={
+                        "empty_count": len(empty_groups),
+                        "empty_ids": [g.id for g in empty_groups],
+                    },
+                )
+            )
+
+    def _analyze_dashboards(
+        self, dashboards: List[Dashboard], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
         """Analyze dashboard health."""
-        # Check for dashboards without elements
-        empty_dashboards = [
-            d for d in dashboards
-            if not d.elements or len(d.elements) == 0
-        ]
+        empty_dashboards = [d for d in dashboards if not d.elements or len(d.elements) == 0]
 
         if empty_dashboards:
             result.add_finding(
-                Finding(
+                self.create_finding(
+                    client=client,
                     id="search-dashboards-empty",
                     category="search",
                     severity="info",
                     title=f"{len(empty_dashboards)} Empty Dashboard(s)",
-                    description=(
-                        f"Found {len(empty_dashboards)} dashboard(s) without any elements."
-                    ),
+                    description="Found dashboard(s) without any elements.",
                     affected_components=["Search"] + [d.id for d in empty_dashboards[:5]],
                     confidence_level="high",
                     metadata={
                         "empty_count": len(empty_dashboards),
-                        "empty_ids": [d.id for d in empty_dashboards]
-                    }
+                        "empty_ids": [d.id for d in empty_dashboards],
+                    },
                 )
             )
 
-        # Check for dashboards with schedules
-        scheduled_dashboards = [
-            d for d in dashboards
-            if d.schedule and d.schedule.enabled
-        ]
+        complex_dashboards = [d for d in dashboards if d.elements and len(d.elements) > 10]
+        if complex_dashboards:
+            result.add_finding(
+                self.create_finding(
+                    client=client,
+                    id="search-dashboards-complex",
+                    category="search",
+                    severity="low",
+                    title=f"{len(complex_dashboards)} Complex Dashboard(s)",
+                    description="Found dashboard(s) with more than 10 elements. Large dashboards can be slow to load.",
+                    affected_components=["Search"] + [d.id for d in complex_dashboards[:5]],
+                    confidence_level="medium",
+                    metadata={
+                        "complex_count": len(complex_dashboards),
+                        "complex_ids": [d.id for d in complex_dashboards],
+                    },
+                )
+            )
 
+        scheduled_dashboards = [d for d in dashboards if d.schedule and d.schedule.enabled]
         result.metadata["scheduled_dashboards"] = len(scheduled_dashboards)
 
     def _analyze_saved_searches(
-        self, saved_searches: List[SavedSearch], result: AnalyzerResult
+        self, saved_searches: List[SavedSearch], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         """Analyze saved search configurations."""
-        # Check for saved searches without queries
-        invalid_searches = [s for s in saved_searches if not s.query]
+        if not saved_searches:
+            return
 
-        if invalid_searches:
+        for saved in saved_searches:
+            if not saved.query:
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id=f"search-saved-no-query-{saved.id}",
+                        category="search",
+                        severity="low",
+                        title=f"Saved Search Without Query: {saved.id}",
+                        description=f"Saved search '{saved.id}' has no query defined.",
+                        affected_components=["Search", saved.id],
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Update saved search '{saved.id}' with a valid query",
+                            "Remove unused saved searches",
+                        ],
+                        metadata={"saved_search_id": saved.id},
+                    )
+                )
+
+    def _analyze_cost(
+        self, cost_data: SearchCost, result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
+        """Analyze Search cost and resource consumption."""
+        if cost_data.total_cost_usd and cost_data.total_cost_usd > 100.0:
             result.add_finding(
-                Finding(
-                    id="search-saved-no-query",
+                self.create_finding(
+                    client=client,
+                    id="search-cost-high",
                     category="search",
-                    severity="low",
-                    title=f"{len(invalid_searches)} Saved Search(es) Without Query",
+                    severity="medium",
+                    title=f"High Search Cost Detected: ${cost_data.total_cost_usd:.2f}",
                     description=(
-                        f"Found {len(invalid_searches)} saved search(es) without a query defined."
+                        f"Cribl Search cost for the last {cost_data.time_period_days} days is high."
                     ),
-                    affected_components=["Search"] + [s.id for s in invalid_searches[:5]],
-                    remediation_steps=[
-                        "Update saved searches with valid queries",
-                        "Remove unused saved searches"
-                    ],
+                    affected_components=["Search"],
                     confidence_level="high",
+                    remediation_steps=[
+                        "Identify top-cost queries in the Search usage dashboard",
+                        "Review and optimize high-CPU queries",
+                    ],
                     metadata={
-                        "invalid_count": len(invalid_searches),
-                        "invalid_ids": [s.id for s in invalid_searches]
-                    }
+                        "total_cost": cost_data.total_cost_usd,
+                        "period_days": cost_data.time_period_days,
+                        "cpu_seconds": cost_data.total_cpu_seconds,
+                    },
                 )
             )

@@ -2,7 +2,8 @@
 Rich terminal output formatting for analysis results.
 """
 
-from typing import Dict
+from collections import defaultdict
+from itertools import groupby
 
 from rich.console import Console
 from rich.panel import Panel
@@ -11,6 +12,7 @@ from rich.tree import Tree
 
 from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.models.finding import Finding
 
 
 def display_analysis_results(
@@ -64,15 +66,15 @@ def display_summary(analysis_run: AnalysisRun, console: Console):
     table.add_row("Total Findings", str(len(analysis_run.findings)))
     table.add_row(
         "  Critical",
-        f"[red]{len([f for f in analysis_run.findings if f.severity == 'critical'])}[/red]"
+        f"[red]{len([f for f in analysis_run.findings if f.severity == 'critical'])}[/red]",
     )
     table.add_row(
         "  High",
-        f"[orange1]{len([f for f in analysis_run.findings if f.severity == 'high'])}[/orange1]"
+        f"[orange1]{len([f for f in analysis_run.findings if f.severity == 'high'])}[/orange1]",
     )
     table.add_row(
         "  Medium",
-        f"[yellow]{len([f for f in analysis_run.findings if f.severity == 'medium'])}[/yellow]"
+        f"[yellow]{len([f for f in analysis_run.findings if f.severity == 'medium'])}[/yellow]",
     )
     table.add_row("Total Recommendations", str(len(analysis_run.recommendations)))
     table.add_row("API Calls Used", f"{analysis_run.api_calls_used}/100")
@@ -85,29 +87,21 @@ def display_summary(analysis_run: AnalysisRun, console: Console):
 
     # Display errors if any analyzers failed
     if analysis_run.errors:
-        console.print(Panel(
-            "[bold red]Errors Encountered[/bold red]",
-            style="red"
-        ))
+        console.print(Panel("[bold red]Errors Encountered[/bold red]", style="red"))
         for error in analysis_run.errors:
             console.print(f"  [red]✗[/red] {error}")
         console.print()
 
 
 def display_findings(objective: str, result: AnalyzerResult, console: Console):
-    """Display findings for a specific objective."""
-    console.print(Panel(
-        f"[bold]{objective.upper()} Findings[/bold]",
-        style="cyan"
-    ))
+    """Display findings for a specific objective, grouping similar findings."""
+    console.print(Panel(f"[bold]{objective.upper()} Findings[/bold]", style="cyan"))
 
-    # Check if disk metrics were skipped (Cribl Cloud)
     if result.metadata.get("disk_metrics_skipped"):
         console.print(
             f"[dim]ℹ️  {result.metadata.get('disk_metrics_skip_reason', 'Disk metrics skipped')}[/dim]\n"
         )
 
-    # Group findings by severity
     severity_order = ["critical", "high", "medium", "low", "info"]
     severity_colors = {
         "critical": "red",
@@ -117,26 +111,55 @@ def display_findings(objective: str, result: AnalyzerResult, console: Console):
         "info": "green",
     }
 
-    for severity in severity_order:
-        severity_findings = [f for f in result.findings if f.severity == severity]
+    sorted_findings = sorted(result.findings, key=lambda f: severity_order.index(f.severity))
 
+    for severity in severity_order:
+        severity_findings = [f for f in sorted_findings if f.severity == severity]
         if not severity_findings:
             continue
 
         color = severity_colors.get(severity, "white")
         console.print(f"\n[{color}]● {severity.upper()}[/{color}]")
 
-        for finding in severity_findings:
-            # Create finding tree
-            tree = Tree(f"[bold]{finding.title}[/bold]")
-            tree.add(f"[dim]{finding.description}[/dim]")
+        keyfunc = lambda f: (f.grouping_id, f.worker_group)
+        sorted_severity_findings = sorted(severity_findings, key=keyfunc)
 
-            if finding.affected_components:
-                components_str = ", ".join(finding.affected_components)
-                tree.add(f"Components: {components_str}")
+        for (grouping_id, worker_group), group in groupby(sorted_severity_findings, key=keyfunc):
+            group_findings = list(group)
+            first_finding = group_findings[0]
 
-            if finding.estimated_impact:
-                tree.add(f"Impact: {finding.estimated_impact}")
+            is_grouped = grouping_id and len(group_findings) > 1
+            if is_grouped:
+                base_title = first_finding.title.split(":")[0]
+                title_parts = [base_title]
+                if worker_group and worker_group != "default":
+                    title_parts.append(f"[dim cyan]({worker_group})[/dim cyan]")
+
+                tree = Tree(
+                    "[bold]" + " ".join(title_parts) + f" ({len(group_findings)} instances)[/bold]"
+                )
+
+                for finding in group_findings:
+                    tree.add(
+                        f"Component: {finding.affected_components[0] if finding.affected_components else 'N/A'}"
+                    )
+
+                if first_finding.description:
+                    tree.add(f"[dim]{first_finding.description.split('.')[0]}.[/dim]")
+                if first_finding.estimated_impact:
+                    tree.add(f"Impact: {first_finding.estimated_impact}")
+
+            else:
+                title_parts = [first_finding.title]
+                if first_finding.worker_group and first_finding.worker_group != "default":
+                    title_parts.append(f"[dim cyan]({first_finding.worker_group})[/dim cyan]")
+
+                tree = Tree("[bold]" + " ".join(title_parts) + "[/bold]")
+                tree.add(f"[dim]{first_finding.description}[/dim]")
+                if first_finding.affected_components:
+                    tree.add(f"Components: {', '.join(first_finding.affected_components)}")
+                if first_finding.estimated_impact:
+                    tree.add(f"Impact: {first_finding.estimated_impact}")
 
             console.print(tree)
 
@@ -145,10 +168,7 @@ def display_findings(objective: str, result: AnalyzerResult, console: Console):
 
 def display_recommendations(recommendations, console: Console):
     """Display recommendations."""
-    console.print(Panel(
-        "[bold]Recommendations[/bold]",
-        style="green"
-    ))
+    console.print(Panel("[bold]Recommendations[/bold]", style="green"))
 
     # Group by priority
     priority_order = ["p0", "p1", "p2", "p3"]
@@ -183,7 +203,9 @@ def display_recommendations(recommendations, console: Console):
 
             # Display impact estimate time
             if rec.impact_estimate and rec.impact_estimate.time_to_implement:
-                console.print(f"   [dim]Estimated time: {rec.impact_estimate.time_to_implement}[/dim]")
+                console.print(
+                    f"   [dim]Estimated time: {rec.impact_estimate.time_to_implement}[/dim]"
+                )
 
             if rec.documentation_links:
                 console.print(f"   [dim]References: {', '.join(rec.documentation_links)}[/dim]")
@@ -216,12 +238,14 @@ def display_health_score(score: float, console: Console):
     # Create score display
     score_text = f"[bold {color}]{score:.1f}/100[/bold {color}] - {status}"
 
-    console.print(Panel(
-        score_text,
-        title="Overall Health Score",
-        style=color,
-        padding=(1, 2),
-    ))
+    console.print(
+        Panel(
+            score_text,
+            title="Overall Health Score",
+            style=color,
+            padding=(1, 2),
+        )
+    )
 
 
 def format_api_usage(used: int, total: int = 100) -> str:

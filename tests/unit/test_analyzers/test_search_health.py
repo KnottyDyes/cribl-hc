@@ -19,6 +19,7 @@ def mock_client():
     client.product_type = "search"
     client.is_edge = False
     client.base_url = "https://test.cribl.cloud"
+    client.worker_group = "default"
     return client
 
 
@@ -37,52 +38,44 @@ class TestSearchHealthAnalyzer:
 
     def test_estimated_api_calls(self, analyzer):
         """Test API call estimation."""
-        # jobs(1) + datasets(1) + dashboards(1) + saved(1) = 4
-        assert analyzer.get_estimated_api_calls() == 4
+        # jobs(1) + datasets(1) + dashboards(1) + saved(1) + groups(1) + cost(1) = 6
+        assert analyzer.get_estimated_api_calls() == 6
 
     @pytest.mark.asyncio
     async def test_analyze_with_healthy_resources(self, analyzer, mock_client):
         """Test analyzer with all search resources healthy."""
         mock_client.get_search_jobs.return_value = {
             "items": [
-                {
-                    "id": "job-001",
-                    "status": "completed",
-                    "query": "cribl dataset='logs' | count"
-                }
+                {"id": "job-001", "status": "completed", "query": "cribl dataset='logs' | count"}
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_datasets.return_value = {
-            "items": [
-                {
-                    "id": "cribl_logs",
-                    "provider": "cribl_lake",
-                    "enabled": True
-                }
-            ],
-            "count": 1
+            "items": [{"id": "cribl_logs", "provider": "cribl_lake", "enabled": True}],
+            "count": 1,
         }
         mock_client.get_search_dashboards.return_value = {
             "items": [
                 {
                     "id": "dash-001",
                     "name": "Operations",
-                    "elements": [{"id": "elem-001", "type": "chart"}]
+                    "elements": [{"id": "elem-001", "type": "chart"}],
                 }
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_saved_searches.return_value = {
             "items": [
                 {
                     "id": "saved-001",
                     "name": "Error Query",
-                    "query": "cribl dataset='logs' | where level='error'"
+                    "query": "cribl dataset='logs' | where level='error'",
                 }
             ],
-            "count": 1
+            "count": 1,
         }
+        mock_client.get_search_groups.return_value = {"items": [], "count": 0}
+        mock_client.get_search_cost.return_value = {"total_cost_usd": 10.0, "time_period_days": 30}
 
         result = await analyzer.analyze(mock_client)
 
@@ -102,23 +95,25 @@ class TestSearchHealthAnalyzer:
                     "id": "job-failed",
                     "status": "failed",
                     "query": "invalid query syntax",
-                    "error": "Query parse error: unexpected token"
+                    "error": "Query parse error: unexpected token",
                 }
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_datasets.return_value = {"items": [], "count": 0}
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
         mock_client.get_search_saved_searches.return_value = {"items": [], "count": 0}
+        mock_client.get_search_groups.return_value = {"items": [], "count": 0}
+        mock_client.get_search_cost.return_value = {"total_cost_usd": 0.0, "time_period_days": 30}
 
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
         assert result.metadata["failed_jobs"] == 1
-        # Should have high severity finding for failed job
-        high_findings = [f for f in result.findings if f.severity == "high"]
-        assert len(high_findings) > 0
-        assert any("failed" in f.title.lower() for f in high_findings)
+        # Should have critical severity finding for failed job
+        critical_findings = [f for f in result.findings if f.severity == "critical"]
+        assert len(critical_findings) > 0
+        assert any("failed" in f.title.lower() for f in critical_findings)
 
     @pytest.mark.asyncio
     async def test_analyze_detects_long_running_jobs(self, analyzer, mock_client):
@@ -131,14 +126,16 @@ class TestSearchHealthAnalyzer:
                     "id": "job-long",
                     "status": "running",
                     "query": "cribl dataset='logs' | count",
-                    "timeStarted": int(start_time.timestamp() * 1000)
+                    "timeStarted": int(start_time.timestamp() * 1000),
                 }
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_datasets.return_value = {"items": [], "count": 0}
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
         mock_client.get_search_saved_searches.return_value = {"items": [], "count": 0}
+        mock_client.get_search_groups.return_value = {"items": [], "count": 0}
+        mock_client.get_search_cost.return_value = {"total_cost_usd": 0.0, "time_period_days": 30}
 
         result = await analyzer.analyze(mock_client)
 
@@ -159,14 +156,16 @@ class TestSearchHealthAnalyzer:
                     "id": "job-stuck",
                     "status": "running",
                     "query": "cribl dataset='logs' | some complex query",
-                    "timeStarted": int(start_time.timestamp() * 1000)
+                    "timeStarted": int(start_time.timestamp() * 1000),
                 }
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_datasets.return_value = {"items": [], "count": 0}
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
         mock_client.get_search_saved_searches.return_value = {"items": [], "count": 0}
+        mock_client.get_search_groups.return_value = {"items": [], "count": 0}
+        mock_client.get_search_cost.return_value = {"total_cost_usd": 0.0, "time_period_days": 30}
 
         result = await analyzer.analyze(mock_client)
 
@@ -190,15 +189,17 @@ class TestSearchHealthAnalyzer:
                     "cpuMetrics": {
                         "totalCPUSeconds": 400.0,
                         "billableCPUSeconds": 350.0,
-                        "executorsCPUSeconds": 300.0
-                    }
+                        "executorsCPUSeconds": 300.0,
+                    },
                 }
             ],
-            "count": 1
+            "count": 1,
         }
         mock_client.get_search_datasets.return_value = {"items": [], "count": 0}
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
         mock_client.get_search_saved_searches.return_value = {"items": [], "count": 0}
+        mock_client.get_search_groups.return_value = {"items": [], "count": 0}
+        mock_client.get_search_cost.return_value = {"total_cost_usd": 0.0, "time_period_days": 30}
 
         result = await analyzer.analyze(mock_client)
 
@@ -217,12 +218,14 @@ class TestSearchHealthAnalyzer:
         mock_client.get_search_datasets.return_value = {
             "items": [
                 {"id": "enabled_ds", "provider": "cribl_lake", "enabled": True},
-                {"id": "disabled_ds", "provider": "cribl_lake", "enabled": False}
+                {"id": "disabled_ds", "provider": "cribl_lake", "enabled": False},
             ],
-            "count": 2
+            "count": 2,
         }
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
         mock_client.get_search_saved_searches.return_value = {"items": [], "count": 0}
+        mock_client.get_search_groups.return_value = {"items": [], "count": 0}
+        mock_client.get_search_cost.return_value = {"total_cost_usd": 0.0, "time_period_days": 30}
 
         result = await analyzer.analyze(mock_client)
 
@@ -240,11 +243,13 @@ class TestSearchHealthAnalyzer:
         mock_client.get_search_dashboards.return_value = {
             "items": [
                 {"id": "empty_dash", "name": "Empty Dashboard", "elements": []},
-                {"id": "full_dash", "name": "Full Dashboard", "elements": [{"id": "e1"}]}
+                {"id": "full_dash", "name": "Full Dashboard", "elements": [{"id": "e1"}]},
             ],
-            "count": 2
+            "count": 2,
         }
         mock_client.get_search_saved_searches.return_value = {"items": [], "count": 0}
+        mock_client.get_search_groups.return_value = {"items": [], "count": 0}
+        mock_client.get_search_cost.return_value = {"total_cost_usd": 0.0, "time_period_days": 30}
 
         result = await analyzer.analyze(mock_client)
 
@@ -261,6 +266,8 @@ class TestSearchHealthAnalyzer:
         mock_client.get_search_datasets.return_value = {"items": [], "count": 0}
         mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
         mock_client.get_search_saved_searches.return_value = {"items": [], "count": 0}
+        mock_client.get_search_groups.return_value = {"items": [], "count": 0}
+        mock_client.get_search_cost.return_value = {"total_cost_usd": 0.0, "time_period_days": 30}
 
         result = await analyzer.analyze(mock_client)
 
@@ -292,10 +299,12 @@ class TestSearchHealthAnalyzer:
         mock_client.get_search_saved_searches.return_value = {
             "items": [
                 {"id": "valid_saved", "name": "Valid", "query": "cribl | count"},
-                {"id": "invalid_saved", "name": "Invalid", "query": None}
+                {"id": "invalid_saved", "name": "Invalid", "query": None},
             ],
-            "count": 2
+            "count": 2,
         }
+        mock_client.get_search_groups.return_value = {"items": [], "count": 0}
+        mock_client.get_search_cost.return_value = {"total_cost_usd": 0.0, "time_period_days": 30}
 
         result = await analyzer.analyze(mock_client)
 
@@ -315,19 +324,83 @@ class TestSearchHealthAnalyzer:
                     "id": "scheduled_dash",
                     "name": "Scheduled",
                     "elements": [{"id": "e1"}],
-                    "schedule": {"enabled": True, "cron": "0 * * * *"}
+                    "schedule": {"enabled": True, "cron": "0 * * * *"},
                 },
-                {
-                    "id": "unscheduled_dash",
-                    "name": "Unscheduled",
-                    "elements": [{"id": "e2"}]
-                }
+                {"id": "unscheduled_dash", "name": "Unscheduled", "elements": [{"id": "e2"}]},
             ],
-            "count": 2
+            "count": 2,
         }
         mock_client.get_search_saved_searches.return_value = {"items": [], "count": 0}
+        mock_client.get_search_groups.return_value = {"items": [], "count": 0}
+        mock_client.get_search_cost.return_value = {"total_cost_usd": 0.0, "time_period_days": 30}
 
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
         assert result.metadata["scheduled_dashboards"] == 1
+
+    @pytest.mark.asyncio
+    async def test_health_analyzer_with_failed_jobs(self, analyzer, mock_client):
+        """Test analyzer generates critical finding for failed search jobs."""
+        mock_client.get_search_jobs.return_value = {
+            "items": [
+                {
+                    "id": "job-failed-1",
+                    "status": "failed",
+                    "query": "bad query",
+                    "error": "Syntax error",
+                },
+                {
+                    "id": "job-failed-2",
+                    "status": "failed",
+                    "query": "another bad query",
+                    "error": "Timeout",
+                },
+            ],
+            "count": 2,
+        }
+        mock_client.get_search_datasets.return_value = {"items": [], "count": 0}
+        mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
+        mock_client.get_search_saved_searches.return_value = {"items": [], "count": 0}
+        mock_client.get_search_groups.return_value = {"items": [], "count": 0}
+        mock_client.get_search_cost.return_value = {"total_cost_usd": 0.0, "time_period_days": 30}
+
+        result = await analyzer.analyze(mock_client)
+
+        assert result.success is True
+        assert result.metadata["failed_jobs"] == 2
+
+        critical_findings = [f for f in result.findings if f.severity == "critical"]
+        assert len(critical_findings) == 2
+
+        assert any("job-failed-1" in f.id for f in critical_findings)
+        assert any("job-failed-2" in f.id for f in critical_findings)
+        assert all("Failed Search Job" in f.title for f in critical_findings)
+
+    @pytest.mark.asyncio
+    async def test_health_analyzer_with_canceled_jobs(self, analyzer, mock_client):
+        """Test analyzer generates a medium finding for canceled search jobs."""
+        mock_client.get_search_jobs.return_value = {
+            "items": [
+                {
+                    "id": "job-canceled-1",
+                    "status": "canceled",
+                    "query": "a query",
+                }
+            ],
+            "count": 1,
+        }
+        # Mock other API calls to return empty lists
+        mock_client.get_search_datasets.return_value = {"items": [], "count": 0}
+        mock_client.get_search_dashboards.return_value = {"items": [], "count": 0}
+        mock_client.get_search_saved_searches.return_value = {"items": [], "count": 0}
+        mock_client.get_search_groups.return_value = {"items": [], "count": 0}
+        mock_client.get_search_cost.return_value = {"total_cost_usd": 0.0, "time_period_days": 30}
+
+        result = await analyzer.analyze(mock_client)
+
+        assert result.success is True
+        assert result.metadata["canceled_jobs"] == 1
+        medium_findings = [f for f in result.findings if f.severity == "medium"]
+        assert len(medium_findings) == 1
+        assert "Canceled Search Job" in medium_findings[0].title

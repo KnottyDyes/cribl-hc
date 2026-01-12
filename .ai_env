@@ -1,0 +1,17 @@
+# AI Development Configuration
+# This file configures access to Harbor/Ollama services for AI-assisted development
+
+# Harbor/Ollama Connection
+export HARBOR_HOST=overlord
+export OLLAMA_PORT=33821
+export LITELLM_PORT=  # Set when determined
+
+# Performance Settings
+export AI_MAX_CONCURRENCY=5
+export AI_TIMEOUT=300
+
+# Model Preferences (format: provider/model)
+export AI_CODE_MODEL=ollama/qwen2.5-coder
+export AI_CREATIVE_MODEL=ollama/llama3
+export AI_ANALYSIS_MODEL=ollama/mistral
+export AI_GENERAL_MODEL=ollama/llama3

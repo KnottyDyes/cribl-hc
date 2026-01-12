@@ -1,13 +1,10 @@
 import axios from 'axios'
 import type { AxiosError } from 'axios'
-import { getBackendUrl } from '../utils/tauri'
 
-// Base URL will be set dynamically
-let API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
-/**
- * Axios instance configured for the Cribl Health Check API
- */
+console.log('API Base URL:', API_BASE_URL)
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -15,20 +12,6 @@ export const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
 })
-
-/**
- * Initialize the API client with the correct backend URL
- * Must be called before making any API requests
- */
-export const initializeApiClient = async () => {
-  try {
-    API_BASE_URL = await getBackendUrl()
-    apiClient.defaults.baseURL = API_BASE_URL
-    console.log('API client initialized with baseURL:', API_BASE_URL)
-  } catch (error) {
-    console.error('Failed to initialize API client:', error)
-  }
-}
 
 /**
  * Request interceptor

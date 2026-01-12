@@ -1,21 +1,23 @@
 """
-Schema Quality Analyzer for Cribl Stream Health Check.
+Schema Quality Analyzer for Cribl Health Check.
 
 Analyzes schema and parsing configurations to identify:
 - Parser configuration issues
 - Schema mapping problems
 - Field extraction quality
 - Event breaker configuration
+- Search datatypes and field quality
 """
 
-from typing import Any, Dict, List, Set
 from collections import defaultdict
+from typing import Any, Dict, List
+import re
 
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
 from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
 
 
 class SchemaQualityAnalyzer(BaseAnalyzer):
@@ -30,13 +32,12 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
     - Field extraction consistency
     - Event breaker configuration
     - Schema mapping coverage
+    - Search datatypes and schema field quality
     """
 
-    # Regex complexity thresholds
-    COMPLEX_REGEX_LENGTH = 200  # Very long regex
-    MULTIPLE_CAPTURE_GROUPS = 10  # Too many capture groups
+    COMPLEX_REGEX_LENGTH = 200
+    MULTIPLE_CAPTURE_GROUPS = 10
 
-    # Known problematic patterns
     PROBLEMATIC_PATTERNS = [
         (r".*", "Greedy .* can cause catastrophic backtracking"),
         (r".+", "Greedy .+ at pattern start is inefficient"),
@@ -44,7 +45,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         (r"(.*)*", "Nested quantifiers cause exponential backtracking"),
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the schema quality analyzer."""
         super().__init__()
         self.log = get_logger(__name__)
@@ -56,26 +57,24 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
 
     @property
     def supported_products(self) -> List[str]:
-        """Schema analyzer applies to Stream and Edge."""
-        return ["stream", "edge"]
+        """Schema analyzer applies to Stream, Edge, and Search."""
+        return ["stream", "edge", "search"]
 
     def get_description(self) -> str:
         """Get human-readable description."""
-        return "Schema and parsing quality analysis, regex optimization, field extraction validation"
+        return (
+            "Schema and parsing quality analysis, regex optimization, field extraction validation"
+        )
 
     def get_estimated_api_calls(self) -> int:
         """
-        Estimate API calls: parsers(1) + pipelines(1) + inputs(1) = 3.
+        Estimate API calls: parsers(1) + pipelines(1) + inputs(1) + search_datatypes(1) = 4.
         """
-        return 3
+        return 4
 
     def get_required_permissions(self) -> List[str]:
         """Return required API permissions."""
-        return [
-            "read:parsers",
-            "read:pipelines",
-            "read:inputs"
-        ]
+        return ["read:parsers", "read:pipelines", "read:inputs", "read:search:datatypes"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         """
@@ -90,29 +89,35 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         result = self.create_result()
 
         try:
-            # Fetch parser library
+            # Fetch common data
             parsers = await client.get_parsers()
-            result.metadata["parser_count"] = len(parsers)
-
-            # Fetch pipelines to check parser usage
             pipelines = await client.get_pipelines()
-            result.metadata["pipeline_count"] = len(pipelines)
-
-            # Fetch inputs to check event breaker config
             inputs = await client.get_inputs()
-            result.metadata["input_count"] = len(inputs)
 
-            # Analyze parsers
+            result.metadata.update(
+                {
+                    "parser_count": len(parsers),
+                    "pipeline_count": len(pipelines),
+                    "input_count": len(inputs),
+                }
+            )
+
+            # Analyze Stream/Edge components
             self._analyze_parsers(result, parsers, pipelines)
-
-            # Analyze regex functions in pipelines
             self._analyze_regex_functions(result, pipelines)
-
-            # Analyze event breakers
             self._analyze_event_breakers(result, inputs)
-
-            # Check for schema mapping issues
+            self._analyze_input_filters(result, inputs)
             self._analyze_schema_mapping(result, pipelines)
+
+            # Analyze Search datatypes if applicable
+            if "search" in self.supported_products:
+                try:
+                    datatypes_response = await client.get_search_datatypes()
+                    datatypes = datatypes_response.get("items", [])
+                    self._analyze_search_datatypes(result, datatypes)
+                    result.metadata["search_datatype_count"] = len(datatypes)
+                except Exception as e:
+                    self.log.warning("failed_to_fetch_search_datatypes", error=str(e))
 
             # Add summary finding
             self._add_summary_finding(result, parsers, pipelines, inputs)
@@ -120,79 +125,62 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
             self.log.info(
                 "schema_quality_analysis_completed",
                 parser_count=len(parsers),
-                pipeline_count=len(pipelines)
+                pipeline_count=len(pipelines),
             )
 
         except Exception as e:
             self.log.error("schema_quality_analysis_failed", error=str(e))
             result.success = False
-            result.error = str(e)
+            result.metadata["error"] = str(e)
 
         return result
 
     def _analyze_parsers(
-        self,
-        result: AnalyzerResult,
-        parsers: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]]
+        self, result: AnalyzerResult, parsers: List[Dict[str, Any]], pipelines: List[Dict[str, Any]]
     ) -> None:
         """Analyze parser library entries."""
-        # Find all parser references in pipelines
         referenced_parsers = self._find_parser_references(pipelines)
 
-        parser_types = defaultdict(int)
+        parser_types: defaultdict[str, int] = defaultdict(int)
         for parser in parsers:
             parser_id = parser.get("id", "unknown")
             parser_type = parser.get("type", "unknown")
             parser_types[parser_type] += 1
 
-            # Check for regex parsers
             if parser_type in ("regex", "grok"):
                 self._check_regex_parser(result, parser)
 
-            # Check if parser is unused
             if parser_id not in referenced_parsers:
                 result.add_finding(
-                    Finding(
+                    self.create_finding(
                         id=f"parser-unused-{parser_id}",
                         title=f"Unused Parser: {parser_id}",
-                        description=f"Parser '{parser_id}' (type: {parser_type}) is not referenced by any pipeline.",
+                        description=f"Parser '{parser_id}' is not referenced by any pipeline.",
                         severity="info",
                         category="schema_quality",
                         confidence_level="medium",
                         affected_components=[f"parser:{parser_id}"],
-                        estimated_impact="Unused parsers add clutter to configuration",
-                        remediation_steps=[
-                            "Verify if the parser is used by external systems",
-                            "Remove unused parsers to simplify configuration"
-                        ],
-                        metadata={
-                            "parser_id": parser_id,
-                            "parser_type": parser_type
-                        }
+                        metadata={"parser_id": parser_id, "parser_type": parser_type},
                     )
                 )
 
         result.metadata["parser_types"] = dict(parser_types)
 
-    def _find_parser_references(self, pipelines: List[Dict[str, Any]]) -> Set[str]:
+    def _find_parser_references(self, pipelines: List[Dict[str, Any]]) -> set[str]:
         """Find all parser references in pipeline configurations."""
         referenced = set()
 
         for pipeline in pipelines:
             functions = pipeline.get("conf", {}).get("functions", [])
-
             for func in functions:
                 func_id = func.get("id", "")
                 conf = func.get("conf", {})
 
-                # Check parser function
                 if func_id == "parser":
                     parser_ref = conf.get("parserLibEntry", "") or conf.get("parser", "")
                     if parser_ref:
                         referenced.add(parser_ref)
 
-                # Check serialize function
                 if func_id == "serialize":
                     parser_ref = conf.get("parserLibEntry", "")
                     if parser_ref:
@@ -205,42 +193,32 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         parser_id = parser.get("id", "unknown")
         parser_type = parser.get("type", "regex")
 
-        # For regex parsers, check the pattern
         if parser_type == "regex":
             pattern = parser.get("regex", "") or parser.get("pattern", "")
             if pattern:
                 self._check_regex_pattern(result, parser_id, pattern, "parser")
 
-        # For grok parsers, patterns are typically safe
         if parser_type == "grok":
             pattern = parser.get("pattern", "")
-            # Grok patterns that reference custom patterns
             if pattern and "%{" in pattern:
                 custom_refs = pattern.count("%{")
                 if custom_refs > 10:
                     result.add_finding(
-                        Finding(
+                        self.create_finding(
                             id=f"parser-grok-complex-{parser_id}",
                             title=f"Complex Grok Pattern: {parser_id}",
-                            description=f"Grok pattern in '{parser_id}' references {custom_refs} sub-patterns. "
-                                       f"Consider simplifying for better performance.",
+                            description=f"Grok pattern in '{parser_id}' references {custom_refs} sub-patterns.",
                             severity="low",
                             category="schema_quality",
                             confidence_level="medium",
                             affected_components=[f"parser:{parser_id}"],
-                            estimated_impact="Complex grok patterns can slow parsing",
-                            remediation_steps=[
-                                "Consider breaking into multiple simpler patterns",
-                                "Evaluate if all captured fields are needed"
-                            ],
-                            metadata={
-                                "parser_id": parser_id,
-                                "pattern_refs": custom_refs
-                            }
+                            metadata={"parser_id": parser_id, "pattern_refs": custom_refs},
                         )
                     )
 
-    def _analyze_regex_functions(self, result: AnalyzerResult, pipelines: List[Dict[str, Any]]) -> None:
+    def _analyze_regex_functions(
+        self, result: AnalyzerResult, pipelines: List[Dict[str, Any]]
+    ) -> None:
         """Analyze regex functions in pipelines for performance issues."""
         regex_function_count = 0
 
@@ -254,209 +232,184 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
 
                 if func_id in ("regex_extract", "regex", "mask"):
                     regex_function_count += 1
-
-                    # Check regex patterns
                     regex_pattern = conf.get("regex", "") or conf.get("pattern", "")
                     if regex_pattern:
-                        self._check_regex_pattern(result, f"{pipeline_id}/{func_id}", regex_pattern, "pipeline")
+                        self._check_regex_pattern(
+                            result, f"{pipeline_id}/{func_id}", regex_pattern, "pipeline"
+                        )
 
-                    # Check for multiple regex iterations
                     iterations = conf.get("iterations", 1)
                     if iterations and int(iterations) > 5:
                         result.add_finding(
-                            Finding(
+                            self.create_finding(
                                 id=f"regex-high-iterations-{pipeline_id}",
                                 title=f"High Regex Iterations in {pipeline_id}",
-                                description=f"Regex function in '{pipeline_id}' has {iterations} iterations. "
-                                           f"High iteration counts can significantly impact performance.",
+                                description=f"Regex function in '{pipeline_id}' has {iterations} iterations, which may impact performance.",
                                 severity="medium",
                                 category="schema_quality",
                                 confidence_level="high",
                                 affected_components=[f"pipeline:{pipeline_id}"],
-                                estimated_impact="High iteration counts multiply regex processing time",
                                 remediation_steps=[
-                                    "Reduce iteration count if possible",
-                                    "Consider using a single comprehensive regex",
-                                    "Evaluate if all iterations are necessary"
+                                    f"Review regex function in pipeline '{pipeline_id}'",
+                                    "Consider reducing iterations to 5 or fewer",
+                                    "Optimize regex patterns to be more specific",
+                                    "Test performance after reducing iterations",
                                 ],
-                                metadata={
-                                    "pipeline_id": pipeline_id,
-                                    "iterations": iterations
-                                }
+                                metadata={"pipeline_id": pipeline_id, "iterations": iterations},
                             )
                         )
 
         result.metadata["regex_function_count"] = regex_function_count
 
     def _check_regex_pattern(
-        self,
-        result: AnalyzerResult,
-        context: str,
-        pattern: str,
-        source_type: str
+        self, result: AnalyzerResult, context: str, pattern: str, source_type: str
     ) -> None:
         """Check a regex pattern for potential performance issues."""
         import re
 
-        # Check pattern length
         if len(pattern) > self.COMPLEX_REGEX_LENGTH:
             result.add_finding(
-                Finding(
+                self.create_finding(
                     id=f"regex-complex-length-{context.replace('/', '-')}",
-                    title=f"Very Long Regex Pattern",
-                    description=f"Regex pattern in '{context}' is {len(pattern)} characters. "
-                               f"Very long patterns can be slow and hard to maintain.",
+                    title="Very Long Regex Pattern",
+                    description=f"Regex pattern in '{context}' is {len(pattern)} characters.",
                     severity="low",
                     category="schema_quality",
                     confidence_level="medium",
                     affected_components=[f"{source_type}:{context}"],
-                    estimated_impact="Long regex patterns can be slow to compile and execute",
-                    remediation_steps=[
-                        "Consider breaking into multiple simpler patterns",
-                        "Evaluate if pattern can be optimized"
-                    ],
-                    metadata={
-                        "context": context,
-                        "pattern_length": len(pattern)
-                    }
+                    metadata={"context": context, "pattern_length": len(pattern)},
                 )
             )
 
-        # Count capture groups
         try:
             compiled = re.compile(pattern)
             groups = compiled.groups
             if groups > self.MULTIPLE_CAPTURE_GROUPS:
                 result.add_finding(
-                    Finding(
+                    self.create_finding(
                         id=f"regex-many-groups-{context.replace('/', '-')}",
-                        title=f"Many Regex Capture Groups",
-                        description=f"Regex in '{context}' has {groups} capture groups. "
-                                   f"Consider reducing capture groups for better performance.",
+                        title="Many Regex Capture Groups",
+                        description=f"Regex in '{context}' has {groups} capture groups.",
                         severity="low",
                         category="schema_quality",
                         confidence_level="medium",
                         affected_components=[f"{source_type}:{context}"],
-                        estimated_impact="Many capture groups increase memory and processing overhead",
-                        remediation_steps=[
-                            "Use non-capturing groups (?:...) where captures aren't needed",
-                            "Evaluate if all captured fields are necessary"
-                        ],
-                        metadata={
-                            "context": context,
-                            "capture_groups": groups
-                        }
+                        metadata={"context": context, "capture_groups": groups},
                     )
                 )
         except re.error:
-            # Invalid regex
             result.add_finding(
-                Finding(
+                self.create_finding(
                     id=f"regex-invalid-{context.replace('/', '-')}",
-                    title=f"Invalid Regex Pattern",
-                    description=f"Regex pattern in '{context}' is invalid or cannot be compiled.",
+                    title="Invalid Regex Pattern",
+                    description=f"Regex pattern in '{context}' is invalid.",
                     severity="high",
                     category="schema_quality",
                     confidence_level="high",
                     affected_components=[f"{source_type}:{context}"],
-                    estimated_impact="Invalid regex will cause runtime errors",
-                    remediation_steps=[
-                        "Fix the regex pattern syntax",
-                        "Test the pattern before deploying"
-                    ],
                     metadata={
                         "context": context,
-                        "pattern_preview": pattern[:100] if len(pattern) > 100 else pattern
-                    }
+                        "pattern_preview": pattern[:100] if len(pattern) > 100 else pattern,
+                    },
                 )
             )
 
-        # Check for problematic patterns
         for bad_pattern, reason in self.PROBLEMATIC_PATTERNS:
             if bad_pattern in pattern:
                 result.add_finding(
-                    Finding(
+                    self.create_finding(
                         id=f"regex-problematic-{context.replace('/', '-')}-{hash(bad_pattern) % 10000}",
-                        title=f"Potentially Slow Regex Pattern",
+                        title="Potentially Slow Regex Pattern",
                         description=f"Regex in '{context}' contains '{bad_pattern}'. {reason}",
                         severity="medium",
                         category="schema_quality",
                         confidence_level="medium",
                         affected_components=[f"{source_type}:{context}"],
-                        estimated_impact="Pattern can cause slow matching or backtracking",
                         remediation_steps=[
-                            "Use more specific patterns instead of greedy wildcards",
-                            "Consider using possessive quantifiers or atomic groups",
-                            "Test pattern performance with representative data"
+                            "Rewrite regex to avoid nested quantifiers",
+                            "Use more specific patterns",
+                            "Anchor regex patterns where possible",
                         ],
-                        metadata={
-                            "context": context,
-                            "problematic_pattern": bad_pattern,
-                            "reason": reason
-                        }
+                        metadata={"context": context, "problematic_pattern": bad_pattern},
                     )
                 )
-                break  # Only report first match
+                break
 
     def _analyze_event_breakers(self, result: AnalyzerResult, inputs: List[Dict[str, Any]]) -> None:
         """Analyze event breaker configuration on inputs."""
-        breaker_types = defaultdict(int)
+        breaker_types: defaultdict[str, int] = defaultdict(int)
         custom_breaker_count = 0
 
         for inp in inputs:
             input_id = inp.get("id", "unknown")
-            input_type = inp.get("type", "unknown")
-
-            # Check event breaker settings
             breaker = inp.get("breakerRulesets", []) or []
             breaker_type = inp.get("breakerType", "auto")
-
             breaker_types[breaker_type] += 1
 
             if breaker_type == "regex" or breaker:
                 custom_breaker_count += 1
-
-                # Check for overly complex breaker rules
                 if len(breaker) > 5:
                     result.add_finding(
-                        Finding(
+                        self.create_finding(
                             id=f"input-many-breakers-{input_id}",
                             title=f"Many Event Breaker Rules on {input_id}",
-                            description=f"Input '{input_id}' has {len(breaker)} event breaker rulesets. "
-                                       f"Consider consolidating for better performance.",
+                            description=f"Input '{input_id}' has {len(breaker)} event breaker rulesets.",
                             severity="low",
                             category="schema_quality",
                             confidence_level="medium",
                             affected_components=[f"input:{input_id}"],
-                            estimated_impact="Many breaker rules can slow event processing",
-                            remediation_steps=[
-                                "Consolidate similar breaking rules",
-                                "Evaluate if all rules are necessary"
-                            ],
-                            metadata={
-                                "input_id": input_id,
-                                "breaker_count": len(breaker)
-                            }
+                            metadata={"input_id": input_id, "breaker_count": len(breaker)},
                         )
                     )
 
         result.metadata["event_breaker_types"] = dict(breaker_types)
         result.metadata["custom_breaker_count"] = custom_breaker_count
 
-    def _analyze_schema_mapping(self, result: AnalyzerResult, pipelines: List[Dict[str, Any]]) -> None:
+    def _analyze_input_filters(self, result: AnalyzerResult, inputs: List[Dict[str, Any]]) -> None:
+        for inp in inputs:
+            input_id = inp.get("id", "unknown")
+            filter_expr = (
+                inp.get("filter")
+                or inp.get("filterExpr")
+                or inp.get("filterExpression")
+                or inp.get("conf", {}).get("filter")
+                or ""
+            )
+
+            if not isinstance(filter_expr, str) or not filter_expr.strip():
+                continue
+
+            patterns = self._extract_regex_patterns_from_expression(filter_expr)
+            for pattern in patterns:
+                self._check_regex_pattern(result, f"input:{input_id}", pattern, "input-filter")
+
+    @staticmethod
+    def _extract_regex_patterns_from_expression(filter_expr: str) -> List[str]:
+        patterns = []
+        for match in re.finditer(r"/([^/\\]*(?:\\.[^/\\]*)*)/", filter_expr):
+            patterns.append(match.group(1))
+
+        for match in re.finditer(r"regex\(\s*['\"](.+?)['\"]\s*\)", filter_expr):
+            patterns.append(match.group(1))
+
+        for match in re.finditer(r"match\(\s*[^,]+,\s*['\"](.+?)['\"]\s*\)", filter_expr):
+            patterns.append(match.group(1))
+
+        return patterns
+
+    def _analyze_schema_mapping(
+        self, result: AnalyzerResult, pipelines: List[Dict[str, Any]]
+    ) -> None:
         """Analyze schema mapping and field renaming patterns."""
-        rename_patterns = defaultdict(int)
+        rename_patterns: defaultdict[str, int] = defaultdict(int)
         eval_field_count = 0
 
         for pipeline in pipelines:
-            pipeline_id = pipeline.get("id", "unknown")
             functions = pipeline.get("conf", {}).get("functions", [])
-
             for func in functions:
                 func_id = func.get("id", "")
                 conf = func.get("conf", {})
 
-                # Check rename function
                 if func_id == "rename":
                     fields = conf.get("fields", [])
                     for field in fields:
@@ -465,7 +418,6 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
                         if old_name and new_name:
                             rename_patterns[f"{old_name}->{new_name}"] += 1
 
-                # Check eval function for field creation
                 if func_id == "eval":
                     add_fields = conf.get("add", []) or []
                     eval_field_count += len(add_fields)
@@ -473,36 +425,73 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         result.metadata["rename_patterns"] = len(rename_patterns)
         result.metadata["eval_field_creations"] = eval_field_count
 
-        # Check for duplicate rename patterns across pipelines
         duplicates = {k: v for k, v in rename_patterns.items() if v > 3}
         if duplicates:
             result.add_finding(
-                Finding(
+                self.create_finding(
                     id="schema-duplicate-renames",
                     title="Duplicate Field Renames Across Pipelines",
-                    description=f"Found {len(duplicates)} field rename patterns used in multiple pipelines. "
-                               f"Consider using a shared pack for common transformations.",
+                    description=f"Found {len(duplicates)} field rename patterns used in multiple pipelines.",
                     severity="info",
                     category="schema_quality",
                     confidence_level="medium",
                     affected_components=["schema:renames"],
-                    estimated_impact="Duplicate logic increases maintenance burden",
-                    remediation_steps=[
-                        "Consolidate common field renames into a shared pack",
-                        "Use pre-processing pipelines for common transformations"
-                    ],
-                    metadata={
-                        "duplicate_patterns": dict(duplicates)
-                    }
+                    metadata={"duplicate_patterns": dict(duplicates)},
                 )
             )
+
+    def _analyze_search_datatypes(
+        self, result: AnalyzerResult, datatypes: List[Dict[str, Any]]
+    ) -> None:
+        """Analyze Search datatypes and field quality."""
+        if not datatypes:
+            return
+
+        for dtype in datatypes:
+            dtype_id = dtype.get("id", "unknown")
+            fields = dtype.get("fields", [])
+
+            if not fields:
+                result.add_finding(
+                    self.create_finding(
+                        id=f"search-datatype-no-fields-{dtype_id}",
+                        title=f"Search Datatype Without Fields: {dtype_id}",
+                        description=f"Datatype '{dtype_id}' has no fields defined, which may impact search quality.",
+                        severity="medium",
+                        category="schema_quality",
+                        confidence_level="high",
+                        affected_components=[f"search:datatype:{dtype_id}"],
+                        remediation_steps=[
+                            f"Navigate to Search > Datatypes > {dtype_id}",
+                            "Add appropriate field definitions for structured searching",
+                            "Consider common fields like timestamp, source, sourcetype",
+                            "Test search functionality after adding fields",
+                        ],
+                        metadata={"datatype_id": dtype_id},
+                    )
+                )
+
+            many_fields_threshold = 100
+            if len(fields) > many_fields_threshold:
+                result.add_finding(
+                    self.create_finding(
+                        id=f"search-datatype-many-fields-{dtype_id}",
+                        title=f"Large Number of Fields in Datatype: {dtype_id}",
+                        description=f"Datatype '{dtype_id}' has {len(fields)} fields. High field counts can impact Search performance.",
+                        severity="low",
+                        category="schema_quality",
+                        confidence_level="medium",
+                        affected_components=[f"search:datatype:{dtype_id}"],
+                        metadata={"datatype_id": dtype_id, "field_count": len(fields)},
+                    )
+                )
 
     def _add_summary_finding(
         self,
         result: AnalyzerResult,
         parsers: List[Dict[str, Any]],
         pipelines: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]]
+        inputs: List[Dict[str, Any]],
     ) -> None:
         """Add summary finding for schema quality."""
         issues = len([f for f in result.findings if f.severity in ("high", "critical", "medium")])
@@ -514,14 +503,14 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         elif issues <= 3:
             severity = "medium"
             status = "Minor Issues"
-            description = f"Found {issues} schema/parsing issue(s). Review recommendations for optimization."
+            description = f"Found {issues} schema/parsing issue(s)."
         else:
             severity = "high"
             status = "Needs Attention"
-            description = f"Found {issues} schema/parsing issue(s). Schema optimization recommended."
+            description = f"Found {issues} schema/parsing issue(s)."
 
         result.add_finding(
-            Finding(
+            self.create_finding(
                 id="schema-quality-summary",
                 title=f"Schema Quality: {status}",
                 description=description,
@@ -529,13 +518,11 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
                 category="schema_quality",
                 confidence_level="high",
                 affected_components=["schema:summary"],
-                estimated_impact=f"Analyzed {len(parsers)} parsers across {len(pipelines)} pipelines",
-                remediation_steps=[] if severity == "info" else ["Review schema quality findings"],
                 metadata={
                     "parser_count": len(parsers),
                     "pipeline_count": len(pipelines),
                     "input_count": len(inputs),
-                    "issue_count": issues
-                }
+                    "issue_count": issues,
+                },
             )
         )

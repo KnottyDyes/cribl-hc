@@ -5,7 +5,7 @@ Provides information about available analyzers, their capabilities,
 and API call estimates.
 """
 
-from typing import List
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
