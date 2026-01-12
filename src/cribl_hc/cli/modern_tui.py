@@ -38,6 +38,7 @@ from textual.widgets import (
     Static,
     TabbedContent,
     TabPane,
+    TextArea,
 )
 
 from cribl_hc.cli.commands.config import load_credentials, save_credentials
@@ -55,8 +56,111 @@ from cribl_hc.utils.logger import get_logger
 log = get_logger(__name__)
 
 
+class PasteCurlDialog(ModalScreen):
+    BINDINGS = [("escape", "cancel")]
+
+    CSS = """
+    PasteCurlDialog {
+        align: center middle;
+    }
+
+    #paste-dialog {
+        width: 80;
+        height: 22;
+        padding: 1 2;
+        border: round #61afef;
+        background: #282c34;
+    }
+
+    #paste-title {
+        width: 100%;
+        text-align: center;
+        padding-bottom: 1;
+        text-style: bold;
+        color: #56b6c2;
+    }
+
+    #paste-hint {
+        width: 100%;
+        color: #5c6370;
+        margin-bottom: 1;
+    }
+
+    #paste-area {
+        height: 1fr;
+        background: #1e222a;
+        border: solid #61afef;
+    }
+
+    #paste-area:focus {
+        border: solid #56b6c2;
+    }
+
+    #paste-button-row {
+        width: 100%;
+        align: center middle;
+        padding-top: 1;
+        height: auto;
+    }
+
+    #paste-button-row Button {
+        margin: 0 1;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        with Container(id="paste-dialog"):
+            yield Label("Paste Curl Command or Token", id="paste-title")
+            yield Label("Paste the full command or a bearer token below.", id="paste-hint")
+            yield TextArea(id="paste-area")
+            with Horizontal(classes="button-row", id="paste-button-row"):
+                yield Button("Parse", variant="success", id="btn-parse")
+                yield Button("Cancel", variant="default", id="btn-cancel-paste")
+
+    def _parse_curl_command(self, text: str) -> tuple[Optional[str], Optional[str]]:
+        import re
+        from urllib.parse import urlparse
+
+        url = None
+        token = None
+        text_clean = text.replace("\\\n", " ").replace("\n", " ")
+
+        bearer_match = re.search(r"[Bb]earer\s+([A-Za-z0-9_\-\.]+)", text_clean)
+        if bearer_match:
+            token = bearer_match.group(1).strip()
+
+        url_match = re.search(r"https?://[^\s\"'<>]+", text_clean)
+        if url_match:
+            try:
+                parsed = urlparse(url_match.group(0).strip().strip("'\""))
+                url = f"{parsed.scheme}://{parsed.netloc}"
+            except Exception:
+                pass
+
+        if not token and not url and len(text.strip()) > 20:
+            token = text.strip()
+
+        return url, token
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "btn-parse":
+            text = self.query_one("#paste-area", TextArea).text
+            if text.strip():
+                url, token = self._parse_curl_command(text)
+                self.dismiss((url, token))
+            else:
+                self.app.notify("No text to parse", severity="warning")
+        elif event.button.id == "btn-cancel-paste":
+            self.dismiss(None)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
 class AddDeploymentDialog(ModalScreen):
     """Modal dialog for adding a new deployment."""
+
+    BINDINGS = [("escape", "cancel")]
 
     CSS = """
     AddDeploymentDialog {
@@ -116,73 +220,23 @@ class AddDeploymentDialog(ModalScreen):
                 yield Button("Save", variant="success", id="btn-save")
                 yield Button("Cancel", variant="default", id="btn-cancel")
 
-    def _paste_from_clipboard(self) -> Optional[str]:
-        """Read text from system clipboard."""
-        import subprocess
-        import sys
-
-        try:
-            if sys.platform == "darwin":
-                result = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=5)
-                return result.stdout.strip() if result.returncode == 0 else None
-            elif sys.platform == "linux":
-                for cmd in [
-                    ["xclip", "-selection", "clipboard", "-o"],
-                    ["xsel", "--clipboard", "--output"],
-                ]:
-                    try:
-                        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-                        if result.returncode == 0:
-                            return result.stdout.strip()
-                    except FileNotFoundError:
-                        continue
-            return None
-        except Exception:
-            return None
-
-    def _parse_curl_command(self, text: str) -> tuple[Optional[str], Optional[str]]:
-        """Extract URL and bearer token from curl command or raw token."""
-        import re
-        from urllib.parse import urlparse
-
-        url = None
-        token = None
-        text_clean = text.replace("\\\n", " ").replace("\n", " ")
-
-        bearer_match = re.search(r"[Bb]earer\s+([A-Za-z0-9_\-\.]+)", text_clean)
-        if bearer_match:
-            token = bearer_match.group(1).strip()
-
-        url_match = re.search(r"https?://[^\s\"'<>]+", text_clean)
-        if url_match:
-            try:
-                parsed = urlparse(url_match.group(0).strip().strip("'\""))
-                url = f"{parsed.scheme}://{parsed.netloc}"
-            except Exception:
-                pass
-
-        if not token and not url and len(text.strip()) > 20:
-            token = text.strip()
-
-        return url, token
+    def _handle_paste_result(self, result: Optional[tuple[Optional[str], Optional[str]]]) -> None:
+        if result is None:
+            return
+        url, token = result
+        if url:
+            self.query_one("#input-url", Input).value = url
+        if token:
+            self.query_one("#input-token", Input).value = token
+        if url or token:
+            msg = f"Applied: {'URL + ' if url else ''}{'Token' if token else ''}"
+            self.app.notify(msg, severity="information")
+        else:
+            self.app.notify("No URL or token found in pasted text", severity="warning")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button presses."""
         if event.button.id == "btn-paste-token":
-            clipboard = self._paste_from_clipboard()
-            if clipboard:
-                url, token = self._parse_curl_command(clipboard)
-                if url:
-                    self.query_one("#input-url", Input).value = url
-                if token:
-                    self.query_one("#input-token", Input).value = token
-                if url or token:
-                    msg = f"Pasted: {'URL + ' if url else ''}{'Token' if token else ''}"
-                    self.app.notify(msg, severity="information")
-                else:
-                    self.app.notify("No URL or token found in clipboard", severity="warning")
-            else:
-                self.app.notify("Could not read clipboard", severity="warning")
+            self.app.push_screen(PasteCurlDialog(), self._handle_paste_result)
             return
 
         if event.button.id == "btn-save":
@@ -207,9 +261,14 @@ class AddDeploymentDialog(ModalScreen):
         else:
             self.dismiss(False)
 
+    def action_cancel(self) -> None:
+        self.dismiss(False)
+
 
 class EditDeploymentDialog(ModalScreen):
     """Modal dialog for editing an existing deployment."""
+
+    BINDINGS = [("escape", "cancel")]
 
     CSS = """
     EditDeploymentDialog {
@@ -272,73 +331,23 @@ class EditDeploymentDialog(ModalScreen):
                 yield Button("Save", variant="success", id="btn-save")
                 yield Button("Cancel", variant="default", id="btn-cancel")
 
-    def _paste_from_clipboard(self) -> Optional[str]:
-        """Read text from system clipboard."""
-        import subprocess
-        import sys
-
-        try:
-            if sys.platform == "darwin":
-                result = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=5)
-                return result.stdout.strip() if result.returncode == 0 else None
-            elif sys.platform == "linux":
-                for cmd in [
-                    ["xclip", "-selection", "clipboard", "-o"],
-                    ["xsel", "--clipboard", "--output"],
-                ]:
-                    try:
-                        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-                        if result.returncode == 0:
-                            return result.stdout.strip()
-                    except FileNotFoundError:
-                        continue
-            return None
-        except Exception:
-            return None
-
-    def _parse_curl_command(self, text: str) -> tuple[Optional[str], Optional[str]]:
-        """Extract URL and bearer token from curl command or raw token."""
-        import re
-        from urllib.parse import urlparse
-
-        url = None
-        token = None
-        text_clean = text.replace("\\\n", " ").replace("\n", " ")
-
-        bearer_match = re.search(r"[Bb]earer\s+([A-Za-z0-9_\-\.]+)", text_clean)
-        if bearer_match:
-            token = bearer_match.group(1).strip()
-
-        url_match = re.search(r"https?://[^\s\"'<>]+", text_clean)
-        if url_match:
-            try:
-                parsed = urlparse(url_match.group(0).strip().strip("'\""))
-                url = f"{parsed.scheme}://{parsed.netloc}"
-            except Exception:
-                pass
-
-        if not token and not url and len(text.strip()) > 20:
-            token = text.strip()
-
-        return url, token
+    def _handle_paste_result(self, result: Optional[tuple[Optional[str], Optional[str]]]) -> None:
+        if result is None:
+            return
+        url, token = result
+        if url:
+            self.query_one("#input-url", Input).value = url
+        if token:
+            self.query_one("#input-token", Input).value = token
+        if url or token:
+            msg = f"Applied: {'URL + ' if url else ''}{'Token' if token else ''}"
+            self.app.notify(msg, severity="information")
+        else:
+            self.app.notify("No URL or token found in pasted text", severity="warning")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button presses."""
         if event.button.id == "btn-paste-token":
-            clipboard = self._paste_from_clipboard()
-            if clipboard:
-                url, token = self._parse_curl_command(clipboard)
-                if url:
-                    self.query_one("#input-url", Input).value = url
-                if token:
-                    self.query_one("#input-token", Input).value = token
-                if url or token:
-                    msg = f"Pasted: {'URL + ' if url else ''}{'Token' if token else ''}"
-                    self.app.notify(msg, severity="information")
-                else:
-                    self.app.notify("No URL or token found in clipboard", severity="warning")
-            else:
-                self.app.notify("Could not read clipboard", severity="warning")
+            self.app.push_screen(PasteCurlDialog(), self._handle_paste_result)
             return
 
         if event.button.id == "btn-save":
@@ -363,9 +372,14 @@ class EditDeploymentDialog(ModalScreen):
         else:
             self.dismiss(False)
 
+    def action_cancel(self) -> None:
+        self.dismiss(False)
+
 
 class ExportResultsDialog(ModalScreen):
     """Modal dialog for exporting analysis results."""
+
+    BINDINGS = [("escape", "cancel")]
 
     CSS = """
     ExportResultsDialog {
@@ -440,7 +454,6 @@ class ExportResultsDialog(ModalScreen):
                 self.app.notify("Filename is required", severity="error")
                 return
 
-            # Add extension
             filename = f"{base_filename}.{format_type}"
             filepath = Path(filename)
 
@@ -457,6 +470,9 @@ class ExportResultsDialog(ModalScreen):
         else:
             self.dismiss(False)
 
+    def action_cancel(self) -> None:
+        self.dismiss(False)
+
     def _export_json(self, filepath: Path) -> None:
         """Export results as JSON."""
         with open(filepath, "w") as f:
@@ -472,14 +488,16 @@ class ExportResultsDialog(ModalScreen):
 class ResultsScreen(ModalScreen):
     """Modal screen for displaying grouped analysis results."""
 
+    BINDINGS = [("escape", "cancel")]
+
     CSS = """
     ResultsScreen {
-        align: center middle;
+        align: left top;
     }
 
     #results-container {
-        width: 90%;
-        height: 90%;
+        width: 100%;
+        height: 100%;
         border: round $primary;
         background: $panel;
         padding: 0;
@@ -490,17 +508,18 @@ class ResultsScreen(ModalScreen):
         height: 3;
         padding: 0 1;
         background: $primary;
-        color: $text-inverse;
+        color: $panel;
         text-style: bold;
     }
-    
+
     #results-title {
         text-align: center;
         width: 100%;
     }
 
     #results-scroll {
-        padding: 1;
+        height: 1fr;
+        padding: 1 2;
     }
 
     #results-footer {
@@ -509,31 +528,32 @@ class ResultsScreen(ModalScreen):
         align: center middle;
         padding: 0 1;
         background: $panel;
-        border-top: thin $primary;
+        border-top: solid $primary;
     }
 
     .summary-table {
-        margin: 1 0;
+        margin: 1 2;
         padding: 1;
-        border: thin $primary;
-        border-radius: 4px;
+        border: solid $primary;
         background: $surface;
     }
 
     .worker-group-header {
         padding: 0 1;
         margin-top: 2;
+        margin-right: 2;
+        margin-bottom: 1;
+        margin-left: 2;
         text-style: bold;
         color: $accent;
         border-bottom: heavy $accent;
     }
 
     .finding-card {
-        margin: 1 0;
+        margin: 1 2;
         padding: 1;
-        border: thin $primary;
+        border: solid $primary;
         background: $surface;
-        border-radius: 4px;
     }
     """
 
@@ -636,26 +656,16 @@ class ResultsScreen(ModalScreen):
             for finding in group.findings:
                 all_components.extend(finding.affected_components)
             unique_components = list(dict.fromkeys(all_components))
-
-            if len(unique_components) <= 3:
-                components_str = ", ".join(unique_components)
-            else:
-                components_str = (
-                    ", ".join(unique_components[:3]) + f" (+{len(unique_components) - 3})"
-                )
+            components_str = ", ".join(unique_components)
             lines.append(f"[dim]Components: {components_str}[/dim]")
 
-        # Impact
         if first.estimated_impact:
             lines.append(f"[yellow]Impact: {first.estimated_impact}[/yellow]")
 
-        # Remediation (first 2 steps)
         if first.remediation_steps:
             lines.append("[cyan]Remediation:[/cyan]")
-            for i, step in enumerate(first.remediation_steps[:2], 1):
+            for i, step in enumerate(first.remediation_steps, 1):
                 lines.append(f"  {i}. {step}")
-            if len(first.remediation_steps) > 2:
-                lines.append(f"  [dim]... +{len(first.remediation_steps) - 2} more[/dim]")
 
         return "\n".join(lines)
 
@@ -665,6 +675,9 @@ class ResultsScreen(ModalScreen):
             self.dismiss(None)
         elif event.button.id == "btn-export-from-results":
             self.dismiss("export")
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
 
 
 @dataclass
