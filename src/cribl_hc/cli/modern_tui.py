@@ -9,17 +9,19 @@ Built with Textual - provides a Pocker-style navigable interface with:
 - Results history and export (JSON/MD)
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 
 import asyncio
 import json
+import random
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widgets import (
@@ -62,33 +64,36 @@ class AddDeploymentDialog(ModalScreen):
     }
 
     #dialog {
-        width: 60;
-        height: 28;
-        border: thick $primary;
-        background: $surface;
-        padding: 1 2;
+        width: 64;
+        height: auto;
+        padding: 0 1;
+        border: round $primary;
+        background: $panel;
     }
 
     #dialog-title {
+        width: 100%;
+        text-align: center;
+        padding: 1;
         text-style: bold;
         color: $accent;
-        margin-bottom: 1;
     }
 
     .input-row {
-        height: 4;
-        margin: 1 0;
+        padding: 0 2;
+        margin-bottom: 1;
+    }
+    
+    .input-row Label {
+        margin-bottom: 1;
+        color: $text-muted;
     }
 
     .button-row {
-        height: 5;
+        margin-top: 1;
+        padding: 1;
+        width: 100%;
         align: center middle;
-        margin-top: 2;
-    }
-
-    .button-row Button {
-        min-width: 12;
-        margin: 0 1;
     }
     """
 
@@ -180,33 +185,36 @@ class EditDeploymentDialog(ModalScreen):
     }
 
     #dialog {
-        width: 60;
-        height: 25;
-        border: thick $primary;
-        background: $surface;
-        padding: 1 2;
+        width: 64;
+        height: auto;
+        padding: 0 1;
+        border: round $primary;
+        background: $panel;
     }
 
     #dialog-title {
+        width: 100%;
+        text-align: center;
+        padding: 1;
         text-style: bold;
         color: $accent;
-        margin-bottom: 1;
     }
 
     .input-row {
-        height: 4;
-        margin: 1 0;
+        padding: 0 2;
+        margin-bottom: 1;
+    }
+    
+    .input-row Label {
+        margin-bottom: 1;
+        color: $text-muted;
     }
 
     .button-row {
-        height: 5;
+        margin-top: 1;
+        padding: 1;
+        width: 100%;
         align: center middle;
-        margin-top: 2;
-    }
-
-    .button-row Button {
-        min-width: 12;
-        margin: 0 1;
     }
     """
 
@@ -266,33 +274,36 @@ class ExportResultsDialog(ModalScreen):
     }
 
     #export-dialog {
-        width: 60;
-        height: 23;
-        border: thick $primary;
-        background: $surface;
-        padding: 1 2;
+        width: 64;
+        height: auto;
+        padding: 0 1;
+        border: round $primary;
+        background: $panel;
     }
 
     #export-title {
+        width: 100%;
+        text-align: center;
+        padding: 1;
         text-style: bold;
         color: $accent;
-        margin-bottom: 1;
     }
 
     .export-row {
-        height: 4;
-        margin: 1 0;
+        padding: 0 2;
+        margin-bottom: 1;
+    }
+    
+    .export-row Label {
+        margin-bottom: 1;
+        color: $text-muted;
     }
 
     .button-row {
-        height: 5;
+        margin-top: 1;
+        padding: 1;
+        width: 100%;
         align: center middle;
-        margin-top: 2;
-    }
-
-    .button-row Button {
-        min-width: 12;
-        margin: 0 1;
     }
     """
 
@@ -370,26 +381,26 @@ class ResultsScreen(ModalScreen):
     #results-container {
         width: 90%;
         height: 90%;
-        border: thick $primary;
-        background: $surface;
-        padding: 1 2;
+        border: round $primary;
+        background: $panel;
+        padding: 0;
     }
 
     #results-header {
         dock: top;
         height: 3;
-        background: $primary;
         padding: 0 1;
-    }
-
-    #results-title {
+        background: $primary;
+        color: $text-inverse;
         text-style: bold;
-        color: $text;
+    }
+    
+    #results-title {
+        text-align: center;
+        width: 100%;
     }
 
     #results-scroll {
-        height: 1fr;
-        width: 100%;
         padding: 1;
     }
 
@@ -397,62 +408,33 @@ class ResultsScreen(ModalScreen):
         dock: bottom;
         height: 3;
         align: center middle;
+        padding: 0 1;
+        background: $panel;
+        border-top: thin $primary;
     }
 
     .summary-table {
         margin: 1 0;
+        padding: 1;
+        border: thin $primary;
+        border-radius: 4px;
+        background: $surface;
     }
 
     .worker-group-header {
-        background: $primary-darken-2;
         padding: 0 1;
-        margin: 1 0 0 0;
+        margin-top: 2;
         text-style: bold;
         color: $accent;
+        border-bottom: heavy $accent;
     }
 
     .finding-card {
         margin: 1 0;
         padding: 1;
-        border: solid $primary;
-    }
-
-    .severity-critical {
-        color: red;
-    }
-
-    .severity-high {
-        color: #ff8c00;
-    }
-
-    .severity-medium {
-        color: yellow;
-    }
-
-    .severity-low {
-        color: cyan;
-    }
-
-    .severity-info {
-        color: white;
-    }
-
-    .finding-title {
-        text-style: bold;
-    }
-
-    .finding-meta {
-        color: $text-muted;
-    }
-
-    .remediation-header {
-        color: cyan;
-        margin-top: 1;
-    }
-
-    .remediation-step {
-        color: $text-muted;
-        padding-left: 2;
+        border: thin $primary;
+        background: $surface;
+        border-radius: 4px;
     }
     """
 
@@ -586,11 +568,54 @@ class ResultsScreen(ModalScreen):
             self.dismiss("export")
 
 
+@dataclass
+class DeploymentStatusInfo:
+    """Holds status information for a deployment."""
+
+    health_status: str  # "healthy", "warning", "critical", "unknown"
+    last_analyzed: Optional[datetime] = None
+
+
+class DeploymentListItem(ListItem):
+    """A ListItem that displays detailed deployment information."""
+
+    def __init__(self, deployment_id: str, url: str, status_info: DeploymentStatusInfo):
+        super().__init__(id=f"deploy-{deployment_id}")
+        self.deployment_id = deployment_id
+        self.url = url
+        self.status_info = status_info
+
+    def compose(self) -> ComposeResult:
+        """Render the list item content."""
+        from rich.text import Text
+
+        status_map = {
+            "healthy": ("[green]●[/green]", "Healthy"),
+            "warning": ("[yellow]⚠[/yellow]", "Warning"),
+            "critical": ("[red]✗[/red]", "Critical"),
+            "unknown": ("[#5c6370]○[/#5c6370]", "Unknown"),
+        }
+        icon, _ = status_map.get(self.status_info.health_status, status_map["unknown"])
+
+        main_line_text = Text.from_markup(f"{icon} {self.deployment_id}", style="bold")
+        url_line_text = Text(f"  {self.url}", style="#61afef")
+
+        if self.status_info.last_analyzed:
+            timestamp = self.status_info.last_analyzed.strftime("%Y-%m-%d %H:%M:%S")
+            last_analyzed_text = Text(f"  Analyzed: {timestamp}", style="#5c6370")
+        else:
+            last_analyzed_text = Text("  Analyzed: Never", style="#5c6370")
+
+        yield Static(main_line_text)
+        yield Static(url_line_text)
+        yield Static(last_analyzed_text)
+
+
 class DeploymentList(Static):
     """Widget displaying configured deployments with health indicators."""
 
     deployments = reactive({})
-    selected_deployment = reactive(None)
+    selected_deployment: reactive[Optional[str]] = reactive(None)
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
@@ -624,11 +649,17 @@ class DeploymentList(Static):
 
         for deployment_id, config in sorted(self.deployments.items()):
             url = config.get("url", "Unknown")
-            # TODO: Add health indicator based on last analysis
-            status_icon = "○"  # ● for healthy, ⚠ for warning, ✗ for error
-            item = ListItem(
-                Label(f"{status_icon} {deployment_id}\n  {url}"), id=f"deploy-{deployment_id}"
+
+            # TODO: Replace with actual persisted status
+            mock_status = random.choice(["healthy", "warning", "critical", "unknown"])
+            mock_last_analyzed = datetime.now(timezone.utc) if mock_status != "unknown" else None
+
+            status_info = DeploymentStatusInfo(
+                health_status=mock_status,
+                last_analyzed=mock_last_analyzed,
             )
+
+            item = DeploymentListItem(deployment_id, url, status_info)
             list_view.append(item)
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
@@ -643,50 +674,80 @@ class AnalysisStatus(Static):
 
     current_deployment: Optional[str] = reactive(None)
     status = reactive("Idle")
-    progress = reactive(0)
+    progress = reactive(0.0)
     api_calls = reactive(0)
     max_api_calls = reactive(100)
     duration = reactive(0.0)
+    health_score: reactive[Optional[float]] = reactive(None)
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
         yield Label("Analysis Status", classes="panel-title")
-        yield Label(id="status-deployment")
-        yield Label(id="status-state")
+        with Grid(id="status-grid"):
+            yield Vertical(
+                Label("Status", classes="status-label"),
+                Label(self.status, id="status-state"),
+                classes="status-box",
+            )
+            yield Vertical(
+                Label("Health Score", classes="status-label"),
+                Label("N/A", id="health-score-value"),
+                classes="status-box",
+            )
+            yield Vertical(
+                Label("API Calls", classes="status-label"),
+                Label(f"{self.api_calls}/{self.max_api_calls}", id="status-api-calls"),
+                classes="status-box",
+            )
+            yield Vertical(
+                Label("Duration", classes="status-label"),
+                Label(f"{self.duration:.1f}s", id="status-duration"),
+                classes="status-box",
+            )
         yield ProgressBar(id="status-progress", total=100)
-        yield Label(id="status-api-calls")
-        yield Label(id="status-duration")
         with Horizontal(classes="button-row"):
             yield Button("Run Analysis", id="btn-run-analysis", variant="primary")
             yield Button("Export Results", id="btn-export-results", variant="success")
 
     def watch_current_deployment(self, deployment: Optional[str]) -> None:
         """Update display when deployment changes."""
-        label = self.query_one("#status-deployment", Label)
-        if deployment:
-            label.update(f"Current: {deployment}")
-        else:
-            label.update("Current: None")
+        # This widget no longer displays the current deployment directly
 
     def watch_status(self, status: str) -> None:
         """Update display when status changes."""
-        label = self.query_one("#status-state", Label)
-        label.update(f"Status: {status}")
+        self.query_one("#status-state", Label).update(status)
 
-    def watch_progress(self, progress: int) -> None:
+    def watch_progress(self, progress: float) -> None:
         """Update progress bar."""
-        bar = self.query_one("#status-progress", ProgressBar)
-        bar.update(progress=progress)
+        self.query_one("#status-progress", ProgressBar).update(progress=progress)
 
     def watch_api_calls(self, calls: int) -> None:
         """Update API call count."""
         label = self.query_one("#status-api-calls", Label)
-        label.update(f"API Calls: {calls}/{self.max_api_calls}")
+        label.update(f"{calls}/{self.max_api_calls}")
 
     def watch_duration(self, duration: float) -> None:
         """Update duration display."""
         label = self.query_one("#status-duration", Label)
-        label.update(f"Duration: {duration:.1f}s")
+        label.update(f"{duration:.1f}s")
+
+    def watch_health_score(self, score: Optional[float]) -> None:
+        """Update health score display."""
+        label = self.query_one("#health-score-value", Label)
+        if score is None:
+            label.update("N/A")
+            label.styles.color = self.get_css_variables()["text-muted"]
+            return
+
+        if score >= 80:
+            color = self.get_css_variables()["success"]
+        elif score >= 60:
+            color = self.get_css_variables()["warning"]
+        else:
+            color = self.get_css_variables()["error"]
+
+        label.styles.color = color
+        label.update(f"{score:.1f}%")
 
 
 class FindingsPanel(Static):
@@ -714,36 +775,43 @@ class FindingsPanel(Static):
         table = self.query_one("#findings-table", DataTable)
         table.clear()
 
-        # Show all findings, sorted by severity
-        severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-        sorted_findings = sorted(findings, key=lambda f: severity_order.get(f.severity, 4))[
-            :15
-        ]  # Limit to 15 for better viewport fit
+        if not findings:
+            table.add_row(
+                Text(
+                    "No findings from the last analysis.", justify="center", style="italic #5c6370"
+                )
+            )
+            return
+
+        severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+        sorted_findings = sorted(findings, key=lambda f: severity_order.get(f.severity, 5))
 
         for finding in sorted_findings:
-            # Icon and color scheme based on severity
-            severity_display = {
-                "critical": ("⚠", "red"),
-                "high": ("⚠", "red"),
-                "medium": ("ℹ", "yellow"),
-                "low": ("·", "green"),
+            severity = finding.severity
+
+            severity_map = {
+                "critical": ("red", "black"),
+                "high": ("#d19a66", "black"),
+                "medium": ("yellow", "black"),
+                "low": ("#98c379", "black"),
+                "info": ("#5c6370", "white"),
             }
+            bg_color, color = severity_map.get(severity, ("white", "black"))
 
-            icon, color = severity_display.get(finding.severity, ("·", "white"))
-
-            # Create colored severity text
-            severity_text = Text()
-            severity_text.append(f"{icon} ", style=color)
-            severity_text.append(finding.severity.upper(), style=f"bold {color}")
+            severity_text = Text(f" {severity.upper()} ", style=f"{color} on {bg_color}")
 
             component = ", ".join(finding.affected_components[:2])
             if len(finding.affected_components) > 2:
-                component += f" +{len(finding.affected_components) - 2}"
+                component += f" … (+{len(finding.affected_components) - 2})"
+
+            title = finding.title
+            if len(title) > 50:
+                title = title[:47] + "..."
 
             table.add_row(
                 severity_text,
                 finding.category,
-                finding.title[:40],  # Truncate long titles
+                title,
                 component,
             )
 
@@ -769,82 +837,178 @@ class CriblHealthCheckApp(App):
     """Modern TUI for Cribl Health Check - Pocker-style interface."""
 
     CSS = """
+    /* 
+     * Refined Industrial/Utilitarian Theme
+     * - Dark, high-contrast palette for terminal use
+     * - Clear visual hierarchy
+     * - Consistent spacing and component styling
+     */
+
+    /* Color Palette */
     Screen {
+        background: #1e222a; /* deep slate */
+        color: #abb2bf; /* default text */
+    }
+
+    $surface: #1e222a;
+    $panel: #282c34;
+    $primary: #61afef; /* muted blue */
+    $accent: #56b6c2; /* vibrant cyan */
+    $success: #98c379; /* green */
+    $warning: #d19a66; /* orange */
+    $error: #e06c75; /* red */
+    $text: #abb2bf;
+    $text-muted: #5c6370;
+    $text-inverse: #282c34;
+    
+    /* Base Component Styling */
+    App {
         background: $surface;
     }
 
+    Header {
+        background: $panel;
+        border-bottom: heavy $primary;
+        color: $text;
+        text-style: bold;
+    }
+
+    Footer {
+        background: $panel;
+        border-top: thin $primary;
+    }
+
+    TabbedContent > .tabs {
+        background: $surface;
+    }
+    
+    TabbedContent > .tabs > .tab--highlight {
+         background: $accent;
+         color: $text-inverse;
+    }
+
+    /* Panel and Container Styling */
+   .panel {
+        border: round $primary;
+        background: $panel;
+        padding: 0 1;
+        margin: 1;
+   }
+
+    #left-panel {
+        width: 35%;
+        min-width: 30;
+    }
+
+    #right-panel {
+        width: 1fr;
+    }
+    
     .panel-title {
         color: $accent;
         text-style: bold;
-        margin: 1;
+        padding: 1;
+        background: $panel;
+        width: 100%;
+        text-align: center;
     }
 
     .help-text {
         color: $text-muted;
         text-style: italic;
-        margin: 1;
+        padding: 0 1;
     }
 
-    #deployment-list {
-        height: auto;
-        min-height: 10;
-        max-height: 20;
-        border: solid $primary;
-        margin: 1;
-    }
-
-    .button-row {
-        height: auto;
-        align: center middle;
-        margin: 1;
-        padding: 1;
-    }
-
-    Button {
-        margin: 0 1;
-        min-width: 10;
-    }
-
-    #left-panel {
-        width: 35%;
-        border-right: solid $primary;
-        padding: 1;
-    }
-
-    #right-panel {
-        width: 65%;
-        padding: 1;
-        height: 100%;
-    }
-
+    /* Deployment List */
     #deployment-list-widget {
         height: 100%;
     }
 
-    #deployment-buttons {
-        dock: bottom;
+    #deployment-list {
+        height: 1fr;
+        border: none;
+        background: $panel;
+        margin: 0;
     }
 
-    #analysis-status {
-        border: solid $primary;
+    #deployment-list > ListItem {
         padding: 1;
-        margin: 1;
-        height: 18;
-        max-height: 18;
+        border-bottom: thin $text-muted;
     }
 
+    #deployment-list > ListItem.--highlight {
+        background: $primary;
+        color: $text-inverse;
+        text-style: bold;
+    }
+
+    /* Buttons */
+    .button-row {
+        width: 100%;
+        align: center middle;
+        padding-top: 1;
+    }
+
+    Button {
+        min-width: 12;
+        width: 80%;
+        margin: 0 1;
+        border: thin $primary;
+    }
+    
+    Button:hover {
+        border: thin $accent;
+        color: $accent;
+    }
+
+    Button.MounterOver {
+        border: thin $accent;
+        color: $accent;
+    }
+
+    /* Analysis Status */
+    #analysis-status {
+        height: auto;
+        padding: 0 1;
+    }
+
+    #status-grid {
+        grid-size: 2;
+        grid-gutter: 1;
+        padding-top: 1;
+    }
+
+    .status-box {
+        height: auto;
+        padding: 1;
+        border: thin $primary;
+        border-radius: 4px;
+        align: center middle;
+    }
+
+    #health-score-value {
+        text-style: bold;
+        font-size: 200%;
+        margin-top: 1;
+    }
+
+    ProgressBar {
+        margin-top: 1;
+        background: $surface;
+        color: $accent;
+    }
+    
+    /* Findings Panel */
     #findings-panel {
-        border: solid $primary;
-        padding: 0;
-        margin: 1;
         height: 1fr;
         min-height: 10;
+        padding-bottom: 1;
     }
 
     #findings-scroll {
         height: 1fr;
         width: 100%;
-        border: none;
+        background: $panel;
     }
 
     #findings-table {
@@ -852,27 +1016,25 @@ class CriblHealthCheckApp(App):
         width: 100%;
     }
 
+    #findings-table > .datatable--header {
+        background: $primary;
+        color: $text-inverse;
+        text-style: bold;
+    }
+    
+    /* History Tab */
     #results-history {
-        border: solid $primary;
-        padding: 1;
-        margin: 1;
         height: 100%;
     }
 
-    DataTable {
-        height: auto;
+    /* Generic Widgets */
+    Input, Select {
+        background: $surface;
+        border: thin $primary;
     }
 
-    ProgressBar {
-        margin: 1 0;
-    }
-
-    Input {
-        width: 100%;
-    }
-
-    Select {
-        width: 100%;
+    Input:focus, Select:focus {
+        border: thin $accent;
     }
     """
 
@@ -910,11 +1072,6 @@ class CriblHealthCheckApp(App):
                 yield ResultsHistory(id="results-history")
 
         yield Footer()
-
-    def on_mount(self) -> None:
-        """Initialize the app on mount."""
-        self.title = self.TITLE
-        self.sub_title = self.SUB_TITLE
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
@@ -988,7 +1145,7 @@ class CriblHealthCheckApp(App):
     def action_add_deployment(self) -> None:
         """Add new deployment via modal dialog."""
 
-        def check_result(added: bool) -> None:
+        def check_result(added: Any) -> None:
             if added:
                 self.action_refresh()
 
@@ -1015,7 +1172,7 @@ class CriblHealthCheckApp(App):
             token = current.get("token", "")
 
             # Show edit dialog
-            def check_result(updated: bool) -> None:
+            def check_result(updated: Any) -> None:
                 if updated:
                     self.action_refresh()
 
@@ -1076,7 +1233,10 @@ class CriblHealthCheckApp(App):
             # Update status
             status_widget.current_deployment = deployment_id
             status_widget.status = "Connecting..."
-            status_widget.progress = 0
+            status_widget.progress = 0.0
+            status_widget.health_score = None
+            status_widget.api_calls = 0
+            status_widget.duration = 0.0
 
             # Test connection
             async with CriblAPIClient(url, token) as client:
@@ -1088,7 +1248,7 @@ class CriblHealthCheckApp(App):
                     return
 
                 status_widget.status = "Running analysis..."
-                status_widget.progress = 10
+                status_widget.progress = 10.0
 
                 # Initialize orchestrator
                 orchestrator = AnalyzerOrchestrator(
@@ -1100,7 +1260,7 @@ class CriblHealthCheckApp(App):
                 # Progress callback
                 def update_progress(analysis_progress):
                     percentage = analysis_progress.get_percentage()
-                    status_widget.progress = int(percentage)
+                    status_widget.progress = percentage
                     status_widget.api_calls = orchestrator.client.get_api_calls_used()
 
                 # Run analysis
@@ -1126,19 +1286,23 @@ class CriblHealthCheckApp(App):
 
                 # Update status
                 status_widget.status = "Completed"
-                status_widget.progress = 100
+                status_widget.progress = 100.0
+                if analysis_run.health_score:
+                    status_widget.health_score = analysis_run.health_score.overall_score
 
-                health_score = (
-                    analysis_run.health_score.overall_score if analysis_run.health_score else "N/A"
+                health_score_display = (
+                    f"{analysis_run.health_score.overall_score:.1f}%"
+                    if analysis_run.health_score
+                    else "N/A"
                 )
                 self.notify(
-                    f"Analysis complete: {len(analysis_run.findings)} findings, Health Score: {health_score}",
+                    f"Analysis complete: {len(analysis_run.findings)} findings, Health Score: {health_score_display}",
                     severity="information",
                     timeout=5,
                 )
 
                 # Show grouped results in modal
-                def handle_results_dismiss(action):
+                def handle_results_dismiss(action: Any) -> None:
                     if action == "export":
                         self.action_export()
 
