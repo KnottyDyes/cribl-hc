@@ -6,7 +6,7 @@ All logs include timestamps, context, and are formatted as JSON for easy parsing
 """
 
 import sys
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import structlog
 from structlog.types import Processor
@@ -31,7 +31,7 @@ def configure_logging(
         >>> log.info("operation_complete", deployment_id="prod", duration_ms=1250)
     """
     # Define processors for log formatting
-    processors: list[Processor] = [
+    processors: List[Processor] = [
         structlog.stdlib.add_log_level,
         # Note: add_logger_name removed - incompatible with PrintLoggerFactory
         # PrintLogger doesn't have a .name attribute
@@ -143,7 +143,7 @@ class AuditLogger:
     def log_analysis_start(
         self,
         deployment_id: str,
-        objectives: list[str],
+        objectives: List[str],
     ) -> None:
         """
         Log the start of an analysis run.

@@ -37,7 +37,7 @@ def sample_analysis_run():
         recommendations=[],
         api_calls_used=25,
         duration_seconds=45.0,
-        partial_completion=False
+        partial_completion=False,
     )
 
 
@@ -56,9 +56,9 @@ def sample_finding():
         remediation_steps=[
             "Scale up worker nodes",
             "Review pipeline configurations",
-            "Enable CPU throttling"
+            "Enable CPU throttling",
         ],
-        metadata={"threshold": 90, "current_max": 95.5}
+        metadata={"threshold": 90, "current_max": 95.5},
     )
 
 
@@ -76,18 +76,16 @@ def sample_recommendation():
         implementation_steps=[
             "Add 2 new worker nodes",
             "Configure load balancing",
-            "Monitor CPU usage for 24 hours"
+            "Monitor CPU usage for 24 hours",
         ],
         implementation_effort="medium",
         impact_estimate=ImpactEstimate(
             time_to_implement="2-4 hours",
             risk_level="low",
             expected_benefit="Reduce CPU usage by 40%",
-            performance_improvement="40% CPU reduction"
+            performance_improvement="40% CPU reduction",
         ),
-        documentation_links=[
-            "https://docs.cribl.io/stream/scaling-workers"
-        ]
+        documentation_links=["https://docs.cribl.io/stream/scaling-workers"],
     )
 
 
@@ -104,17 +102,14 @@ class TestMarkdownReportGeneratorBasics:
         generator = MarkdownReportGenerator()
         results = {
             "health": AnalyzerResult(
-                objective="health",
-                success=True,
-                findings=[],
-                recommendations=[]
+                objective="health", success=True, findings=[], recommendations=[]
             )
         }
 
         report = generator.generate(sample_analysis_run, results)
 
         assert isinstance(report, str)
-        assert "# Cribl Stream Health Check Report" in report
+        assert "# Cribl Health Check Report" in report
         assert sample_analysis_run.deployment_id in report
         assert "Executive Summary" in report
 
@@ -125,10 +120,7 @@ class TestMarkdownReportGeneratorBasics:
         generator = MarkdownReportGenerator()
         results = {
             "health": AnalyzerResult(
-                objective="health",
-                success=True,
-                findings=[sample_finding],
-                recommendations=[]
+                objective="health", success=True, findings=[sample_finding], recommendations=[]
             )
         }
 
@@ -148,7 +140,7 @@ class TestMarkdownReportGeneratorBasics:
                 objective="health",
                 success=True,
                 findings=[],
-                recommendations=[sample_recommendation]
+                recommendations=[sample_recommendation],
             )
         }
 
@@ -168,7 +160,7 @@ class TestMarkdownHeaderGeneration:
         header = generator._generate_header(sample_analysis_run)
 
         assert sample_analysis_run.deployment_id in header
-        assert "# Cribl Stream Health Check Report" in header
+        assert "# Cribl Health Check Report" in header
 
     def test_header_contains_timestamp(self, sample_analysis_run):
         """Test header includes formatted timestamp."""
@@ -211,10 +203,50 @@ class TestMarkdownSummaryGeneration:
     def test_summary_with_findings(self, sample_analysis_run):
         """Test summary counts findings correctly."""
         sample_analysis_run.findings = [
-            Finding(id="1", title="Test", description="Test", severity="critical", category="test", confidence_level="high", affected_components=[], estimated_impact="High impact", remediation_steps=["Fix it"]),
-            Finding(id="2", title="Test", description="Test", severity="high", category="test", confidence_level="high", affected_components=[], estimated_impact="Medium impact", remediation_steps=["Fix it"]),
-            Finding(id="3", title="Test", description="Test", severity="high", category="test", confidence_level="high", affected_components=[], estimated_impact="Medium impact", remediation_steps=["Fix it"]),
-            Finding(id="4", title="Test", description="Test", severity="medium", category="test", confidence_level="high", affected_components=[], estimated_impact="", remediation_steps=["Fix medium"]),
+            Finding(
+                id="1",
+                title="Test",
+                description="Test",
+                severity="critical",
+                category="test",
+                confidence_level="high",
+                affected_components=[],
+                estimated_impact="High impact",
+                remediation_steps=["Fix it"],
+            ),
+            Finding(
+                id="2",
+                title="Test",
+                description="Test",
+                severity="high",
+                category="test",
+                confidence_level="high",
+                affected_components=[],
+                estimated_impact="Medium impact",
+                remediation_steps=["Fix it"],
+            ),
+            Finding(
+                id="3",
+                title="Test",
+                description="Test",
+                severity="high",
+                category="test",
+                confidence_level="high",
+                affected_components=[],
+                estimated_impact="Medium impact",
+                remediation_steps=["Fix it"],
+            ),
+            Finding(
+                id="4",
+                title="Test",
+                description="Test",
+                severity="medium",
+                category="test",
+                confidence_level="high",
+                affected_components=[],
+                estimated_impact="",
+                remediation_steps=["Fix medium"],
+            ),
         ]
 
         generator = MarkdownReportGenerator()
@@ -268,14 +300,34 @@ class TestMarkdownFindingsSection:
         """Test findings are grouped by severity."""
         generator = MarkdownReportGenerator()
 
-        critical_finding = Finding(id="1", title="Critical", description="Critical issue", severity="critical", category="test", confidence_level="high", affected_components=[], estimated_impact="Critical impact", remediation_steps=["Fix critical"])
-        low_finding = Finding(id="2", title="Low", description="Low issue", severity="low", category="test", confidence_level="high", affected_components=[], estimated_impact="", remediation_steps=[])
+        critical_finding = Finding(
+            id="1",
+            title="Critical",
+            description="Critical issue",
+            severity="critical",
+            category="test",
+            confidence_level="high",
+            affected_components=[],
+            estimated_impact="Critical impact",
+            remediation_steps=["Fix critical"],
+        )
+        low_finding = Finding(
+            id="2",
+            title="Low",
+            description="Low issue",
+            severity="low",
+            category="test",
+            confidence_level="high",
+            affected_components=[],
+            estimated_impact="",
+            remediation_steps=[],
+        )
 
         result = AnalyzerResult(
             objective="health",
             success=True,
             findings=[low_finding, critical_finding, sample_finding],  # Out of order
-            recommendations=[]
+            recommendations=[],
         )
 
         section = generator._generate_findings_section("health", result)
@@ -291,10 +343,7 @@ class TestMarkdownFindingsSection:
         """Test findings include severity emojis."""
         generator = MarkdownReportGenerator()
         result = AnalyzerResult(
-            objective="health",
-            success=True,
-            findings=[sample_finding],
-            recommendations=[]
+            objective="health", success=True, findings=[sample_finding], recommendations=[]
         )
 
         section = generator._generate_findings_section("health", result)
@@ -305,10 +354,7 @@ class TestMarkdownFindingsSection:
         """Test findings list affected components."""
         generator = MarkdownReportGenerator()
         result = AnalyzerResult(
-            objective="health",
-            success=True,
-            findings=[sample_finding],
-            recommendations=[]
+            objective="health", success=True, findings=[sample_finding], recommendations=[]
         )
 
         section = generator._generate_findings_section("health", result)
@@ -321,10 +367,7 @@ class TestMarkdownFindingsSection:
         """Test findings include impact description."""
         generator = MarkdownReportGenerator()
         result = AnalyzerResult(
-            objective="health",
-            success=True,
-            findings=[sample_finding],
-            recommendations=[]
+            objective="health", success=True, findings=[sample_finding], recommendations=[]
         )
 
         section = generator._generate_findings_section("health", result)
@@ -336,10 +379,7 @@ class TestMarkdownFindingsSection:
         """Test findings include metadata as JSON."""
         generator = MarkdownReportGenerator()
         result = AnalyzerResult(
-            objective="health",
-            success=True,
-            findings=[sample_finding],
-            recommendations=[]
+            objective="health", success=True, findings=[sample_finding], recommendations=[]
         )
 
         section = generator._generate_findings_section("health", result)
@@ -357,8 +397,30 @@ class TestMarkdownRecommendationsSection:
         """Test recommendations are grouped by priority."""
         generator = MarkdownReportGenerator()
 
-        p0_rec = Recommendation(id="1", type="security", title="Critical", description="Critical fix", rationale="Security vulnerability", priority="p0", category="test", implementation_steps=["Step 1"], implementation_effort="high", impact_estimate=ImpactEstimate(performance_improvement="Critical fix"))
-        p3_rec = Recommendation(id="2", type="optimization", title="Low Priority", description="Low priority", rationale="Nice to have", priority="p3", category="test", implementation_steps=["Step 1"], implementation_effort="low", impact_estimate=ImpactEstimate())
+        p0_rec = Recommendation(
+            id="1",
+            type="security",
+            title="Critical",
+            description="Critical fix",
+            rationale="Security vulnerability",
+            priority="p0",
+            category="test",
+            implementation_steps=["Step 1"],
+            implementation_effort="high",
+            impact_estimate=ImpactEstimate(performance_improvement="Critical fix"),
+        )
+        p3_rec = Recommendation(
+            id="2",
+            type="optimization",
+            title="Low Priority",
+            description="Low priority",
+            rationale="Nice to have",
+            priority="p3",
+            category="test",
+            implementation_steps=["Step 1"],
+            implementation_effort="low",
+            impact_estimate=ImpactEstimate(),
+        )
 
         recommendations = [p3_rec, sample_recommendation, p0_rec]  # Out of order
 
@@ -512,15 +574,21 @@ class TestEdgeCases:
         report = generator.generate(sample_analysis_run, {})
 
         assert isinstance(report, str)
-        assert "# Cribl Stream Health Check Report" in report
+        assert "# Cribl Health Check Report" in report
 
     def test_multiple_objectives_no_findings(self, sample_analysis_run):
         """Test multiple objectives with no findings."""
         generator = MarkdownReportGenerator()
         results = {
-            "health": AnalyzerResult(objective="health", success=True, findings=[], recommendations=[]),
-            "config": AnalyzerResult(objective="config", success=True, findings=[], recommendations=[]),
-            "resource": AnalyzerResult(objective="resource", success=True, findings=[], recommendations=[]),
+            "health": AnalyzerResult(
+                objective="health", success=True, findings=[], recommendations=[]
+            ),
+            "config": AnalyzerResult(
+                objective="config", success=True, findings=[], recommendations=[]
+            ),
+            "resource": AnalyzerResult(
+                objective="resource", success=True, findings=[], recommendations=[]
+            ),
         }
 
         report = generator.generate(sample_analysis_run, results)
@@ -540,15 +608,12 @@ class TestEdgeCases:
             confidence_level="high",
             affected_components=[],
             estimated_impact="Some impact",
-            remediation_steps=["Fix it"]
+            remediation_steps=["Fix it"],
         )
 
         generator = MarkdownReportGenerator()
         result = AnalyzerResult(
-            objective="test",
-            success=True,
-            findings=[finding],
-            recommendations=[]
+            objective="test", success=True, findings=[finding], recommendations=[]
         )
 
         section = generator._generate_findings_section("test", result)
@@ -568,7 +633,7 @@ class TestEdgeCases:
             category="test",
             implementation_steps=["Do something"],
             implementation_effort="low",
-            impact_estimate=ImpactEstimate()
+            impact_estimate=ImpactEstimate(),
         )
 
         generator = MarkdownReportGenerator()

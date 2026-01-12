@@ -1,179 +1,126 @@
-# Future Features
+# Future Features & Roadmap
 
-This document tracks feature requests and enhancements planned for future releases of cribl-hc.
+This document tracks planned features, enhancements, and architectural initiatives for the Cribl Health Check project. It serves as the single source of truth for the project's future direction, following the completion of Phases 1-11.
 
-## Report Branding and Customization
+## Executive Summary
 
-**Priority:** Post-MVP Enhancement
-**Phase:** TBD (after Phase 7)
-**Status:** Planned
+The Cribl Health Check project has successfully established a robust foundation with **19 specialized analyzers** covering Stream, Edge, Lake, and Search products. Core operational risks such as certificate expiration, configuration drift, and RBAC security gaps have been addressed in the current production version.
 
-### Overview
-
-Add branding customization to generated reports (JSON, Markdown, HTML/PDF) to support:
-1. **Service Provider Branding** - Company running the health check (e.g., MSP, consulting firm)
-2. **Client Branding** - End customer receiving the report
-
-### Use Cases
-
-1. **Managed Service Providers (MSPs)**: Run health checks for multiple clients with MSP branding + client-specific branding
-2. **Consulting Firms**: Deliver professional reports with consulting firm logo and client branding
-3. **Internal IT Teams**: Customize reports for different business units or departments
-4. **Multi-Tenant SaaS**: Generate branded reports for different organizations
-
-### Proposed Features
-
-#### Service Provider Branding
-- Company name
-- Logo (various formats: PNG, SVG, etc.)
-- Company colors (primary, secondary, accent)
-- Contact information (support email, website, phone)
-- Footer text (company tagline, legal disclaimers)
-- Custom CSS/styling for HTML/PDF reports
-
-#### Client Branding
-- Client name
-- Client logo
-- Client identifier (account number, department, etc.)
-- Custom report title
-- Client-specific disclaimer or notes section
-
-#### Configuration Options
-
-**Option 1: Configuration File**
-```yaml
-# ~/.cribl-hc/branding.yaml
-service_provider:
-  name: "Acme Consulting"
-  logo: "/path/to/acme-logo.png"
-  primary_color: "#1E88E5"
-  contact_email: "support@acme.com"
-  website: "https://acme.com"
-  footer: "© 2025 Acme Consulting. All rights reserved."
-
-clients:
-  - id: "client-123"
-    name: "Example Corp"
-    logo: "/path/to/example-logo.png"
-    account_number: "AC-123456"
-```
-
-**Option 2: CLI Flags**
-```bash
-cribl-hc analyze run \
-  --provider-name "Acme Consulting" \
-  --provider-logo acme-logo.png \
-  --client-name "Example Corp" \
-  --client-logo example-logo.png \
-  --output branded-report.pdf
-```
-
-**Option 3: Deployment Profiles**
-```bash
-# Store branding with deployment config
-cribl-hc config set prod \
-  --url https://cribl.example.com \
-  --token TOKEN \
-  --provider-name "Acme Consulting" \
-  --client-name "Example Corp"
-```
-
-### Report Output Examples
-
-#### Markdown Report Header
-```markdown
-# Cribl Stream Health Check Report
-
-**Prepared by:** Acme Consulting
-**For:** Example Corp (Account: AC-123456)
-**Date:** 2025-12-13
-**Cribl Version:** 4.7.0
-
----
-```
-
-#### PDF Report Title Page
-```
-[Acme Consulting Logo]
-
-Cribl Stream Health Check Report
-
-Prepared for:
-[Example Corp Logo]
-Example Corp
-Account: AC-123456
-
-Prepared by:
-Acme Consulting
-support@acme.com
-https://acme.com
-
-Report Date: December 13, 2025
-Cribl Version: 4.7.0
-
----
-© 2025 Acme Consulting. All rights reserved.
-```
-
-### Implementation Considerations
-
-1. **File Format Support**
-   - Markdown: Text-based branding (company names, headers)
-   - JSON: Metadata fields for branding
-   - HTML: Full CSS/styling support
-   - PDF: Logo embedding, custom styling
-
-2. **Logo Handling**
-   - Support common image formats (PNG, SVG, JPEG)
-   - Auto-resize/scale for different output formats
-   - Base64 encoding for embedded logos in HTML/PDF
-
-3. **Constitution Compliance**
-   - **Principle III (API-First)**: Branding should be configurable via API
-   - **Principle VIII (Pluggable)**: Support custom report templates
-   - **Principle X (Security)**: Don't expose sensitive branding info in logs
-
-4. **Configuration Hierarchy**
-   ```
-   CLI flags > Deployment profile > Global config > Defaults
-   ```
-
-5. **Template System**
-   - Support custom Jinja2/Mustache templates for reports
-   - Provide default templates for each format
-   - Allow users to override sections (header, footer, styling)
-
-### Dependencies
-
-- **Report Generator Refactor**: Move from inline formatting to template-based
-- **HTML/PDF Generation**: May require additional libraries (e.g., WeasyPrint, ReportLab)
-- **Image Processing**: PIL/Pillow for logo handling
-
-### Related Features
-
-- **Custom Report Templates** - Allow users to define their own report layouts
-- **White-Label Mode** - Remove all cribl-hc branding for service providers
-- **Multi-Language Reports** - i18n support for international clients
-- **Report Themes** - Pre-built color schemes and layouts
-
-### User Feedback
-
-- **Sean Armstrong (Dec 13, 2025)**: "Add a task for the future, I want to be able to provide the ability to add branding for not only the company running the health check, but also for the client if we so choose."
-
-### Acceptance Criteria (When Implemented)
-
-- [ ] Support service provider branding (name, logo, contact info)
-- [ ] Support client branding (name, logo, account identifier)
-- [ ] Configuration via YAML file, CLI flags, and deployment profiles
-- [ ] Branding applies to Markdown, JSON metadata, HTML, and PDF reports
-- [ ] Logo embedding in HTML/PDF with auto-scaling
-- [ ] Custom CSS/styling support for HTML/PDF
-- [ ] Template override capability for advanced customization
-- [ ] Documentation with examples for MSPs and consulting firms
-- [ ] Unit tests for branding application in all formats
-- [ ] Integration test with real logos and multi-client scenarios
+Moving forward, the roadmap shifts focus from basic health assessment to **Enterprise Operations**, **Predictive Intelligence**, and **Automated Remediation**. The immediate focus (P1) is on surfacing internal system visibility and optimizing worker group performance.
 
 ---
 
-**Last Updated:** December 13, 2025
-**Tracking Issue:** TBD (create GitHub issue when prioritized)
+## Quick Wins (P1)
+*High-value, low-effort enhancements targeted for the next minor release.*
+
+### 1. System Messages Surfacing
+- **Description**: Integrate the `/system/messages` API endpoint to surface Cribl's internal warnings and error banners directly in the Health assessment.
+- **Value Proposition**: Surfaces critical operational notices that may be buried in the UI, ensuring administrators see system-level issues immediately.
+- **Estimated Effort**: LOW (~2 hours)
+- **Dependencies**: None (Endpoint exists in client)
+- **Acceptance Criteria**: `HealthAnalyzer` includes system messages in its findings; critical banners are flagged as HIGH severity.
+
+### 2. Worker Group Imbalance Detection
+- **Description**: Analyze traffic distribution across workers within a group to identify hotspots or idle nodes.
+- **Value Proposition**: Identifies load balancing issues that can lead to localized resource exhaustion even when aggregate capacity is sufficient.
+- **Estimated Effort**: MEDIUM (~4 hours)
+- **Dependencies**: Metrics API (available)
+- **Acceptance Criteria**: Finding generated when a single worker handles >50% more traffic than the group average.
+
+### 3. API Key Usage Audit
+- **Description**: Beyond expiration checking, cross-reference API keys with usage metrics to identify stale or unused credentials.
+- **Value Proposition**: Reduces security surface area by identifying credentials that are no longer needed but remain active.
+- **Estimated Effort**: MEDIUM (~3 hours)
+- **Dependencies**: `/system/keys` and usage metrics
+- **Acceptance Criteria**: Finding generated for keys not used in 90+ days or keys with "Admin" permissions that have never been used.
+
+---
+
+## Medium Priority (P2)
+*Significant features that improve the utility of the tool for large-scale deployments.*
+
+### 4. Multi-Deployment Comparison
+- **Description**: A dedicated comparison engine and CLI command to perform side-by-side analysis of two or more deployments (e.g., Prod vs. Dev).
+- **Value Proposition**: Essential for troubleshooting "it works in dev" issues and ensuring environment parity.
+- **Estimated Effort**: HIGH (~12 hours)
+- **Dependencies**: Fleet orchestration layer
+- **Acceptance Criteria**: CLI command `cribl-hc analyze compare <dep1> <dep2>` generates a diff report highlighting config and health discrepancies.
+
+### 5. Historical Data Persistence
+- **Description**: Implement a lightweight storage layer (SQLite or JSON-based) to persist analysis results over time.
+- **Value Proposition**: Enables trend analysis, "was it better yesterday?" comparisons, and long-term health reporting.
+- **Estimated Effort**: MEDIUM (~8 hours)
+- **Dependencies**: Result model refactoring
+- **Acceptance Criteria**: Users can run `cribl-hc analyze history` to see health score trends over the last 30 days.
+
+### 6. Scheduled Health Checks
+- **Description**: Add a daemon mode or cron-compatible scheduling mechanism to run analyses periodically without manual intervention.
+- **Value Proposition**: Moves the tool from reactive "check now" to proactive "monitor always."
+- **Estimated Effort**: MEDIUM (~6 hours)
+- **Dependencies**: Historical data persistence
+- **Acceptance Criteria**: Configurable schedule in `config.yaml`; auto-generation of reports to a specified directory.
+
+---
+
+## Major Enhancements (P3+)
+*Strategic initiatives requiring significant research and development.*
+
+### 7. PII/PHI Leakage Detection
+- **Description**: Sample data flows (using read-only preview APIs) to detect unmasked sensitive data like SSNs, Credit Cards, or API Keys.
+- **Value Proposition**: Critical for SOC2/HIPAA compliance and preventing data leaks to downstream destinations.
+- **Estimated Effort**: HIGH (Requires sampling logic and regex libraries)
+- **Dependencies**: Preview API access
+- **Acceptance Criteria**: Finding generated when unmasked sensitive patterns are detected in pipeline previews.
+
+### 8. End-to-End Freshness Monitor
+- **Description**: Calculate the delta between event creation time (`_time`) and output processing time to identify silent pipeline lag.
+- **Value Proposition**: Identifies "slow but not broken" pipelines that are introducing business-critical delays.
+- **Estimated Effort**: HIGH
+- **Dependencies**: Advanced metrics or preview sampling
+- **Acceptance Criteria**: Metric-based finding showing "95th percentile lag" per pipeline.
+
+### 9. Schema Drift Detection
+- **Description**: Monitor field existence and type consistency across datasets to alert when source schemas change unexpectedly.
+- **Value Proposition**: Prevents downstream breakage in SIEMs or Data Lakes when upstream sources change their format.
+- **Estimated Effort**: HIGH
+- **Dependencies**: Historical metadata storage
+- **Acceptance Criteria**: Finding generated when a "Required" field disappears from a dataset for >1 hour.
+
+---
+
+## Future Architecture (Phase 12+)
+*Long-term vision for the project's evolution.*
+
+### 10. Remediation Automation
+- **Remediation Script Generation**: Automatically generate `curl` commands or Terraform snippets to fix identified findings (e.g., "Enable TLS").
+- **Dry-Run Validation**: Safe simulation of fixes before application.
+
+### 11. Integration Hooks (Ticketing & Alerting)
+- **Auto-Ticketing**: Integration with Jira and ServiceNow to convert findings into actionable tickets.
+- **Notification Routing**: Push critical findings to Slack, Teams, or PagerDuty.
+
+### 12. Advanced Report Customization
+- **White-Label Mode**: Remove all `cribl-hc` branding for MSP/Consultant use cases.
+- **Multi-Language Support**: Support for localized reports (i18n).
+- **Custom Templates**: Support for user-provided Jinja2/Mustache templates for report generation.
+
+### 13. AI-Powered Intelligence
+- **Natural Language Queries**: "Ask" the health check about deployment status in plain English.
+- **Smart Recommendations**: ML-based suggestions derived from patterns across hundreds of deployments.
+
+---
+
+## Removed from Backlog (Completed)
+*The following features were previously planned but have been fully implemented in Phases 1-11.*
+
+- **Report Branding Customization**: Fully implemented with provider/client logos, themes, and custom styling.
+- **Certificate Expiration Monitoring**: Integrated into `SecurityAnalyzer`.
+- **RBAC & User Audit**: Comprehensive checks for inactive users, wildcard roles, and empty teams in `SecurityAnalyzer`.
+- **Configuration Drift Detection**: Implemented in `FleetAnalyzer` (Leader-to-Worker and Environment-to-Environment).
+- **Notification Target Validation**: Implemented in `AlertingAnalyzer`.
+- **Regex Efficiency Analyzer**: Built into `PipelinePerformanceAnalyzer` and `SchemaQualityAnalyzer`.
+- **Lake & Search Support**: Fully implemented as dedicated analyzer suites.
+
+---
+
+*For historical context, refer to the original `ROADMAP.md` and `FEATURE_RESEARCH_REPORT.md` files.*

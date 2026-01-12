@@ -22,17 +22,17 @@ export function CredentialCard({
     <Card hoverable className="transition-all">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <h4 className="text-lg font-semibold text-gray-900">{credential.name}</h4>
-          <p className="mt-1 text-sm text-gray-500">{credential.url}</p>
+          <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{credential.name}</h4>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{credential.url}</p>
           <div className="mt-2 flex items-center gap-3">
-            <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+            <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/50 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-300">
               {credential.auth_type.toUpperCase()}
             </span>
             {credential.has_token && (
-              <span className="text-xs text-gray-500">Token configured</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">Token configured</span>
             )}
             {credential.has_oauth && (
-              <span className="text-xs text-gray-500">OAuth configured</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">OAuth configured</span>
             )}
           </div>
         </div>

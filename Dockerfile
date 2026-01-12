@@ -44,6 +44,7 @@ COPY --from=builder /build/dist /tmp/dist
 
 # Install cribl-hc
 RUN pip install --no-cache-dir /tmp/dist/*.whl && \
+    pip install --no-cache-dir "fastapi>=0.109.0" "uvicorn[standard]>=0.27.0" "python-multipart>=0.0.6" "websockets>=12.0" "Pillow>=10.0.0" && \
     rm -rf /tmp/dist
 
 # Create directories for credentials and reports

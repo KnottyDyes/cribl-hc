@@ -8,13 +8,12 @@ Priority: P3 (Optimization)
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-import structlog
+from typing import Any, Dict, List
 
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.utils.logger import get_logger
 
 log = get_logger(__name__)

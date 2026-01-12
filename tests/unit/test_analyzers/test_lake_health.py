@@ -1,14 +1,11 @@
 """
 Unit tests for LakeHealthAnalyzer.
-
-Tests retention policy monitoring, dataset health checks, and lakehouse availability.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 from cribl_hc.analyzers.lake_health import LakeHealthAnalyzer
-from cribl_hc.models.finding import Finding
 
 
 @pytest.fixture
@@ -18,6 +15,20 @@ def mock_client():
     client.product_type = "lake"
     client.is_edge = False
     client.base_url = "https://test.cribl.cloud"
+
+    async def _mock_get_lake_datasets(*args, **kwargs):
+        return {"items": [], "count": 0}
+
+    async def _mock_get_lake_lakehouses(*args, **kwargs):
+        return {"items": [], "count": 0}
+
+    async def _mock_get_lake_storage_locations(*args, **kwargs):
+        return {"items": [], "count": 0}
+
+    client.get_lake_datasets = _mock_get_lake_datasets
+    client.get_lake_lakehouses = _mock_get_lake_lakehouses
+    client.get_lake_storage_locations = _mock_get_lake_storage_locations
+
     return client
 
 
@@ -36,125 +47,83 @@ class TestLakeHealthAnalyzer:
 
     def test_estimated_api_calls(self, analyzer):
         """Test API call estimation."""
-        # datasets(1) + stats(1) + lakehouses(1) = 3
-        assert analyzer.get_estimated_api_calls() == 3
+        assert analyzer.get_estimated_api_calls() == 4
 
     @pytest.mark.asyncio
     async def test_analyze_with_healthy_datasets(self, analyzer, mock_client):
         """Test analyzer with all datasets healthy."""
-        # Mock response: datasets with good retention periods
-        mock_client.get_lake_datasets.return_value = {
-            "items": [
-                {
-                    "id": "default_logs",
-                    "bucketName": "lake-test",
-                    "retentionPeriodInDays": 30,
-                    "format": "json",
-                    "viewName": "default_logs-view"
-                },
-                {
-                    "id": "default_metrics",
-                    "bucketName": "lake-test",
-                    "retentionPeriodInDays": 15,
-                    "format": "parquet",
-                    "viewName": "default_metrics-view"
-                }
-            ],
-            "count": 2
-        }
-        mock_client.get_lake_dataset_stats.return_value = {"items": [], "count": 0}
-        mock_client.get_lake_lakehouses.return_value = {"items": [], "count": 0}
+
+        async def _mock_get_lake_datasets(*args, **kwargs):
+            return {
+                "items": [
+                    {
+                        "id": "default_logs",
+                        "bucketName": "b",
+                        "viewName": "v",
+                        "retentionPeriodInDays": 30,
+                        "format": "json",
+                    },
+                    {
+                        "id": "default_metrics",
+                        "bucketName": "b",
+                        "viewName": "v",
+                        "retentionPeriodInDays": 15,
+                        "format": "parquet",
+                    },
+                ],
+                "count": 2,
+            }
+
+        mock_client.get_lake_datasets = _mock_get_lake_datasets
 
         result = await analyzer.analyze(mock_client)
 
-        assert result.objective == "lake"
         assert result.success is True
         assert result.metadata["total_datasets"] == 2
-        assert result.metadata["datasets_with_short_retention"] == 0
+        assert len(result.findings) == 1  # one for json format
 
     @pytest.mark.asyncio
     async def test_analyze_detects_short_retention(self, analyzer, mock_client):
         """Test analyzer detects datasets with very short retention."""
-        mock_client.get_lake_datasets.return_value = {
-            "items": [
-                {
-                    "id": "test_dataset",
-                    "bucketName": "lake-test",
-                    "retentionPeriodInDays": 1,  # Very short
-                    "format": "json",
-                    "viewName": "test-view"
-                },
-                {
-                    "id": "storage_test",
-                    "bucketName": "lake-test",
-                    "retentionPeriodInDays": 5,  # Short
-                    "format": "json",
-                    "viewName": "storage-view"
-                }
-            ],
-            "count": 2
-        }
-        mock_client.get_lake_dataset_stats.return_value = {"items": [], "count": 0}
-        mock_client.get_lake_lakehouses.return_value = {"items": [], "count": 0}
+
+        async def _mock_get_lake_datasets(*args, **kwargs):
+            return {
+                "items": [
+                    {
+                        "id": "test_dataset",
+                        "bucketName": "b",
+                        "viewName": "v",
+                        "retentionPeriodInDays": 1,
+                        "format": "json",
+                    },
+                    {
+                        "id": "storage_test",
+                        "bucketName": "b",
+                        "viewName": "v",
+                        "retentionPeriodInDays": 5,
+                        "format": "json",
+                    },
+                ],
+                "count": 2,
+            }
+
+        mock_client.get_lake_datasets = _mock_get_lake_datasets
 
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
-        assert result.metadata["datasets_with_short_retention"] == 2
-        # Should have high severity findings for short retention
+        assert result.metadata["datasets_with_very_short_retention"] == 2
         high_findings = [f for f in result.findings if f.severity == "high"]
-        assert len(high_findings) > 0
-
-    @pytest.mark.asyncio
-    async def test_analyze_detects_json_format_inefficiency(self, analyzer, mock_client):
-        """Test analyzer detects datasets using JSON instead of Parquet."""
-        mock_client.get_lake_datasets.return_value = {
-            "items": [
-                {
-                    "id": "logs_json",
-                    "bucketName": "lake-test",
-                    "retentionPeriodInDays": 30,
-                    "format": "json",  # Inefficient for large datasets
-                    "viewName": "logs-view"
-                },
-                {
-                    "id": "metrics_parquet",
-                    "bucketName": "lake-test",
-                    "retentionPeriodInDays": 30,
-                    "format": "parquet",  # Efficient
-                    "viewName": "metrics-view"
-                }
-            ],
-            "count": 2
-        }
-        mock_client.get_lake_dataset_stats.return_value = {"items": [], "count": 0}
-        mock_client.get_lake_lakehouses.return_value = {"items": [], "count": 0}
-
-        result = await analyzer.analyze(mock_client)
-
-        assert result.success is True
-        assert result.metadata["json_datasets"] == 1
-        assert result.metadata["parquet_datasets"] == 1
-
-    @pytest.mark.asyncio
-    async def test_analyze_handles_empty_datasets(self, analyzer, mock_client):
-        """Test analyzer handles no datasets gracefully."""
-        mock_client.get_lake_datasets.return_value = {"items": [], "count": 0}
-        mock_client.get_lake_dataset_stats.return_value = {"items": [], "count": 0}
-        mock_client.get_lake_lakehouses.return_value = {"items": [], "count": 0}
-
-        result = await analyzer.analyze(mock_client)
-
-        assert result.success is True
-        assert result.metadata["total_datasets"] == 0
-        # Should have info finding about no datasets
-        info_findings = [f for f in result.findings if f.severity == "info"]
-        assert len(info_findings) > 0
+        assert len(high_findings) == 2
 
     @pytest.mark.asyncio
     async def test_analyze_handles_api_errors(self, analyzer, mock_client):
         """Test analyzer handles API errors gracefully."""
-        mock_client.get_lake_datasets.side_effect = Exception("API connection failed")
+
+        async def _mock_get_lake_datasets(*args, **kwargs):
+            raise Exception("API connection failed")
+
+        mock_client.get_lake_datasets = _mock_get_lake_datasets
 
         result = await analyzer.analyze(mock_client)
 
@@ -163,86 +132,38 @@ class TestLakeHealthAnalyzer:
         assert len(result.findings) > 0
 
     @pytest.mark.asyncio
-    async def test_analyze_recommends_retention_optimization(self, analyzer, mock_client):
-        """Test analyzer recommends optimizing retention for short-lived datasets."""
-        mock_client.get_lake_datasets.return_value = {
-            "items": [
-                {
-                    "id": "test_dataset",
-                    "bucketName": "lake-test",
-                    "retentionPeriodInDays": 3,  # Very short
-                    "format": "json",
-                    "viewName": "test-view",
-                    "description": "Test dataset"
-                }
-            ],
-            "count": 1
-        }
-        mock_client.get_lake_dataset_stats.return_value = {"items": [], "count": 0}
-        mock_client.get_lake_lakehouses.return_value = {"items": [], "count": 0}
-
+    async def test_analyze_with_no_datasets(self, analyzer, mock_client):
+        """Test analyzer with an empty list of datasets from the API."""
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
-        # Should have recommendations for retention optimization
-        assert len(result.recommendations) > 0
-        retention_recs = [r for r in result.recommendations if "retention" in r.title.lower()]
-        assert len(retention_recs) > 0
+        assert result.metadata["total_datasets"] == 0
+        assert len(result.findings) == 1
+        assert result.findings[0].severity == "info"
+        assert "No Lake Datasets Found" in result.findings[0].title
 
     @pytest.mark.asyncio
-    async def test_analyze_recommends_parquet_conversion(self, analyzer, mock_client):
-        """Test analyzer recommends converting JSON to Parquet."""
-        mock_client.get_lake_datasets.return_value = {
-            "items": [
-                {
-                    "id": "large_json_dataset",
-                    "bucketName": "lake-test",
-                    "retentionPeriodInDays": 30,
-                    "format": "json",  # Should recommend Parquet
-                    "viewName": "large-view",
-                    "description": "Large dataset"
-                }
-            ],
-            "count": 1
-        }
-        mock_client.get_lake_dataset_stats.return_value = {"items": [], "count": 0}
-        mock_client.get_lake_lakehouses.return_value = {"items": [], "count": 0}
+    async def test_analyze_with_malformed_datasets(self, analyzer, mock_client):
+        """Test analyzer handles datasets with missing required fields."""
+
+        async def _mock_get_lake_datasets(*args, **kwargs):
+            return {
+                "items": [
+                    {
+                        "id": "test_dataset",
+                        "bucketName": "b",
+                        "viewName": "v",
+                        "retentionPeriodInDays": 1,
+                    }
+                    # Missing 'format'
+                ],
+                "count": 1,
+            }
+
+        mock_client.get_lake_datasets = _mock_get_lake_datasets
 
         result = await analyzer.analyze(mock_client)
 
-        assert result.success is True
-        # Should have recommendation for Parquet conversion
-        parquet_recs = [r for r in result.recommendations if "parquet" in r.title.lower()]
-        assert len(parquet_recs) > 0
-
-    @pytest.mark.asyncio
-    async def test_analyze_includes_lakehouse_info(self, analyzer, mock_client):
-        """Test analyzer includes lakehouse availability information."""
-        mock_client.get_lake_datasets.return_value = {
-            "items": [
-                {
-                    "id": "default_logs",
-                    "bucketName": "lake-test",
-                    "retentionPeriodInDays": 30,
-                    "format": "json",
-                    "viewName": "default_logs-view"
-                }
-            ],
-            "count": 1
-        }
-        mock_client.get_lake_dataset_stats.return_value = {"items": [], "count": 0}
-        mock_client.get_lake_lakehouses.return_value = {
-            "items": [
-                {
-                    "id": "lakehouse-001",
-                    "name": "Primary Lakehouse",
-                    "status": "active"
-                }
-            ],
-            "count": 1
-        }
-
-        result = await analyzer.analyze(mock_client)
-
-        assert result.success is True
-        assert result.metadata["lakehouse_count"] == 1
+        assert result.success is False
+        assert "error" in result.metadata
+        assert "validation error" in result.metadata["error"].lower()

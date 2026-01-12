@@ -16,13 +16,13 @@ export function AnalysisCard({ analysis, onViewResults }: AnalysisCardProps) {
   const getStatusColor = () => {
     switch (analysis.status) {
       case 'completed':
-        return 'bg-green-100 text-green-800'
+        return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
       case 'running':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300'
       case 'failed':
-        return 'bg-red-100 text-red-800'
+        return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
     }
   }
 
@@ -50,7 +50,7 @@ export function AnalysisCard({ analysis, onViewResults }: AnalysisCardProps) {
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h4 className="text-lg font-semibold text-gray-900">
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 {analysis.deployment_name}
               </h4>
               <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor()}`}>
@@ -58,7 +58,7 @@ export function AnalysisCard({ analysis, onViewResults }: AnalysisCardProps) {
                 {analysis.status.toUpperCase()}
               </span>
             </div>
-            <p className="mt-1 text-sm text-gray-500">ID: {analysis.analysis_id}</p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">ID: {analysis.analysis_id}</p>
           </div>
           {analysis.status === 'completed' && (
             <Button
@@ -75,10 +75,10 @@ export function AnalysisCard({ analysis, onViewResults }: AnalysisCardProps) {
         {analysis.status === 'running' && (
           <div>
             <div className="flex items-center justify-between text-sm mb-2">
-              <span className="text-gray-600">{analysis.current_step || 'Running...'}</span>
-              <span className="font-medium text-gray-900">{analysis.progress_percent}%</span>
+              <span className="text-gray-600 dark:text-gray-400">{analysis.current_step || 'Running...'}</span>
+              <span className="font-medium text-gray-900 dark:text-gray-100">{analysis.progress_percent}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
               <div
                 className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${analysis.progress_percent}%` }}
@@ -89,20 +89,20 @@ export function AnalysisCard({ analysis, onViewResults }: AnalysisCardProps) {
 
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-gray-500">Started:</span>
-            <p className="font-medium text-gray-900">{formatDate(analysis.started_at)}</p>
+            <span className="text-gray-500 dark:text-gray-400">Started:</span>
+            <p className="font-medium text-gray-900 dark:text-gray-100">{formatDate(analysis.started_at)}</p>
           </div>
           <div>
-            <span className="text-gray-500">Completed:</span>
-            <p className="font-medium text-gray-900">{formatDate(analysis.completed_at)}</p>
+            <span className="text-gray-500 dark:text-gray-400">Completed:</span>
+            <p className="font-medium text-gray-900 dark:text-gray-100">{formatDate(analysis.completed_at)}</p>
           </div>
           <div>
-            <span className="text-gray-500">Analyzers:</span>
-            <p className="font-medium text-gray-900">{analysis.analyzers.length}</p>
+            <span className="text-gray-500 dark:text-gray-400">Analyzers:</span>
+            <p className="font-medium text-gray-900 dark:text-gray-100">{analysis.analyzers.length}</p>
           </div>
           <div>
-            <span className="text-gray-500">API Calls:</span>
-            <p className="font-medium text-gray-900">{analysis.api_calls_used}</p>
+            <span className="text-gray-500 dark:text-gray-400">API Calls:</span>
+            <p className="font-medium text-gray-900 dark:text-gray-100">{analysis.api_calls_used}</p>
           </div>
         </div>
 
@@ -110,7 +110,7 @@ export function AnalysisCard({ analysis, onViewResults }: AnalysisCardProps) {
           {analysis.analyzers.map((analyzer) => (
             <span
               key={analyzer}
-              className="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700"
+              className="inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-700 px-2 py-1 text-xs text-gray-700 dark:text-gray-300"
             >
               {analyzer}
             </span>

@@ -7,21 +7,16 @@ Provides an interactive dashboard for viewing analysis results with:
 - Top recommendations
 - Real-time updates
 """
+from typing import Optional
 
-from datetime import datetime
-from typing import List, Optional
 
 from rich.console import Console
 from rich.layout import Layout
-from rich.live import Live
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.table import Table
 from rich.text import Text
 
 from cribl_hc.models.analysis import AnalysisRun
-from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation
 
 
 class HealthCheckTUI:
@@ -50,22 +45,14 @@ class HealthCheckTUI:
         # Create layout
         layout = Layout()
         layout.split_column(
-            Layout(name="header", size=3),
-            Layout(name="body"),
-            Layout(name="footer", size=3)
+            Layout(name="header", size=3), Layout(name="body"), Layout(name="footer", size=3)
         )
 
         # Split body into columns
-        layout["body"].split_row(
-            Layout(name="left", ratio=2),
-            Layout(name="right", ratio=3)
-        )
+        layout["body"].split_row(Layout(name="left", ratio=2), Layout(name="right", ratio=3))
 
         # Split left column
-        layout["left"].split_column(
-            Layout(name="health_score", size=8),
-            Layout(name="summary")
-        )
+        layout["left"].split_column(Layout(name="health_score", size=8), Layout(name="summary"))
 
         # Build panels
         layout["header"].update(self._create_header(result))
@@ -96,14 +83,16 @@ class HealthCheckTUI:
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=self.console,
-            transient=True
+            transient=True,
         )
 
     def _create_header(self, result: AnalysisRun) -> Panel:
         """Create header panel with deployment info."""
         # deployment_id is a string, not a Deployment object
         deployment_name = result.deployment_id if result.deployment_id else "Unknown"
-        timestamp = result.started_at.strftime("%Y-%m-%d %H:%M:%S UTC") if result.started_at else "N/A"
+        timestamp = (
+            result.started_at.strftime("%Y-%m-%d %H:%M:%S UTC") if result.started_at else "N/A"
+        )
 
         header_text = Text()
         header_text.append("Cribl Health Check", style="bold cyan")
@@ -139,12 +128,7 @@ class HealthCheckTUI:
         score_text.append("/100\n", style="dim")
         score_text.append(f"{status}", style=f"{color}")
 
-        return Panel(
-            score_text,
-            title="Overall Health Score",
-            border_style=color,
-            padding=(1, 2)
-        )
+        return Panel(score_text, title="Overall Health Score", border_style=color, padding=(1, 2))
 
     def _create_summary_panel(self, result: AnalysisRun) -> Panel:
         """Create summary statistics panel."""
@@ -180,70 +164,77 @@ class HealthCheckTUI:
         return Panel(summary_text, title="Summary", border_style="blue")
 
     def _create_findings_table(self, result: AnalysisRun) -> Panel:
-        """Create findings summary table."""
-        table = Table(
-            show_header=True,
-            header_style="bold cyan",
-            border_style="blue",
-            expand=True
-        )
+        """Create findings summary with grouping by worker_group and grouping_id."""
+        from itertools import groupby
 
-        table.add_column("Severity", width=10)
-        table.add_column("Category", width=12)
-        table.add_column("Title", ratio=2)
-        table.add_column("Components", width=15)
+        severity_order = ["critical", "high", "medium", "low", "info"]
+        severity_icons = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵", "info": "ℹ️"}
+        severity_colors = {
+            "critical": "red",
+            "high": "orange1",
+            "medium": "yellow",
+            "low": "blue",
+            "info": "green",
+        }
 
-        # Sort findings by severity (critical first)
-        severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-        sorted_findings = sorted(
-            result.findings,
-            key=lambda f: severity_order.get(f.severity, 4)
-        )
+        sorted_findings = sorted(result.findings, key=lambda f: severity_order.index(f.severity))
 
-        # Limit to top 20 findings for display
-        display_findings = sorted_findings[:20]
+        findings_display = Text()
 
-        for finding in display_findings:
-            # Color code severity
-            if finding.severity == "critical":
-                severity_style = "bold red"
-            elif finding.severity == "high":
-                severity_style = "bold orange3"
-            elif finding.severity == "medium":
-                severity_style = "yellow"
-            else:
-                severity_style = "blue"
+        for severity in severity_order:
+            severity_findings = [f for f in sorted_findings if f.severity == severity]
+            if not severity_findings:
+                continue
 
-            # Truncate title if too long
-            title = finding.title
-            if len(title) > 60:
-                title = title[:57] + "..."
+            color = severity_colors.get(severity, "white")
+            icon = severity_icons.get(severity, "•")
+            findings_display.append(f"{icon} {severity.upper()} ", style=f"bold {color}")
+            findings_display.append(f"({len(severity_findings)})\n", style="dim")
 
-            # Show first affected component
-            component = finding.affected_components[0] if finding.affected_components else "N/A"
-            if len(component) > 15:
-                component = component[:12] + "..."
+            keyfunc = lambda f: (f.grouping_id, f.worker_group)
+            sorted_severity_findings = sorted(severity_findings, key=keyfunc)
 
-            table.add_row(
-                Text(finding.severity.upper(), style=severity_style),
-                finding.category,
-                title,
-                component
-            )
+            for (grouping_id, worker_group), group in groupby(
+                sorted_severity_findings, key=keyfunc
+            ):
+                group_findings = list(group)
+                first_finding = group_findings[0]
 
-        # Add footer if more findings exist
-        if len(result.findings) > 20:
-            table.caption = f"Showing 20 of {len(result.findings)} findings"
+                is_grouped = grouping_id and len(group_findings) > 1
+                if is_grouped:
+                    base_title = first_finding.title.split(":")[0]
+                    title_parts = [base_title]
+                    if worker_group and worker_group != "default":
+                        title_parts.append(f"({worker_group})")
 
-        return Panel(table, title="Findings", border_style="blue")
+                    findings_display.append(
+                        f"  • {' '.join(title_parts)} ({len(group_findings)} instances)\n"
+                    )
+                    for finding in group_findings[:3]:
+                        component = (
+                            finding.affected_components[0] if finding.affected_components else "N/A"
+                        )
+                        findings_display.append(f"    - {component}\n", style="dim")
+                    if len(group_findings) > 3:
+                        findings_display.append(
+                            f"    - ... and {len(group_findings) - 3} more\n", style="dim"
+                        )
+                else:
+                    title_parts = [first_finding.title[:50]]
+                    if first_finding.worker_group and first_finding.worker_group != "default":
+                        title_parts.append(f"({first_finding.worker_group})")
+                    findings_display.append(f"  • {' '.join(title_parts)}\n")
+
+                findings_display.append("\n")
+
+        return Panel(findings_display, title="Findings", border_style="blue")
 
     def _create_recommendations_panel(self, result: AnalysisRun) -> Panel:
         """Create recommendations list panel."""
         # Sort by priority (p0 first, p1, p2, p3)
         priority_order = {"p0": 0, "p1": 1, "p2": 2, "p3": 3}
         sorted_recs = sorted(
-            result.recommendations,
-            key=lambda r: priority_order.get(r.priority, 4)
+            result.recommendations, key=lambda r: priority_order.get(r.priority, 4)
         )
 
         # Limit to top 5 recommendations
@@ -264,7 +255,7 @@ class HealthCheckTUI:
 
             rec_text.append(f"{i}. ", style="bold cyan")
             rec_text.append(rec.title, style="bold")
-            rec_text.append(f" (Priority: ", style="dim")
+            rec_text.append(" (Priority: ", style="dim")
             rec_text.append(rec.priority.upper(), style=priority_style)
             rec_text.append(")\n", style="dim")
             rec_text.append(f"   {rec.description}\n", style="dim")
@@ -274,7 +265,10 @@ class HealthCheckTUI:
 
         # Add footer if more recommendations exist
         if len(result.recommendations) > 5:
-            rec_text.append(f"\n... and {len(result.recommendations) - 5} more recommendations", style="dim italic")
+            rec_text.append(
+                f"\n... and {len(result.recommendations) - 5} more recommendations",
+                style="dim italic",
+            )
 
         return Panel(rec_text, title="Top Recommendations", border_style="green")
 
