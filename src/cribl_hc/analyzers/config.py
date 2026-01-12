@@ -33,6 +33,14 @@ class ConfigAnalyzer(BaseAnalyzer):
         },
     }
 
+    ROUTE_FILTER_REGEX_MAX_LENGTH = 200
+    ROUTE_FILTER_PROBLEMATIC_PATTERNS = [
+        (".*", "Greedy .* can cause catastrophic backtracking"),
+        (".+", "Greedy .+ at pattern start is inefficient"),
+        ("(.+)+", "Nested quantifiers cause exponential backtracking"),
+        ("(.*)*", "Nested quantifiers cause exponential backtracking"),
+    ]
+
     CREDENTIAL_PATTERNS = [
         r'"password"\s*:\s*"([^"$][^"]{2,})"',
         r'"token"\s*:\s*"([^"$][^"]{2,})"',
@@ -83,6 +91,8 @@ class ConfigAnalyzer(BaseAnalyzer):
             self._check_security_misconfigurations(outputs, result, client)
             self._evaluate_best_practice_rules(pipelines, routes, inputs, outputs, result, client)
             self._analyze_route_conflicts(routes, pipelines, result, client)
+            self._check_route_filter_regex(routes, result, client)
+            self._analyze_pipeline_efficiency(pipelines, result, client)
             self._analyze_complexity_metrics(pipelines, result, client)
             await self._check_advanced_security(pipelines, result, client)
 
@@ -164,7 +174,7 @@ class ConfigAnalyzer(BaseAnalyzer):
         for routes_obj in routes_objects:
             # Each Routes object has a 'routes' array containing individual routes
             nested_routes = routes_obj.get("routes", [])
-            if isinstance(nested_routes, list):
+            if "routes" in routes_obj and isinstance(nested_routes, list):
                 flattened.extend(nested_routes)
             # If routes_obj IS a route (backward compatibility), add it directly
             elif routes_obj.get("filter") or routes_obj.get("pipeline"):
@@ -516,6 +526,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                         "Consider using lookup tables instead of complex regex patterns.",
                         "Optimize regex patterns for better performance.",
                     ],
+                    metadata={"regex_function_count": len(regex_funcs)},
                 )
             )
         return issues_found
@@ -554,6 +565,80 @@ class ConfigAnalyzer(BaseAnalyzer):
         if not route_filter or route_filter.strip() == "":
             return True
         return route_filter.strip().lower() in ["true", "1==1", "1 == 1", "'true'"]
+
+    def _check_route_filter_regex(
+        self, routes: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
+        for route in routes:
+            route_id = route.get("id", "unknown")
+            filter_expr = route.get("filter", "") or ""
+            if not isinstance(filter_expr, str) or not filter_expr.strip():
+                continue
+
+            patterns = self._extract_regex_patterns_from_filter(filter_expr)
+            for pattern in patterns:
+                if len(pattern) > self.ROUTE_FILTER_REGEX_MAX_LENGTH:
+                    result.add_finding(
+                        self.create_finding(
+                            client=client,
+                            id=f"config-route-filter-regex-length-{route_id}",
+                            grouping_id="config-route-filter-regex-length",
+                            category="config",
+                            severity="medium",
+                            title=f"Long Regex in Route Filter: {route_id}",
+                            description=(
+                                f"Route '{route_id}' filter contains a regex pattern "
+                                f"with {len(pattern)} characters."
+                            ),
+                            affected_components=[f"route-{route_id}"],
+                            confidence_level="medium",
+                            remediation_steps=[
+                                "Simplify regex patterns in route filters",
+                                "Move complex matching into pipeline functions",
+                                "Anchor regex patterns where possible",
+                            ],
+                            metadata={"route_id": route_id, "pattern_length": len(pattern)},
+                        )
+                    )
+
+                for bad_pattern, reason in self.ROUTE_FILTER_PROBLEMATIC_PATTERNS:
+                    if bad_pattern in pattern:
+                        result.add_finding(
+                            self.create_finding(
+                                client=client,
+                                id=f"config-route-filter-regex-problematic-{route_id}-{hash(bad_pattern) % 10000}",
+                                grouping_id="config-route-filter-regex-problematic",
+                                category="config",
+                                severity="medium",
+                                title=f"Potentially Slow Regex in Route Filter: {route_id}",
+                                description=(
+                                    f"Route '{route_id}' filter contains '{bad_pattern}'. {reason}"
+                                ),
+                                affected_components=[f"route-{route_id}"],
+                                confidence_level="medium",
+                                remediation_steps=[
+                                    "Rewrite regex to avoid nested quantifiers",
+                                    "Use more specific patterns",
+                                    "Move regex matching into pipeline functions",
+                                ],
+                                metadata={"route_id": route_id, "pattern": bad_pattern},
+                            )
+                        )
+                        break
+
+    @staticmethod
+    def _extract_regex_patterns_from_filter(filter_expr: str) -> list[str]:
+        patterns = []
+        for match in re.finditer(r"/([^/\\]*(?:\\.[^/\\]*)*)/", filter_expr):
+            patterns.append(match.group(1))
+
+        for match in re.finditer(r"regex\(\s*['\"](.+?)['\"]\s*\)", filter_expr):
+            patterns.append(match.group(1))
+
+        for match in re.finditer(r"match\(\s*[^,]+,\s*['\"](.+?)['\"]\s*\)", filter_expr):
+            patterns.append(match.group(1))
+
+        return patterns
 
     def _analyze_complexity_metrics(
         self, pipelines: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient

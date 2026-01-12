@@ -195,8 +195,8 @@
 | Performance | BackpressureAnalyzer, PipelinePerformanceAnalyzer, SearchPerformanceAnalyzer | Pipeline metrics good |
 | Security | SecurityAnalyzer, SensitiveDataAnalyzer | ✅ **PII/PHI detection added** |
 | Data Quality | LookupHealthAnalyzer, SchemaQualityAnalyzer, DataFlowTopologyAnalyzer | Schema & routing covered |
-| Alerting | AlertingAnalyzer | **Needs target validation** |
-| Fleet | FleetAnalyzer | **Needs config drift** |
+| Alerting | AlertingAnalyzer | Target validation implemented |
+| Fleet | FleetAnalyzer | Config drift detection implemented |
 | Cost | CostAnalyzer | License tracking |
 | Predictive | PredictiveAnalyzer | Forecasting |
 
