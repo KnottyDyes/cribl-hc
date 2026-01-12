@@ -185,6 +185,23 @@ The modern TUI provides a panel-based, keyboard-navigable interface with real-ti
 **Known Issues:**
 - **Findings Panel Scrolling**: In some terminal sizes, the findings table cursor may scroll slightly beyond the visible viewport when navigating to the last rows. This is a layout constraint issue being investigated. Workaround: Use the `--legacy` flag for the simple TUI, or resize your terminal window to provide more vertical space.
 
+### `cribl-hc api serve`
+
+Run the FastAPI backend server.
+
+```bash
+# Start API server with defaults
+cribl-hc api serve
+
+# Custom host/port
+cribl-hc api serve --host 127.0.0.1 --port 9090
+
+# Disable auto-reload
+cribl-hc api serve --no-reload
+```
+
+**Defaults**: `--host 0.0.0.0 --port 8080 --reload --log-level info`
+
 ### `cribl-hc version`
 
 Show version information.
