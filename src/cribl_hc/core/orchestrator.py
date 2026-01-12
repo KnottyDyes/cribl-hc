@@ -330,6 +330,8 @@ class AnalyzerOrchestrator:
         total_weight = 0.0
         raw_weight_sum = sum(data["weight"] for data in components_found.values())
 
+        raw_weight_sum = sum(data["weight"] for data in components_found.values())
+
         for category, data in components_found.items():
             avg_score = sum(data["scores"]) / len(data["scores"]) if data["scores"] else 100
             weight = data["weight"] / raw_weight_sum if raw_weight_sum > 0 else 1.0
