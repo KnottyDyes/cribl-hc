@@ -261,7 +261,7 @@ class SearchCost(BaseModel):
 class SearchHealthCheckStatus(BaseModel):
     status: str = Field(..., description="Health status (green/red)")
     reported_at: int = Field(..., alias="reported_at", description="Reported timestamp (epoch ms)")
-    reason: str | None = Field(None, description="Failure reason if status is red")
+    reason: Optional[str] = Field(None, description="Failure reason if status is red")
 
     model_config = {"populate_by_name": True}
 
@@ -288,16 +288,16 @@ class DatasetStatsResponse(BaseModel):
     event_counts: List[TimeSeriesPoint] = Field(
         default_factory=list, alias="eventCounts", description="Event counts over time"
     )
-    max_event_time: int | None = Field(
+    max_event_time: Optional[int] = Field(
         default=None, alias="maxEventTime", description="Latest event time"
     )
-    min_event_time: int | None = Field(
+    min_event_time: Optional[int] = Field(
         default=None, alias="minEventTime", description="Earliest event time"
     )
-    total_byte_count: float | None = Field(
+    total_byte_count: Optional[float] = Field(
         default=None, alias="totalByteCount", description="Total bytes"
     )
-    total_event_count: float | None = Field(
+    total_event_count: Optional[float] = Field(
         default=None, alias="totalEventCount", description="Total events"
     )
 
@@ -312,19 +312,19 @@ class DatasetUsageQueryCount(BaseModel):
 
 
 class DatasetUsageStatsResponse(BaseModel):
-    linked_dashboards: List[Dict[str, Any]] | None = Field(
+    linked_dashboards: Optional[List[Dict[str, Any]]] = Field(
         default=None, alias="linkedDashboards", description="Linked dashboards"
     )
-    linked_notebooks: List[Dict[str, Any]] | None = Field(
+    linked_notebooks: Optional[List[Dict[str, Any]]] = Field(
         default=None, alias="linkedNotebooks", description="Linked notebooks"
     )
     query_counts: List[DatasetUsageQueryCount] = Field(
         default_factory=list, alias="queryCounts", description="Query counts over time"
     )
-    saved_queries: List[Dict[str, Any]] | None = Field(
+    saved_queries: Optional[List[Dict[str, Any]]] = Field(
         default=None, alias="savedQueries", description="Saved queries"
     )
-    top_users: List[Dict[str, Any]] | None = Field(
+    top_users: Optional[List[Dict[str, Any]]] = Field(
         default=None, alias="topUsers", description="Top users"
     )
 
@@ -368,31 +368,31 @@ class SearchGroupList(BaseModel):
 
 class DatasetProvider(BaseModel):
     id: str = Field(..., description="Provider ID")
-    type: str | None = Field(None, description="Provider type")
-    description: str | None = Field(None, description="Description")
-    config: Dict[str, Any] | None = Field(default=None, description="Configuration")
+    type: Optional[str] = Field(None, description="Provider type")
+    description: Optional[str] = Field(None, description="Description")
+    config: Optional[Dict[str, Any]] = Field(default=None, description="Configuration")
 
     model_config = {"populate_by_name": True}
 
 
 class DatasetProviderType(BaseModel):
     id: str = Field(..., description="Provider Type ID")
-    description: str | None = Field(None, description="Description")
-    category: str | None = Field(None, description="Category")
+    description: Optional[str] = Field(None, description="Description")
+    category: Optional[str] = Field(None, description="Category")
 
     model_config = {"populate_by_name": True}
 
 
 class FieldStat(BaseModel):
     name: str = Field(..., description="Field name")
-    type: str | None = Field(None, description="Field type")
-    count: int | None = Field(None, description="Total count")
-    null_count: int | None = Field(None, alias="nullCount", description="Null count")
-    distinct_count: int | None = Field(
+    type: Optional[str] = Field(None, description="Field type")
+    count: Optional[int] = Field(None, description="Total count")
+    null_count: Optional[int] = Field(None, alias="nullCount", description="Null count")
+    distinct_count: Optional[int] = Field(
         None, alias="distinctCount", description="Distinct values count"
     )
-    min: Any | None = Field(None, description="Minimum value")
-    max: Any | None = Field(None, description="Maximum value")
+    min: Optional[Any] = Field(None, description="Minimum value")
+    max: Optional[Any] = Field(None, description="Maximum value")
 
     model_config = {"populate_by_name": True}
 
@@ -401,7 +401,7 @@ class FieldStatsResponse(BaseModel):
     fields: List[FieldStat] = Field(
         default_factory=list, alias="fieldStats", description="List of field statistics"
     )
-    total_events: int | None = Field(
+    total_events: Optional[int] = Field(
         default=None, alias="totalEvents", description="Total events analyzed"
     )
 

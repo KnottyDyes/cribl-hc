@@ -34,6 +34,9 @@ cribl-hc analyze run -v
 
 # Test connection
 cribl-hc test-connection
+
+# Run API server (defaults: --host 0.0.0.0 --port 8080 --reload --log-level info)
+cribl-hc api serve
 ```
 
 ## Credentials
@@ -89,6 +92,10 @@ cribl-hc analyze run --markdown
 -v, --verbose      Verbose output
 --debug            Debug mode
 -p, --deployment   Use stored credentials
+--host             API bind host (api serve)
+--port             API bind port (api serve)
+--reload           Enable auto-reload (api serve)
+--log-level        Uvicorn log level (api serve)
 ```
 
 ## Examples
@@ -125,6 +132,7 @@ cribl-hc list                      # See available analyzers
 cribl-hc list --verbose            # With permissions details
 cribl-hc analyze --help
 cribl-hc analyze run --help
+cribl-hc api serve --help
 ```
 
 ## Documentation
