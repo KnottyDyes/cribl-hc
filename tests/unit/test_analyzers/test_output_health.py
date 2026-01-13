@@ -42,6 +42,7 @@ class TestOutputDestinationAnalyzer:
         client = AsyncMock(spec=CriblAPIClient)
         client.get_outputs = AsyncMock(return_value=[])
         client.get_metrics = AsyncMock(return_value={})
+        client.get_notifications = AsyncMock(return_value=[])
         return client
 
     @pytest.mark.asyncio
@@ -58,6 +59,7 @@ class TestOutputDestinationAnalyzer:
 
         mock_client.get_outputs.return_value = outputs
         mock_client.get_metrics.return_value = metrics
+        mock_client.get_notifications.return_value = []
 
         analyzer = OutputDestinationAnalyzer()
         result = await analyzer.analyze(mock_client)
@@ -66,6 +68,9 @@ class TestOutputDestinationAnalyzer:
         assert len(result.findings) == 0
         assert result.metadata["outputs_analyzed"] == 2
         assert result.metadata["healthy_outputs"] == 2
+
+        # Verify get_notifications was called
+        mock_client.get_notifications.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_unreachable_output_critical(self, mock_client):
@@ -81,7 +86,7 @@ class TestOutputDestinationAnalyzer:
         assert len(result.findings) == 1
         finding = result.findings[0]
         assert finding.severity == "critical"
-        assert finding.id == "output-unreachable-out-dead"
+        assert finding.id == "output-connectivity-out-dead"
 
     @pytest.mark.asyncio
     async def test_missing_credentials_high(self, mock_client):
@@ -171,7 +176,7 @@ class TestOutputDestinationAnalyzer:
         assert len(result.findings) == 1
         finding = result.findings[0]
         assert finding.severity == "medium"
-        assert "Queue Backing Up" in finding.title
+        assert "Queue Backlog" in finding.title
         assert finding.metadata["queue_size"] == 15000
 
     @pytest.mark.asyncio
@@ -189,6 +194,26 @@ class TestOutputDestinationAnalyzer:
         finding = result.findings[0]
         assert finding.severity == "medium"
         assert "Delivery Confirmation Disabled" in finding.title
+
+    @pytest.mark.asyncio
+    async def test_delivery_failure_notification(self, mock_client):
+        """Test that delivery failure notifications produce a finding."""
+        outputs = [create_output("out-fail-notif", status="healthy")]
+
+        # Healthy status but notification says otherwise
+        mock_client.get_outputs.return_value = outputs
+        mock_client.get_metrics.return_value = {"items": []}
+        mock_client.get_notifications.return_value = [
+            {"text": "Output out-fail-notif failed to connect to destination", "level": "error"}
+        ]
+
+        analyzer = OutputDestinationAnalyzer()
+        result = await analyzer.analyze(mock_client)
+
+        assert len(result.findings) >= 1
+        finding = next(f for f in result.findings if f.id == "output-delivery-fail-out-fail-notif")
+        assert finding.severity == "medium"
+        assert "Delivery Failure Notification" in finding.title
 
     @pytest.mark.asyncio
     async def test_no_outputs_available(self, mock_client):
@@ -213,7 +238,7 @@ class TestOutputDestinationAnalyzer:
         analyzer = OutputDestinationAnalyzer()
         result = await analyzer.analyze(mock_client)
 
-        # Should succeed with no findings (empty list handled gracefully)
-        assert result.success is True
-        assert len(result.findings) == 0
-        assert result.metadata["outputs_analyzed"] == 0
+        # Should succeed with error finding
+        assert result.success is False
+        assert len(result.findings) == 1
+        assert result.findings[0].id == "output-analysis-error"
