@@ -5,16 +5,13 @@ Mimics the GUI's ResultsPage grouping and display logic.
 
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
-from rich.text import Text
-from rich.align import Align
 
-from cribl_hc.models.analysis import AnalysisRun
 from cribl_hc.cli.results_grouper import (
-    group_findings,
     get_severity_counts,
     get_worker_group_display_name,
+    group_findings,
 )
+from cribl_hc.models.analysis import AnalysisRun
 
 
 def render_results_summary(analysis: AnalysisRun) -> None:
@@ -30,10 +27,10 @@ def render_results_summary(analysis: AnalysisRun) -> None:
         analysis: The completed analysis run
     """
     console = Console()
-    
+
     counts = get_severity_counts(analysis.findings)
     total = len(analysis.findings)
-    
+
     # Create summary table
     summary_table = Table(
         title="[bold cyan]Analysis Summary[/bold cyan]",
@@ -41,7 +38,7 @@ def render_results_summary(analysis: AnalysisRun) -> None:
         box=None,
         padding=(0, 2),
     )
-    
+
     # Add summary rows
     summary_table.add_row("Total Findings", f"[bold]{total}[/bold]")
     summary_table.add_row("[bold red]Critical[/bold red]", str(counts['critical']))
@@ -49,13 +46,13 @@ def render_results_summary(analysis: AnalysisRun) -> None:
     summary_table.add_row("[bold yellow]Medium[/bold yellow]", str(counts['medium']))
     summary_table.add_row("[bold cyan]Low[/bold cyan]", str(counts['low']))
     summary_table.add_row("[bold]Info[/bold]", str(counts['info']))
-    
+
     if analysis.health_score:
         summary_table.add_row(
             "Health Score",
             f"[bold]{analysis.health_score.overall_score:.1f}%[/bold]"
         )
-    
+
     console.print(summary_table)
     console.print()
 
@@ -77,14 +74,14 @@ def render_grouped_findings(analysis: AnalysisRun) -> None:
         analysis: The completed analysis run
     """
     console = Console()
-    
+
     if not analysis.findings:
         console.print("[yellow]No findings to display[/yellow]")
         return
-    
+
     grouped = group_findings(analysis.findings)
     current_worker_group = None
-    
+
     for group in grouped:
         # Print worker group header if it changed
         if group.worker_group != current_worker_group:
@@ -93,7 +90,7 @@ def render_grouped_findings(analysis: AnalysisRun) -> None:
             console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
             console.print(f"[bold cyan]{group_name}[/bold cyan]")
             console.print(f"[bold cyan]{'=' * 60}[/bold cyan]")
-        
+
         # Render the finding group
         render_finding_group(console, group)
 
@@ -113,7 +110,7 @@ def render_finding_group(console: Console, group) -> None:
         group: GroupedFinding object
     """
     first = group.findings[0]
-    
+
     # Build severity badge
     severity_colors = {
         'critical': 'red',
@@ -124,44 +121,44 @@ def render_finding_group(console: Console, group) -> None:
     }
     severity_color = severity_colors.get(group.severity, 'white')
     severity_text = f"[bold {severity_color}]{group.severity.upper()}[/bold {severity_color}]"
-    
+
     # Build category badge
     category_text = f"[bold blue]{first.category}[/bold blue]"
-    
+
     # Build title with badges
     title_parts = [severity_text, category_text]
-    
+
     # Add grouped badge if applicable
     if group.is_grouped:
         count_text = f"[bold magenta]{group.finding_count} instances[/bold magenta]"
         title_parts.append(count_text)
-    
+
     badges = " • ".join(title_parts)
-    
+
     console.print(f"\n{badges}")
     console.print(f"[bold]{group.group_title}[/bold]")
     console.print(f"[dim]{first.description.split('.')[0]}.[/dim]")
-    
+
     # Show affected components
     if first.affected_components:
         all_components = []
         for finding in group.findings:
             all_components.extend(finding.affected_components)
-        
+
         # Deduplicate while preserving order
         unique_components = list(dict.fromkeys(all_components))
-        
+
         if len(unique_components) <= 5:
             components_str = ", ".join(unique_components)
         else:
             components_str = ", ".join(unique_components[:5]) + f" (+{len(unique_components) - 5} more)"
-        
+
         console.print(f"[dim]Components: {components_str}[/dim]")
-    
+
     # Show impact if available
     if first.estimated_impact:
         console.print(f"[yellow]Impact: {first.estimated_impact}[/yellow]")
-    
+
     # Show first few remediation steps
     if first.remediation_steps:
         console.print("[cyan]Remediation:[/cyan]")
@@ -179,18 +176,18 @@ def display_analysis_results(analysis: AnalysisRun) -> None:
         analysis: The completed analysis run
     """
     console = Console()
-    
+
     # Print header
     console.print("\n" + "=" * 60)
     console.print("[bold cyan]Analysis Results[/bold cyan]")
     console.print("=" * 60 + "\n")
-    
+
     # Print summary
     render_results_summary(analysis)
-    
+
     # Print grouped findings
     render_grouped_findings(analysis)
-    
+
     console.print("\n" + "=" * 60)
     console.print(f"[dim]Total findings: {len(analysis.findings)}[/dim]")
     console.print("=" * 60 + "\n")

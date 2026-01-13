@@ -5,8 +5,6 @@ Validates that our assumptions about Edge API response structures are correct.
 These tests use real API response examples to ensure our parsers handle Edge data properly.
 """
 
-import pytest
-from pydantic import ValidationError
 
 
 class TestEdgeNodeContract:

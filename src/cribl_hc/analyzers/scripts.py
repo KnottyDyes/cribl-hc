@@ -1,3 +1,5 @@
+from typing import List
+
 """
 Script Inventory Analyzer for Cribl Health Check.
 

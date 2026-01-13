@@ -5,7 +5,7 @@ Tests analyzer listing and information endpoints.
 """
 
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 from cribl_hc.api.app import app
 

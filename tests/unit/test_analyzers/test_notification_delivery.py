@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.notification_delivery import NotificationDeliveryAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

@@ -2,10 +2,12 @@
 Unit tests for hybrid worker group detection and handling.
 """
 
-import pytest
 from unittest.mock import AsyncMock
-from cribl_hc.core.api_client import CriblAPIClient
+
+import pytest
+
 from cribl_hc.analyzers.fleet import FleetAnalyzer
+from cribl_hc.core.api_client import CriblAPIClient
 
 
 class TestWorkerGroupTypeDetection:

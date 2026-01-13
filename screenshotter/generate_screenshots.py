@@ -20,11 +20,10 @@ To use real Playwright automation instead of mock screenshots:
 """
 
 import asyncio
-import os
-from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
 import json
+from pathlib import Path
 
+from PIL import Image, ImageDraw, ImageFont
 
 # ============================================================================
 # PART 1: Component Selector Mappings (Based on Code Inspection)

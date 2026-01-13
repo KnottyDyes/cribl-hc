@@ -4,8 +4,9 @@ Inspect pipeline data from real Cribl Cloud deployment.
 """
 
 import asyncio
-import sys
 import json
+import sys
+
 import httpx
 
 
@@ -51,15 +52,15 @@ async def inspect_pipelines(base_url: str, token: str):
                     else:
                         print(f"  Functions value: {functions}")
                 else:
-                    print(f"✗ Missing 'functions' field")
+                    print("✗ Missing 'functions' field")
 
                 # Show full structure (truncated)
                 pipeline_json = json.dumps(pipeline, indent=2)
                 if len(pipeline_json) > 500:
-                    print(f"\nFull structure (truncated):")
+                    print("\nFull structure (truncated):")
                     print(pipeline_json[:500] + "\n... (truncated)")
                 else:
-                    print(f"\nFull structure:")
+                    print("\nFull structure:")
                     print(pipeline_json)
 
                 print("=" * 80)
@@ -76,7 +77,7 @@ async def inspect_pipelines(base_url: str, token: str):
             print(f"WITHOUT 'functions' field: {len(missing_functions)}")
 
             if missing_functions:
-                print(f"\nPipelines missing 'functions':")
+                print("\nPipelines missing 'functions':")
                 for p in missing_functions[:10]:  # Show first 10
                     print(f"  - {p.get('id', 'NO-ID')}")
                     print(f"    Keys: {list(p.keys())}")

@@ -10,16 +10,17 @@ Tests MarkdownReportGenerator and JSONReportGenerator including:
 - Edge cases and empty data handling
 """
 
-import pytest
 import json
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from cribl_hc.core.report_generator import MarkdownReportGenerator, JSONReportGenerator
-from cribl_hc.models.analysis import AnalysisRun
+import pytest
+
 from cribl_hc.analyzers.base import AnalyzerResult
+from cribl_hc.core.report_generator import JSONReportGenerator, MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
 from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 
 
 @pytest.fixture

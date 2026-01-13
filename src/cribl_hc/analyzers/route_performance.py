@@ -7,7 +7,6 @@ to identify performance bottlenecks and optimization opportunities.
 Priority: P2 (Medium Impact - Performance Optimization)
 """
 
-import math
 import statistics
 from datetime import datetime
 from typing import Any, Dict, List, Literal

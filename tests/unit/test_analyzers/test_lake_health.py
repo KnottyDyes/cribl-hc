@@ -2,8 +2,9 @@
 Unit tests for LakeHealthAnalyzer.
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.lake_health import LakeHealthAnalyzer
 

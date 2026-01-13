@@ -3,8 +3,8 @@ Utility module for grouping findings by worker group and grouping ID.
 Mimics the GUI's grouping logic from ResultsPage.tsx.
 """
 
-from typing import Dict, List, Optional
 from dataclasses import dataclass
+from typing import Dict, List
 
 from cribl_hc.models.finding import Finding
 
@@ -37,38 +37,38 @@ def group_findings(findings: List[Finding]) -> List[GroupedFinding]:
     """
     # Build worker group map
     worker_group_map: Dict[str, Dict[str, List[Finding]]] = {}
-    
+
     for finding in findings:
         # Global findings (no worker_group) are separate from default
         worker_group = finding.worker_group or '__global__'
-        
+
         if worker_group not in worker_group_map:
             worker_group_map[worker_group] = {}
-        
+
         # Group by grouping_id or finding id
         group_key = finding.grouping_id or finding.id
         if group_key not in worker_group_map[worker_group]:
             worker_group_map[worker_group][group_key] = []
-        
+
         worker_group_map[worker_group][group_key].append(finding)
-    
+
     # Build result list
     result: List[GroupedFinding] = []
-    
+
     for worker_group in sorted(worker_group_map.keys()):
         for group_key in sorted(worker_group_map[worker_group].keys()):
             group_findings = worker_group_map[worker_group][group_key]
             first = group_findings[0]
-            
+
             # Check if this is a grouped finding (has grouping_id and multiple findings)
             is_grouped = bool(first.grouping_id) and len(group_findings) > 1
-            
+
             # Extract group title (remove " - " prefix if grouped)
             if is_grouped:
                 group_title = first.title.split(':')[0] if ':' in first.title else first.title
             else:
                 group_title = first.title
-            
+
             result.append(GroupedFinding(
                 findings=group_findings,
                 group_title=group_title,
@@ -77,7 +77,7 @@ def group_findings(findings: List[Finding]) -> List[GroupedFinding]:
                 severity=first.severity,
                 finding_count=len(group_findings)
             ))
-    
+
     # Sort by worker group, then severity, then title
     severity_order = {'critical': 5, 'high': 4, 'medium': 3, 'low': 2, 'info': 1}
     result.sort(
@@ -87,7 +87,7 @@ def group_findings(findings: List[Finding]) -> List[GroupedFinding]:
             x.group_title
         )
     )
-    
+
     return result
 
 
@@ -108,11 +108,11 @@ def get_severity_counts(findings: List[Finding]) -> Dict[str, int]:
         'low': 0,
         'info': 0,
     }
-    
+
     for finding in findings:
         if finding.severity in counts:
             counts[finding.severity] += 1
-    
+
     return counts
 
 

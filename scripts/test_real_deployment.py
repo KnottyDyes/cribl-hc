@@ -46,7 +46,7 @@ def print_findings_summary(findings):
     medium = [f for f in findings if f.severity == "medium"]
     low = [f for f in findings if f.severity == "low"]
 
-    print(f"\nFindings Summary:")
+    print("\nFindings Summary:")
     print(f"  Critical: {len(critical)}")
     print(f"  High:     {len(high)}")
     print(f"  Medium:   {len(medium)}")
@@ -62,7 +62,7 @@ def print_finding_details(finding, index):
     print(f"    Affected: {', '.join(finding.affected_components)}")
     print(f"    Impact: {finding.estimated_impact}")
     if finding.remediation_steps:
-        print(f"    Remediation:")
+        print("    Remediation:")
         for step in finding.remediation_steps[:3]:  # Show first 3 steps
             print(f"      - {step}")
         if len(finding.remediation_steps) > 3:
@@ -93,7 +93,7 @@ async def test_connection(url: str, token: str) -> bool:
             result = await client.test_connection()
 
             if result.success:
-                print(f"✓ Connection successful!")
+                print("✓ Connection successful!")
                 print(f"  Cribl Version: {result.cribl_version}")
                 print(f"  Response Time: {result.response_time_ms:.0f}ms")
                 return True
@@ -116,7 +116,7 @@ async def run_config_analysis(url: str, token: str, verbose: bool = False):
 
             print(f"Analyzer: {analyzer.objective_name}")
             print(f"Estimated API calls: {analyzer.get_estimated_api_calls()}")
-            print(f"\nAnalyzing...")
+            print("\nAnalyzing...")
 
             result = await analyzer.analyze(client)
 
@@ -131,7 +131,7 @@ async def run_config_analysis(url: str, token: str, verbose: bool = False):
                     print(f"  Error: {result.error}")
 
             # Print metadata
-            print(f"\nMetadata:")
+            print("\nMetadata:")
             print(f"  Compliance Score: {result.metadata.get('compliance_score', 'N/A')}/100")
             print(f"  Pipelines Analyzed: {result.metadata.get('pipelines_analyzed', 0)}")
             print(f"  Routes Analyzed: {result.metadata.get('routes_analyzed', 0)}")
@@ -297,7 +297,7 @@ Examples:
     print_section("Summary")
     if result.success:
         compliance_score = result.metadata.get("compliance_score", 0)
-        print(f"✓ Analysis completed successfully")
+        print("✓ Analysis completed successfully")
         print(f"  Compliance Score: {compliance_score}/100")
 
         if compliance_score == 100:
@@ -314,7 +314,7 @@ Examples:
         print(f"\n  Total Findings: {len(result.findings)}")
         print(f"  Recommendations: {len(result.recommendations)}")
     else:
-        print(f"✗ Analysis failed")
+        print("✗ Analysis failed")
 
     return 0
 

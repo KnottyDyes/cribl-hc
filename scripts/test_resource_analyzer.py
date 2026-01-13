@@ -46,7 +46,7 @@ def print_findings_summary(findings):
     medium = [f for f in findings if f.severity == "medium"]
     low = [f for f in findings if f.severity == "low"]
 
-    print(f"\nFindings Summary:")
+    print("\nFindings Summary:")
     print(f"  Critical: {len(critical)}")
     print(f"  High:     {len(high)}")
     print(f"  Medium:   {len(medium)}")
@@ -68,7 +68,7 @@ def print_finding(finding, index, total):
         print(f"    Impact: {finding.estimated_impact}")
 
     if finding.remediation_steps:
-        print(f"    Remediation:")
+        print("    Remediation:")
         for i, step in enumerate(finding.remediation_steps[:2], 1):
             print(f"      {i}. {step}")
         if len(finding.remediation_steps) > 2:
@@ -87,14 +87,14 @@ def print_recommendation(rec, index, total):
     print(f"    Rationale: {rec.rationale}")
 
     if rec.implementation_steps:
-        print(f"    Implementation:")
+        print("    Implementation:")
         for i, step in enumerate(rec.implementation_steps[:3], 1):
             print(f"      {i}. {step}")
         if len(rec.implementation_steps) > 3:
             print(f"      ... ({len(rec.implementation_steps) - 3} more steps)")
 
     if rec.impact_estimate:
-        print(f"    Impact:")
+        print("    Impact:")
         if rec.impact_estimate.performance_improvement:
             print(f"      Performance: {rec.impact_estimate.performance_improvement}")
         if rec.impact_estimate.cost_impact:
@@ -112,13 +112,13 @@ async def test_connection(url: str, token: str) -> bool:
             result = await client.test_connection()
 
             if result.success:
-                print(f"✓ Connection successful!")
+                print("✓ Connection successful!")
                 print(f"  URL: {result.api_url}")
                 print(f"  Response time: {result.response_time_ms:.0f}ms")
                 print(f"  Cribl Version: {result.cribl_version}")
                 return True
             else:
-                print(f"✗ Connection failed!")
+                print("✗ Connection failed!")
                 print(f"  Error: {result.error}")
                 return False
 
@@ -141,10 +141,10 @@ async def run_resource_analyzer(url: str, token: str, verbose: bool = False):
             print(f"Estimated API calls: {analyzer.get_estimated_api_calls()}")
             print(f"Required permissions: {', '.join(analyzer.get_required_permissions())}")
 
-            print(f"\nRunning analysis...")
+            print("\nRunning analysis...")
             result = await analyzer.analyze(client)
 
-            print(f"\n✓ Analysis completed!")
+            print("\n✓ Analysis completed!")
             print(f"  Success: {result.success}")
             print(f"  Objective: {result.objective}")
 

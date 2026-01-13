@@ -2,9 +2,11 @@
 Unit tests for CLI main module.
 """
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from typer.testing import CliRunner
+
 from cribl_hc.cli.main import app, main
 
 

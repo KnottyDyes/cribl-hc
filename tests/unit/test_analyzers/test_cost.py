@@ -4,9 +4,9 @@ Unit tests for CostAnalyzer.
 Following TDD: These tests are written FIRST and should FAIL until implementation is complete.
 """
 
-import pytest
 from unittest.mock import AsyncMock
-from datetime import datetime, timedelta
+
+import pytest
 
 from cribl_hc.analyzers.cost import CostAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

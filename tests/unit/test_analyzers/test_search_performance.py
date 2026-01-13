@@ -4,8 +4,9 @@ Unit tests for SearchPerformanceAnalyzer.
 Tests CPU cost analysis, query efficiency, dashboard analysis, and optimization recommendations.
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.search_performance import SearchPerformanceAnalyzer
 

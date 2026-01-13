@@ -2,12 +2,13 @@
 Unit tests for CriblAPIClient and connection testing.
 """
 
-import pytest
-import httpx
-import respx
 from datetime import datetime
 
-from cribl_hc.core.api_client import CriblAPIClient, ConnectionTestResult
+import httpx
+import pytest
+import respx
+
+from cribl_hc.core.api_client import ConnectionTestResult, CriblAPIClient
 
 
 class TestConnectionTestResult:

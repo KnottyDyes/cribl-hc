@@ -5,7 +5,7 @@ Analyzes event timestamps to detect pipeline lag and latency issues.
 """
 
 import time
-from typing import Any, List
+from typing import List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

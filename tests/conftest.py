@@ -3,9 +3,9 @@ Pytest configuration and shared fixtures for Cribl Health Check tests.
 """
 
 import asyncio
-import respx
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture
@@ -18,6 +18,7 @@ def test_data_dir() -> Path:
 def sample_deployment():
     """Create a sample Deployment model for testing."""
     from pydantic import HttpUrl, SecretStr
+
     from cribl_hc.models.deployment import Deployment
 
     return Deployment(
@@ -33,7 +34,6 @@ def sample_deployment():
 @pytest.fixture
 def mock_cribl_api(respx_mock):
     """Set up mock Cribl API responses."""
-    import respx
 
     # Mock system status endpoint
     respx_mock.get("https://cribl.example.com/api/v1/system/status").mock(

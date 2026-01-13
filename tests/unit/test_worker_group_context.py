@@ -3,7 +3,6 @@ Unit tests for worker group context functionality in Finding model.
 Tests cover the new worker_group field and validation requirements.
 """
 
-import pytest
 
 from cribl_hc.models.finding import Finding
 
@@ -53,7 +52,6 @@ def test_finding_metadata_worker_group_context():
 
 def test_finding_example_includes_worker_group():
     """Test Finding JSON schema example includes worker_group."""
-    from json import dumps
 
     finding = Finding(
         id="finding-mem-001",

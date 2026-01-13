@@ -5,8 +5,8 @@ These tests verify the ConfigAnalyzer works correctly with realistic Cribl API
 responses and produces meaningful findings and recommendations.
 """
 
-import pytest
 import httpx
+import pytest
 import respx
 
 from cribl_hc.analyzers.config import ConfigAnalyzer

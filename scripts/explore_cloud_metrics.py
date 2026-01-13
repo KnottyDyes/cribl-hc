@@ -125,7 +125,7 @@ async def main():
                 data_str = json.dumps(data).lower()
                 if 'disk' in data_str:
                     has_disk = True
-                    print(f"    ⭐ Contains 'disk' data!")
+                    print("    ⭐ Contains 'disk' data!")
 
                 print()
 

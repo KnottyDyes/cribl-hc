@@ -16,8 +16,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from cribl_hc.utils.crypto import CredentialEncryptor
 import httpx
+
+from cribl_hc.utils.crypto import CredentialEncryptor
 
 
 async def load_and_discover():

@@ -14,8 +14,8 @@ from httpx import Response
 @respx.mock
 async def test_health_analysis_workflow():
     """Test complete health analysis workflow."""
-    from cribl_hc.core.api_client import CriblAPIClient
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     # Mock system status
     respx.get("https://cribl.example.com/api/v1/system/status").mock(
@@ -89,8 +89,8 @@ async def test_health_analysis_workflow():
 @respx.mock
 async def test_health_analysis_with_unhealthy_workers():
     """Test health analysis detects unhealthy workers."""
-    from cribl_hc.core.api_client import CriblAPIClient
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     respx.get("https://cribl.example.com/api/v1/system/status").mock(
         return_value=Response(
@@ -144,8 +144,8 @@ async def test_health_analysis_with_unhealthy_workers():
 @respx.mock
 async def test_health_analysis_with_down_workers():
     """Test health analysis detects down/offline workers."""
-    from cribl_hc.core.api_client import CriblAPIClient
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     respx.get("https://cribl.example.com/api/v1/system/status").mock(
         return_value=Response(
@@ -190,8 +190,8 @@ async def test_health_analysis_with_down_workers():
 @respx.mock
 async def test_health_analysis_with_version_mismatch():
     """Test health analysis detects version mismatches."""
-    from cribl_hc.core.api_client import CriblAPIClient
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     respx.get("https://cribl.example.com/api/v1/system/status").mock(
         return_value=Response(
@@ -247,8 +247,8 @@ async def test_health_analysis_with_version_mismatch():
 @respx.mock
 async def test_health_analysis_empty_workers():
     """Test health analysis handles no workers gracefully."""
-    from cribl_hc.core.api_client import CriblAPIClient
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     respx.get("https://cribl.example.com/api/v1/system/status").mock(
         return_value=Response(
@@ -279,8 +279,8 @@ async def test_health_analysis_empty_workers():
 @respx.mock
 async def test_health_analysis_api_error_handling():
     """Test health analysis handles API errors gracefully."""
-    from cribl_hc.core.api_client import CriblAPIClient
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     respx.get("https://cribl.example.com/api/v1/system/status").mock(
         return_value=Response(
@@ -311,8 +311,8 @@ async def test_health_analysis_api_error_handling():
 @respx.mock
 async def test_health_analysis_multiple_issues():
     """Test health analysis detects multiple concurrent issues."""
-    from cribl_hc.core.api_client import CriblAPIClient
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     respx.get("https://cribl.example.com/api/v1/system/status").mock(
         return_value=Response(

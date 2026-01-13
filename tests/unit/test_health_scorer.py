@@ -9,7 +9,6 @@ Tests ComponentHealth and HealthScorer classes including:
 - Edge cases and boundary conditions
 """
 
-import pytest
 
 from cribl_hc.core.health_scorer import (
     ComponentHealth,

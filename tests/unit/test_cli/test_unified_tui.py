@@ -2,10 +2,9 @@
 Unit tests for Unified TUI module.
 """
 
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-
 from cribl_hc.cli.unified_tui import UnifiedTUI
 
 
@@ -111,8 +110,9 @@ class TestUnifiedTUI:
         mock_prompt.side_effect = ["prod", ""]
 
         # Mock successful analysis
-        from cribl_hc.models.analysis import AnalysisRun
         from datetime import datetime, timezone
+
+        from cribl_hc.models.analysis import AnalysisRun
 
         mock_analysis_run = AnalysisRun(
             id="test-run",
@@ -183,8 +183,9 @@ class TestUnifiedTUI:
     @pytest.mark.asyncio
     async def test_run_analysis_async_success(self):
         """Test async analysis success."""
-        from cribl_hc.models.analysis import AnalysisRun
         from datetime import datetime, timezone
+
+        from cribl_hc.models.analysis import AnalysisRun
 
         tui = UnifiedTUI()
 
@@ -277,8 +278,9 @@ class TestUnifiedTUI:
         mock_prompt.side_effect = ["2", ""]  # Select number 2, then press enter to continue
 
         # Mock successful analysis
-        from cribl_hc.models.analysis import AnalysisRun
         from datetime import datetime, timezone
+
+        from cribl_hc.models.analysis import AnalysisRun
 
         mock_analysis_run = AnalysisRun(
             id="test-run",
@@ -319,8 +321,9 @@ class TestUnifiedTUI:
         mock_prompt.side_effect = ["", ""]  # Empty for default, then press enter to continue
 
         # Mock successful analysis
-        from cribl_hc.models.analysis import AnalysisRun
         from datetime import datetime, timezone
+
+        from cribl_hc.models.analysis import AnalysisRun
 
         mock_analysis_run = AnalysisRun(
             id="test-run",

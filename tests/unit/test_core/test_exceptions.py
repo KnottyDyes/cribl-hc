@@ -2,24 +2,23 @@
 Unit tests for core exception classes.
 """
 
-import pytest
 from cribl_hc.core.exceptions import (
-    CriblHealthCheckError,
-    APIConnectionError,
-    APITimeoutError,
-    APIRateLimitError,
+    AnalyzerError,
+    AnalyzerExecutionError,
+    AnalyzerInitializationError,
     APIAuthenticationError,
     APIAuthorizationError,
-    AnalyzerError,
-    AnalyzerInitializationError,
-    AnalyzerExecutionError,
+    APiBudgetExceededError,
+    APIConnectionError,
+    APIRateLimitError,
+    APITimeoutError,
+    BudgetExceededError,
     ConfigurationError,
-    InvalidDeploymentError,
+    CriblHealthCheckError,
+    DataValidationError,
     DeploymentNotFoundError,
     InvalidCredentialsError,
-    DataValidationError,
-    BudgetExceededError,
-    APiBudgetExceededError,
+    InvalidDeploymentError,
 )
 
 

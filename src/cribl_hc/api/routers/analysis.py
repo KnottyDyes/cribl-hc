@@ -21,7 +21,6 @@ from fastapi import (
     status,
 )
 from fastapi.responses import Response
-
 from pydantic import BaseModel, Field
 
 from cribl_hc.analyzers import get_global_registry
@@ -35,7 +34,6 @@ from cribl_hc.core.report_generator import (
     MarkdownReportGenerator,
 )
 from cribl_hc.utils.logger import get_logger
-
 
 router = APIRouter()
 log = get_logger(__name__)

@@ -5,10 +5,12 @@ Development server for Cribl Health Check API.
 Quick start script to run the FastAPI application locally for development.
 """
 
-import sys
 import argparse
-import uvicorn
 import socket
+import sys
+
+import uvicorn
+
 
 def find_free_port():
     """Find a free port on the system."""

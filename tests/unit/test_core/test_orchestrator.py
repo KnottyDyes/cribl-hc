@@ -2,13 +2,13 @@
 Unit tests for AnalyzerOrchestrator.
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.core.orchestrator import AnalyzerOrchestrator, AnalysisProgress
-from cribl_hc.models.finding import Finding
+from cribl_hc.core.orchestrator import AnalysisProgress, AnalyzerOrchestrator
 from tests.helpers import create_test_finding
 
 

@@ -1,3 +1,6 @@
+import re
+from urllib.parse import urlparse
+
 """
 Modern Terminal User Interface for Cribl Health Check.
 
@@ -9,15 +12,13 @@ Built with Textual - provides a Pocker-style navigable interface with:
 - Results history and export (JSON/MD)
 """
 
-from typing import Any, Optional
-
-
 import asyncio
 import json
 import random
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Optional
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -43,9 +44,9 @@ from textual.widgets import (
 
 from cribl_hc.cli.commands.config import load_credentials, save_credentials
 from cribl_hc.cli.results_grouper import (
-    group_findings,
     get_severity_counts,
     get_worker_group_display_name,
+    group_findings,
 )
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.core.orchestrator import AnalyzerOrchestrator
@@ -861,17 +862,13 @@ class AnalysisStatus(Static):
 
     def watch_status(self, status: str) -> None:
         """Update display when status changes."""
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#status-state", Label).update(status)
-        except Exception:
-            pass
 
     def watch_progress(self, progress: float) -> None:
         """Update progress bar."""
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#status-progress", ProgressBar).update(progress=progress)
-        except Exception:
-            pass
 
     def watch_api_calls(self, calls: int) -> None:
         """Update API call count."""

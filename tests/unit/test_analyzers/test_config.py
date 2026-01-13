@@ -4,8 +4,9 @@ Unit tests for ConfigAnalyzer.
 Tests configuration validation, syntax checking, and error handling.
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.config import ConfigAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

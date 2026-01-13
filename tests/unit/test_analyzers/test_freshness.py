@@ -1,6 +1,8 @@
-import pytest
 import time
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from cribl_hc.analyzers.freshness import FreshnessAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 

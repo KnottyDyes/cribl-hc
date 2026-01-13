@@ -8,7 +8,6 @@ Priority: P2 (Configuration Management - critical for operational stability)
 """
 
 from __future__ import annotations
-from typing import Dict, List
 
 from typing import Any, Dict, List
 
@@ -115,8 +114,8 @@ class VersionControlAnalyzer(BaseAnalyzer):
             result.metadata["pending_deployments"] = deployment_status.get("pendingDeployments", 0)
             result.metadata["deploying_workers"] = deployment_status.get("deployingWorkers", 0)
             result.metadata["config_drift"] = deployment_status.get("configDrift", False)
-            result.metadata["current_commit"] = version_status.get("commit", None)
-            result.metadata["last_commit_timestamp"] = version_status.get("timestamp", None)
+            result.metadata["current_commit"] = version_status.get("commit")
+            result.metadata["last_commit_timestamp"] = version_status.get("timestamp")
 
             # Analyze uncommitted changes
             self._analyze_uncommitted_changes(version_status, uncommitted_files, result)

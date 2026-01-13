@@ -2,9 +2,6 @@
 Unit tests for config CLI command.
 """
 
-import json
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -15,11 +12,7 @@ from cribl_hc.cli.commands.config import (
     get_or_create_key,
     load_credentials,
     save_credentials,
-    CONFIG_DIR,
-    CREDENTIALS_FILE,
-    KEY_FILE,
 )
-
 
 runner = CliRunner()
 

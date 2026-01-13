@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.lake import LakeDataset, LakeDatasetList, LakehouseList
+from cribl_hc.models.lake import LakeDataset, LakeDatasetList
 from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.utils.logger import get_logger
 

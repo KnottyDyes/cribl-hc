@@ -9,8 +9,7 @@ import pytest
 import respx
 from httpx import Response
 
-from cribl_hc.core.api_client import CriblAPIClient, ConnectionTestResult
-from cribl_hc.utils.rate_limiter import RateLimiter
+from cribl_hc.core.api_client import ConnectionTestResult, CriblAPIClient
 
 
 class TestCriblAPIClient:

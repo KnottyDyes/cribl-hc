@@ -5,10 +5,10 @@ Analyzes the balance of load and resource utilization across worker groups.
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
-from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
 from pydantic import BaseModel, Field
+
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
+from cribl_hc.core.api_client import CriblAPIClient
 
 
 class WorkerMetrics(BaseModel):

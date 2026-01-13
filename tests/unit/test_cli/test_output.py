@@ -10,14 +10,14 @@ from rich.console import Console
 from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.cli.output import (
     display_analysis_results,
-    display_summary,
     display_findings,
-    display_recommendations,
     display_health_score,
+    display_recommendations,
+    display_summary,
     format_api_usage,
 )
 from cribl_hc.models.analysis import AnalysisRun, Finding, Recommendation
-from tests.helpers import create_test_finding, create_test_recommendation, create_test_analysis_run
+from tests.helpers import create_test_analysis_run, create_test_finding
 
 
 @pytest.fixture

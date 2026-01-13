@@ -16,8 +16,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from cribl_hc.utils.crypto import CredentialEncryptor
 import httpx
+
+from cribl_hc.utils.crypto import CredentialEncryptor
 
 
 async def test_lake_endpoints():
@@ -64,7 +65,7 @@ async def test_lake_endpoints():
         # Variations
         ("datasets", f"/api/v1/products/lake/lakes/{lake_name}/datasets"),
         ("lake_info", f"/api/v1/products/lake/lakes/{lake_name}"),
-        ("all_lakes", f"/api/v1/products/lake/lakes"),
+        ("all_lakes", "/api/v1/products/lake/lakes"),
 
         # Dataset management
         ("dataset_stats", f"/api/v1/products/lake/lakes/{lake_name}/datasets/stats"),
@@ -78,7 +79,7 @@ async def test_lake_endpoints():
         ("lake_status", f"/api/v1/products/lake/lakes/{lake_name}/status"),
 
         # Storage
-        ("storage_locations", f"/api/v1/products/lake/storage/locations"),
+        ("storage_locations", "/api/v1/products/lake/storage/locations"),
         ("storage_usage", f"/api/v1/products/lake/lakes/{lake_name}/storage/usage"),
     ]
 

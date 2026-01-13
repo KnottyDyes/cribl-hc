@@ -2,17 +2,14 @@
 Unit tests for analyze CLI command.
 """
 
-import asyncio
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
 
-from cribl_hc.cli.commands.analyze import app, run_analysis_async
 from cribl_hc.analyzers.base import AnalyzerResult
+from cribl_hc.cli.commands.analyze import app, run_analysis_async
 from cribl_hc.models.analysis import AnalysisRun, Finding, Recommendation
-
 
 runner = CliRunner()
 

@@ -7,10 +7,10 @@ from pydantic import ValidationError
 
 from cribl_hc.utils.version import (
     CriblVersion,
-    parse_version,
     detect_version,
-    is_version_supported,
     get_version_compatibility_message,
+    is_version_supported,
+    parse_version,
 )
 
 

@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.parser_quality import ParserQualityAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

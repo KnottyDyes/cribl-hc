@@ -5,8 +5,9 @@ Tests destination backpressure detection, persistent queue monitoring,
 HTTP retry pattern analysis, and queue exhaustion prediction.
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from cribl_hc.analyzers.backpressure import BackpressureAnalyzer
 

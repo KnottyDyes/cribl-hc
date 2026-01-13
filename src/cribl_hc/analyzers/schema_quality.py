@@ -9,9 +9,9 @@ Analyzes schema and parsing configurations to identify:
 - Search datatypes and field quality
 """
 
+import re
 from collections import defaultdict
 from typing import Any, Dict, List
-import re
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

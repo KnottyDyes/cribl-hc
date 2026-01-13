@@ -5,11 +5,11 @@ Tests resource utilization analysis including CPU, memory, disk monitoring,
 capacity planning, and imbalance detection.
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from cribl_hc.analyzers.resource import ResourceAnalyzer
-from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.core.api_client import CriblAPIClient
 
 

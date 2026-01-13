@@ -1,3 +1,5 @@
+from typing import List
+
 """
 Search Usage Groups Analyzer for Cribl Health Check.
 

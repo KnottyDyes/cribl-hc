@@ -9,13 +9,13 @@ Tests verify:
 5. Error handling for unavailable metrics
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from cribl_hc.analyzers import get_analyzer, list_objectives
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.core.orchestrator import AnalyzerOrchestrator
-from cribl_hc.models.finding import Finding
 
 
 class TestPipelineBottleneckRegistration:

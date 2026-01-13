@@ -4,8 +4,9 @@ Unit tests for StorageAnalyzer.
 Following TDD: These tests are written FIRST and should FAIL until implementation is complete.
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.storage import StorageAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

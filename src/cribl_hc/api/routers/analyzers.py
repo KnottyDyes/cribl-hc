@@ -1,3 +1,5 @@
+from typing import List
+
 """
 Analyzer metadata API endpoints.
 

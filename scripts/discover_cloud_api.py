@@ -6,9 +6,10 @@ This script helps identify the correct API endpoints for a Cribl Cloud deploymen
 """
 
 import asyncio
-import sys
-import httpx
 import json
+import sys
+
+import httpx
 
 
 async def discover_cribl_cloud_api(base_url: str, token: str):
@@ -32,7 +33,7 @@ async def discover_cribl_cloud_api(base_url: str, token: str):
 
             if response.status_code == 200:
                 data = response.json()
-                print(f"   ✓ Success! Found worker groups:")
+                print("   ✓ Success! Found worker groups:")
 
                 if isinstance(data, dict) and "items" in data:
                     groups = data["items"]

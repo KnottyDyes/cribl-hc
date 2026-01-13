@@ -3,8 +3,7 @@ Unit tests for TUI (Terminal User Interface) module.
 """
 
 from datetime import datetime, timezone
-from io import StringIO
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -13,7 +12,7 @@ from cribl_hc.models.analysis import AnalysisRun
 from cribl_hc.models.deployment import Deployment
 from cribl_hc.models.finding import Finding
 from cribl_hc.models.health import HealthScore
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 
 
 @pytest.fixture

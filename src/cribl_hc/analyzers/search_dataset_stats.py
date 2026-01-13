@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

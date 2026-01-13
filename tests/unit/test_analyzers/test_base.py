@@ -4,17 +4,17 @@ Unit tests for base analyzer and registry.
 
 import pytest
 
-from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.analyzers import (
     AnalyzerRegistry,
-    get_global_registry,
-    register_analyzer,
     get_analyzer,
+    get_global_registry,
     list_objectives,
+    register_analyzer,
 )
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 
 
 class TestAnalyzerResult:

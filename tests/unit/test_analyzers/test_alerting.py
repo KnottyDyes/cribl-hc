@@ -2,8 +2,9 @@
 Unit tests for AlertingAnalyzer.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from cribl_hc.analyzers.alerting import AlertingAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

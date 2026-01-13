@@ -3,7 +3,7 @@ Report generation for analysis results in multiple formats.
 """
 
 import json
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.models.analysis import AnalysisRun

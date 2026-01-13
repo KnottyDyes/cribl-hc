@@ -7,9 +7,9 @@ import json
 import pytest
 
 from cribl_hc.analyzers.base import AnalyzerResult
-from cribl_hc.core.report_generator import MarkdownReportGenerator, JSONReportGenerator
+from cribl_hc.core.report_generator import JSONReportGenerator, MarkdownReportGenerator
 from cribl_hc.models.analysis import AnalysisRun, Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 
 
 @pytest.fixture

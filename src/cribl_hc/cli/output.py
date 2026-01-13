@@ -2,7 +2,6 @@
 Rich terminal output formatting for analysis results.
 """
 
-from collections import defaultdict
 from itertools import groupby
 
 from rich.console import Console
@@ -12,7 +11,6 @@ from rich.tree import Tree
 
 from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.models.analysis import AnalysisRun
-from cribl_hc.models.finding import Finding
 
 
 def display_analysis_results(

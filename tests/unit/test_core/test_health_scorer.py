@@ -2,7 +2,6 @@
 Unit tests for HealthScorer.
 """
 
-import pytest
 
 from cribl_hc.core.health_scorer import (
     ComponentHealth,

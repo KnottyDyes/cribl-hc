@@ -3,16 +3,12 @@ Config command for managing credentials and settings.
 """
 
 import json
-import os
 import re
-import sys
-import tempfile
 from pathlib import Path
 from typing import Dict, Optional
 
 import typer
 from rich.console import Console
-from rich.prompt import Prompt
 from rich.table import Table
 
 from cribl_hc.cli.commands.branding import app as branding_app

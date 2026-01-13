@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
 from cribl_hc.analyzers.backpressure import BackpressureAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 

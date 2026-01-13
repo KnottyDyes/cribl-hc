@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import structlog
 
@@ -307,8 +307,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                             confidence_level="high",
                             remediation_steps=[
                                 f"Replace deprecated function '{func_id}' with '{deprecated_info['replacement']}' in pipeline '{pipeline_id}'.",
-                                f"Update function configuration to use the modern syntax.",
-                                f"Test pipeline functionality after replacement.",
+                                "Update function configuration to use the modern syntax.",
+                                "Test pipeline functionality after replacement.",
                                 f"Review documentation: {deprecated_info['docs']}",
                             ],
                         )
