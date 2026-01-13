@@ -31,19 +31,16 @@ jobs:
       run: |
         pip install ruff
         ruff check src/ tests/
-      continue-on-error: true
-    
+
     - name: Type check with mypy
       run: |
         pip install mypy
         mypy src/ --ignore-missing-imports
-      continue-on-error: true
-    
+
     - name: Run tests with pytest
       run: |
         pytest tests/
-      continue-on-error: true
-    
+
     - name: Upload coverage reports
       uses: codecov/codecov-action@v5
       with:
@@ -99,3 +96,64 @@ jobs:
         tags: cribl-hc:test
         cache-from: type=gha
         cache-to: type=gha,mode=max
+
+  screenshots:
+    name: Generate UI Screenshots
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v6
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install Python dependencies for screenshotter
+      working-directory: screenshotter
+      run: |
+        python -m pip install --upgrade pip
+        pip install playwright pillow
+
+    - name: Install Playwright browsers
+      run: playwright install chromium --with-deps
+
+    - name: Install backend dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install -e .
+
+    - name: Install frontend dependencies
+      working-directory: frontend
+      run: npm ci
+
+    - name: Start backend server
+      run: |
+        python -m uvicorn cribl_hc.api.app:app --host 0.0.0.0 --port 8000 &
+        sleep 5
+
+    - name: Start frontend dev server
+      working-directory: frontend
+      run: |
+        npm run dev &
+        sleep 10
+
+    - name: Generate screenshots
+      working-directory: screenshotter
+      run: python generate_screenshots.py
+
+    - name: Upload screenshots
+      uses: actions/upload-artifact@v6
+      with:
+        name: ui-screenshots
+        path: screenshotter/screenshots/
+        retention-days: 30
+
