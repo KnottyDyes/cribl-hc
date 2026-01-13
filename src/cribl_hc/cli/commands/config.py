@@ -186,12 +186,11 @@ def add_credential_from_curl(
     try:
         credentials = load_credentials()
 
-        if name in credentials:
-            if not typer.confirm(
-                f"Credentials for '{name}' already exist. Overwrite?", default=False
-            ):
-                console.print("[yellow]Cancelled[/yellow]")
-                raise typer.Exit(code=0)
+        if name in credentials and not typer.confirm(
+            f"Credentials for '{name}' already exist. Overwrite?", default=False
+        ):
+            console.print("[yellow]Cancelled[/yellow]")
+            raise typer.Exit(code=0)
 
         console.print("\n[bold cyan]Add Credentials from REST Call[/bold cyan]")
         console.print(f"[dim]Deployment name:[/dim] {name}\n")

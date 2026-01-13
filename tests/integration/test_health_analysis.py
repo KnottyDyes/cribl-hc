@@ -235,7 +235,7 @@ async def test_health_analysis_with_version_mismatch():
         result = await analyzer.analyze(client)
 
         # Should detect version mismatch
-        version_findings = [
+        [
             f for f in result.findings if "version" in f.title.lower()
         ]
         # May or may not flag version mismatch depending on implementation

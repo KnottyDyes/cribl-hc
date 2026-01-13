@@ -13,8 +13,10 @@ Built with Textual - provides a Pocker-style navigable interface with:
 """
 
 import asyncio
+import contextlib
 import json
 import random
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -188,7 +190,7 @@ class AddDeploymentDialog(ModalScreen):
         padding: 0 2;
         margin-bottom: 1;
     }
-    
+
     .input-row Label {
         margin-bottom: 1;
         color: $text-muted;
@@ -330,7 +332,7 @@ class EditDeploymentDialog(ModalScreen):
         padding: 0 2;
         margin-bottom: 1;
     }
-    
+
     .input-row Label {
         margin-bottom: 1;
         color: $text-muted;
@@ -441,7 +443,7 @@ class ExportResultsDialog(ModalScreen):
         padding: 0 2;
         margin-bottom: 1;
     }
-    
+
     .export-row Label {
         margin-bottom: 1;
         color: $text-muted;
@@ -993,7 +995,7 @@ class CriblHealthCheckApp(App):
     """Modern TUI for Cribl Health Check - Pocker-style interface."""
 
     CSS = """
-    /* 
+    /*
      * Refined Industrial/Utilitarian Theme
      * Color Palette:
      * - surface: #1e222a (deep slate)
@@ -1031,7 +1033,7 @@ class CriblHealthCheckApp(App):
     TabbedContent > .tabs {
         background: #1e222a;
     }
-    
+
     TabbedContent > .tabs > .tab--highlight {
          background: #56b6c2;
          color: #282c34;
@@ -1052,7 +1054,7 @@ class CriblHealthCheckApp(App):
     #right-panel {
         width: 1fr;
     }
-    
+
     .panel-title {
         color: #56b6c2;
         text-style: bold;
@@ -1102,7 +1104,7 @@ class CriblHealthCheckApp(App):
         margin: 0 1;
         border: solid #61afef;
     }
-    
+
     Button:hover {
         border: solid #56b6c2;
         color: #56b6c2;

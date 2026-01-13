@@ -23,15 +23,15 @@ class GroupedFinding:
 def group_findings(findings: List[Finding]) -> List[GroupedFinding]:
     """
     Group findings by worker group, then by grouping ID.
-    
+
     Mimics the GUI's grouping logic:
     1. Group by worker_group (or '__global__' if None)
     2. Within each worker group, group by grouping_id (or finding id)
     3. Sort by worker group, then severity, then title
-    
+
     Args:
         findings: List of findings from analysis
-        
+
     Returns:
         List of GroupedFinding objects sorted by worker group and severity
     """
@@ -94,10 +94,10 @@ def group_findings(findings: List[Finding]) -> List[GroupedFinding]:
 def get_severity_counts(findings: List[Finding]) -> Dict[str, int]:
     """
     Get count of findings by severity.
-    
+
     Args:
         findings: List of findings
-        
+
     Returns:
         Dictionary with severity counts
     """
@@ -119,10 +119,10 @@ def get_severity_counts(findings: List[Finding]) -> Dict[str, int]:
 def get_worker_group_display_name(worker_group: str) -> str:
     """
     Get a human-readable display name for a worker group.
-    
+
     Args:
         worker_group: The worker group identifier
-        
+
     Returns:
         Formatted display name
     """

@@ -202,7 +202,7 @@ class TestStorageAnalyzer:
         result = await storage_analyzer.analyze(mock_client)
 
         # Should suggest aggregation for metrics
-        aggregation_findings = [
+        [
             f for f in result.findings
             if "aggregat" in f.description.lower() or "rollup" in f.description.lower()
         ]

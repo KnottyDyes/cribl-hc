@@ -177,7 +177,7 @@ class TestAnalyzerOrchestrator:
 
         with patch("cribl_hc.core.orchestrator.get_analyzer", return_value=mock_analyzer):
             with patch("cribl_hc.core.orchestrator.list_objectives", return_value=["health"]):
-                results = await orchestrator.run_analysis(
+                await orchestrator.run_analysis(
                     ["health"],
                     progress_callback=progress_callback,
                 )
@@ -203,7 +203,7 @@ class TestAnalyzerOrchestrator:
 
         with patch("cribl_hc.core.orchestrator.get_analyzer", return_value=mock_analyzer):
             with patch("cribl_hc.core.orchestrator.list_objectives", return_value=["health"]):
-                results = await orchestrator.run_analysis(["health"])
+                await orchestrator.run_analysis(["health"])
 
                 # Check that API usage was tracked
                 usage = orchestrator.get_api_usage_summary()

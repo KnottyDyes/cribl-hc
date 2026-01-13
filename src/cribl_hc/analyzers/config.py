@@ -335,7 +335,7 @@ class ConfigAnalyzer(BaseAnalyzer):
 
         unused_pipelines = all_pipeline_ids - used_pipeline_ids
 
-        for pipeline_id in sorted(list(unused_pipelines)):
+        for pipeline_id in sorted(unused_pipelines):
             if pipeline_id.startswith("pack:"):
                 result.add_finding(
                     self.create_finding(
@@ -378,7 +378,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                 )
 
         unused_outputs = all_output_ids - used_output_ids
-        for output_id in sorted(list(unused_outputs)):
+        for output_id in sorted(unused_outputs):
             result.add_finding(
                 self.create_finding(
                     client=client,
@@ -398,7 +398,7 @@ class ConfigAnalyzer(BaseAnalyzer):
     ) -> None:
         for output in outputs:
             output_id = output.get("id", "unknown")
-            output_type = output.get("type", "unknown")
+            output.get("type", "unknown")
             output_json = json.dumps(output)
             for pattern in self.CREDENTIAL_PATTERNS:
                 matches = re.finditer(pattern, output_json, re.IGNORECASE)

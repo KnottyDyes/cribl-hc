@@ -1,6 +1,9 @@
 import json
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
+import httpx
+from httpx import AsyncClient
 from urllib.parse import urljoin
 
 import httpx

@@ -101,7 +101,7 @@ class HistoricalTrend(BaseModel):
         cv = std_dev / abs(mean_val) if mean_val != 0 else 0
 
         # Simple slope calculation (first to last, normalized by range)
-        value_range = max(recent) - min(recent)
+        max(recent) - min(recent)
         slope = (recent[-1] - recent[0]) / len(recent)
 
         # Normalize slope by mean to make it scale-independent

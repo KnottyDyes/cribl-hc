@@ -6,6 +6,7 @@ and real-time status updates via WebSocket.
 """
 
 import asyncio
+import contextlib
 import json
 import uuid
 from datetime import datetime
@@ -230,10 +231,8 @@ async def notify_websocket_clients(analysis_id: str, message: dict):
             except Exception as e:
                 log.warning("websocket_send_failed", analysis_id=analysis_id, error=str(e))
                 # Remove failed websocket
-                try:
+                with contextlib.suppress(ValueError):
                     active_websockets[analysis_id].remove(websocket)
-                except ValueError:
-                    pass
 
 
 @router.post("", response_model=AnalysisResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -527,7 +526,5 @@ async def websocket_analysis_updates(websocket: WebSocket, analysis_id: str):
     finally:
         # Unregister websocket
         if analysis_id in active_websockets:
-            try:
+            with contextlib.suppress(ValueError):
                 active_websockets[analysis_id].remove(websocket)
-            except ValueError:
-                pass

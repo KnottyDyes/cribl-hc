@@ -313,7 +313,7 @@ class TestAnalyzeCommand:
         """Test run command with custom max API calls."""
         mock_client_class.return_value.__aenter__.return_value = mock_api_client
 
-        result = runner.invoke(
+        runner.invoke(
             app,
             [
                 "--url",

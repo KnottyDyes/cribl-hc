@@ -343,7 +343,7 @@ class TestHealthCheckTUI:
         tui = HealthCheckTUI()
 
         # Create analysis run with unsorted findings
-        deployment = Deployment(
+        Deployment(
             id="test",
             name="Test",
             url="https://test.com",

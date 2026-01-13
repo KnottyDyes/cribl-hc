@@ -237,10 +237,7 @@ def optimize_logo(image_data: bytes, max_height: int = 128) -> str:
     img = Image.open(io.BytesIO(image_data))
 
     # Convert to RGB if necessary (e.g. for JPEG) or keep RGBA for PNG
-    if img.mode in ("RGBA", "P"):
-        img = img.convert("RGBA")
-    else:
-        img = img.convert("RGB")
+    img = img.convert("RGBA") if img.mode in ("RGBA", "P") else img.convert("RGB")
 
     # Resize if height is too large
     if img.height > max_height:

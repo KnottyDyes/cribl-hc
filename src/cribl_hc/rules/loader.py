@@ -339,10 +339,7 @@ class RuleEvaluator:
 
                             # Get length based on type
                             if value is not None:
-                                if isinstance(value, (list, dict, str)):
-                                    length = len(value)
-                                else:
-                                    length = 0
+                                length = len(value) if isinstance(value, (list, dict, str)) else 0
 
                                 # Evaluate comparison
                                 if operator == ">":

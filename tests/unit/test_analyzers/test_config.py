@@ -1569,7 +1569,7 @@ class TestConfigAnalyzer:
         """Test detection of overly complex pipelines."""
         # Create pipeline with high complexity (>50)
         complex_functions = []
-        for i in range(15):  # 15 functions * 2 = 30 base complexity
+        for _i in range(15):  # 15 functions * 2 = 30 base complexity
             complex_functions.append(
                 {
                     "id": "eval",

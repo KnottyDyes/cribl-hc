@@ -17,12 +17,12 @@ from cribl_hc.models.analysis import AnalysisRun
 def render_results_summary(analysis: AnalysisRun) -> None:
     """
     Render a summary of the analysis results.
-    
+
     Displays:
     - Total findings count
     - Breakdown by severity
     - Health score (if available)
-    
+
     Args:
         analysis: The completed analysis run
     """
@@ -60,7 +60,7 @@ def render_results_summary(analysis: AnalysisRun) -> None:
 def render_grouped_findings(analysis: AnalysisRun) -> None:
     """
     Render findings grouped by worker group and grouping ID.
-    
+
     Structure:
     - Worker Group 1
       - Finding Group 1 (count badge if multiple)
@@ -69,7 +69,7 @@ def render_grouped_findings(analysis: AnalysisRun) -> None:
       - Finding Group 2
     - Worker Group 2
       - ...
-    
+
     Args:
         analysis: The completed analysis run
     """
@@ -98,13 +98,13 @@ def render_grouped_findings(analysis: AnalysisRun) -> None:
 def render_finding_group(console: Console, group) -> None:
     """
     Render a single finding group.
-    
+
     Shows:
     - Severity badge and title
     - Count badge if multiple similar findings
     - First finding's description and affected components
     - Remediation steps if available
-    
+
     Args:
         console: Rich console
         group: GroupedFinding object
@@ -171,7 +171,7 @@ def render_finding_group(console: Console, group) -> None:
 def display_analysis_results(analysis: AnalysisRun) -> None:
     """
     Display the complete analysis results with summary and grouped findings.
-    
+
     Args:
         analysis: The completed analysis run
     """

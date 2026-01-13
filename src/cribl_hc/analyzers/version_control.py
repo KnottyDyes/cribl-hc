@@ -307,7 +307,7 @@ class VersionControlAnalyzer(BaseAnalyzer):
         result: AnalyzerResult,
     ) -> None:
         """Analyze pending deployments and config drift."""
-        pending = deployment_status.get("pendingDeployments", 0)
+        deployment_status.get("pendingDeployments", 0)
         deploying = deployment_status.get("deployingWorkers", 0)
         has_drift = deployment_status.get("configDrift", False)
         groups = deployment_status.get("groups", [])

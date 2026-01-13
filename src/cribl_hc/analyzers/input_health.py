@@ -324,10 +324,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
     ) -> None:
         input_id = input_item.get("id", "unknown")
 
-        if severity_level == "warning":
-            severity = "low"
-        else:
-            severity = severity_level
+        severity = "low" if severity_level == "warning" else severity_level
 
         result.add_finding(
             self.create_finding(

@@ -103,7 +103,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
             total_memory_size = 0
 
             for lookup in lookups:
-                lookup_id = lookup.get("id", "unknown")
+                lookup.get("id", "unknown")
                 size = lookup.get("size", 0)
                 mode = lookup.get("mode", "memory")
 
@@ -164,7 +164,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
         referenced = set()
 
         for pipeline in pipelines:
-            pipeline_id = pipeline.get("id", "")
+            pipeline.get("id", "")
             functions = pipeline.get("conf", {}).get("functions", [])
 
             for func in functions:

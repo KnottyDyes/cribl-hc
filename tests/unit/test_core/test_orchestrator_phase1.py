@@ -274,7 +274,6 @@ class TestOrchestrationPipelineBottleneck:
         # Setup mock to track call count
         call_count = {"metrics": 0}
 
-        original_get_metrics = mock_client.get_metrics
 
         async def tracked_get_metrics(*args, **kwargs):
             call_count["metrics"] += 1
@@ -294,7 +293,7 @@ class TestOrchestrationPipelineBottleneck:
         mock_client.get_pipelines.return_value = {"pipe": {"id": "pipe", "disabled": False}}
 
         # Each analyzer makes its own call, so we expect 1 call per analyzer
-        results = await orchestrator.run_analysis(["pipeline_bottleneck"])
+        await orchestrator.run_analysis(["pipeline_bottleneck"])
 
         # Verify get_metrics was called (by pipeline_bottleneck analyzer)
         assert call_count["metrics"] > 0, "get_metrics should be called"

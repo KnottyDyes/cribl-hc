@@ -136,7 +136,7 @@ class TestAnalysisWorkflow:
     async def test_list_analyses(self, async_client, test_credential):
         """Test listing all analysis runs."""
         # Start multiple analyses
-        for i in range(3):
+        for _i in range(3):
             analysis_request = {
                 "deployment_name": test_credential["name"],
                 "analyzers": ["health"]

@@ -3,6 +3,7 @@ Rich terminal output formatting for analysis results.
 """
 
 from itertools import groupby
+from typing import Dict
 
 from rich.console import Console
 from rich.panel import Panel
@@ -119,7 +120,9 @@ def display_findings(objective: str, result: AnalyzerResult, console: Console):
         color = severity_colors.get(severity, "white")
         console.print(f"\n[{color}]● {severity.upper()}[/{color}]")
 
-        keyfunc = lambda f: (f.grouping_id, f.worker_group)
+        def keyfunc(f):
+            return (f.grouping_id, f.worker_group)
+
         sorted_severity_findings = sorted(severity_findings, key=keyfunc)
 
         for (grouping_id, worker_group), group in groupby(sorted_severity_findings, key=keyfunc):

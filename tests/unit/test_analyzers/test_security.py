@@ -102,7 +102,7 @@ class TestSecurityAnalyzer:
         result = await security_analyzer.analyze(mock_client)
 
         # Should flag weak TLS version
-        weak_tls_findings = [
+        [
             f for f in result.findings if "tls" in f.id.lower() or "weak" in f.description.lower()
         ]
         # May or may not detect depending on implementation
@@ -254,7 +254,7 @@ class TestSecurityAnalyzer:
         result = await security_analyzer.analyze(mock_client)
 
         # Should warn about missing authentication
-        auth_findings = [f for f in result.findings if "auth" in f.id.lower()]
+        [f for f in result.findings if "auth" in f.id.lower()]
         # May or may not flag depending on output type and implementation
 
     @pytest.mark.asyncio
@@ -281,7 +281,7 @@ class TestSecurityAnalyzer:
         result = await security_analyzer.analyze(mock_client)
 
         # Should flag basic auth over HTTP
-        insecure_auth = [
+        [
             f
             for f in result.findings
             if ("basic" in f.description.lower() or "http" in f.id.lower())
@@ -508,7 +508,7 @@ class TestSecurityAnalyzer:
 
         result = await security_analyzer.analyze(mock_client)
 
-        input_findings = [
+        [
             f for f in result.findings if "http-input-insecure" in f.affected_components
         ]
 

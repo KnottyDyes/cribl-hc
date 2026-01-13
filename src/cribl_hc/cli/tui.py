@@ -190,7 +190,8 @@ class HealthCheckTUI:
             findings_display.append(f"{icon} {severity.upper()} ", style=f"bold {color}")
             findings_display.append(f"({len(severity_findings)})\n", style="dim")
 
-            keyfunc = lambda f: (f.grouping_id, f.worker_group)
+            def keyfunc(f):
+                return (f.grouping_id, f.worker_group)
             sorted_severity_findings = sorted(severity_findings, key=keyfunc)
 
             for (grouping_id, worker_group), group in groupby(

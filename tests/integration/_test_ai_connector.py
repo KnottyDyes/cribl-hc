@@ -24,7 +24,7 @@ class TestAIConnectorIntegration:
         """Test connection to real Ollama service."""
         # Check if models are available
         models = []
-        for connector_name, model_list in task_manager.executor.models_cache.items():
+        for _connector_name, model_list in task_manager.executor.models_cache.items():
             models.extend(model_list)
 
         assert len(models) > 0, "No models available from Ollama"

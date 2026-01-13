@@ -392,10 +392,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
             current_size = metrics.get("queue_size_bytes", 0)
 
             # Calculate usage percentage
-            if max_size_bytes > 0:
-                usage_percent = (current_size / max_size_bytes) * 100
-            else:
-                usage_percent = 0
+            usage_percent = current_size / max_size_bytes * 100 if max_size_bytes > 0 else 0
 
             current_size_gb = current_size / (1024**3)
 

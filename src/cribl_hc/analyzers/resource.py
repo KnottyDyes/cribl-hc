@@ -92,7 +92,7 @@ class ResourceAnalyzer(BaseAnalyzer):
             # 1. Fetch resource data (unified API works for both Stream and Edge)
             workers = await self._fetch_workers(client)
             metrics = await self._fetch_metrics(client)
-            system_status = await self._fetch_system_status(client)
+            await self._fetch_system_status(client)
 
             result.metadata["worker_count"] = len(workers)
             result.metadata["analysis_timestamp"] = datetime.utcnow().isoformat()

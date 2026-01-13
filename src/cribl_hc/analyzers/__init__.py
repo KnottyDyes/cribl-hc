@@ -128,7 +128,7 @@ class AnalyzerRegistry:
             True if analyzer was unregistered, False if not found
         """
         if objective in self._analyzers:
-            analyzer_class = self._analyzers.pop(objective)
+            self._analyzers.pop(objective)
             # Note: Logging removed to avoid logger initialization issues
             # log.info("analyzer_unregistered", objective=objective, analyzer_class=analyzer_class.__name__)
             return True

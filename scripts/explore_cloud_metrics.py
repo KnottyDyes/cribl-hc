@@ -121,10 +121,8 @@ async def main():
                 print(f"    {description}")
 
                 # Check for disk metrics
-                has_disk = False
                 data_str = json.dumps(data).lower()
                 if 'disk' in data_str:
-                    has_disk = True
                     print("    ⭐ Contains 'disk' data!")
 
                 print()
@@ -160,7 +158,7 @@ async def main():
             else:
                 print("\n✗ Worker data does NOT contain 'disk' field")
                 print("\nAvailable fields:")
-                for key in workers[0].keys():
+                for key in workers[0]:
                     print(f"  • {key}")
                     if isinstance(workers[0][key], dict):
                         print(f"    Subkeys: {list(workers[0][key].keys())[:10]}")

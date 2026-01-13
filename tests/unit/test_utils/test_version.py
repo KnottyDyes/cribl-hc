@@ -406,7 +406,7 @@ class TestVersionEdgeCases:
         }
 
         # Should look at top-level first
-        version = detect_version(response_data)
+        detect_version(response_data)
         # If it doesn't find it at top level, it will return None
         # This tests the lookup order
 
