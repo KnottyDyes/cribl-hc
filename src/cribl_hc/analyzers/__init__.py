@@ -43,8 +43,8 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
-from typing import Dict, List, Optional, Type
 from pathlib import Path
+from typing import Dict, List, Optional, Type
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.utils.logger import get_logger
@@ -105,7 +105,9 @@ class AnalyzerRegistry:
             temp_instance = analyzer_class()
             objective = temp_instance.objective_name
         except Exception as e:
-            raise ValueError(f"Failed to get objective_name from {analyzer_class.__name__}: {e}")
+            raise ValueError(
+                f"Failed to get objective_name from {analyzer_class.__name__}: {e}"
+            ) from e
 
         # Register primary analyzer (first one loaded per objective) and track all
         if objective not in self._analyzers:
