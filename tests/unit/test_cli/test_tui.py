@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cribl_hc.cli.tui import HealthCheckTUI
+from cribl_hc.cli.tui import TUI
 from cribl_hc.models.analysis import AnalysisRun
 from cribl_hc.models.deployment import Deployment
 from cribl_hc.models.finding import Finding
@@ -161,17 +161,17 @@ def sample_analysis_run(sample_deployment, sample_health_score, sample_findings,
     )
 
 
-class TestHealthCheckTUI:
-    """Test the HealthCheckTUI class."""
+class TestTUI:
+    """Test the TUI class."""
 
     def test_init(self):
         """Test TUI initialization."""
-        tui = HealthCheckTUI()
+        tui = TUI()
         assert tui.console is not None
 
     def test_display_complete_results(self, sample_analysis_run):
         """Test displaying complete analysis results."""
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         # Mock console output to prevent actual terminal rendering
         with patch.object(tui.console, "print") as mock_print, \
@@ -187,7 +187,7 @@ class TestHealthCheckTUI:
     def test_display_no_health_score(self, sample_analysis_run):
         """Test displaying results without health score."""
         sample_analysis_run.health_score = None
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         with patch.object(tui.console, "print"), \
              patch.object(tui.console, "clear"):
@@ -197,7 +197,7 @@ class TestHealthCheckTUI:
     def test_display_no_findings(self, sample_analysis_run):
         """Test displaying results with no findings."""
         sample_analysis_run.findings = []
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         with patch.object(tui.console, "print"), \
              patch.object(tui.console, "clear"):
@@ -207,7 +207,7 @@ class TestHealthCheckTUI:
     def test_display_no_recommendations(self, sample_analysis_run):
         """Test displaying results with no recommendations."""
         sample_analysis_run.recommendations = []
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         with patch.object(tui.console, "print"), \
              patch.object(tui.console, "clear"):
@@ -232,7 +232,7 @@ class TestHealthCheckTUI:
         ]
         sample_analysis_run.findings = many_findings
 
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         with patch.object(tui.console, "print"), \
              patch.object(tui.console, "clear"):
@@ -261,7 +261,7 @@ class TestHealthCheckTUI:
         ]
         sample_analysis_run.recommendations = many_recs
 
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         with patch.object(tui.console, "print"), \
              patch.object(tui.console, "clear"):
@@ -270,7 +270,7 @@ class TestHealthCheckTUI:
 
     def test_health_score_colors(self, sample_analysis_run):
         """Test that health score colors are correct for different ranges."""
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         # Test excellent score (>= 90)
         sample_analysis_run.health_score.overall_score = 95
@@ -296,7 +296,7 @@ class TestHealthCheckTUI:
         """Test display for Edge product type."""
         # Test that TUI works regardless of product type
         # (Product type detection happens elsewhere, not in TUI)
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         with patch.object(tui.console, "print"), \
              patch.object(tui.console, "clear"):
@@ -304,7 +304,7 @@ class TestHealthCheckTUI:
 
     def test_show_error(self):
         """Test error message display."""
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         with patch.object(tui.console, "print") as mock_print:
             tui.show_error("Test error message")
@@ -317,7 +317,7 @@ class TestHealthCheckTUI:
 
     def test_show_success(self):
         """Test success message display."""
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         with patch.object(tui.console, "print") as mock_print:
             tui.show_success("Test success message")
@@ -325,7 +325,7 @@ class TestHealthCheckTUI:
 
     def test_show_warning(self):
         """Test warning message display."""
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         with patch.object(tui.console, "print") as mock_print:
             tui.show_warning("Test warning message")
@@ -333,14 +333,14 @@ class TestHealthCheckTUI:
 
     def test_display_progress(self):
         """Test progress display creation."""
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         progress = tui.display_progress("Testing progress...")
         assert progress is not None
 
     def test_severity_sorting(self, sample_findings):
         """Test that findings are sorted by severity (critical first)."""
-        tui = HealthCheckTUI()
+        tui = TUI()
 
         # Create analysis run with unsorted findings
         Deployment(
