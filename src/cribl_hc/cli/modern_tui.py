@@ -1,3 +1,6 @@
+import re
+from urllib.parse import urlparse
+
 """
 Modern Terminal User Interface for Cribl Health Check.
 
@@ -9,15 +12,15 @@ Built with Textual - provides a Pocker-style navigable interface with:
 - Results history and export (JSON/MD)
 """
 
-from typing import Any, Optional
-
-
 import asyncio
+import contextlib
 import json
 import random
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Optional
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -43,9 +46,9 @@ from textual.widgets import (
 
 from cribl_hc.cli.commands.config import load_credentials, save_credentials
 from cribl_hc.cli.results_grouper import (
-    group_findings,
     get_severity_counts,
     get_worker_group_display_name,
+    group_findings,
 )
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.core.orchestrator import AnalyzerOrchestrator
@@ -187,7 +190,7 @@ class AddDeploymentDialog(ModalScreen):
         padding: 0 2;
         margin-bottom: 1;
     }
-    
+
     .input-row Label {
         margin-bottom: 1;
         color: $text-muted;
@@ -329,7 +332,7 @@ class EditDeploymentDialog(ModalScreen):
         padding: 0 2;
         margin-bottom: 1;
     }
-    
+
     .input-row Label {
         margin-bottom: 1;
         color: $text-muted;
@@ -440,7 +443,7 @@ class ExportResultsDialog(ModalScreen):
         padding: 0 2;
         margin-bottom: 1;
     }
-    
+
     .export-row Label {
         margin-bottom: 1;
         color: $text-muted;
@@ -861,17 +864,13 @@ class AnalysisStatus(Static):
 
     def watch_status(self, status: str) -> None:
         """Update display when status changes."""
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#status-state", Label).update(status)
-        except Exception:
-            pass
 
     def watch_progress(self, progress: float) -> None:
         """Update progress bar."""
-        try:
+        with contextlib.suppress(Exception):
             self.query_one("#status-progress", ProgressBar).update(progress=progress)
-        except Exception:
-            pass
 
     def watch_api_calls(self, calls: int) -> None:
         """Update API call count."""
@@ -996,7 +995,7 @@ class CriblHealthCheckApp(App):
     """Modern TUI for Cribl Health Check - Pocker-style interface."""
 
     CSS = """
-    /* 
+    /*
      * Refined Industrial/Utilitarian Theme
      * Color Palette:
      * - surface: #1e222a (deep slate)
@@ -1034,7 +1033,7 @@ class CriblHealthCheckApp(App):
     TabbedContent > .tabs {
         background: #1e222a;
     }
-    
+
     TabbedContent > .tabs > .tab--highlight {
          background: #56b6c2;
          color: #282c34;
@@ -1055,7 +1054,7 @@ class CriblHealthCheckApp(App):
     #right-panel {
         width: 1fr;
     }
-    
+
     .panel-title {
         color: #56b6c2;
         text-style: bold;
@@ -1105,7 +1104,7 @@ class CriblHealthCheckApp(App):
         margin: 0 1;
         border: solid #61afef;
     }
-    
+
     Button:hover {
         border: solid #56b6c2;
         color: #56b6c2;

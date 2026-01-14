@@ -9,9 +9,10 @@ Tests the full credential management workflow including:
 - Deleting credentials
 """
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch, MagicMock
+from httpx import ASGITransport, AsyncClient
 
 from cribl_hc.api.app import app
 from cribl_hc.core.api_client import CriblAPIClient

@@ -9,8 +9,9 @@ Tests cover:
 - Multi-product support (Stream, Edge, Lake, Search)
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.version_control import VersionControlAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

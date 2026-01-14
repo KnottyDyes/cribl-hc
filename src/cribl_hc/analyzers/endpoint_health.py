@@ -1,8 +1,7 @@
 from typing import Any, Dict, List
 
-from cribl_hc.analyzers.base import BaseAnalyzer, AnalyzerResult
+from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
 
 
 class EndpointHealthAnalyzer(BaseAnalyzer):

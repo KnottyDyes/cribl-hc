@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from cribl_hc.core.branding_manager import BrandingManager, get_branding_config
+from cribl_hc.core.branding_manager import BrandingManager
 from cribl_hc.models.branding import (
     BrandingConfig,
     ClientBranding,

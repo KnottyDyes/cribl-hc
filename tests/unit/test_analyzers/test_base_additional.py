@@ -1,7 +1,5 @@
-import pytest
 
 from cribl_hc.analyzers.base import BaseAnalyzer
-from cribl_hc.models.finding import Finding
 
 
 class MockAnalyzer(BaseAnalyzer):

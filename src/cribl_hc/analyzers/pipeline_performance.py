@@ -220,7 +220,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
         """Analyze a single pipeline for performance issues."""
         pipeline_id = pipeline.get("id", "unknown")
         functions = pipeline.get("functions", [])
-        conf = pipeline.get("conf", {})
+        pipeline.get("conf", {})
 
         # Check pipeline-level metrics
         metrics = pipeline_metrics.get(pipeline_id, {})
@@ -389,7 +389,7 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
         self, pipeline_id: str, func_id: str, conf: Dict[str, Any], result: AnalyzerResult
     ) -> None:
         """Analyze lookup function for potential issues."""
-        lookup_type = conf.get("type", "file")
+        conf.get("type", "file")
         match_mode = conf.get("matchMode", "exact")
 
         # Flag if using regex match mode (slower)

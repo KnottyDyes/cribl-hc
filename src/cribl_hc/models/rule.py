@@ -2,7 +2,7 @@
 Best practice rule model for configuration validation.
 """
 
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 

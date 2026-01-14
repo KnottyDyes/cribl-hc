@@ -11,7 +11,6 @@ from httpx import Response
 
 from cribl_hc.core.api_client import CriblAPIClient
 
-
 # =============================================================================
 # Fleet Management Tests
 # =============================================================================

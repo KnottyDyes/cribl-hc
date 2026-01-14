@@ -1,7 +1,8 @@
-import pytest
 import time
 from typing import Optional
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.input_health import InputSourceAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

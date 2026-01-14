@@ -1,3 +1,5 @@
+from typing import List
+
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.search import DatasetProviderList, SearchDatasetList

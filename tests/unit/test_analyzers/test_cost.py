@@ -4,9 +4,9 @@ Unit tests for CostAnalyzer.
 Following TDD: These tests are written FIRST and should FAIL until implementation is complete.
 """
 
-import pytest
 from unittest.mock import AsyncMock
-from datetime import datetime, timedelta
+
+import pytest
 
 from cribl_hc.analyzers.cost import CostAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -153,7 +153,7 @@ class TestCostAnalyzer:
         result = await cost_analyzer.analyze(mock_client)
 
         # Should not predict exhaustion for flat/slow growth
-        exhaustion_findings = [
+        [
             f for f in result.findings
             if "exhaustion" in f.description.lower()
         ]
@@ -269,7 +269,7 @@ class TestCostAnalyzer:
         result = await cost_analyzer.analyze(mock_client)
 
         # Should identify expensive destination
-        expensive_findings = [
+        [
             f for f in result.findings
             if "expensive" in f.description.lower() or "cost" in f.description.lower()
         ]
@@ -297,7 +297,7 @@ class TestCostAnalyzer:
         result = await cost_analyzer.analyze(mock_client)
 
         # Should generate cost optimization recommendations
-        cost_recs = [
+        [
             r for r in result.recommendations
             if "cost" in r.type.lower() or "cost" in r.description.lower()
         ]
@@ -361,7 +361,7 @@ class TestCostAnalyzer:
         result = await cost_analyzer.analyze(mock_client)
 
         # Should generate recommendations for high consumption
-        license_recs = [
+        [
             r for r in result.recommendations
             if "license" in r.description.lower()
         ]
@@ -454,7 +454,7 @@ class TestCostAnalyzer:
         result = await cost_analyzer.analyze(mock_client)
 
         # Should have critical findings for near-exhaustion
-        critical_findings = [f for f in result.findings if f.severity == "critical"]
+        [f for f in result.findings if f.severity == "critical"]
         # Critical if above threshold (e.g., 95%+)
 
     # === Linear Regression Tests ===

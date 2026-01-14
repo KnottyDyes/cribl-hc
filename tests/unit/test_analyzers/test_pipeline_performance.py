@@ -5,8 +5,9 @@ Tests pipeline function performance analysis, regex complexity detection,
 JavaScript anti-patterns, and function ordering recommendations.
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.pipeline_performance import PipelinePerformanceAnalyzer
 

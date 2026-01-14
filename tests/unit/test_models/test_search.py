@@ -4,14 +4,12 @@ Unit tests for Cribl Search data models.
 Tests use realistic data based on sandbox API discovery to validate model parsing.
 """
 
-import pytest
 
 from cribl_hc.models.search import (
     CPUMetrics,
     Dashboard,
     DashboardElement,
     DashboardList,
-    DashboardSchedule,
     SavedSearch,
     SavedSearchList,
     SearchDataset,

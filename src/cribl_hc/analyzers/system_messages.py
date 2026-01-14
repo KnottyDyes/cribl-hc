@@ -1,3 +1,5 @@
+from typing import List
+
 """
 System Messages Analyzer for Cribl Health Check.
 

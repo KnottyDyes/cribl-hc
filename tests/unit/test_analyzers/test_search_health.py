@@ -5,9 +5,10 @@ Tests search job health monitoring, dataset availability checks,
 and dashboard/saved search analysis.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.search_health import SearchHealthAnalyzer
 

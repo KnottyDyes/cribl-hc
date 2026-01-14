@@ -38,7 +38,7 @@ class TestRateLimiter:
         """Test multiple acquire calls."""
         limiter = RateLimiter(max_calls=5, time_window_seconds=60.0)
 
-        for i in range(5):
+        for _i in range(5):
             await limiter.acquire()
 
         assert limiter.total_calls_made == 5

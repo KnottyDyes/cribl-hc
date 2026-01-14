@@ -4,9 +4,10 @@ Explore Cribl Cloud API structure more thoroughly.
 """
 
 import asyncio
-import sys
-import httpx
 import json
+import sys
+
+import httpx
 
 
 async def explore_api(base_url: str, token: str):
@@ -52,7 +53,7 @@ async def explore_api(base_url: str, token: str):
                     return group
                 elif response.status_code != 404:
                     print(f"  Group '{group}': HTTP {response.status_code}")
-            except Exception as e:
+            except Exception:
                 pass
 
         # Try to find worker groups by listing all groups
@@ -73,7 +74,7 @@ async def explore_api(base_url: str, token: str):
                     data = response.json()
                     print(f"✓ {endpoint}")
                     print(f"  Response: {json.dumps(data, indent=2)[:500]}...\n")
-            except Exception as e:
+            except Exception:
                 pass
 
         # List all possible v1 endpoints
@@ -90,7 +91,7 @@ async def explore_api(base_url: str, token: str):
                 print(f"{endpoint}: HTTP {response.status_code}")
                 if response.status_code == 200:
                     print(f"  {response.text[:200]}...")
-            except Exception as e:
+            except Exception:
                 pass
 
 

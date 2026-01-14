@@ -8,13 +8,12 @@ Tests cover:
 - Aggregated reporting
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+
 from cribl_hc.analyzers.fleet import FleetAnalyzer
-from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
 
 
 class TestFleetAnalyzer:

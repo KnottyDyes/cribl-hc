@@ -9,12 +9,14 @@ Tests full analysis workflows with realistic Edge API responses including:
 - Product-aware messaging
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.analyzers.health import HealthAnalyzer
+
 from cribl_hc.analyzers.config import ConfigAnalyzer
+from cribl_hc.analyzers.health import HealthAnalyzer
 from cribl_hc.analyzers.resource import ResourceAnalyzer
+from cribl_hc.core.api_client import CriblAPIClient
 
 
 @pytest.fixture

@@ -2,8 +2,9 @@
 Unit tests for DataFlowTopologyAnalyzer.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from cribl_hc.analyzers.dataflow_topology import DataFlowTopologyAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

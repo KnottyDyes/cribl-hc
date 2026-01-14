@@ -4,7 +4,6 @@ Unit tests for Cribl Lake data models.
 Tests use real data from sandbox API discovery to validate model parsing.
 """
 
-import pytest
 
 from cribl_hc.models.lake import (
     DatasetStats,

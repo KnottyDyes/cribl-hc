@@ -11,7 +11,6 @@ Usage:
 
 import asyncio
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -97,7 +96,7 @@ def load_sandbox_credentials():
         print("❌ Sandbox credentials missing base_url or bearer_token")
         return None, None
 
-    print(f"✅ Loaded sandbox credentials")
+    print("✅ Loaded sandbox credentials")
     print(f"   URL: {base_url}")
     print(f"   Token: {'*' * 20}{api_token[-8:]}\n")
 
@@ -107,8 +106,9 @@ def load_sandbox_credentials():
 async def run_discovery(base_url: str, api_token: str):
     """Run the API discovery."""
     # Import the discovery module
-    import httpx
     from datetime import datetime
+
+    import httpx
 
     class APIDiscovery:
         """Discover and document Cribl API endpoints."""

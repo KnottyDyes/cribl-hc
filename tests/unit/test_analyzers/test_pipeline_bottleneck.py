@@ -8,8 +8,9 @@ Tests all 4 check types:
 4. Throughput cliff detection
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.pipeline_bottleneck import PipelineBottleneckAnalyzer
 

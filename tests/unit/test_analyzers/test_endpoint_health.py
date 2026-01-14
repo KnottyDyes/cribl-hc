@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from cribl_hc.analyzers.endpoint_health import EndpointHealthAnalyzer
 

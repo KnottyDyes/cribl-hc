@@ -2,9 +2,11 @@
 Unit tests for CLI list analyzers command.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from typer.testing import CliRunner
+
 from cribl_hc.cli.commands.list_analyzers import app, list_analyzers
 
 

@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
 from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.utils.logger import get_logger
 
@@ -325,10 +324,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
     ) -> None:
         input_id = input_item.get("id", "unknown")
 
-        if severity_level == "warning":
-            severity = "low"
-        else:
-            severity = severity_level
+        severity = "low" if severity_level == "warning" else severity_level
 
         result.add_finding(
             self.create_finding(

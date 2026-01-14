@@ -1,11 +1,9 @@
 """
 Analyze command for running health check analysis.
 """
-from typing import List, Optional
-
-
 import asyncio
 from pathlib import Path
+from typing import List, Optional
 
 import typer
 from rich.console import Console

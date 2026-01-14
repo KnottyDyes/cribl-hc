@@ -5,9 +5,10 @@ Tests storage optimization analysis including format efficiency,
 dataset activity monitoring, and cost savings calculations.
 """
 
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.lake_storage import LakeStorageAnalyzer
 

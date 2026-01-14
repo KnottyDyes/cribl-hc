@@ -2,8 +2,8 @@
 Integration tests for connection testing workflow.
 """
 
-import pytest
 import httpx
+import pytest
 import respx
 
 from cribl_hc.cli.test_connection import run_connection_test

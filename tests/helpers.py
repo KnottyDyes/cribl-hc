@@ -2,10 +2,9 @@
 Test helper utilities for creating valid model instances.
 """
 
-from datetime import datetime
-from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation, ImpactEstimate
 from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.models.finding import Finding
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 
 
 def create_test_finding(

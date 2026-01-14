@@ -512,7 +512,7 @@ class MetricsCollector:
         trends = {}
         current_pipelines = current.get("pipelines", {})
 
-        for pipeline_id in current_pipelines.keys():
+        for pipeline_id in current_pipelines:
             # Collect historical throughput values
             throughputs = []
             error_rates = []
@@ -569,7 +569,7 @@ class MetricsCollector:
         trends = {}
         current_outputs = current.get("outputs", {})
 
-        for output_id in current_outputs.keys():
+        for output_id in current_outputs:
             backpressures = []
             failure_rates = []
 
@@ -655,10 +655,7 @@ class MetricsCollector:
             ss_res = sum((y[i] - (slope * x[i] + intercept)) ** 2 for i in range(n))
             ss_tot = sum((y[i] - mean_y) ** 2 for i in range(n))
 
-            if ss_tot == 0:
-                r_squared = 0.0
-            else:
-                r_squared = max(0.0, min(1.0, 1 - (ss_res / ss_tot)))
+            r_squared = 0.0 if ss_tot == 0 else max(0.0, min(1.0, 1 - ss_res / ss_tot))
 
             # Forecast next hour (at x = n)
             forecast = slope * n + intercept

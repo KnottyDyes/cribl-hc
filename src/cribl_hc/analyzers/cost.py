@@ -326,10 +326,7 @@ class CostAnalyzer(BaseAnalyzer):
 
         # Calculate days until exhaustion
         headroom_gb = allocated_gb - current_gb
-        if headroom_gb <= 0:
-            days_to_exhaustion = 0
-        else:
-            days_to_exhaustion = int(headroom_gb / growth_rate_gb_per_day)
+        days_to_exhaustion = 0 if headroom_gb <= 0 else int(headroom_gb / growth_rate_gb_per_day)
 
         license_metrics["growth_rate_gb_per_day"] = growth_rate_gb_per_day
         license_metrics["exhaustion_days"] = days_to_exhaustion

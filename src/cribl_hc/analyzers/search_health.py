@@ -1,3 +1,5 @@
+from typing import List
+
 """
 Search Health Analyzer for Cribl Health Check.
 

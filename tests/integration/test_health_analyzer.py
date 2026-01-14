@@ -9,10 +9,10 @@ Tests the health analyzer with mocked Cribl API responses including:
 - Finding and recommendation generation
 """
 
+
 import pytest
 import respx
 from httpx import Response
-from unittest.mock import AsyncMock, MagicMock
 
 from cribl_hc.analyzers.health import HealthAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

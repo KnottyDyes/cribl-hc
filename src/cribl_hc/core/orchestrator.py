@@ -286,7 +286,7 @@ class AnalyzerOrchestrator:
         component_scores: Dict[str, ComponentScore] = {}
         components_found: Dict[str, dict] = {}
 
-        for objective, result in results.items():
+        for objective, _result in results.items():
             # Map objective to category
             if objective in ("health",):
                 category = "health"

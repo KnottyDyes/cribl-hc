@@ -17,8 +17,9 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from cribl_hc.utils.crypto import CredentialEncryptor
 import httpx
+
+from cribl_hc.utils.crypto import CredentialEncryptor
 
 
 async def inspect_endpoints():

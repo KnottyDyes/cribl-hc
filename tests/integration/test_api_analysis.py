@@ -9,11 +9,11 @@ Tests the full analysis workflow including:
 - WebSocket progress updates
 """
 
-import pytest
 import asyncio
-import json
-from httpx import AsyncClient, ASGITransport
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import patch
+
+import pytest
+from httpx import ASGITransport, AsyncClient
 
 from cribl_hc.api.app import app
 
@@ -136,7 +136,7 @@ class TestAnalysisWorkflow:
     async def test_list_analyses(self, async_client, test_credential):
         """Test listing all analysis runs."""
         # Start multiple analyses
-        for i in range(3):
+        for _i in range(3):
             analysis_request = {
                 "deployment_name": test_credential["name"],
                 "analyzers": ["health"]

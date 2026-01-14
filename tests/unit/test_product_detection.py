@@ -2,9 +2,10 @@
 Unit tests for product type detection (Stream vs Edge vs Lake).
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
+
 import httpx
+import pytest
 
 from cribl_hc.core.api_client import CriblAPIClient
 

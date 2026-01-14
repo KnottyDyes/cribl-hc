@@ -1,11 +1,9 @@
 """
 CLI command for testing connection to Cribl API.
 """
-from typing import Optional
-
-
 import asyncio
 import sys
+from typing import Optional
 
 import typer
 from rich.console import Console

@@ -2,14 +2,12 @@
 Unit tests for HealthAnalyzer.
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from cribl_hc.analyzers.health import HealthAnalyzer
-from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation
 
 
 # Helper function to create realistic worker data matching Cribl Cloud API

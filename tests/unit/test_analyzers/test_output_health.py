@@ -1,5 +1,6 @@
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from cribl_hc.analyzers.output_health import OutputDestinationAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient

@@ -9,14 +9,12 @@ Tests cover:
 - Proactive scaling recommendations
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timedelta
+
 from cribl_hc.analyzers.predictive import PredictiveAnalyzer
-from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
-from cribl_hc.models.recommendation import Recommendation
 
 
 class TestPredictiveAnalyzer:

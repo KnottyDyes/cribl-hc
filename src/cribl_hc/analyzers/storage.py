@@ -102,7 +102,7 @@ class StorageAnalyzer(BaseAnalyzer):
             outputs = await self._fetch_outputs(client)
             routes = await self._fetch_routes(client)
             pipelines = await self._fetch_pipelines(client)
-            metrics = await self._fetch_metrics(client)
+            await self._fetch_metrics(client)
 
             # Store metadata
             result.metadata["product_type"] = client.product_type
@@ -287,7 +287,7 @@ class StorageAnalyzer(BaseAnalyzer):
                 continue
 
             dest_bytes = storage_by_dest[output_id]
-            dest_type = output_types.get(output_id, "unknown")
+            output_types.get(output_id, "unknown")
 
             # Check if destination is high-volume and route has no sampling
             if dest_bytes >= sampling_threshold_bytes:
@@ -573,10 +573,7 @@ class StorageAnalyzer(BaseAnalyzer):
 
         total_gb = result.metadata.get("total_bytes", 0) / 1_000_000_000
 
-        if total_gb > 0:
-            savings_pct = (total_savings_gb / total_gb) * 100
-        else:
-            savings_pct = 0
+        savings_pct = total_savings_gb / total_gb * 100 if total_gb > 0 else 0
 
         result.metadata["potential_savings_gb"] = total_savings_gb
         result.metadata["potential_savings_pct"] = savings_pct

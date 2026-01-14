@@ -21,8 +21,8 @@ async def test_mvp_complete_workflow():
     - Critical issues flagged and prioritized
     - Clear remediation steps provided
     """
-    from cribl_hc.core.api_client import CriblAPIClient
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     # Mock all required endpoints
     respx.get("https://cribl.example.com/api/v1/system/status").mock(
@@ -106,8 +106,9 @@ async def test_mvp_under_5_minutes():
     in under 5 minutes.
     """
     import time
-    from cribl_hc.core.api_client import CriblAPIClient
+
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     respx.get("https://cribl.example.com/api/v1/system/status").mock(
         return_value=Response(
@@ -144,8 +145,8 @@ async def test_mvp_under_100_api_calls():
 
     Health analysis should stay within the 100 API call budget.
     """
-    from cribl_hc.core.api_client import CriblAPIClient
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     respx.get("https://cribl.example.com/api/v1/system/status").mock(
         return_value=Response(
@@ -195,8 +196,8 @@ async def test_mvp_graceful_error_handling():
 
     Should generate partial reports when some API calls fail.
     """
-    from cribl_hc.core.api_client import CriblAPIClient
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     # System status succeeds
     respx.get("https://cribl.example.com/api/v1/system/status").mock(
@@ -233,8 +234,8 @@ async def test_mvp_read_only_access():
 
     Should only make GET requests, never POST/PUT/DELETE.
     """
-    from cribl_hc.core.api_client import CriblAPIClient
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     # Track all requests
     requests_made = []
@@ -274,8 +275,8 @@ async def test_mvp_actionable_recommendations():
 
     90% of users should understand findings without additional support.
     """
-    from cribl_hc.core.api_client import CriblAPIClient
     from cribl_hc.analyzers.health import HealthAnalyzer
+    from cribl_hc.core.api_client import CriblAPIClient
 
     respx.get("https://cribl.example.com/api/v1/system/status").mock(
         return_value=Response(200, json={"version": "4.7.0", "health": "healthy"})

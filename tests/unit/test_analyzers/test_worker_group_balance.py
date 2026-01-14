@@ -2,8 +2,9 @@
 Unit tests for the WorkerGroupBalanceAnalyzer.
 """
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.worker_group_balance import WorkerGroupBalanceAnalyzer
 

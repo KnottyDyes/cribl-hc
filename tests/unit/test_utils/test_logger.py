@@ -3,16 +3,13 @@ Unit tests for structured logging functionality.
 """
 
 import json
-from io import StringIO
-import sys
 
 import pytest
-import structlog
 
 from cribl_hc.utils.logger import (
+    AuditLogger,
     configure_logging,
     get_logger,
-    AuditLogger,
 )
 
 

@@ -6,6 +6,7 @@ and real-time status updates via WebSocket.
 """
 
 import asyncio
+import contextlib
 import json
 import uuid
 from datetime import datetime
@@ -21,7 +22,6 @@ from fastapi import (
     status,
 )
 from fastapi.responses import Response
-
 from pydantic import BaseModel, Field
 
 from cribl_hc.analyzers import get_global_registry
@@ -35,7 +35,6 @@ from cribl_hc.core.report_generator import (
     MarkdownReportGenerator,
 )
 from cribl_hc.utils.logger import get_logger
-
 
 router = APIRouter()
 log = get_logger(__name__)
@@ -232,10 +231,8 @@ async def notify_websocket_clients(analysis_id: str, message: dict):
             except Exception as e:
                 log.warning("websocket_send_failed", analysis_id=analysis_id, error=str(e))
                 # Remove failed websocket
-                try:
+                with contextlib.suppress(ValueError):
                     active_websockets[analysis_id].remove(websocket)
-                except ValueError:
-                    pass
 
 
 @router.post("", response_model=AnalysisResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -305,7 +302,7 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to start analysis: {str(e)}",
-        )
+        ) from e
 
 
 @router.get("", response_model=List[AnalysisResponse])
@@ -529,7 +526,5 @@ async def websocket_analysis_updates(websocket: WebSocket, analysis_id: str):
     finally:
         # Unregister websocket
         if analysis_id in active_websockets:
-            try:
+            with contextlib.suppress(ValueError):
                 active_websockets[analysis_id].remove(websocket)
-            except ValueError:
-                pass

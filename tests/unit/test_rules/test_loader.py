@@ -4,12 +4,9 @@ Unit tests for rule loader and evaluator.
 Tests rule loading from YAML, filtering, and evaluation logic.
 """
 
-import pytest
-from pathlib import Path
-from typing import Dict, Any
 
-from cribl_hc.rules.loader import RuleLoader, RuleEvaluator
 from cribl_hc.models.rule import BestPracticeRule
+from cribl_hc.rules.loader import RuleEvaluator, RuleLoader
 
 
 class TestRuleLoader:

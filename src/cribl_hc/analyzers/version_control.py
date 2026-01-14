@@ -114,8 +114,8 @@ class VersionControlAnalyzer(BaseAnalyzer):
             result.metadata["pending_deployments"] = deployment_status.get("pendingDeployments", 0)
             result.metadata["deploying_workers"] = deployment_status.get("deployingWorkers", 0)
             result.metadata["config_drift"] = deployment_status.get("configDrift", False)
-            result.metadata["current_commit"] = version_status.get("commit", None)
-            result.metadata["last_commit_timestamp"] = version_status.get("timestamp", None)
+            result.metadata["current_commit"] = version_status.get("commit")
+            result.metadata["last_commit_timestamp"] = version_status.get("timestamp")
 
             # Analyze uncommitted changes
             self._analyze_uncommitted_changes(version_status, uncommitted_files, result)
@@ -307,7 +307,7 @@ class VersionControlAnalyzer(BaseAnalyzer):
         result: AnalyzerResult,
     ) -> None:
         """Analyze pending deployments and config drift."""
-        pending = deployment_status.get("pendingDeployments", 0)
+        deployment_status.get("pendingDeployments", 0)
         deploying = deployment_status.get("deployingWorkers", 0)
         has_drift = deployment_status.get("configDrift", False)
         groups = deployment_status.get("groups", [])

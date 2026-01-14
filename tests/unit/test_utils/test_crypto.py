@@ -3,15 +3,14 @@ Unit tests for credential encryption functionality.
 """
 
 import pytest
-from cryptography.fernet import InvalidToken
 
 from cribl_hc.utils.crypto import (
     CredentialEncryptor,
-    encrypt_credential,
     decrypt_credential,
+    encrypt_credential,
     generate_master_key,
-    set_master_key,
     get_default_encryptor,
+    set_master_key,
 )
 
 

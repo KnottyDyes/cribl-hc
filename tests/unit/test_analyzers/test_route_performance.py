@@ -1,7 +1,7 @@
+from typing import List, Optional
+from unittest.mock import AsyncMock
+
 import pytest
-import math
-from typing import Optional, List
-from unittest.mock import AsyncMock, MagicMock
 
 from cribl_hc.analyzers.route_performance import RoutePerformanceAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
