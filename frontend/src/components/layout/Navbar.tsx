@@ -21,7 +21,6 @@ export function Navbar() {
     { path: '/credentials', label: 'Credentials', icon: KeyIcon },
     { path: '/analysis', label: 'Analysis', icon: BeakerIcon },
     { path: '/results', label: 'Results', icon: DocumentChartBarIcon },
-    { path: '/branding', label: 'Branding', icon: Cog6ToothIcon },
   ]
 
   const isDark = resolvedTheme === 'dark'
