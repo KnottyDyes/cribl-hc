@@ -1,17 +1,3 @@
-import re
-from urllib.parse import urlparse
-
-"""
-Modern Terminal User Interface for Cribl Health Check.
-
-Built with Textual - provides a Pocker-style navigable interface with:
-- Panel-based layout with keyboard navigation
-- Real-time status updates
-- Visual health indicators
-- Interactive deployment management
-- Results history and export (JSON/MD)
-"""
-
 import asyncio
 import contextlib
 import json
@@ -21,7 +7,55 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
 
+log = get_logger(__name__)
+
+from urllib.parse import urlparse
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
@@ -43,7 +77,6 @@ from textual.widgets import (
     TabPane,
     TextArea,
 )
-
 from cribl_hc.cli.commands.config import load_credentials, save_credentials
 from cribl_hc.cli.results_grouper import (
     get_severity_counts,
@@ -55,6 +88,2538 @@ from cribl_hc.core.orchestrator import AnalyzerOrchestrator
 from cribl_hc.core.report_generator import MarkdownReportGenerator
 from cribl_hc.models.analysis import AnalysisRun
 from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+"""
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+Modern Terminal User Interface for Cribl Health Check.
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+Built with Textual - provides a Pocker-style navigable interface with:
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+- Panel-based layout with keyboard navigation
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+- Real-time status updates
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+- Visual health indicators
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+- Interactive deployment management
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+- Results history and export (JSON/MD)
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+"""
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+import asyncio
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+import contextlib
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+import json
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+import random
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from dataclasses import dataclass
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from datetime import datetime, timezone
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from pathlib import Path
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from typing import Any, Optional
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from textual.app import App, ComposeResult
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from textual.binding import Binding
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from textual.reactive import reactive
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from textual.screen import ModalScreen
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from textual.widgets import (
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    Button,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    DataTable,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    Footer,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    Header,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    Input,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    Label,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    ListItem,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    ListView,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    ProgressBar,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    Select,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    Static,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    TabbedContent,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    TabPane,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    TextArea,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+)
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from cribl_hc.cli.results_grouper import (
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    get_severity_counts,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    get_worker_group_display_name,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+    group_findings,
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+)
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from cribl_hc.core.api_client import CriblAPIClient
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from cribl_hc.models.analysis import AnalysisRun
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+from cribl_hc.utils.logger import get_logger
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
+
+
+import asyncio
+import contextlib
+import json
+import random
+import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Optional
+from urllib.parse import urlparse
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, Grid, Horizontal, Vertical, VerticalScroll
+from textual.reactive import reactive
+from textual.screen import ModalScreen
+from textual.widgets import (
+    Button,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    ListItem,
+    ListView,
+    ProgressBar,
+    Select,
+    Static,
+    TabbedContent,
+    TabPane,
+    TextArea,
+)
+from cribl_hc.cli.commands.config import load_credentials, save_credentials
+from cribl_hc.cli.results_grouper import (
+    get_severity_counts,
+    get_worker_group_display_name,
+    group_findings,
+)
+from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.orchestrator import AnalyzerOrchestrator
+from cribl_hc.core.report_generator import MarkdownReportGenerator
+from cribl_hc.models.analysis import AnalysisRun
+from cribl_hc.utils.logger import get_logger
+
+log = get_logger(__name__)
 
 log = get_logger(__name__)
 
