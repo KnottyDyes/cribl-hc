@@ -49,7 +49,6 @@ import asyncio
 import contextlib
 import json
 import random
-import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
