@@ -1,4 +1,3 @@
-from typing import List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -16,13 +15,13 @@ class SearchDatasetProvidersAnalyzer(BaseAnalyzer):
         return "search_dataset_providers"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         return ["search"]
 
     def get_estimated_api_calls(self) -> int:
         return 2
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:search:datasets", "read:search:providers"]
 
     async def analyze(

@@ -8,7 +8,7 @@ Priority: P1 (High Impact - Production Operations)
 """
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -56,7 +56,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
         return "backpressure"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Backpressure analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -70,7 +70,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
         """
         return 2
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return [
             "read:outputs",
@@ -198,7 +198,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
 
         return result
 
-    def _extract_output_metrics(self, metrics: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def _extract_output_metrics(self, metrics: dict[str, Any]) -> dict[str, dict[str, Any]]:
         """
         Extract output-specific metrics from the metrics response.
 
@@ -231,7 +231,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
 
         return output_metrics
 
-    def _extract_pq_metrics(self, metrics: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def _extract_pq_metrics(self, metrics: dict[str, Any]) -> dict[str, dict[str, Any]]:
         """
         Extract persistent queue metrics from the metrics response.
 
@@ -262,8 +262,8 @@ class BackpressureAnalyzer(BaseAnalyzer):
 
     def _analyze_output_backpressure(
         self,
-        outputs: List[Dict[str, Any]],
-        output_metrics: Dict[str, Dict[str, Any]],
+        outputs: list[dict[str, Any]],
+        output_metrics: dict[str, dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """Analyze backpressure on output destinations."""
@@ -369,8 +369,8 @@ class BackpressureAnalyzer(BaseAnalyzer):
 
     def _analyze_persistent_queues(
         self,
-        outputs: List[Dict[str, Any]],
-        pq_metrics: Dict[str, Dict[str, Any]],
+        outputs: list[dict[str, Any]],
+        pq_metrics: dict[str, dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """Analyze persistent queue health."""
@@ -511,8 +511,8 @@ class BackpressureAnalyzer(BaseAnalyzer):
 
     def _analyze_http_retries(
         self,
-        outputs: List[Dict[str, Any]],
-        output_metrics: Dict[str, Dict[str, Any]],
+        outputs: list[dict[str, Any]],
+        output_metrics: dict[str, dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """Analyze HTTP destination retry patterns."""
@@ -596,8 +596,8 @@ class BackpressureAnalyzer(BaseAnalyzer):
 
     def _predict_queue_exhaustion(
         self,
-        outputs: List[Dict[str, Any]],
-        pq_metrics: Dict[str, Dict[str, Any]],
+        outputs: list[dict[str, Any]],
+        pq_metrics: dict[str, dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """Predict when persistent queues will exhaust based on growth trends."""

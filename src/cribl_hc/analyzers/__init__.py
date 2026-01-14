@@ -44,7 +44,10 @@ from __future__ import annotations
 import importlib
 import pkgutil
 from pathlib import Path
-from typing import Dict, List, Optional, Type
+from typing import Optional
+from typing import Dict as DictType
+from typing import List as ListType
+from typing import Type as TypeType
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.utils.logger import get_logger
@@ -72,10 +75,10 @@ class AnalyzerRegistry:
 
     def __init__(self):
         """Initialize empty analyzer registry."""
-        self._analyzers: Dict[str, Type[BaseAnalyzer]] = {}
-        self._analyzer_classes: List[Type[BaseAnalyzer]] = []
+        self._analyzers: dict[str, type[BaseAnalyzer]] = {}
+        self._analyzer_classes: list[type[BaseAnalyzer]] = []
 
-    def register(self, analyzer_class: Type[BaseAnalyzer]) -> None:
+    def register(self, analyzer_class: type[BaseAnalyzer]) -> None:
         """
         Register an analyzer class.
 
@@ -154,7 +157,7 @@ class AnalyzerRegistry:
             return analyzer_class()
         return None
 
-    def get_analyzer_class(self, objective: str) -> Optional[Type[BaseAnalyzer]]:
+    def get_analyzer_class(self, objective: str) -> Optional[type[BaseAnalyzer]]:
         """
         Get an analyzer class (not instance) by objective name.
 
@@ -166,7 +169,7 @@ class AnalyzerRegistry:
         """
         return self._analyzers.get(objective)
 
-    def list_objectives(self) -> List[str]:
+    def list_objectives(self) -> list[str]:
         """
         Get list of all registered objective names.
 
@@ -179,7 +182,7 @@ class AnalyzerRegistry:
         """
         return sorted(self._analyzers.keys())
 
-    def list_analyzers(self) -> List[Type[BaseAnalyzer]]:
+    def list_analyzers(self) -> list[type[BaseAnalyzer]]:
         """
         Get list of all registered analyzer classes.
 
@@ -234,7 +237,7 @@ def get_global_registry() -> AnalyzerRegistry:
     return _global_registry
 
 
-def register_analyzer(analyzer_class: Type[BaseAnalyzer]) -> None:
+def register_analyzer(analyzer_class: type[BaseAnalyzer]) -> None:
     """
     Register an analyzer in the global registry.
 
@@ -265,7 +268,7 @@ def get_analyzer(objective: str) -> Optional[BaseAnalyzer]:
     return _global_registry.get_analyzer(objective)
 
 
-def list_objectives() -> List[str]:
+def list_objectives() -> list[str]:
     """
     List all available objectives from the global registry.
 

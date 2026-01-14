@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -16,7 +16,7 @@ class EndpointHealthAnalyzer(BaseAnalyzer):
         """
         return "Endpoint Health"
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:metrics"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
@@ -40,7 +40,7 @@ class EndpointHealthAnalyzer(BaseAnalyzer):
         return result
 
     def _check_request_failure_rate(
-        self, result: AnalyzerResult, output_id: str, metrics: Dict[str, Any]
+        self, result: AnalyzerResult, output_id: str, metrics: dict[str, Any]
     ):
         """Checks for high request failure rates to a destination."""
         requests = metrics.get("requests", {})
@@ -108,7 +108,7 @@ class EndpointHealthAnalyzer(BaseAnalyzer):
             )
 
     def _check_latency_spikes(
-        self, result: AnalyzerResult, output_id: str, metrics: Dict[str, Any]
+        self, result: AnalyzerResult, output_id: str, metrics: dict[str, Any]
     ):
         """Detects significant spikes in p99 latency."""
         latency_metrics = metrics.get("latency", {})
@@ -147,7 +147,7 @@ class EndpointHealthAnalyzer(BaseAnalyzer):
             )
 
     def _check_circuit_breaker_state(
-        self, result: AnalyzerResult, output_id: str, metrics: Dict[str, Any]
+        self, result: AnalyzerResult, output_id: str, metrics: dict[str, Any]
     ):
         """Checks if the destination's circuit breaker is open."""
         is_open = metrics.get("circuit_breaker_open", 0)
@@ -179,7 +179,7 @@ class EndpointHealthAnalyzer(BaseAnalyzer):
             )
 
     def _check_destination_uptime(
-        self, result: AnalyzerResult, output_id: str, metrics: Dict[str, Any]
+        self, result: AnalyzerResult, output_id: str, metrics: dict[str, Any]
     ):
         """Checks the uptime ratio of the destination (deferred)."""
         # This check is deferred due to the complexity of historical data.

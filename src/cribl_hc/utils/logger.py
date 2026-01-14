@@ -6,7 +6,7 @@ All logs include timestamps, context, and are formatted as JSON for easy parsing
 """
 
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 from structlog.types import Processor
@@ -31,7 +31,7 @@ def configure_logging(
         >>> log.info("operation_complete", deployment_id="prod", duration_ms=1250)
     """
     # Define processors for log formatting
-    processors: List[Processor] = [
+    processors: list[Processor] = [
         structlog.stdlib.add_log_level,
         # Note: add_logger_name removed - incompatible with PrintLoggerFactory
         # PrintLogger doesn't have a .name attribute
@@ -121,7 +121,7 @@ class AuditLogger:
             deployment_id: Deployment identifier (optional)
             error: Error message if request failed (optional)
         """
-        log_data: Dict[str, Any] = {
+        log_data: dict[str, Any] = {
             "event": "api_call",
             "method": method,
             "endpoint": endpoint,
@@ -143,7 +143,7 @@ class AuditLogger:
     def log_analysis_start(
         self,
         deployment_id: str,
-        objectives: List[str],
+        objectives: list[str],
     ) -> None:
         """
         Log the start of an analysis run.
@@ -178,7 +178,7 @@ class AuditLogger:
             findings_count: Number of findings identified
             error: Error message if analysis failed
         """
-        log_data: Dict[str, Any] = {
+        log_data: dict[str, Any] = {
             "event": "analysis_completed",
             "deployment_id": deployment_id,
             "duration_seconds": round(duration_seconds, 2),
@@ -211,7 +211,7 @@ class AuditLogger:
             success: Whether operation succeeded
             error: Error message if operation failed
         """
-        log_data: Dict[str, Any] = {
+        log_data: dict[str, Any] = {
             "event": "credential_operation",
             "operation": operation,
             "deployment_id": deployment_id,

@@ -8,7 +8,7 @@ Priority: P2 (Medium Impact - Quality & Reliability)
 """
 
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -47,7 +47,7 @@ class ParserQualityAnalyzer(BaseAnalyzer):
         return "parser_quality"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Parser quality analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -59,7 +59,7 @@ class ParserQualityAnalyzer(BaseAnalyzer):
         """Estimate API calls: parsers(1) + metrics(1) + pipelines(1) = 3."""
         return 3
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return [
             "read:parsers",
@@ -162,21 +162,21 @@ class ParserQualityAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _fetch_parsers(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_parsers(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         try:
             return await client.get_parsers() or []
         except Exception as e:
             log.warning("failed_to_fetch_parsers", error=str(e))
             return []
 
-    async def _fetch_metrics(self, client: CriblAPIClient) -> Dict[str, Any]:
+    async def _fetch_metrics(self, client: CriblAPIClient) -> dict[str, Any]:
         try:
             return await client.get_metrics(time_range="1h") or {}
         except Exception as e:
             log.warning("failed_to_fetch_metrics", error=str(e))
             return {}
 
-    async def _fetch_pipelines(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_pipelines(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         try:
             return await client.get_pipelines() or []
         except Exception as e:
@@ -184,7 +184,7 @@ class ParserQualityAnalyzer(BaseAnalyzer):
             return []
 
     def _check_error_rates(
-        self, parser: Dict[str, Any], metrics: Dict[str, Any], result: AnalyzerResult
+        self, parser: dict[str, Any], metrics: dict[str, Any], result: AnalyzerResult
     ) -> bool:
         """Check parser error rates."""
         parser_id = parser.get("id", "unknown")
@@ -257,7 +257,7 @@ class ParserQualityAnalyzer(BaseAnalyzer):
 
         return False
 
-    def _check_risky_patterns(self, parser: Dict[str, Any], result: AnalyzerResult) -> bool:
+    def _check_risky_patterns(self, parser: dict[str, Any], result: AnalyzerResult) -> bool:
         """Check for risky regex patterns."""
         parser_id = parser.get("id", "unknown")
         parser_name = parser.get("name", parser_id)
@@ -299,8 +299,8 @@ class ParserQualityAnalyzer(BaseAnalyzer):
 
     def _check_parser_coverage(
         self,
-        parser: Dict[str, Any],
-        pipelines: List[Dict[str, Any]],
+        parser: dict[str, Any],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult,
     ) -> bool:
         """Check if parser is unused."""

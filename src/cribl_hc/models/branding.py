@@ -160,7 +160,7 @@ class ThemeColors(BaseModel):
             try:
                 int(hex_part, 16)
             except ValueError:
-                raise ValueError(f"Invalid hex color: {v}")
+                raise ValueError(f"Invalid hex color: {v}") from None
         return v
 
     model_config = {"populate_by_name": True}

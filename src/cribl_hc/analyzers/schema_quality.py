@@ -11,7 +11,7 @@ Analyzes schema and parsing configurations to identify:
 
 import re
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -56,7 +56,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         return "schema_quality"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Schema analyzer applies to Stream, Edge, and Search."""
         return ["stream", "edge", "search"]
 
@@ -72,7 +72,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         """
         return 4
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return ["read:parsers", "read:pipelines", "read:inputs", "read:search:datatypes"]
 
@@ -136,7 +136,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         return result
 
     def _analyze_parsers(
-        self, result: AnalyzerResult, parsers: List[Dict[str, Any]], pipelines: List[Dict[str, Any]]
+        self, result: AnalyzerResult, parsers: list[dict[str, Any]], pipelines: list[dict[str, Any]]
     ) -> None:
         """Analyze parser library entries."""
         referenced_parsers = self._find_parser_references(pipelines)
@@ -166,7 +166,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
 
         result.metadata["parser_types"] = dict(parser_types)
 
-    def _find_parser_references(self, pipelines: List[Dict[str, Any]]) -> set[str]:
+    def _find_parser_references(self, pipelines: list[dict[str, Any]]) -> set[str]:
         """Find all parser references in pipeline configurations."""
         referenced = set()
 
@@ -188,7 +188,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
 
         return referenced
 
-    def _check_regex_parser(self, result: AnalyzerResult, parser: Dict[str, Any]) -> None:
+    def _check_regex_parser(self, result: AnalyzerResult, parser: dict[str, Any]) -> None:
         """Check regex/grok parser for potential issues."""
         parser_id = parser.get("id", "unknown")
         parser_type = parser.get("type", "regex")
@@ -217,7 +217,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
                     )
 
     def _analyze_regex_functions(
-        self, result: AnalyzerResult, pipelines: List[Dict[str, Any]]
+        self, result: AnalyzerResult, pipelines: list[dict[str, Any]]
     ) -> None:
         """Analyze regex functions in pipelines for performance issues."""
         regex_function_count = 0
@@ -335,7 +335,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
                 )
                 break
 
-    def _analyze_event_breakers(self, result: AnalyzerResult, inputs: List[Dict[str, Any]]) -> None:
+    def _analyze_event_breakers(self, result: AnalyzerResult, inputs: list[dict[str, Any]]) -> None:
         """Analyze event breaker configuration on inputs."""
         breaker_types: defaultdict[str, int] = defaultdict(int)
         custom_breaker_count = 0
@@ -365,7 +365,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         result.metadata["event_breaker_types"] = dict(breaker_types)
         result.metadata["custom_breaker_count"] = custom_breaker_count
 
-    def _analyze_input_filters(self, result: AnalyzerResult, inputs: List[Dict[str, Any]]) -> None:
+    def _analyze_input_filters(self, result: AnalyzerResult, inputs: list[dict[str, Any]]) -> None:
         for inp in inputs:
             input_id = inp.get("id", "unknown")
             filter_expr = (
@@ -384,7 +384,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
                 self._check_regex_pattern(result, f"input:{input_id}", pattern, "input-filter")
 
     @staticmethod
-    def _extract_regex_patterns_from_expression(filter_expr: str) -> List[str]:
+    def _extract_regex_patterns_from_expression(filter_expr: str) -> list[str]:
         patterns = []
         for match in re.finditer(r"/([^/\\]*(?:\\.[^/\\]*)*)/", filter_expr):
             patterns.append(match.group(1))
@@ -398,7 +398,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         return patterns
 
     def _analyze_schema_mapping(
-        self, result: AnalyzerResult, pipelines: List[Dict[str, Any]]
+        self, result: AnalyzerResult, pipelines: list[dict[str, Any]]
     ) -> None:
         """Analyze schema mapping and field renaming patterns."""
         rename_patterns: defaultdict[str, int] = defaultdict(int)
@@ -441,7 +441,7 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
             )
 
     def _analyze_search_datatypes(
-        self, result: AnalyzerResult, datatypes: List[Dict[str, Any]]
+        self, result: AnalyzerResult, datatypes: list[dict[str, Any]]
     ) -> None:
         """Analyze Search datatypes and field quality."""
         if not datatypes:
@@ -489,9 +489,9 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
     def _add_summary_finding(
         self,
         result: AnalyzerResult,
-        parsers: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]],
+        parsers: list[dict[str, Any]],
+        pipelines: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
     ) -> None:
         """Add summary finding for schema quality."""
         issues = len([f for f in result.findings if f.severity in ("high", "critical", "medium")])

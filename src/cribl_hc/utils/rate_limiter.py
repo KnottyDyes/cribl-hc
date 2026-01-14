@@ -10,7 +10,6 @@ import time
 from asyncio import Lock
 from collections import deque
 from datetime import datetime, timedelta
-from typing import List
 
 from cribl_hc.utils.logger import get_logger
 
@@ -220,7 +219,7 @@ class SimpleSyncRateLimiter:
         """
         self.max_calls = max_calls
         self.time_window_seconds = time_window_seconds
-        self.call_timestamps: List[float] = []
+        self.call_timestamps: list[float] = []
         self.total_calls_made = 0
 
     def acquire(self) -> None:

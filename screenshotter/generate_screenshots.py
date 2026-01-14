@@ -76,7 +76,7 @@ def create_text_centered(
     draw = ImageDraw.Draw(image)
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
-    except (OSError, IOError):
+    except OSError:
         # Fallback to default font if specific font not found
         font = ImageFont.load_default()
 
@@ -104,14 +104,14 @@ def draw_input_field(
     if label:
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
-        except (OSError, IOError):
+        except OSError:
             font = ImageFont.load_default()
         draw.text((x, y - 20), label, fill="black", font=font)
     # Draw placeholder text if provided
     if placeholder:
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
-        except (OSError, IOError):
+        except OSError:
             font = ImageFont.load_default()
         draw.text((x + 10, y + 10), placeholder, fill="lightgray", font=font)
 
@@ -129,7 +129,7 @@ def draw_button(
     draw.rectangle([x, y, x + width, y + height], fill=bg_color, outline="darkgray", width=1)
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12)
-    except (OSError, IOError):
+    except OSError:
         font = ImageFont.load_default()
     bbox = draw.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
@@ -153,7 +153,7 @@ def screenshot_1_credential_input() -> Image.Image:
     # Header
     try:
         header_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
-    except (OSError, IOError):
+    except OSError:
         header_font = ImageFont.load_default()
 
     draw.text((50, 30), "Add Cribl Deployment", fill="black", font=header_font)
@@ -169,7 +169,7 @@ def screenshot_1_credential_input() -> Image.Image:
     draw.rectangle([50, y_pos, 250, y_pos + 40], outline="gray", width=1)
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 10)
-    except (OSError, IOError):
+    except OSError:
         font = ImageFont.load_default()
     draw.text((55, y_pos + 12), "Authentication Type: Bearer Token ▼", fill="black", font=font)
     draw.text((50, y_pos - 20), "Authentication Type", fill="black", font=font)
@@ -185,7 +185,7 @@ def screenshot_1_credential_input() -> Image.Image:
     # Helper text
     try:
         helper_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 9)
-    except (OSError, IOError):
+    except OSError:
         helper_font = ImageFont.load_default()
     draw.text(
         (50, 480),
@@ -211,7 +211,7 @@ def screenshot_2_credential_test_success() -> Image.Image:
         success_font = ImageFont.truetype(
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16
         )
-    except (OSError, IOError):
+    except OSError:
         success_font = ImageFont.load_default()
     draw.text((70, 575), "✓ Connection successful!", fill="#155724", font=success_font)
     draw.text(
@@ -236,7 +236,7 @@ def screenshot_3_analysis_completion() -> Image.Image:
         header_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
         score_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
         component_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
-    except (OSError, IOError):
+    except OSError:
         header_font = ImageFont.load_default()
         score_font = ImageFont.load_default()
         component_font = ImageFont.load_default()
@@ -249,7 +249,7 @@ def screenshot_3_analysis_completion() -> Image.Image:
     draw.text((150, 220), "78", fill="white", font=score_font)
     try:
         label_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-    except (OSError, IOError):
+    except OSError:
         label_font = ImageFont.load_default()
     draw.text((110, 360), "Overall Health Score", fill="black", font=label_font)
 
@@ -271,7 +271,7 @@ def screenshot_3_analysis_completion() -> Image.Image:
             large_font = ImageFont.truetype(
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32
             )
-        except (OSError, IOError):
+        except OSError:
             large_font = ImageFont.load_default()
         draw.text((x_offset + 200, y + 20), str(score), fill="white", font=large_font)
 
@@ -279,7 +279,7 @@ def screenshot_3_analysis_completion() -> Image.Image:
     draw.text((50, 550), "Findings Summary:", fill="black", font=header_font)
     try:
         stat_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
-    except (OSError, IOError):
+    except OSError:
         stat_font = ImageFont.load_default()
 
     draw.text((50, 620), "• 1 Critical finding", fill="#d32f2f", font=stat_font)
@@ -303,7 +303,7 @@ def screenshot_4_review_analysis_full() -> Image.Image:
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 12
         )
         text_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 11)
-    except (OSError, IOError):
+    except OSError:
         header_font = ImageFont.load_default()
         table_header_font = ImageFont.load_default()
         text_font = ImageFont.load_default()
@@ -347,7 +347,7 @@ def screenshot_4_review_analysis_full() -> Image.Image:
     # Add footer note
     try:
         footer_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 9)
-    except (OSError, IOError):
+    except OSError:
         footer_font = ImageFont.load_default()
     draw.text(
         (50, 950),
@@ -369,7 +369,7 @@ def screenshot_5_branding_manager() -> Image.Image:
 
     try:
         header_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
-    except (OSError, IOError):
+    except OSError:
         header_font = ImageFont.load_default()
 
     # Title
@@ -386,7 +386,7 @@ def screenshot_5_branding_manager() -> Image.Image:
     draw.rectangle([50, y_pos, 250, y_pos + 100], outline="gray", fill="#f9f9f9")
     try:
         upload_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-    except (OSError, IOError):
+    except OSError:
         upload_font = ImageFont.load_default()
     draw.text((80, y_pos + 35), "📁 Upload Logo", fill="gray", font=upload_font)
     draw.text((50, y_pos - 20), "Logo", fill="black", font=upload_font)

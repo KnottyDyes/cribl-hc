@@ -5,7 +5,7 @@ Config command for managing credentials and settings.
 import json
 import re
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -118,7 +118,7 @@ def set_credential(
         raise typer.Exit(code=1)
 
 
-def _extract_from_paste(text: str) -> Dict[str, Optional[str]]:
+def _extract_from_paste(text: str) -> dict[str, Optional[str]]:
     """
     Extract URL and token from pasted content.
 
@@ -134,7 +134,7 @@ def _extract_from_paste(text: str) -> Dict[str, Optional[str]]:
     Returns:
         Dictionary with 'url' and 'token' keys (values may be None)
     """
-    result: Dict[str, Optional[str]] = {"url": None, "token": None}
+    result: dict[str, Optional[str]] = {"url": None, "token": None}
 
     cleaned_text = text.replace("\\\n", " ").replace("\n", " ")
 
