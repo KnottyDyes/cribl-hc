@@ -40,11 +40,11 @@ def load_sandbox_credentials():
         return None, None
 
     # Load encryption key
-    with open(key_file, 'rb') as f:
+    with open(key_file, "rb") as f:
         master_key = f.read()
 
     # Load encrypted credentials
-    with open(cred_file, 'rb') as f:
+    with open(cred_file, "rb") as f:
         encrypted_data = f.read()
 
     # Decrypt
@@ -62,8 +62,8 @@ def load_sandbox_credentials():
     # Handle both dict and list structures
     if isinstance(credentials, dict):
         # Dictionary structure - check if 'sandbox' is a key
-        if 'sandbox' in credentials:
-            sandbox_cred = credentials['sandbox']
+        if "sandbox" in credentials:
+            sandbox_cred = credentials["sandbox"]
         else:
             print("❌ No 'sandbox' key found in credentials")
             print(f"\nAvailable keys: {list(credentials.keys())}")
@@ -72,10 +72,11 @@ def load_sandbox_credentials():
         # List structure
         sandbox_cred = None
         for cred in credentials:
-            if isinstance(cred, dict):
-                if cred.get('name') == 'sandbox' or cred.get('deployment_name') == 'sandbox':
-                    sandbox_cred = cred
-                    break
+            if isinstance(cred, dict) and (
+                cred.get("name") == "sandbox" or cred.get("deployment_name") == "sandbox"
+            ):
+                sandbox_cred = cred
+                break
 
         if not sandbox_cred:
             print("❌ No 'sandbox' credentials found in storage")
@@ -89,8 +90,12 @@ def load_sandbox_credentials():
         return None, None
 
     # Extract base_url and token (handle different field names)
-    base_url = sandbox_cred.get('base_url') or sandbox_cred.get('url')
-    api_token = sandbox_cred.get('bearer_token') or sandbox_cred.get('token') or sandbox_cred.get('api_token')
+    base_url = sandbox_cred.get("base_url") or sandbox_cred.get("url")
+    api_token = (
+        sandbox_cred.get("bearer_token")
+        or sandbox_cred.get("token")
+        or sandbox_cred.get("api_token")
+    )
 
     if not base_url or not api_token:
         print("❌ Sandbox credentials missing base_url or bearer_token")
@@ -114,15 +119,15 @@ async def run_discovery(base_url: str, api_token: str):
         """Discover and document Cribl API endpoints."""
 
         def __init__(self, base_url: str, api_token: str):
-            self.base_url = base_url.rstrip('/')
+            self.base_url = base_url.rstrip("/")
             self.api_token = api_token
             self.client = httpx.AsyncClient(
                 headers={
                     "Authorization": f"Bearer {api_token}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
                 timeout=30.0,
-                follow_redirects=True
+                follow_redirects=True,
             )
             self.results = {
                 "discovery_time": datetime.utcnow().isoformat(),
@@ -131,7 +136,7 @@ async def run_discovery(base_url: str, api_token: str):
                 "endpoints": {},
                 "lake_endpoints": {},
                 "search_endpoints": {},
-                "errors": []
+                "errors": [],
             }
 
         async def discover(self):
@@ -191,9 +196,21 @@ async def run_discovery(base_url: str, api_token: str):
                         # Handle different response formats
                         items = data.get("items", [])
                         if items:
-                            workspaces.extend([item.get("id") or item.get("name") for item in items if isinstance(item, dict)])
+                            workspaces.extend(
+                                [
+                                    item.get("id") or item.get("name")
+                                    for item in items
+                                    if isinstance(item, dict)
+                                ]
+                            )
                     elif isinstance(data, list):
-                        workspaces.extend([item.get("id") or item.get("name") for item in data if isinstance(item, dict)])
+                        workspaces.extend(
+                            [
+                                item.get("id") or item.get("name")
+                                for item in data
+                                if isinstance(item, dict)
+                            ]
+                        )
 
             # Based on the provided URL, also try common workspace names
             common_workspaces = ["default_search", "default", "system", "main"]
@@ -227,7 +244,7 @@ async def run_discovery(base_url: str, api_token: str):
                         "method": method,
                         "description": description,
                         "available": True,
-                        "sample_keys": list(data.keys()) if isinstance(data, dict) else None
+                        "sample_keys": list(data.keys()) if isinstance(data, dict) else None,
                     }
             print()
 
@@ -239,21 +256,17 @@ async def run_discovery(base_url: str, api_token: str):
                 ("GET", "/api/v1/datasets", "List datasets"),
                 ("GET", "/api/v1/lake/datasets", "Lake datasets"),
                 ("GET", "/api/v1/m/system/datasets", "System datasets"),
-
                 # Lakehouse
                 ("GET", "/api/v1/lakehouses", "List lakehouses"),
                 ("GET", "/api/v1/lake/lakehouses", "Lake lakehouses"),
-
                 # Storage
                 ("GET", "/api/v1/storage", "Storage info"),
                 ("GET", "/api/v1/storage/locations", "Storage locations"),
                 ("GET", "/api/v1/lake/storage", "Lake storage"),
-
                 # Monitoring
                 ("GET", "/api/v1/lake/metrics", "Lake metrics"),
                 ("GET", "/api/v1/lake/health", "Lake health"),
                 ("GET", "/api/v1/lake/status", "Lake status"),
-
                 # Retention
                 ("GET", "/api/v1/lake/retention", "Retention policies"),
             ]
@@ -266,7 +279,7 @@ async def run_discovery(base_url: str, api_token: str):
                         "description": description,
                         "available": True,
                         "sample_keys": list(data.keys()) if isinstance(data, dict) else None,
-                        "sample_data": data if len(str(data)) < 500 else "... truncated ..."
+                        "sample_data": data if len(str(data)) < 500 else "... truncated ...",
                     }
             print()
 
@@ -278,21 +291,17 @@ async def run_discovery(base_url: str, api_token: str):
                 ("GET", "/api/v1/search/jobs", "Search jobs"),
                 ("POST", "/api/v1/search/jobs", "Create search job"),
                 ("GET", "/api/v1/jobs", "Jobs list"),
-
                 # Datasets
                 ("GET", "/api/v1/search/datasets", "Search datasets"),
                 ("GET", "/api/v1/search/providers", "Dataset providers"),
-
                 # Queries
                 ("GET", "/api/v1/search/saved", "Saved searches"),
                 ("GET", "/api/v1/search/scheduled", "Scheduled searches"),
-
                 # Monitoring
                 ("GET", "/api/v1/search/metrics", "Search metrics"),
                 ("GET", "/api/v1/search/stats", "Search statistics"),
                 ("GET", "/api/v1/search/health", "Search health"),
                 ("GET", "/api/v1/search/status", "Search status"),
-
                 # Workspaces
                 ("GET", "/api/v1/workspaces", "Workspaces"),
                 ("GET", "/api/v1/search/workspaces", "Search workspaces"),
@@ -306,7 +315,7 @@ async def run_discovery(base_url: str, api_token: str):
                         "description": description,
                         "available": True,
                         "sample_keys": list(data.keys()) if isinstance(data, dict) else None,
-                        "sample_data": data if len(str(data)) < 500 else "... truncated ..."
+                        "sample_data": data if len(str(data)) < 500 else "... truncated ...",
                     }
             print()
 
@@ -320,10 +329,7 @@ async def run_discovery(base_url: str, api_token: str):
 
             for workspace in workspaces:
                 print(f"\n   📂 Testing workspace: {workspace}")
-                workspace_results = {
-                    "search": {},
-                    "lake": {}
-                }
+                workspace_results = {"search": {}, "lake": {}}
 
                 # Search endpoints (based on user's provided URL pattern)
                 search_patterns = [
@@ -359,7 +365,7 @@ async def run_discovery(base_url: str, api_token: str):
                             "description": description,
                             "available": True,
                             "sample_keys": list(data.keys()) if isinstance(data, dict) else None,
-                            "sample_data": data if len(str(data)) < 500 else "... truncated ..."
+                            "sample_data": data if len(str(data)) < 500 else "... truncated ...",
                         }
 
                 # Test Lake endpoints
@@ -371,7 +377,7 @@ async def run_discovery(base_url: str, api_token: str):
                             "description": description,
                             "available": True,
                             "sample_keys": list(data.keys()) if isinstance(data, dict) else None,
-                            "sample_data": data if len(str(data)) < 500 else "... truncated ..."
+                            "sample_data": data if len(str(data)) < 500 else "... truncated ...",
                         }
 
                 # Only save workspace if we found any endpoints
@@ -392,10 +398,7 @@ async def run_discovery(base_url: str, api_token: str):
             for path in reference_paths:
                 data = await self.test_endpoint("GET", path)
                 if data:
-                    self.results["api_reference"] = {
-                        "path": path,
-                        "available": True
-                    }
+                    self.results["api_reference"] = {"path": path, "available": True}
                     print(f"   ✅ Found API reference at: {path}")
                     break
             print()
@@ -420,10 +423,9 @@ async def run_discovery(base_url: str, api_token: str):
                     return None
                 elif response.status_code == 401:
                     print(f"   🔒 {desc}: {path} (auth required)")
-                    self.results["errors"].append({
-                        "endpoint": path,
-                        "error": "Authentication required"
-                    })
+                    self.results["errors"].append(
+                        {"endpoint": path, "error": "Authentication required"}
+                    )
                     return None
                 elif response.status_code == 403:
                     print(f"   🚫 {desc}: {path} (forbidden)")
@@ -440,7 +442,7 @@ async def run_discovery(base_url: str, api_token: str):
             filename = f"api_discovery_sandbox_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
             filepath = Path("scripts") / filename
 
-            with open(filepath, 'w') as f:
+            with open(filepath, "w") as f:
                 json.dump(self.results, f, indent=2)
 
             print(f"💾 Results saved to: {filepath}\n")
@@ -458,26 +460,28 @@ async def run_discovery(base_url: str, api_token: str):
             # Count workspace endpoints
             workspace_count = 0
             if "workspace_endpoints" in self.results:
-                for workspace, endpoints in self.results["workspace_endpoints"].items():
-                    workspace_count += len(endpoints.get("search", {})) + len(endpoints.get("lake", {}))
+                for _workspace, endpoints in self.results["workspace_endpoints"].items():
+                    workspace_count += len(endpoints.get("search", {})) + len(
+                        endpoints.get("lake", {})
+                    )
             print(f"Workspace-Scoped Endpoints: {workspace_count}")
 
             print(f"Errors: {len(self.results['errors'])}")
             print("=" * 70)
 
-            if self.results['endpoints']:
+            if self.results["endpoints"]:
                 print("\n✅ Available Common Endpoints:")
-                for path, info in self.results['endpoints'].items():
+                for path, info in self.results["endpoints"].items():
                     print(f"   {info['method']} {path} - {info['description']}")
 
-            if self.results['lake_endpoints']:
+            if self.results["lake_endpoints"]:
                 print("\n🏞️  Available Lake Endpoints:")
-                for path, info in self.results['lake_endpoints'].items():
+                for path, info in self.results["lake_endpoints"].items():
                     print(f"   {info['method']} {path} - {info['description']}")
 
-            if self.results['search_endpoints']:
+            if self.results["search_endpoints"]:
                 print("\n🔎 Available Search Endpoints:")
-                for path, info in self.results['search_endpoints'].items():
+                for path, info in self.results["search_endpoints"].items():
                     print(f"   {info['method']} {path} - {info['description']}")
 
             if "workspace_endpoints" in self.results and self.results["workspace_endpoints"]:
