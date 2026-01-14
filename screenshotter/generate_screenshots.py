@@ -689,6 +689,7 @@ async def async_capture_screenshots():
                 await page.goto("http://localhost:5173/credentials")
                 await page.wait_for_selector('button:has-text("Add Credential")')
                 await page.click('button:has-text("Add Credential")')
+                await page.wait_for_timeout(1000)  # Wait for modal to fully animate in
                 await page.wait_for_selector('input[placeholder="my-cribl-deployment"]')
                 await page.screenshot(path=str(theme_dir / "credential_input.png"), full_page=False)
                 print(f"✓ {theme_label}/credential_input.png")
@@ -701,6 +702,7 @@ async def async_capture_screenshots():
                 await page.wait_for_selector('button[title="Test connection"]')
                 await page.click('button[title="Test connection"]')
                 await page.wait_for_selector("text=Connection successful!")
+                await page.wait_for_timeout(800)  # Wait for UI to fully update with success state
                 await page.screenshot(
                     path=str(theme_dir / "credential_test_success.png"), full_page=False
                 )
