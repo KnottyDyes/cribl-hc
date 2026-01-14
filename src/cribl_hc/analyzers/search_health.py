@@ -61,6 +61,11 @@ class SearchHealthAnalyzer(BaseAnalyzer):
         """Return the objective name for this analyzer."""
         return "search"
 
+    @property
+    def category(self) -> str:
+        """Return the category this analyzer belongs to."""
+        return "search"
+
     def get_estimated_api_calls(self) -> int:
         """
         Estimate API calls: jobs(1) + datasets(1) + dashboards(1) + saved(1) + groups(1) + cost(1) = 6.

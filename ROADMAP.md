@@ -1,7 +1,9 @@
 # Cribl Health Check - Development Roadmap
 
-**Last Updated**: 2026-01-10
-**Project Status**: Phase 12 - UX & Production Readiness (Complete)
+**Last Updated**: 2026-01-14
+**Project Status**: Phase 12 - UX & Production Readiness (Complete) + Phase 13+ Future Architecture (Planned)
+
+**📋 This is the PRIMARY ROADMAP document** - consolidated from FEATURE_RESEARCH_REPORT.md and ANALYZER_GAPS_ROADMAP.md for single-source reference.
 
 ---
 
@@ -26,7 +28,8 @@ Phase 9: Runtime Operations (P1)  ███████████████�
 Phase 10: Data Quality (P2)       ████████████████████ 100% ✅
 Phase 11: Polish & Integration    ████████████████████ 100% ✅
 Phase 12: UX & Production Ready   ████████████████████ 100% ✅
-Phase 13+: Future Architecture    ░░░░░░░░░░░░░░░░░░░░   0% 🔮
+Phase 13: Enterprise Operations   ░░░░░░░░░░░░░░░░░░░░   0% 🔮
+Phase 14: Analyzer Expansion      ░░░░░░░░░░░░░░░░░░░░   0% 🔮
 ```
 
 **Legend**: ✅ Complete | ⏳ In Progress | 📋 Planned
@@ -394,11 +397,13 @@ Phase 13+: Future Architecture    ░░░░░░░░░░░░░░░�
 - Grouped findings display (CLI, TUI, GUI)
 - Sensitive data detection (PII/PHI leakage)
 - Data freshness monitoring (event lag detection)
+- **Schema drift detection** (field disappearances, type changes)
+- **End-to-end freshness monitoring** (pipeline latency analysis)
 - Production error handling improvements
 - Repository cleanup for public release
 
 **Deliverables**:
-- [x] **FreshnessAnalyzer** - Event lag and pipeline latency monitoring
+- [x] **FreshnessAnalyzer** - Event lag detection
   - Detects event timestamps vs current time drift
   - Identifies clock skew issues (future timestamps)
   - 5-minute warning, 15-minute critical thresholds
@@ -406,6 +411,16 @@ Phase 13+: Future Architecture    ░░░░░░░░░░░░░░░�
   - SSN, credit card, AWS keys, private keys detection
   - Generic API key/secret pattern matching
   - Critical/high severity findings for compliance
+- [x] **SchemaDriftAnalyzer** - Schema change detection
+  - Monitors field presence and type changes over time
+  - Detects critical field disappearances (<80% presence rate)
+  - Identifies type inconsistencies across events
+  - Validates schema consistency between sources
+- [x] **EndToEndFreshnessAnalyzer** - Pipeline latency monitoring
+  - Measures actual processing time from input to output
+  - Detects high latency (>30s) and critical latency (>2min)
+  - Identifies pipeline bottlenecks (3x slower than average)
+  - Supports multiple input timestamp field patterns
 - [x] **Worker Group Context** - All findings now tagged with worker_group
   - Added worker_group field to Finding model
   - Fixed missing tags in DataFlowTopologyAnalyzer
@@ -427,11 +442,12 @@ Phase 13+: Future Architecture    ░░░░░░░░░░░░░░░�
   - Removed test/debug scripts from root
 
 **Technical Achievements**:
-- 21 total analyzers (added 2: Freshness, SensitiveData)
+- 23 total analyzers (added 4: Freshness, SensitiveData, SchemaDrift, EndToEndFreshness)
 - Enhanced Finding model with worker_group context
 - Improved UX across all interfaces (CLI, TUI, GUI)
 - Production-ready error handling
 - Clean, professional repository structure
+- Schema drift detection and end-to-end latency monitoring
 
 **PRs Merged**:
 - #43: Repository cleanup for public release
@@ -446,12 +462,12 @@ Phase 13+: Future Architecture    ░░░░░░░░░░░░░░░�
 
 ### Code Quality
 - **Test Coverage**: Target 90%+
-- **Current Analyzers**: 21/21 with comprehensive tests
-- **Total Tests**: 270+ unit tests passing
-- **Lines of Code**: ~12,500+ (analyzers + models + core + frontend)
+- **Current Analyzers**: 23/23 with comprehensive tests
+- **Total Tests**: 279+ unit tests passing
+- **Lines of Code**: ~13,500+ (analyzers + models + core + frontend)
 
 ### Features Delivered
-- ✅ **21 Analyzers**: Health, Config, Resource, Storage, Security, Cost, Fleet, Predictive, LakeHealth, LakeStorage, SearchHealth, SearchPerformance, Backpressure, PipelinePerformance, LookupHealth, SchemaQuality, DataFlowTopology, Alerting, VersionControl, Freshness, SensitiveData
+- ✅ **23 Analyzers**: Health, Config, Resource, Storage, Security, Cost, Fleet, Predictive, LakeHealth, LakeStorage, SearchHealth, SearchPerformance, Backpressure, PipelinePerformance, LookupHealth, SchemaQuality, SchemaDrift, DataFlowTopology, Alerting, VersionControl, Freshness, SensitiveData, EndToEndFreshness
 - ✅ Product tagging system (Stream, Edge, Lake, Search)
 - ✅ Worker group context tracking
 - ✅ Grouped findings display (CLI, TUI, GUI)
@@ -471,31 +487,137 @@ Phase 13+: Future Architecture    ░░░░░░░░░░░░░░░�
 
 ---
 
-## 🎯 Current Focus (Week of 2026-01-10)
+## 🎯 Current Status (Week of 2026-01-14)
 
-**This Week's Goals**:
-1. ✅ Complete Phase 12 - UX & Production Readiness
-2. ✅ Add worker group context to all findings
-3. ✅ Implement grouped findings display
-4. ✅ Add sensitive data detection
-5. ✅ Add data freshness monitoring
-6. ✅ Repository cleanup for public release
-7. 📋 Update documentation (ROADMAP.md, FEATURE_RESEARCH_REPORT.md)
+**Project State**: Stable & Production Ready ✅
 
 **Recently Completed** (January 2026):
-- Phase 12: FreshnessAnalyzer - event lag detection
-- Phase 12: SensitiveDataAnalyzer - PII/PHI detection
-- Phase 12: Worker group context across all findings
-- Phase 12: Grouped findings display (CLI, TUI, GUI)
-- Phase 12: Production error handling improvements
-- Phase 12: Repository cleanup (72 files removed)
-- Phase 11: Complete integration and documentation
+- ✅ **SchemaDriftAnalyzer** - Schema change detection and field monitoring
+- ✅ **EndToEndFreshnessAnalyzer** - Pipeline latency and bottleneck detection
+- ✅ Phase 12: UX & Production Readiness (Complete)
+- ✅ Worker group context across all findings
+- ✅ Grouped findings display (CLI, TUI, GUI)
+- ✅ FreshnessAnalyzer - event lag detection
+- ✅ SensitiveDataAnalyzer - PII/PHI detection
+- ✅ Repository cleanup for public release (72 files removed)
+- ✅ Documentation consolidation and updates
+
+**Next Steps**: Project is ready for production deployment and community adoption
 
 ---
 
 ## 🔮 Future Considerations
 
-### Phase 12+: Future Architecture (Requires Refactoring)
+### Phase 13: Enterprise Operations (PLANNED)
+
+**Goal**: Address high-value enterprise features identified through community research and internal analysis
+
+**Status**: 📋 Planned | **Effort**: Medium-High | **Priority**: P3
+
+**Planned Features** (4 features)**:
+
+1. **Multi-Deployment Comparison**
+   - Compare prod vs. dev, staging vs. prod environments
+   - Identify configuration parity issues and discrepancies
+   - Side-by-side health scores and config differences
+   - Version comparison and resource utilization analysis
+   - **Effort**: 12 hours
+
+2. **Historical Data Persistence**
+   - SQLite or JSON-based storage for trend analysis
+   - Historical health score tracking over time
+   - Performance regression detection
+   - **Effort**: 8 hours
+
+3. **Scheduled Health Checks**
+   - Daemon mode or cron integration for periodic checks
+   - Automated report generation and delivery
+   - Configurable check intervals and notification thresholds
+   - **Effort**: 6 hours
+
+4. **Advanced Security & Compliance**
+   - Enhanced pattern matching for healthcare codes and financial data
+   - Custom sensitive data pattern configuration
+   - Advanced compliance frameworks (SOC2, HIPAA, GDPR, etc.)
+   - **Effort**: 10 hours
+   - **Note**: Basic sensitive data detection already implemented in SensitiveDataAnalyzer
+
+---
+
+### Phase 14: Analyzer Expansion (PLANNED)
+
+**Goal**: Address critical analyzer gaps identified through comprehensive API research and community pain points
+
+**Status**: 📋 Planned | **Effort**: High (56 hours total) | **Priority**: P2-P3
+
+**Roadmap Breakdown**:
+
+#### Phase 14A: Critical Input/Output/Route Coverage (20 hours)
+
+**Priority 1: InputSourceAnalyzer** (6 hours)
+- Monitor input source health and connectivity
+- Flag disconnected inputs and error spikes
+- Track data lag and freshness issues
+- Validate recent event data quality
+
+**Priority 2: OutputDestinationAnalyzer** (6 hours)
+- Validate output connectivity and configuration
+- Monitor delivery failures and queue status
+- Check authentication and required fields
+- Flag deprecated endpoints and misconfigurations
+
+**Priority 3: RoutePerformanceAnalyzer** (8 hours)
+- Analyze route throughput and load distribution
+- Track latency percentiles (p50, p95, p99)
+- Monitor error rates by route and detect imbalances
+- Identify pipeline overload scenarios
+
+#### Phase 14B: Quality & Reliability (11 hours)
+
+**Priority 4: ParserQualityAnalyzer** (6 hours)
+- Analyze parser error rates and usage patterns
+- Detect unused parsers and complex regex patterns
+- Validate field extraction quality and patterns
+- Monitor parser library health
+
+**Priority 5: NotificationDeliveryAnalyzer** (5 hours)
+- Track delivery success rates and failed notifications
+- Validate target availability and routing configuration
+- Monitor escalation paths and alert delivery
+- Analyze notification queue health
+
+#### Phase 14C: Organization & Optimization (16 hours)
+
+**Priority 6: EnhancedTeamPermissionsAnalyzer** (4 hours)
+- Analyze team structure and permission overlaps
+- Detect overly permissive roles and unused permissions
+- Validate team membership and access patterns
+
+**Priority 7: WorkerGroupOptimizationAnalyzer** (7 hours)
+- Analyze CPU/memory utilization patterns
+- Provide scaling recommendations and cost analysis
+- Detect resource bottlenecks and optimization opportunities
+
+**Priority 8: LibraryAndResourceAnalyzer** (5 hours)
+- Detect unused library entries and dependencies
+- Analyze reuse patterns and optimization opportunities
+- Validate library health and maintenance status
+
+#### Phase 14D: Search & Licensing (9 hours)
+
+**Priority 9: SearchWorkspaceOptimizationAnalyzer** (4 hours)
+- Analyze workspace organization and saved search usage
+- Validate dashboard health and query patterns
+- Optimize search workspace structure
+
+**Priority 10: LicenseOptimizationAnalyzer** (5 hours)
+- Track license consumption trends and forecasting
+- Identify cost optimization opportunities
+- Analyze drop rule effectiveness and license utilization
+
+---
+
+### Phase 15+: Advanced Architecture (FUTURE)
 
 **Real-time Monitoring Mode**:
 - WebSocket-based continuous monitoring
@@ -539,7 +661,9 @@ Phase 13+: Future Architecture    ░░░░░░░░░░░░░░░�
 
 ## 📚 Documentation Status
 
-- [x] ROADMAP.md (this file)
+- [x] ROADMAP.md (this file - **PRIMARY ROADMAP** - consolidated development roadmap with current status and future plans)
+- [x] FEATURE_RESEARCH_REPORT.md (detailed implementation status and feature research - reference document)
+- [x] ANALYZER_GAPS_ROADMAP.md (detailed future analyzer expansion plans - reference document)
 - [x] US3_STORAGE_ANALYZER_COMPLETE.md
 - [x] US4_SECURITY_ANALYZER_COMPLETE.md
 - [x] US5_COST_ANALYZER_COMPLETE.md
@@ -562,7 +686,21 @@ Phase 13+: Future Architecture    ░░░░░░░░░░░░░░░�
 
 ## 🎉 Recent Achievements
 
-### 2026-01-10 (Latest)
+### 2026-01-14 (Latest)
+- ✅ **SchemaDriftAnalyzer** - Schema change detection (NEW)
+  - Monitors field presence and type changes over time
+  - Detects critical field disappearances (<80% presence rate)
+  - Identifies type inconsistencies across events
+  - Validates schema consistency between sources
+  - Provides actionable remediation steps
+- ✅ **EndToEndFreshnessAnalyzer** - Pipeline latency monitoring (NEW)
+  - Measures actual processing time from input to output
+  - Detects high latency (>30s) and critical latency (>2min)
+  - Identifies pipeline bottlenecks (3x slower than average)
+  - Supports multiple input timestamp field patterns
+  - Calculates comprehensive latency statistics
+
+### 2026-01-10
 - ✅ Phase 12: UX & Production Readiness (Complete)
   - FreshnessAnalyzer
     - Event lag detection (5min warning, 15min critical)

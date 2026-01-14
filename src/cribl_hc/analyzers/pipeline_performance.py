@@ -60,6 +60,11 @@ class PipelinePerformanceAnalyzer(BaseAnalyzer):
         return "pipeline_performance"
 
     @property
+    def category(self) -> str:
+        """Return the category this analyzer belongs to."""
+        return "performance"
+
+    @property
     def supported_products(self) -> List[str]:
         """Pipeline performance analyzer applies to Stream and Edge."""
         return ["stream", "edge"]

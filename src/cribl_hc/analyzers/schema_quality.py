@@ -56,6 +56,11 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         return "schema_quality"
 
     @property
+    def category(self) -> str:
+        """Return the category this analyzer belongs to."""
+        return "data_quality"
+
+    @property
     def supported_products(self) -> List[str]:
         """Schema analyzer applies to Stream, Edge, and Search."""
         return ["stream", "edge", "search"]
