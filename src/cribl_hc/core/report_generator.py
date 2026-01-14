@@ -15,6 +15,7 @@ class MarkdownReportGenerator:
     """
 
     def __init__(self):
+        pass
 
     def generate(
         self,
@@ -184,10 +185,8 @@ class JSONReportGenerator:
 class HTMLReportGenerator:
     """Generate HTML reports with full branding support."""
 
-    def __init__(
-        self, branding: Optional[BrandingConfig] = None, theme_mode: ThemeMode = ThemeMode.LIGHT
-    ):
-        self.theme_mode = theme_mode
+    def __init__(self):
+        pass
 
     def generate(
         self, analysis_run: AnalysisRun, results: Optional[dict[str, AnalyzerResult]] = None
@@ -218,15 +217,12 @@ class HTMLReportGenerator:
         )
 
     def _get_report_title(self) -> str:
-        if self.branding.client and self.branding.client.report_title:
-            return self.branding.client.report_title
         return "Cribl Health Check Report"
 
     def _generate_css(self) -> str:
-        c = self.colors
         return (
-            f":root{{--primary:{c.primary};--bg:{c.background};--fg:{c.foreground};--border:{c.border};"
-            f"--radius:{self.branding.theme.border_radius};}}body{{font-family:sans-serif;"
+            ":root{--primary:#0066cc;--bg:#ffffff;--fg:#333333;--border:#e0e0e0;"
+            "--radius:8px;}body{font-family:sans-serif;"
             f"background:var(--bg);color:var(--fg);padding:2rem;max-width:1200px;margin:0 auto;}}"
             f".header{{margin-bottom:2rem;}}.logo{{max-height:48px;display:block;margin-bottom:0.25rem;}}"
             f".provider-tagline{{font-size:0.875rem;font-style:italic;margin-bottom:2rem;}}"

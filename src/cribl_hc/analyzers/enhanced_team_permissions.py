@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.impact import ImpactEstimate
+from cribl_hc.models.recommendation import ImpactEstimate
 
 
 class UserInfo(BaseModel):

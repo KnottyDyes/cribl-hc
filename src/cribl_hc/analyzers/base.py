@@ -219,7 +219,6 @@ class BaseAnalyzer(ABC):
         """
         return True
 
-    @abstractmethod
     async def post_analyze_cleanup(self) -> None:
         """
         Optional cleanup after analysis completes.
