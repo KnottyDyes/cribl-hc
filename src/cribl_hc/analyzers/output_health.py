@@ -4,7 +4,7 @@ Output Destination Analyzer for Cribl Health Check.
 Analyzes output connectivity, configuration, error rates, and queue status.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -32,7 +32,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
         return "output_health"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         return ["stream", "edge"]
 
     def get_description(self) -> str:
@@ -41,7 +41,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
     def get_estimated_api_calls(self) -> int:
         return 3
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return [
             "read:outputs",
             "read:metrics",
@@ -161,7 +161,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
 
         return result
 
-    def _extract_output_metrics(self, metrics: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def _extract_output_metrics(self, metrics: dict[str, Any]) -> dict[str, dict[str, Any]]:
         output_metrics = {}
 
         outputs_data = metrics.get("outputs", {})
@@ -206,7 +206,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
 
     def _report_connectivity_issue(
         self,
-        output_item: Dict[str, Any],
+        output_item: dict[str, Any],
         status: str,
         result: AnalyzerResult,
         client: CriblAPIClient,
@@ -263,7 +263,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
 
     def _validate_configuration(
         self,
-        output_item: Dict[str, Any],
+        output_item: dict[str, Any],
         result: AnalyzerResult,
         client: CriblAPIClient,
     ) -> None:
@@ -313,7 +313,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
 
     def _report_error_rate(
         self,
-        output_item: Dict[str, Any],
+        output_item: dict[str, Any],
         error_rate: float,
         error_count: int,
         severity_level: str,
@@ -354,7 +354,7 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
 
     def _report_queue_depth(
         self,
-        output_item: Dict[str, Any],
+        output_item: dict[str, Any],
         queue_size: int,
         severity_level: str,
         result: AnalyzerResult,
@@ -386,8 +386,8 @@ class OutputDestinationAnalyzer(BaseAnalyzer):
 
     def _check_delivery_confirmation(
         self,
-        output_item: Dict[str, Any],
-        notifications: List[Dict[str, Any]],
+        output_item: dict[str, Any],
+        notifications: list[dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
     ) -> None:

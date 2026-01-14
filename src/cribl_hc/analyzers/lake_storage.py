@@ -7,7 +7,7 @@ dataset utilization patterns.
 Priority: P2 (Important - cost optimization)
 """
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -43,7 +43,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
         return "lake"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Lake storage analyzer is specific to Cribl Lake."""
         return ["lake"]
 
@@ -54,7 +54,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
         """
         return 3
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return ["read:lake:datasets", "read:lake:stats"]
 

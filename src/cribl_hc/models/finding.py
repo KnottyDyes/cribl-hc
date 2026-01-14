@@ -3,7 +3,7 @@ Finding model for identified problems and improvement opportunities.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -20,12 +20,12 @@ class Finding(BaseModel):
     )
     title: str = Field(..., description="Brief title", min_length=1, max_length=255)
     description: str = Field(..., description="Detailed description", min_length=1)
-    affected_components: List[str] = Field(default_factory=list, description="Affected components")
-    remediation_steps: List[str] = Field(default_factory=list, description="Fix instructions")
-    documentation_links: List[str] = Field(default_factory=list, description="Cribl docs URLs")
+    affected_components: list[str] = Field(default_factory=list, description="Affected components")
+    remediation_steps: list[str] = Field(default_factory=list, description="Fix instructions")
+    documentation_links: list[str] = Field(default_factory=list, description="Cribl docs URLs")
     estimated_impact: str = Field(default="", description="Impact description")
     confidence_level: Literal["high", "medium", "low"] = Field(..., description="Confidence level")
-    product_tags: List[Literal["stream", "edge", "lake", "search"]] = Field(
+    product_tags: list[Literal["stream", "edge", "lake", "search"]] = Field(
         default_factory=list,
         description="Products this finding applies to (derived from source analyzer)",
     )
@@ -37,7 +37,7 @@ class Finding(BaseModel):
         default="", description="Name of the analyzer that generated this finding"
     )
     detected_at: datetime = Field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional context")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional context")
     grouping_id: Optional[str] = Field(
         default=None, description="Identifier used to group similar findings together."
     )
@@ -55,7 +55,7 @@ class Finding(BaseModel):
 
     @field_validator("documentation_links")
     @classmethod
-    def validate_documentation_links(cls, v: List[str]) -> List[str]:
+    def validate_documentation_links(cls, v: list[str]) -> list[str]:
         """Validate documentation links are valid URLs."""
         for link in v:
             if not link.startswith(("http://", "https://")):

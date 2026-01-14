@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Literal, Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -15,14 +15,14 @@ class ComponentScore(BaseModel):
 
 class HealthScore(BaseModel):
     overall_score: int = Field(..., description="Overall score 0-100", ge=0, le=100)
-    components: Dict[str, ComponentScore] = Field(..., description="Component scores")
+    components: dict[str, ComponentScore] = Field(..., description="Component scores")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     trend_direction: Optional[Literal["improving", "stable", "declining"]] = None
     previous_score: Optional[int] = Field(default=None, ge=0, le=100)
 
     @field_validator("components")
     @classmethod
-    def validate_component_weights(cls, v: Dict[str, ComponentScore]) -> Dict[str, ComponentScore]:
+    def validate_component_weights(cls, v: dict[str, ComponentScore]) -> dict[str, ComponentScore]:
         if not v:
             return v
         total_weight = sum(comp.weight for comp in v.values())

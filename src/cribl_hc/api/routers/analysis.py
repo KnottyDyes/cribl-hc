@@ -11,7 +11,7 @@ import json
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Literal, Optional
+from typing import Literal, Optional
 
 from fastapi import (
     APIRouter,
@@ -51,8 +51,8 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 
 # In-memory storage for analysis results (will be replaced with database in v2)
-analysis_results: Dict[str, dict] = {}
-active_websockets: Dict[str, List[WebSocket]] = {}
+analysis_results: dict[str, dict] = {}
+active_websockets: dict[str, list[WebSocket]] = {}
 
 
 class AnalysisStatus(str, Enum):
@@ -71,10 +71,10 @@ class AnalysisRequest(BaseModel):
     """Request model for starting an analysis."""
 
     deployment_name: str = Field(..., description="Name of the configured deployment")
-    analyzers: Optional[List[str]] = Field(
+    analyzers: Optional[list[str]] = Field(
         None, description="List of analyzers to run. If not specified, all analyzers run."
     )
-    products: Optional[List[ProductName]] = Field(
+    products: Optional[list[ProductName]] = Field(
         None, description="List of products to analyze (stream, edge, lake, search). If None, all."
     )
 
@@ -97,8 +97,8 @@ class AnalysisResponse(BaseModel):
     created_at: datetime
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-    analyzers: List[str]
-    products: Optional[List[Literal["stream", "edge", "lake", "search"]]] = None
+    analyzers: list[str]
+    products: Optional[list[Literal["stream", "edge", "lake", "search"]]] = None
     progress_percent: int = 0
     current_step: Optional[str] = None
     api_calls_used: int = 0
@@ -112,7 +112,7 @@ class AnalysisResultResponse(BaseModel):
     status: AnalysisStatus
     health_score: Optional[float] = None
     findings_count: int = 0
-    findings: List[dict] = []
+    findings: list[dict] = []
     recommendations_count: int = 0
     completed_at: Optional[datetime] = None
     duration_seconds: Optional[float] = None
@@ -121,8 +121,8 @@ class AnalysisResultResponse(BaseModel):
 async def run_analysis_task(
     analysis_id: str,
     deployment_name: str,
-    analyzers_to_run: Optional[List[str]],
-    products_to_analyze: Optional[List[Literal["stream", "edge", "lake", "search"]]] = None,
+    analyzers_to_run: Optional[list[str]],
+    products_to_analyze: Optional[list[Literal["stream", "edge", "lake", "search"]]] = None,
 ):
     """
     Background task to run the analysis.
@@ -254,7 +254,7 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
         if request.products:
             registry = get_global_registry()
             requested_products = set(request.products)
-            filtered: List[str] = []
+            filtered: list[str] = []
             for objective in analyzer_names:
                 analyzer = registry.get_analyzer(objective)
                 if analyzer and any(p in requested_products for p in analyzer.supported_products):
@@ -305,7 +305,7 @@ async def start_analysis(request: AnalysisRequest, background_tasks: BackgroundT
         ) from e
 
 
-@router.get("", response_model=List[AnalysisResponse])
+@router.get("", response_model=list[AnalysisResponse])
 async def list_analyses():
     """
     List all analyses.

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import structlog
 
@@ -62,13 +62,13 @@ class ConfigAnalyzer(BaseAnalyzer):
         return "config"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         return ["stream", "edge"]
 
     def get_estimated_api_calls(self) -> int:
         return 5
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:pipelines", "read:routes", "read:inputs", "read:outputs"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
@@ -133,31 +133,31 @@ class ConfigAnalyzer(BaseAnalyzer):
             )
         return result
 
-    async def _fetch_pipelines(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_pipelines(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         try:
             return await client.get_pipelines() or []
         except Exception:
             return []
 
-    async def _fetch_routes(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_routes(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         try:
             return await client.get_routes() or []
         except Exception:
             return []
 
-    async def _fetch_inputs(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_inputs(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         try:
             return await client.get_inputs() or []
         except Exception:
             return []
 
-    async def _fetch_outputs(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_outputs(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         try:
             return await client.get_outputs() or []
         except Exception:
             return []
 
-    def _flatten_routes(self, routes_objects: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _flatten_routes(self, routes_objects: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """
         Flatten Routes objects to individual routes.
 
@@ -182,7 +182,7 @@ class ConfigAnalyzer(BaseAnalyzer):
         return flattened
 
     def _validate_pipeline_syntax(
-        self, pipelines: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         for pipeline in pipelines:
             pipeline_id = pipeline.get("id", "unknown")
@@ -252,8 +252,8 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _validate_route_configuration(
         self,
-        routes: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]],
+        routes: list[dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
     ) -> None:
@@ -283,7 +283,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                 )
 
     def _check_deprecated_functions(
-        self, pipelines: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         for pipeline in pipelines:
             pipeline_id = pipeline.get("id", "unknown")
@@ -316,10 +316,10 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _find_unused_components(
         self,
-        pipelines: List[Dict[str, Any]],
-        routes: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]],
-        outputs: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
+        routes: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        outputs: list[dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
     ) -> None:
@@ -394,7 +394,7 @@ class ConfigAnalyzer(BaseAnalyzer):
             )
 
     def _check_security_misconfigurations(
-        self, outputs: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, outputs: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         for output in outputs:
             output_id = output.get("id", "unknown")
@@ -425,10 +425,10 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _evaluate_best_practice_rules(
         self,
-        pipelines: List[Dict[str, Any]],
-        routes: List[Dict[str, Any]],
-        inputs: List[Dict[str, Any]],
-        outputs: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
+        routes: list[dict[str, Any]],
+        inputs: list[dict[str, Any]],
+        outputs: list[dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
     ) -> None:
@@ -482,7 +482,7 @@ class ConfigAnalyzer(BaseAnalyzer):
         )
 
     def _analyze_pipeline_efficiency(
-        self, pipelines: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         for pipeline in pipelines:
             pipeline_id = pipeline.get("id", "unknown")
@@ -493,7 +493,7 @@ class ConfigAnalyzer(BaseAnalyzer):
     def _check_function_ordering(
         self,
         pipeline_id: str,
-        functions: List[Dict[str, Any]],
+        functions: list[dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
     ) -> None:
@@ -530,7 +530,7 @@ class ConfigAnalyzer(BaseAnalyzer):
     def _check_performance_antipatterns(
         self,
         pipeline_id: str,
-        functions: List[Dict[str, Any]],
+        functions: list[dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
     ) -> int:
@@ -563,8 +563,8 @@ class ConfigAnalyzer(BaseAnalyzer):
 
     def _analyze_route_conflicts(
         self,
-        routes: List[Dict[str, Any]],
-        pipelines: List[Dict[str, Any]],
+        routes: list[dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
     ) -> None:
@@ -671,7 +671,7 @@ class ConfigAnalyzer(BaseAnalyzer):
         return patterns
 
     def _analyze_complexity_metrics(
-        self, pipelines: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         for pipeline in pipelines:
             pipeline_id = pipeline.get("id", "unknown")
@@ -698,7 +698,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                 )
 
     async def _check_advanced_security(
-        self, pipelines: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         pass
 
