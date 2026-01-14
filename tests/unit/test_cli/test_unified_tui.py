@@ -5,15 +5,15 @@ Unit tests for Unified TUI module.
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from cribl_hc.cli.unified_tui import UnifiedTUI
+from cribl_hc.cli.modern_tui import ModernTUI
 
 
-class TestUnifiedTUI:
-    """Test the UnifiedTUI class."""
+class TestModernTUI:
+    """Test the ModernTUI class."""
 
     def test_init(self):
         """Test TUI initialization."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
         assert tui.console is not None
         assert tui.config_tui is not None
         assert tui.results_tui is not None
@@ -21,7 +21,7 @@ class TestUnifiedTUI:
 
     def test_show_welcome(self):
         """Test welcome banner display."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         with patch.object(tui.console, "print") as mock_print:
             tui._show_welcome()
@@ -30,17 +30,17 @@ class TestUnifiedTUI:
 
     def test_show_main_menu(self):
         """Test main menu display."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         with patch.object(tui.console, "print") as mock_print:
             tui._show_main_menu()
             # Should print menu panel
             assert mock_print.called
 
-    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.modern_tui.Prompt.ask")
     def test_get_menu_choice(self, mock_prompt):
         """Test menu choice input."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         mock_prompt.return_value = "1"
         choice = tui._get_menu_choice()
@@ -50,10 +50,10 @@ class TestUnifiedTUI:
         choice = tui._get_menu_choice()
         assert choice == "q"
 
-    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.modern_tui.Prompt.ask")
     def test_manage_deployments_add(self, mock_prompt):
         """Test managing deployments - add option."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         # User selects option 1 (add), then back
         mock_prompt.side_effect = ["1", ""]
@@ -66,10 +66,10 @@ class TestUnifiedTUI:
             tui._manage_deployments()
             mock_add.assert_called_once()
 
-    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.modern_tui.Prompt.ask")
     def test_manage_deployments_back(self, mock_prompt):
         """Test managing deployments - back option."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         # User selects back immediately
         mock_prompt.return_value = "b"
@@ -78,11 +78,11 @@ class TestUnifiedTUI:
             tui._manage_deployments()
             # Should return without calling any config_tui methods
 
-    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.modern_tui.Prompt.ask")
     @patch("cribl_hc.cli.commands.config.load_credentials")
     def test_run_health_check_no_deployments(self, mock_load, mock_prompt):
         """Test running health check with no configured deployments."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         mock_load.return_value = {}  # No deployments
         mock_prompt.return_value = ""  # Press enter to continue
@@ -96,12 +96,12 @@ class TestUnifiedTUI:
             ]
             assert len(no_deps_calls) > 0
 
-    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.modern_tui.Prompt.ask")
     @patch("cribl_hc.cli.commands.config.load_credentials")
-    @patch("cribl_hc.cli.unified_tui.asyncio.run")
+    @patch("cribl_hc.cli.modern_tui.asyncio.run")
     def test_run_health_check_success(self, mock_run, mock_load, mock_prompt):
         """Test running health check successfully."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         # Mock credentials
         mock_load.return_value = {"prod": {"url": "https://test.com", "token": "test-token"}}
@@ -136,11 +136,11 @@ class TestUnifiedTUI:
             # Should display results
             mock_display.assert_called_once_with(mock_analysis_run)
 
-    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.modern_tui.Prompt.ask")
     @patch("cribl_hc.cli.commands.config.load_credentials")
     def test_run_health_check_load_error(self, mock_load, mock_prompt):
         """Test running health check with credential load error."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         # Mock credential loading error
         mock_load.side_effect = Exception("Failed to load")
@@ -160,7 +160,7 @@ class TestUnifiedTUI:
     @pytest.mark.asyncio
     async def test_run_analysis_async_connection_failure(self):
         """Test async analysis with connection failure."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         # Mock failed connection
         mock_client = AsyncMock()
@@ -187,7 +187,7 @@ class TestUnifiedTUI:
 
         from cribl_hc.models.analysis import AnalysisRun
 
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         # Mock successful connection and analysis
         mock_client = AsyncMock()
@@ -229,10 +229,10 @@ class TestUnifiedTUI:
             assert result is not None
             assert result.deployment_id == "test-deploy"
 
-    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.modern_tui.Prompt.ask")
     def test_view_recent_results(self, mock_prompt):
         """Test viewing recent results (placeholder)."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         mock_prompt.return_value = ""  # Press enter to continue
 
@@ -240,10 +240,10 @@ class TestUnifiedTUI:
             tui._view_recent_results()
             # Just verify it doesn't crash - functionality is placeholder
 
-    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.modern_tui.Prompt.ask")
     def test_show_settings(self, mock_prompt):
         """Test showing settings (placeholder)."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         mock_prompt.return_value = ""  # Press enter to continue
 
@@ -253,7 +253,7 @@ class TestUnifiedTUI:
 
     def test_quit(self):
         """Test quit functionality."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         with patch.object(tui.console, "clear"), patch.object(tui.console, "print"):
             tui._quit()
@@ -261,12 +261,12 @@ class TestUnifiedTUI:
             # Should set running to False
             assert tui.running is False
 
-    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.modern_tui.Prompt.ask")
     @patch("cribl_hc.cli.commands.config.load_credentials")
-    @patch("cribl_hc.cli.unified_tui.asyncio.run")
+    @patch("cribl_hc.cli.modern_tui.asyncio.run")
     def test_run_health_check_select_by_number(self, mock_run, mock_load, mock_prompt):
         """Test selecting deployment by number."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         # Mock credentials with multiple deployments
         mock_load.return_value = {
@@ -304,12 +304,12 @@ class TestUnifiedTUI:
             # Should display results for "prod" (2nd in sorted list)
             mock_display.assert_called_once()
 
-    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.modern_tui.Prompt.ask")
     @patch("cribl_hc.cli.commands.config.load_credentials")
-    @patch("cribl_hc.cli.unified_tui.asyncio.run")
+    @patch("cribl_hc.cli.modern_tui.asyncio.run")
     def test_run_health_check_select_by_default(self, mock_run, mock_load, mock_prompt):
         """Test selecting deployment by pressing Enter (default)."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         # Mock credentials
         mock_load.return_value = {
@@ -347,11 +347,11 @@ class TestUnifiedTUI:
             # Should display results for default deployment
             mock_display.assert_called_once()
 
-    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.modern_tui.Prompt.ask")
     @patch("cribl_hc.cli.commands.config.load_credentials")
     def test_run_health_check_invalid_number_then_valid(self, mock_load, mock_prompt):
         """Test selecting deployment with invalid number, then valid selection."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         # Mock credentials
         mock_load.return_value = {"prod": {"url": "https://prod.com", "token": "prod-token"}}
@@ -372,11 +372,11 @@ class TestUnifiedTUI:
             ]
             assert len(error_calls) > 0
 
-    @patch("cribl_hc.cli.unified_tui.Prompt.ask")
+    @patch("cribl_hc.cli.modern_tui.Prompt.ask")
     @patch("cribl_hc.cli.commands.config.load_credentials")
     def test_run_health_check_invalid_name_then_valid(self, mock_load, mock_prompt):
         """Test selecting deployment with invalid name, then valid selection."""
-        tui = UnifiedTUI()
+        tui = ModernTUI()
 
         # Mock credentials
         mock_load.return_value = {"prod": {"url": "https://prod.com", "token": "prod-token"}}
@@ -398,7 +398,7 @@ class TestUnifiedTUI:
 
 #    def test_run_quit_immediately(self):
 #        """Test running TUI and quitting immediately."""
-#        tui = UnifiedTUI()
+#        tui = ModernTUI()
 #
 #        with patch.object(tui, "_show_welcome"), \
 #             patch.object(tui, "_show_main_menu"), \
