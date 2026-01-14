@@ -48,10 +48,10 @@ from __future__ import annotations
 import importlib
 import pkgutil
 from pathlib import Path
-from typing import Dict as DictType
-from typing import List as ListType
+from typing import Dict
+from typing import List
 from typing import Optional
-from typing import Type as TypeType
+from typing import Type
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.utils.logger import get_logger
