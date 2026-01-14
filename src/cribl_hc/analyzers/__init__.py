@@ -17,8 +17,12 @@ Available Objectives:
 - pipeline_performance: Pipeline efficiency, function analysis, bottleneck detection
 - lookup_health: Lookup table sizes, memory optimization, orphan detection
 - schema_quality: Parser analysis, regex optimization, schema mapping
+- schema_drift: Schema change detection, field disappearances, type changes
 - dataflow_topology: Route validation, connectivity checking, data path analysis
+- multi_deployment_comparison: Compare health analysis results across multiple deployments
+- advanced_security: Enhanced security analysis with healthcare codes, financial data, and compliance frameworks
 - alerting: Notification targets, alert configuration, alerting infrastructure health
+- end_to_end_freshness: End-to-end pipeline latency, processing time analysis
 - scripts: Script inventory and validation signals
 - lake_storage_locations: Lake storage location (BYOS) health
 - search_usage_groups: Search usage group allocation hygiene
@@ -331,6 +335,10 @@ __all__ = [
     "InputSourceAnalyzer",
     "OutputDestinationAnalyzer",
     "RoutePerformanceAnalyzer",
+    "SchemaDriftAnalyzer",
+    "EndToEndFreshnessAnalyzer",
+    "MultiDeploymentComparisonAnalyzer",
+    "AdvancedSecurityAnalyzer",
 ]
 
 

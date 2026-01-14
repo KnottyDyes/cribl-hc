@@ -98,7 +98,7 @@ class CostAnalyzer(BaseAnalyzer):
         return [
             "read:system",  # For license info
             "read:metrics",
-            "read:outputs"
+            "read:outputs",
         ]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
@@ -118,7 +118,9 @@ class CostAnalyzer(BaseAnalyzer):
         try:
             # Detect product type
             product_name = "Cribl Edge" if client.is_edge else "Cribl Stream"
-            log.info("cost_analysis_started", product=client.product_type, product_name=product_name)
+            log.info(
+                "cost_analysis_started", product=client.product_type, product_name=product_name
+            )
 
             # Fetch data
             license_info = await self._fetch_license_info(client)
@@ -140,17 +142,21 @@ class CostAnalyzer(BaseAnalyzer):
             self._generate_cost_recommendations(license_metrics, outputs, result)
 
             # Set metadata
-            result.metadata.update({
-                "product_type": client.product_type,
-                "license_allocated_gb": license_metrics.get("allocated_gb", 0),
-                "license_consumed_gb": license_metrics.get("consumed_gb", 0),
-                "license_consumption_pct": license_metrics.get("consumption_pct", 0),
-                "license_exhaustion_days": license_metrics.get("exhaustion_days"),
-                "growth_rate_gb_per_day": license_metrics.get("growth_rate_gb_per_day"),
-                "outputs_analyzed": len(outputs),
-                "total_bytes": sum(o.get("stats", {}).get("out_bytes_total", 0) for o in outputs),
-                "analyzed_at": datetime.utcnow().isoformat(),
-            })
+            result.metadata.update(
+                {
+                    "product_type": client.product_type,
+                    "license_allocated_gb": license_metrics.get("allocated_gb", 0),
+                    "license_consumed_gb": license_metrics.get("consumed_gb", 0),
+                    "license_consumption_pct": license_metrics.get("consumption_pct", 0),
+                    "license_exhaustion_days": license_metrics.get("exhaustion_days"),
+                    "growth_rate_gb_per_day": license_metrics.get("growth_rate_gb_per_day"),
+                    "outputs_analyzed": len(outputs),
+                    "total_bytes": sum(
+                        o.get("stats", {}).get("out_bytes_total", 0) for o in outputs
+                    ),
+                    "analyzed_at": datetime.utcnow().isoformat(),
+                }
+            )
 
             result.success = True
             log.info(
@@ -165,15 +171,17 @@ class CostAnalyzer(BaseAnalyzer):
         except Exception as e:
             log.error("cost_analysis_failed", error=str(e), exc_info=True)
             # Graceful degradation
-            result.metadata.update({
-                "product_type": getattr(client, "product_type", "unknown"),
-                "license_allocated_gb": 0,
-                "license_consumed_gb": 0,
-                "license_consumption_pct": 0,
-                "outputs_analyzed": 0,
-                "total_bytes": 0,
-                "error": str(e),
-            })
+            result.metadata.update(
+                {
+                    "product_type": getattr(client, "product_type", "unknown"),
+                    "license_allocated_gb": 0,
+                    "license_consumed_gb": 0,
+                    "license_consumption_pct": 0,
+                    "outputs_analyzed": 0,
+                    "total_bytes": 0,
+                    "error": str(e),
+                }
+            )
             result.success = True  # Graceful degradation
 
         return result
@@ -212,11 +220,7 @@ class CostAnalyzer(BaseAnalyzer):
         consumed_gb = license_info.get("current_daily_gb", 0)
 
         if allocated_gb == 0:
-            return {
-                "allocated_gb": 0,
-                "consumed_gb": 0,
-                "consumption_pct": 0
-            }
+            return {"allocated_gb": 0, "consumed_gb": 0, "consumption_pct": 0}
 
         consumption_pct = (consumed_gb / allocated_gb) * 100
 
@@ -224,7 +228,7 @@ class CostAnalyzer(BaseAnalyzer):
             "allocated_gb": allocated_gb,
             "consumed_gb": consumed_gb,
             "consumption_pct": consumption_pct,
-            "headroom_gb": allocated_gb - consumed_gb
+            "headroom_gb": allocated_gb - consumed_gb,
         }
 
         # Check for high utilization
@@ -448,7 +452,7 @@ class CostAnalyzer(BaseAnalyzer):
             output_id = output.get("id", "unknown")
             output_type = output.get("type", "unknown")
             bytes_total = output.get("stats", {}).get("out_bytes_total", 0)
-            gb_total = bytes_total / (1024 ** 3)
+            gb_total = bytes_total / (1024**3)
 
             # Get pricing for this output type
             output_pricing = pricing.get(output_type, {})
@@ -468,7 +472,9 @@ class CostAnalyzer(BaseAnalyzer):
                 "type": output_type,
                 "gb_total": gb_total,
                 "estimated_cost": cost,
-                "pricing_model": "storage" if "storage_cost_per_gb_month" in output_pricing else "ingest"
+                "pricing_model": "storage"
+                if "storage_cost_per_gb_month" in output_pricing
+                else "ingest",
             }
 
         if tco_by_dest:
@@ -496,7 +502,9 @@ class CostAnalyzer(BaseAnalyzer):
                 Recommendation(
                     id="cost-optimize-license-consumption",
                     type="cost",
-                    priority="p1" if consumption_pct >= self.CRITICAL_UTILIZATION_THRESHOLD_PCT else "p2",
+                    priority="p1"
+                    if consumption_pct >= self.CRITICAL_UTILIZATION_THRESHOLD_PCT
+                    else "p2",
                     title="Optimize License Consumption",
                     description=(
                         f"License utilization is at {consumption_pct:.1f}%. "
@@ -512,8 +520,12 @@ class CostAnalyzer(BaseAnalyzer):
                     ],
                     implementation_effort="medium",
                     impact_estimate=ImpactEstimate(
-                        cost_savings_annual=license_metrics.get("consumed_gb", 0) * 0.3 * 365 * 0.10 if license_metrics.get("consumed_gb", 0) > 0 else None,  # Est. 30% reduction * daily cost
+                        cost_savings_annual=license_metrics.get("consumed_gb", 0) * 0.3 * 365 * 0.10
+                        if license_metrics.get("consumed_gb", 0) > 0
+                        else 0,  # Est. 30% reduction * daily cost
                         performance_improvement="Reduces license costs and extends runway",
+                        storage_reduction_gb=0,
+                        time_to_implement="medium",
                     ),
                     before_state=f"License at {consumption_pct:.1f}% utilization",
                     after_state="License optimized to 60-70% utilization with headroom for growth",
@@ -542,6 +554,9 @@ class CostAnalyzer(BaseAnalyzer):
                     implementation_effort="low",
                     impact_estimate=ImpactEstimate(
                         performance_improvement="Prevents license exhaustion and data loss",
+                        cost_savings_annual=0,
+                        storage_reduction_gb=0,
+                        time_to_implement="low",
                     ),
                     before_state=f"License exhaustion in {exhaustion_days} day(s)",
                     after_state="License capacity sufficient for 6+ months of growth",
