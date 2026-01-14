@@ -506,7 +506,10 @@ class AlertingAnalyzer(BaseAnalyzer):
                     before_state="Alerts only sent to existing channels",
                     after_state="Critical alerts trigger PagerDuty incidents",
                     impact_estimate=ImpactEstimate(
-                        performance_improvement="Reduced MTTR through on-call integration"
+                        performance_improvement="Reduced MTTR through on-call integration",
+                        cost_savings_annual=0,
+                        storage_reduction_gb=0,
+                        time_to_implement="low",
                     ),
                     implementation_effort="low",
                     documentation_links=[
@@ -537,7 +540,12 @@ class AlertingAnalyzer(BaseAnalyzer):
                         "Link runbooks from alert messages where possible",
                         "Review and update runbooks regularly",
                     ],
-                    impact_estimate=ImpactEstimate(time_to_implement="2-4 hours"),
+                    impact_estimate=ImpactEstimate(
+                        time_to_implement="2-4 hours",
+                        cost_savings_annual=0,
+                        performance_improvement=None,
+                        storage_reduction_gb=0,
+                    ),
                     implementation_effort="medium",
                 )
             )
