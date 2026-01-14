@@ -1,6 +1,6 @@
 # Feature Research Report
 
-**Generated**: 2026-01-10  
+**Generated**: 2026-01-14  
 **Research Method**: Local docs analysis + API spec review + external research + recent implementation review  
 **Tool**: cribl-hc Feature Research Agent
 
@@ -9,10 +9,10 @@
 ## Executive Summary
 
 ### Current State
-- **21 analyzers** covering Stream, Edge, Lake, and Search products
+- **23 analyzers** covering Stream, Edge, Lake, and Search products
 - **~30 API endpoints** currently utilized
 - **Strong coverage** for health, config, resources, security, and compliance
-- **Recently added**: Sensitive data detection, data freshness monitoring
+- **Recently added**: Sensitive data detection, data freshness monitoring, schema drift detection, end-to-end freshness monitoring
 - **Recent UX improvements**: Grouped findings, worker group context
 
 ### Implementation Status
@@ -26,6 +26,8 @@
 | 🟡 P2 | API Key Lifecycle Management | MEDIUM | LOW | 📋 Planned |
 | 🟡 P2 | System Messages Surfacing | MEDIUM | LOW | 📋 Planned |
 | ~~🟢 P3~~ | ~~PII/PHI Leakage Detection~~ | ~~HIGH~~ | ~~HIGH~~ | ✅ **COMPLETE** |
+| ~~🟢 P3~~ | ~~Schema Drift Detection~~ | ~~MEDIUM~~ | ~~HIGH~~ | ✅ **COMPLETE** |
+| ~~🟢 P3~~ | ~~End-to-End Freshness Monitor~~ | ~~MEDIUM~~ | ~~HIGH~~ | ✅ **COMPLETE** |
 | 🟢 P3 | Report Branding/Customization | MEDIUM | HIGH | 📋 Planned |
 | 🟢 P3 | Multi-Deployment Comparison | HIGH | HIGH | 📋 Planned |
 
@@ -53,6 +55,66 @@
 **API Endpoints**: Uses event sampling (not direct API endpoint)
 
 **Location**: `src/cribl_hc/analyzers/sensitive_data.py`
+
+---
+
+### ✅ Schema Drift Detection (P3 - COMPLETE)
+
+**Status**: Implemented as **SchemaDriftAnalyzer**
+
+**Original Priority**: P3 (MEDIUM value, HIGH effort)
+**Actual Effort**: Medium (implemented in Phase 12 update)
+
+**Features Delivered**:
+- Critical field disappearance detection (<80% presence rate)
+- Field type inconsistency identification
+- Schema consistency validation across sources
+- New field introduction monitoring
+- Severity-based findings with remediation steps
+
+**Value**: Prevents downstream data pipeline breakage from schema changes, enables proactive monitoring of data structure evolution
+
+**API Endpoints**: Uses event sampling (not direct API endpoint)
+
+**Location**: `src/cribl_hc/analyzers/schema_drift.py`
+
+---
+
+### ✅ End-to-End Freshness Monitor (P3 - COMPLETE)
+
+**Status**: Implemented as **EndToEndFreshnessAnalyzer**
+
+**Original Priority**: P3 (MEDIUM value, HIGH effort)
+**Actual Effort**: Medium (implemented in Phase 12 update)
+
+**Features Delivered**:
+- Pipeline latency calculation (input timestamp → output timestamp)
+- Critical latency detection (>2 minutes) and high latency (>30 seconds)
+- Pipeline bottleneck identification (3x slower than average)
+- Multiple input timestamp field support (input_time, _input_time, ingest_time, etc.)
+- Comprehensive latency statistics and reporting
+
+**Value**: Identifies silent pipeline lag issues, measures true end-to-end data freshness, enables performance optimization
+
+**API Endpoints**: Uses event sampling (not direct API endpoint)
+
+**Location**: `src/cribl_hc/analyzers/end_to_end_freshness.py`
+
+---
+
+### ✅ Schema Drift Detection (January 2026)
+
+**Status**: Implemented as **SchemaDriftAnalyzer**
+
+**Priority**: P3 feature from original research (completed in Phase 12 update)
+
+---
+
+### ✅ End-to-End Freshness Monitor (January 2026)
+
+**Status**: Implemented as **EndToEndFreshnessAnalyzer**
+
+**Priority**: P3 feature from original research (completed in Phase 12 update)
 
 ---
 
@@ -189,12 +251,12 @@
 
 | Category | Analyzers | Notes |
 |----------|-----------|-------|
-| Health & Monitoring | HealthAnalyzer, LakeHealthAnalyzer, SearchHealthAnalyzer, FreshnessAnalyzer | ✅ **Freshness added** |
+| Health & Monitoring | HealthAnalyzer, LakeHealthAnalyzer, SearchHealthAnalyzer, FreshnessAnalyzer, EndToEndFreshnessAnalyzer | ✅ **Freshness monitoring enhanced** |
 | Configuration | ConfigAnalyzer, VersionControlAnalyzer | Basic config validation |
 | Resources | ResourceAnalyzer, StorageAnalyzer, LakeStorageAnalyzer | CPU/memory/disk covered |
 | Performance | BackpressureAnalyzer, PipelinePerformanceAnalyzer, SearchPerformanceAnalyzer | Pipeline metrics good |
 | Security | SecurityAnalyzer, SensitiveDataAnalyzer | ✅ **PII/PHI detection added** |
-| Data Quality | LookupHealthAnalyzer, SchemaQualityAnalyzer, DataFlowTopologyAnalyzer | Schema & routing covered |
+| Data Quality | LookupHealthAnalyzer, SchemaQualityAnalyzer, SchemaDriftAnalyzer, DataFlowTopologyAnalyzer | ✅ **Schema drift detection added** |
 | Alerting | AlertingAnalyzer | Target validation implemented |
 | Fleet | FleetAnalyzer | Config drift detection implemented |
 | Cost | CostAnalyzer | License tracking |
@@ -487,6 +549,7 @@ From Core API spec, these endpoints are available but not used:
 | ConfigAnalyzer | config | stream,edge | pipelines, routes, outputs, inputs |
 | CostAnalyzer | cost | stream | license_info |
 | DataFlowTopologyAnalyzer | dataflow_topology | stream,edge | routes, pipelines, outputs |
+| EndToEndFreshnessAnalyzer | end_to_end_freshness | stream,edge | event sampling |
 | FleetAnalyzer | fleet | stream,edge,lake,search | workers, worker_groups |
 | **FreshnessAnalyzer** ✨ | **freshness** | **stream,edge** | **event sampling** |
 | HealthAnalyzer | health | stream,edge | workers, system_status |
@@ -496,6 +559,7 @@ From Core API spec, these endpoints are available but not used:
 | PipelinePerformanceAnalyzer | pipeline_performance | stream,edge | pipelines, metrics |
 | PredictiveAnalyzer | predictive | stream,edge,lake,search | metrics, workers |
 | ResourceAnalyzer | resource | stream,edge | workers, metrics |
+| SchemaDriftAnalyzer | schema_drift | stream,edge | event sampling |
 | SchemaQualityAnalyzer | schema_quality | stream,edge | pipelines, parsers |
 | SearchHealthAnalyzer | search | search | search_jobs, search_dashboards |
 | SearchPerformanceAnalyzer | search | search | search_jobs |
@@ -504,7 +568,7 @@ From Core API spec, these endpoints are available but not used:
 | StorageAnalyzer | storage | stream,edge | outputs, destinations |
 | VersionControlAnalyzer | version_control | stream,edge,lake,search,core | version_info, uncommitted_files |
 
-**Total**: 21 analyzers (2 added in January 2026: FreshnessAnalyzer ✨, SensitiveDataAnalyzer ✨)
+**Total**: 23 analyzers (4 added in January 2026: FreshnessAnalyzer ✨, SensitiveDataAnalyzer ✨, SchemaDriftAnalyzer ✨, EndToEndFreshnessAnalyzer ✨)
 
 ---
 
@@ -544,8 +608,8 @@ From Core API spec, these endpoints are available but not used:
 **Data Quality & Observability**:
 | Feature | Description | Value |
 |---------|-------------|-------|
-| End-to-End Freshness Monitor | Calculate delta between event creation and output time | Identifies silent lag |
-| Schema Drift Detection | Alert if critical fields disappear or change type | Prevents downstream breakage |
+| End-to-End Freshness Monitor | Calculate delta between event creation and output time | ✅ **IMPLEMENTED** |
+| Schema Drift Detection | Alert if critical fields disappear or change type | ✅ **IMPLEMENTED** |
 | Lookup Table Staleness | Check last-updated metadata for enrichment sources | Prevents stale enrichment |
 
 **Cost Management**:
@@ -611,38 +675,40 @@ From Core API spec, these endpoints are available but not used:
    - Remaining: Route filter and input-to-pipeline filter validation
    - Estimated Completion: < 1 hour
 
-### ⭕ Phase B: Enterprise Operations (PLANNED)
+### 🟢 Phase B: Enterprise Operations (IN PROGRESS)
 
-**Planned Features (6 features)**:
+**Completed Features (2/8 features)**:
 
-1. **Multi-Deployment Comparison**
+1. **Schema Drift Detection** ✅
+   - Monitor field changes in sources
+   - Prevent downstream breakage
+   - Status: Production Ready
+
+2. **End-to-End Freshness Monitor** ✅
+   - Calculate pipeline latency
+   - Identify silent lag issues
+   - Status: Production Ready
+
+**Remaining Planned Features (6 features)**:
+
+3. **Multi-Deployment Comparison**
    - Compare prod vs. dev, staging vs. prod
    - Identify configuration parity issues
    - Estimated Effort: 12 hours
 
-2. **Historical Data Persistence**
+4. **Historical Data Persistence**
    - Trend analysis over time
    - SQLite or JSON-based storage
    - Estimated Effort: 8 hours
 
-3. **Scheduled Health Checks**
+5. **Scheduled Health Checks**
    - Daemon mode or cron integration
    - Periodic report generation
    - Estimated Effort: 6 hours
 
-4. **PII/PHI Leakage Detection**
+6. **PII/PHI Leakage Detection**
    - Sample data flows for sensitive patterns
    - SOC2/HIPAA compliance support
-   - Estimated Effort: 10 hours
-
-5. **Schema Drift Detection**
-   - Monitor field changes in sources
-   - Prevent downstream breakage
-   - Estimated Effort: 8 hours
-
-6. **End-to-End Freshness Monitor**
-   - Calculate pipeline latency
-   - Identify silent lag issues
    - Estimated Effort: 10 hours
 
 ### Phase Metrics
@@ -650,13 +716,14 @@ From Core API spec, these endpoints are available but not used:
 | Metric | Value |
 |--------|-------|
 | **Phase A Completion** | 75% (9/12 complete) |
-| **Total Analyzers** | 19 |
+| **Phase B Completion** | 25% (2/8 complete) |
+| **Total Analyzers** | 23 |
 | **API Endpoints Used** | 31 |
-| **Test Cases** | 258+ |
+| **Test Cases** | 279+ |
 | **Code Coverage** | High |
-| **Production Ready** | 9 features |
+| **Production Ready** | 11 features |
 | **In Development** | 1 feature (90%) |
-| **Planned** | 6+ features |
+| **Planned** | 4+ features |
 
 ---
 
@@ -673,11 +740,11 @@ Based on combined local + external research:
 | 🟡 P2 | API Key Lifecycle Management | MEDIUM | LOW | ✅ COMPLETE |
 | 🟡 P2 | System Messages Surfacing | MEDIUM | LOW | ✅ COMPLETE |
 | 🟡 P2 | Regex Efficiency Analyzer | HIGH | MEDIUM | 🟧 90% COMPLETE |
+| 🟢 P3 | PII/PHI Leakage Detection | HIGH | HIGH | ✅ COMPLETE |
+| 🟢 P3 | Schema Drift Detection | MEDIUM | HIGH | ✅ COMPLETE |
+| 🟢 P3 | End-to-End Freshness Monitor | MEDIUM | HIGH | ✅ COMPLETE |
 | 🟢 P3 | Multi-Deployment Comparison | HIGH | HIGH | ⭕ PLANNED |
 | 🟢 P3 | Historical Data Persistence | MEDIUM | MEDIUM | ⭕ PLANNED |
-| 🟢 P3 | PII/PHI Leakage Detection | HIGH | HIGH | ⭕ PLANNED |
-| 🟢 P3 | Schema Drift Detection | MEDIUM | HIGH | ⭕ PLANNED |
-| 🟢 P3 | End-to-End Freshness Monitor | MEDIUM | HIGH | ⭕ PLANNED |
 
 ---
 
@@ -703,6 +770,6 @@ Based on combined local + external research:
 
 ---
 
-*Report generated by /research.features skill*  
+*Report generated by /research.features skill*
 *External research: Cribl docs, CriblVision pack, industry observability tools*
-*Last Updated: 2025-01-10*
+*Last Updated: 2026-01-14*

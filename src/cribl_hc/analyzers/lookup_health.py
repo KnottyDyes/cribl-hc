@@ -306,7 +306,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
         referenced: set[str]
     ) -> None:
         """Check for lookup tables not referenced by any pipeline."""
-        lookup_ids = {l.get("id", "") for l in lookups if l.get("id")}
+        lookup_ids = {lookup.get("id", "") for lookup in lookups if lookup.get("id")}
         orphaned = lookup_ids - referenced
 
         if orphaned:
@@ -348,7 +348,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
         referenced: set[str]
     ) -> None:
         """Check for lookups referenced in pipelines but not defined."""
-        lookup_ids = {l.get("id", "") for l in lookups if l.get("id")}
+        lookup_ids = {lookup.get("id", "") for lookup in lookups if lookup.get("id")}
         missing = referenced - lookup_ids
 
         # Filter out common false positives (variables, empty strings)
@@ -479,8 +479,8 @@ class LookupHealthAnalyzer(BaseAnalyzer):
         disk_lookups: list[dict[str, Any]]
     ) -> None:
         """Add summary finding for lookup health."""
-        total_size = sum(l.get("size", 0) for l in lookups)
-        memory_size = sum(l.get("size", 0) for l in memory_lookups)
+        total_size = sum(lookup.get("size", 0) for lookup in lookups)
+        memory_size = sum(lookup.get("size", 0) for lookup in memory_lookups)
         total_mb = total_size / (1024 * 1024)
         memory_mb = memory_size / (1024 * 1024)
 
