@@ -3,7 +3,7 @@ Analyzes license consumption patterns, drop rule effectiveness, and licensing ef
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -45,7 +45,7 @@ class DropRuleAnalysis(BaseModel):
 
     pipeline_id: str
     pipeline_name: str
-    drop_conditions: List[str] = Field(default_factory=list)
+    drop_conditions: list[str] = Field(default_factory=list)
     estimated_dropped_events: int = 0
     effectiveness_score: float = 0.0  # 0-100, higher is better
     complexity_score: int = 0  # Rough complexity metric
@@ -101,7 +101,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
     def get_description(self) -> str:
         return "Analyzes license consumption patterns and identifies optimization opportunities."
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:license", "read:metrics", "read:pipelines", "read:routes", "read:system"]
 
     @property
@@ -119,7 +119,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
             current_license = await self._get_current_license_status(client)
             license_history = await self._get_license_history(client)
             pipelines = await client.get_pipelines()
-            routes = await client.get_routes()
+            await client.get_routes()
             system_metrics = await client.get_metrics()
 
             if not current_license:
@@ -192,7 +192,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
             self.log.debug(f"Could not fetch license status: {e}")
             return None
 
-    async def _get_license_history(self, client: CriblAPIClient) -> List[LicenseMetrics]:
+    async def _get_license_history(self, client: CriblAPIClient) -> list[LicenseMetrics]:
         """Get historical license usage data."""
         history = []
 
@@ -229,7 +229,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
         self,
         result: AnalyzerResult,
         current: LicenseMetrics,
-        history: List[LicenseMetrics],
+        history: list[LicenseMetrics],
         client: CriblAPIClient,
     ) -> None:
         """Analyze risk of license exhaustion."""
@@ -283,7 +283,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
                 )
 
     def _predict_exhaustion_days(
-        self, current: LicenseMetrics, history: List[LicenseMetrics]
+        self, current: LicenseMetrics, history: list[LicenseMetrics]
     ) -> int:
         """Predict days until license exhaustion based on trends."""
         if not history or len(history) < 3:
@@ -306,7 +306,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
         return 30  # Conservative estimate
 
     def _analyze_drop_rule_effectiveness(
-        self, result: AnalyzerResult, pipelines: List[Dict[str, Any]], client: CriblAPIClient
+        self, result: AnalyzerResult, pipelines: list[dict[str, Any]], client: CriblAPIClient
     ) -> None:
         """Analyze effectiveness of drop rules in pipelines."""
         drop_analyses = []
@@ -367,7 +367,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
                 )
             )
 
-    def _analyze_pipeline_drop_rules(self, pipeline: Dict[str, Any]) -> Optional[DropRuleAnalysis]:
+    def _analyze_pipeline_drop_rules(self, pipeline: dict[str, Any]) -> Optional[DropRuleAnalysis]:
         """Analyze drop rules within a single pipeline."""
         config = pipeline.get("config", {})
         steps = config.get("steps", [])
@@ -428,8 +428,8 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
     def _analyze_processing_efficiency(
         self,
         result: AnalyzerResult,
-        pipelines: List[Dict[str, Any]],
-        system_metrics: Dict[str, Any],
+        pipelines: list[dict[str, Any]],
+        system_metrics: dict[str, Any],
         client: CriblAPIClient,
     ) -> None:
         """Analyze processing efficiency and resource usage."""
@@ -486,8 +486,8 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
             )
 
     def _extract_pipeline_metrics(
-        self, pipelines: List[Dict[str, Any]], system_metrics: Dict[str, Any]
-    ) -> List[PipelineMetrics]:
+        self, pipelines: list[dict[str, Any]], system_metrics: dict[str, Any]
+    ) -> list[PipelineMetrics]:
         """Extract processing metrics for pipelines."""
         metrics_list = []
 
@@ -515,7 +515,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
         self,
         result: AnalyzerResult,
         license: LicenseMetrics,
-        pipelines: List[Dict[str, Any]],
+        pipelines: list[dict[str, Any]],
         client: CriblAPIClient,
     ) -> None:
         """Identify specific cost optimization opportunities."""
@@ -565,7 +565,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
         self,
         result: AnalyzerResult,
         current: LicenseMetrics,
-        history: List[LicenseMetrics],
+        history: list[LicenseMetrics],
         client: CriblAPIClient,
     ) -> None:
         """Provide overall assessment of license health."""
@@ -595,7 +595,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
             )
 
     def _calculate_license_health_score(
-        self, current: LicenseMetrics, history: List[LicenseMetrics]
+        self, current: LicenseMetrics, history: list[LicenseMetrics]
     ) -> int:
         """Calculate overall license health score (0-100)."""
         score = 100

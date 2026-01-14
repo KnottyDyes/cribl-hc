@@ -311,8 +311,8 @@ class LookupHealthAnalyzer(BaseAnalyzer):
 
         if orphaned:
             total_size = sum(
-                l.get("size", 0) for l in lookups
-                if l.get("id") in orphaned
+                lookup.get("size", 0) for lookup in lookups
+                if lookup.get("id") in orphaned
             )
             total_size_mb = total_size / (1024 * 1024)
 
@@ -439,7 +439,7 @@ class LookupHealthAnalyzer(BaseAnalyzer):
 
     def _check_mmdb_lookups(self, result: AnalyzerResult, lookups: list[dict[str, Any]]) -> None:
         """Check MMDB (MaxMind database) lookup health."""
-        mmdb_lookups = [l for l in lookups if l.get("id", "").endswith(".mmdb")]
+        mmdb_lookups = [lookup for lookup in lookups if lookup.get("id", "").endswith(".mmdb")]
 
         for lookup in mmdb_lookups:
             lookup_id = lookup.get("id", "unknown")

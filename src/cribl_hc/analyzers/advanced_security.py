@@ -7,7 +7,7 @@ custom compliance frameworks, and advanced threat detection capabilities.
 
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Set
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -20,8 +20,8 @@ class ComplianceFramework:
 
     name: str
     description: str
-    required_patterns: List[str]
-    severity_mapping: Dict[str, str]
+    required_patterns: list[str]
+    severity_mapping: dict[str, str]
     remediation_guidance: str
 
 
@@ -137,8 +137,8 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
         """Initialize the advanced security analyzer."""
         super().__init__()
         self.log = get_logger(__name__)
-        self.custom_patterns: List[CustomPattern] = self._load_custom_patterns()
-        self.active_frameworks: Set[str] = set()
+        self.custom_patterns: list[CustomPattern] = self._load_custom_patterns()
+        self.active_frameworks: set[str] = set()
 
     @property
     def objective_name(self) -> str:
@@ -171,7 +171,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
         """Return required API permissions."""
         return ["read:system", "execute:capture"]
 
-    def _load_custom_patterns(self) -> List[CustomPattern]:
+    def _load_custom_patterns(self) -> list[CustomPattern]:
         """
         Load custom sensitive data patterns from configuration file.
         """
@@ -302,7 +302,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
 
         return result
 
-    def _analyze_healthcare_patterns(self, events: List[Dict[str, Any]]) -> List[Any]:
+    def _analyze_healthcare_patterns(self, events: list[dict[str, Any]]) -> list[Any]:
         """Analyze healthcare data patterns in events."""
         findings = []
 
@@ -347,7 +347,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
 
         return findings
 
-    def _analyze_financial_patterns(self, events: List[Dict[str, Any]]) -> List[Any]:
+    def _analyze_financial_patterns(self, events: list[dict[str, Any]]) -> list[Any]:
         """Analyze financial data patterns in events."""
         findings = []
 
@@ -392,7 +392,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
 
         return findings
 
-    def _analyze_compliance_frameworks(self, events: List[Dict[str, Any]]) -> List[Any]:
+    def _analyze_compliance_frameworks(self, events: list[dict[str, Any]]) -> list[Any]:
         """Analyze compliance with various frameworks."""
         findings = []
 
@@ -410,7 +410,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
 
         return findings
 
-    def _check_hipaa_compliance(self, events: List[Dict[str, Any]]) -> List[Any]:
+    def _check_hipaa_compliance(self, events: list[dict[str, Any]]) -> list[Any]:
         """Check HIPAA compliance requirements."""
         findings = []
 
@@ -464,7 +464,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
                             "compliance_framework": "HIPAA",
                             "unencrypted_instances": len(unencrypted_healthcare),
                             "affected_fields": len(
-                                set(field for field, _ in unencrypted_healthcare)
+                                {field for field, _ in unencrypted_healthcare}
                             ),
                         },
                     )
@@ -472,7 +472,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
 
         return findings
 
-    def _check_soc2_compliance(self, events: List[Dict[str, Any]]) -> List[Any]:
+    def _check_soc2_compliance(self, events: list[dict[str, Any]]) -> list[Any]:
         """Check SOC 2 compliance requirements."""
         findings = []
 
@@ -515,7 +515,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
 
         return findings
 
-    def _check_gdpr_compliance(self, events: List[Dict[str, Any]]) -> List[Any]:
+    def _check_gdpr_compliance(self, events: list[dict[str, Any]]) -> list[Any]:
         """Check GDPR compliance requirements."""
         findings = []
 
@@ -574,7 +574,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
 
         return findings
 
-    def _analyze_custom_patterns(self, events: List[Dict[str, Any]]) -> List[Any]:
+    def _analyze_custom_patterns(self, events: list[dict[str, Any]]) -> list[Any]:
         """Analyze custom sensitive data patterns."""
         findings = []
 
@@ -615,8 +615,8 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
         return findings
 
     def _generate_security_summary(
-        self, events: List[Dict[str, Any]], all_findings: List[Any]
-    ) -> List[Any]:
+        self, events: list[dict[str, Any]], all_findings: list[Any]
+    ) -> list[Any]:
         """Generate summary findings for security analysis."""
         findings = []
 

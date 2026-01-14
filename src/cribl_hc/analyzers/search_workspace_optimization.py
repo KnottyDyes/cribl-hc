@@ -2,8 +2,9 @@
 Analyzes Cribl Search workspace organization, saved search usage patterns, and dashboard efficiency.
 """
 
+import contextlib
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -42,8 +43,8 @@ class DashboardInfo(BaseModel):
 
     id: str
     name: str
-    panels: List[Dict[str, Any]] = Field(default_factory=list)
-    queries: List[str] = Field(default_factory=list)
+    panels: list[dict[str, Any]] = Field(default_factory=list)
+    queries: list[str] = Field(default_factory=list)
     last_accessed: Optional[datetime] = None
     access_count: int = 0
 
@@ -89,7 +90,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
     def get_description(self) -> str:
         return "Analyzes Search workspace organization, saved search patterns, and dashboard efficiency for optimization opportunities."
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return [
             "read:search",
             "read:datasets",
@@ -150,7 +151,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _get_saved_searches(self, client: CriblAPIClient) -> List[SavedSearchInfo]:
+    async def _get_saved_searches(self, client: CriblAPIClient) -> list[SavedSearchInfo]:
         """Fetch saved searches with metadata."""
         searches = []
 
@@ -165,16 +166,12 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
                 last_run = None
 
                 if created_str := search_item.get("createdAt"):
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         created_at = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
-                    except (ValueError, TypeError):
-                        pass
 
                 if last_run_str := search_item.get("lastExecuted"):
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         last_run = datetime.fromisoformat(last_run_str.replace("Z", "+00:00"))
-                    except (ValueError, TypeError):
-                        pass
 
                 search = SavedSearchInfo(
                     id=search_item.get("id", ""),
@@ -194,7 +191,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
 
         return searches
 
-    async def _get_dashboards(self, client: CriblAPIClient) -> List[DashboardInfo]:
+    async def _get_dashboards(self, client: CriblAPIClient) -> list[DashboardInfo]:
         """Fetch dashboards with panel and query analysis."""
         dashboards = []
 
@@ -214,10 +211,8 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
                 # Parse last accessed timestamp
                 last_accessed = None
                 if accessed_str := dash_item.get("lastAccessed"):
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         last_accessed = datetime.fromisoformat(accessed_str.replace("Z", "+00:00"))
-                    except (ValueError, TypeError):
-                        pass
 
                 dashboard = DashboardInfo(
                     id=dash_item.get("id", ""),
@@ -234,7 +229,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
 
         return dashboards
 
-    async def _get_datasets(self, client: CriblAPIClient) -> List[DatasetInfo]:
+    async def _get_datasets(self, client: CriblAPIClient) -> list[DatasetInfo]:
         """Fetch datasets with usage statistics."""
         datasets = []
 
@@ -246,10 +241,8 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
                 # Parse last accessed timestamp
                 last_accessed = None
                 if accessed_str := ds_item.get("lastAccessed"):
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         last_accessed = datetime.fromisoformat(accessed_str.replace("Z", "+00:00"))
-                    except (ValueError, TypeError):
-                        pass
 
                 dataset = DatasetInfo(
                     name=ds_item.get("name", ""),
@@ -266,7 +259,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
 
         return datasets
 
-    async def _get_workspace_audit(self, client: CriblAPIClient) -> Dict[str, Any]:
+    async def _get_workspace_audit(self, client: CriblAPIClient) -> dict[str, Any]:
         """Fetch workspace audit logs for usage analysis."""
         audit_data = {}
 
@@ -279,7 +272,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
         return {"entries": audit_data}
 
     def _analyze_saved_search_efficiency(
-        self, result: AnalyzerResult, searches: List[SavedSearchInfo], client: CriblAPIClient
+        self, result: AnalyzerResult, searches: list[SavedSearchInfo], client: CriblAPIClient
     ) -> None:
         """Analyze saved search efficiency and optimization opportunities."""
         for search in searches:
@@ -349,7 +342,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
                 )
 
     def _analyze_dashboard_optimization(
-        self, result: AnalyzerResult, dashboards: List[DashboardInfo], client: CriblAPIClient
+        self, result: AnalyzerResult, dashboards: list[DashboardInfo], client: CriblAPIClient
     ) -> None:
         """Analyze dashboard efficiency and optimization opportunities."""
         for dashboard in dashboards:
@@ -399,7 +392,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
                 )
 
     def _analyze_dataset_utilization(
-        self, result: AnalyzerResult, datasets: List[DatasetInfo], client: CriblAPIClient
+        self, result: AnalyzerResult, datasets: list[DatasetInfo], client: CriblAPIClient
     ) -> None:
         """Analyze dataset utilization and identify unused datasets."""
         for dataset in datasets:
@@ -429,8 +422,8 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
     def _check_workspace_organization(
         self,
         result: AnalyzerResult,
-        searches: List[SavedSearchInfo],
-        dashboards: List[DashboardInfo],
+        searches: list[SavedSearchInfo],
+        dashboards: list[DashboardInfo],
         client: CriblAPIClient,
     ) -> None:
         """Check workspace organization and naming consistency."""
@@ -499,8 +492,8 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
     def _assess_cost_efficiency(
         self,
         result: AnalyzerResult,
-        searches: List[SavedSearchInfo],
-        audit_data: Dict[str, Any],
+        searches: list[SavedSearchInfo],
+        audit_data: dict[str, Any],
         client: CriblAPIClient,
     ) -> None:
         """Assess overall cost efficiency of the Search workspace."""

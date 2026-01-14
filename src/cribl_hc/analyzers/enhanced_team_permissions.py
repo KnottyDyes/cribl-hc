@@ -2,8 +2,9 @@
 Analyzes team structure and permission configurations to identify security risks and optimization opportunities.
 """
 
+import contextlib
 from datetime import datetime
-from typing import Dict, List, Optional, Set
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -17,8 +18,8 @@ class UserInfo(BaseModel):
 
     id: str
     username: str
-    roles: List[str] = Field(default_factory=list)
-    teams: List[str] = Field(default_factory=list)
+    roles: list[str] = Field(default_factory=list)
+    teams: list[str] = Field(default_factory=list)
     last_login: Optional[datetime] = None
     created_at: Optional[datetime] = None
     is_active: bool = True
@@ -32,8 +33,8 @@ class UserInfo(BaseModel):
     @property
     def has_write_access(self) -> bool:
         """Check if user has write/modify permissions."""
-        write_indicators = {"write", "modify", "admin", "editor", "manager"}
-        return any(indicator in role.lower() for role in self.roles)
+        write_roles = {"write", "edit", "modify", "update"}
+        return any(role.lower() in write_roles for role in self.roles)
 
     @property
     def days_since_last_login(self) -> Optional[int]:
@@ -48,7 +49,7 @@ class RoleDefinition(BaseModel):
 
     id: str
     name: str
-    permissions: List[str] = Field(default_factory=list)
+    permissions: list[str] = Field(default_factory=list)
     description: Optional[str] = None
 
     @property
@@ -63,7 +64,7 @@ class TeamInfo(BaseModel):
 
     id: str
     name: str
-    members: List[str] = Field(default_factory=list)  # user IDs
+    members: list[str] = Field(default_factory=list)  # user IDs
     description: Optional[str] = None
 
     @property
@@ -76,7 +77,7 @@ class PermissionUsage(BaseModel):
     """Tracks permission usage patterns."""
 
     permission: str
-    users_with_access: Set[str] = Field(default_factory=set)
+    users_with_access: set[str] = Field(default_factory=set)
     last_used: Optional[datetime] = None
     usage_count: int = 0
 
@@ -94,10 +95,10 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     def get_description(self) -> str:
         return "Analyzes team structure and permission configurations for security risks and optimization opportunities."
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:auth", "read:users", "read:roles", "read:teams", "read:audit"]
 
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         return ["stream", "edge", "lake", "search"]  # Applies to all products
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
@@ -141,7 +142,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _get_users(self, client: CriblAPIClient) -> List[UserInfo]:
+    async def _get_users(self, client: CriblAPIClient) -> list[UserInfo]:
         """Fetch all users and their role information."""
         try:
             users_data = await client.get("auth/users")
@@ -151,18 +152,14 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                 # Parse last login if available
                 last_login = None
                 if login_str := user_data.get("lastLogin"):
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         last_login = datetime.fromisoformat(login_str.replace("Z", "+00:00"))
-                    except (ValueError, TypeError):
-                        pass
 
                 # Parse creation date if available
                 created_at = None
                 if created_str := user_data.get("createdAt"):
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         created_at = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
-                    except (ValueError, TypeError):
-                        pass
 
                 user = UserInfo(
                     id=user_data.get("id", ""),
@@ -181,7 +178,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
             self.log.warning(f"Failed to fetch users: {e}")
             return []
 
-    async def _get_roles(self, client: CriblAPIClient) -> List[RoleDefinition]:
+    async def _get_roles(self, client: CriblAPIClient) -> list[RoleDefinition]:
         """Fetch all role definitions and their permissions."""
         try:
             roles_data = await client.get("auth/roles")
@@ -202,7 +199,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
             self.log.warning(f"Failed to fetch roles: {e}")
             return []
 
-    async def _get_teams(self, client: CriblAPIClient) -> List[TeamInfo]:
+    async def _get_teams(self, client: CriblAPIClient) -> list[TeamInfo]:
         """Fetch all teams and their memberships."""
         try:
             teams_data = await client.get("auth/teams")
@@ -223,7 +220,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
             self.log.warning(f"Failed to fetch teams: {e}")
             return []
 
-    async def _get_permission_usage(self, client: CriblAPIClient) -> Dict[str, PermissionUsage]:
+    async def _get_permission_usage(self, client: CriblAPIClient) -> dict[str, PermissionUsage]:
         """Fetch permission usage patterns from audit logs."""
         usage_map = {}
 
@@ -264,7 +261,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
         return usage_map
 
     def _check_overly_permissive_admins(
-        self, result: AnalyzerResult, users: List[UserInfo]
+        self, result: AnalyzerResult, users: list[UserInfo]
     ) -> None:
         """Check for overly permissive admin users."""
         admin_users = [u for u in users if u.has_admin_access and u.is_active]
@@ -311,8 +308,8 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     def _check_unused_high_privilege_permissions(
         self,
         result: AnalyzerResult,
-        users: List[UserInfo],
-        permission_usage: Dict[str, PermissionUsage],
+        users: list[UserInfo],
+        permission_usage: dict[str, PermissionUsage],
     ) -> None:
         """Check for unused high-privilege permissions."""
         high_privilege_perms = {
@@ -354,7 +351,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                     )
 
     def _check_permission_drift(
-        self, result: AnalyzerResult, users: List[UserInfo], roles: List[RoleDefinition]
+        self, result: AnalyzerResult, users: list[UserInfo], roles: list[RoleDefinition]
     ) -> None:
         """Check for permission drift from standard role definitions."""
         # Group users by role patterns
@@ -388,7 +385,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                 )
 
     def _check_team_membership_hygiene(
-        self, result: AnalyzerResult, users: List[UserInfo], teams: List[TeamInfo]
+        self, result: AnalyzerResult, users: list[UserInfo], teams: list[TeamInfo]
     ) -> None:
         """Check team membership patterns and hygiene."""
         active_users = [u for u in users if u.is_active]
@@ -467,7 +464,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
             )
 
     def _check_role_consistency(
-        self, result: AnalyzerResult, users: List[UserInfo], roles: List[RoleDefinition]
+        self, result: AnalyzerResult, users: list[UserInfo], roles: list[RoleDefinition]
     ) -> None:
         """Check for role consistency and patterns."""
         # Count users per role
@@ -504,9 +501,9 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     def _analyze_security_posture(
         self,
         result: AnalyzerResult,
-        users: List[UserInfo],
-        roles: List[RoleDefinition],
-        teams: List[TeamInfo],
+        users: list[UserInfo],
+        roles: list[RoleDefinition],
+        teams: list[TeamInfo],
     ) -> None:
         """Perform overall security posture analysis."""
         active_users = [u for u in users if u.is_active]
@@ -514,7 +511,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
 
         # Calculate security metrics
         admin_ratio = len(admin_users) / len(active_users) if active_users else 0
-        users_without_teams = len([u for u in active_users if not u.teams])
+        len([u for u in active_users if not u.teams])
 
         # Critical: Too many admins
         if admin_ratio > 0.1:  # More than 10% admins
@@ -555,7 +552,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
             )
 
     def _calculate_security_score(
-        self, users: List[UserInfo], roles: List[RoleDefinition], teams: List[TeamInfo]
+        self, users: list[UserInfo], roles: list[RoleDefinition], teams: list[TeamInfo]
     ) -> int:
         """Calculate an overall security score based on various factors."""
         score = 100

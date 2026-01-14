@@ -76,8 +76,6 @@ class TestLibraryAndResourceAnalyzer:
             ]
         }
 
-        pipelines_data = {"items": []}  # No pipelines using the function
-        routes_data = {"items": []}
 
         mock_client.get.side_effect = [
             functions_data,  # functions
@@ -188,7 +186,7 @@ class TestLibraryAndResourceAnalyzer:
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
-        medium_findings = [f for f in result.findings if f.severity == "medium"]
+        [f for f in result.findings if f.severity == "medium"]
         # Should find maintenance burden issue
 
     @pytest.mark.asyncio
@@ -223,7 +221,7 @@ class TestLibraryAndResourceAnalyzer:
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
-        high_findings = [f for f in result.findings if f.severity == "high"]
+        [f for f in result.findings if f.severity == "high"]
         # Should detect circular dependency
 
     @pytest.mark.asyncio
@@ -258,7 +256,7 @@ class TestLibraryAndResourceAnalyzer:
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
-        medium_findings = [f for f in result.findings if f.severity == "medium"]
+        [f for f in result.findings if f.severity == "medium"]
         # Should find duplicate functionality
 
     def test_library_entry_properties(self):

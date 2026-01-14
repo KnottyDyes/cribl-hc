@@ -123,6 +123,9 @@ ignore = ["E501", "UP045"]  # UP045: Python 3.10+ union syntax; we support 3.9
 [tool.ruff.per-file-ignores]
 "__init__.py" = ["F401"]
 "tests/*" = ["B011"]
+"src/cribl_hc/cli/commands/*.py" = ["B008"]
+"src/cribl_hc/api/routers/*.py" = ["B008"]
+
 
 [tool.mypy]
 python_version = "3.11"

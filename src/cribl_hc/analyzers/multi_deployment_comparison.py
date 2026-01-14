@@ -8,7 +8,7 @@ to identify configuration parity issues and environmental differences.
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -23,8 +23,8 @@ class DeploymentConfig:
     host: str
     username: str
     password: str
-    worker_groups: Optional[List[str]] = None
-    tags: Optional[Dict[str, str]] = None
+    worker_groups: Optional[list[str]] = None
+    tags: Optional[dict[str, str]] = None
 
 
 @dataclass
@@ -35,8 +35,8 @@ class ComparisonResult:
     deployment_b: str
     total_findings_a: int
     total_findings_b: int
-    severity_breakdown_a: Dict[str, int]
-    severity_breakdown_b: Dict[str, int]
+    severity_breakdown_a: dict[str, int]
+    severity_breakdown_b: dict[str, int]
     unique_findings_a: int
     unique_findings_b: int
     common_findings: int
@@ -168,7 +168,7 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
 
         return result
 
-    def _get_deployment_configs(self) -> List[DeploymentConfig]:
+    def _get_deployment_configs(self) -> list[DeploymentConfig]:
         """
         Get deployment configurations.
 
@@ -205,8 +205,8 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
         ]
 
     async def _run_parallel_analyses(
-        self, deployments: List[DeploymentConfig]
-    ) -> Dict[str, AnalyzerResult]:
+        self, deployments: list[DeploymentConfig]
+    ) -> dict[str, AnalyzerResult]:
         """
         Run health analysis on all deployments in parallel.
 
@@ -217,7 +217,7 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
             """Analyze a single deployment."""
             try:
                 # Create client for this deployment
-                client = self._create_client_for_deployment(deployment)
+                self._create_client_for_deployment(deployment)
 
                 # For now, create a mock analysis result
                 # In a real implementation, this would run all analyzers
@@ -310,8 +310,8 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
         return result
 
     def _compare_deployments(
-        self, analysis_results: Dict[str, AnalyzerResult]
-    ) -> List[ComparisonResult]:
+        self, analysis_results: dict[str, AnalyzerResult]
+    ) -> list[ComparisonResult]:
         """
         Compare analysis results between deployments.
 
@@ -362,7 +362,7 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
             analysis_timestamp=datetime.now(),
         )
 
-    def _count_findings_by_severity(self, findings: List[Any]) -> Dict[str, int]:
+    def _count_findings_by_severity(self, findings: list[Any]) -> dict[str, int]:
         """Count findings by severity level."""
         severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
 
@@ -374,8 +374,8 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
         return severity_counts
 
     def _generate_comparison_findings(
-        self, comparison: ComparisonResult, analysis_results: Dict[str, AnalyzerResult]
-    ) -> List[Any]:
+        self, comparison: ComparisonResult, analysis_results: dict[str, AnalyzerResult]
+    ) -> list[Any]:
         """Generate findings based on deployment comparison."""
         findings = []
 
@@ -390,7 +390,7 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
 
         return findings
 
-    def _check_finding_count_differences(self, comparison: ComparisonResult) -> List[Any]:
+    def _check_finding_count_differences(self, comparison: ComparisonResult) -> list[Any]:
         """Check for significant differences in total finding counts."""
         findings = []
 
@@ -436,7 +436,7 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
 
         return findings
 
-    def _check_severity_distribution_differences(self, comparison: ComparisonResult) -> List[Any]:
+    def _check_severity_distribution_differences(self, comparison: ComparisonResult) -> list[Any]:
         """Check for significant differences in severity distributions."""
         findings = []
 
@@ -482,8 +482,8 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
         return findings
 
     def _check_configuration_parity(
-        self, comparison: ComparisonResult, analysis_results: Dict[str, AnalyzerResult]
-    ) -> List[Any]:
+        self, comparison: ComparisonResult, analysis_results: dict[str, AnalyzerResult]
+    ) -> list[Any]:
         """Check for configuration parity issues between environments."""
         findings = []
 
@@ -538,8 +538,8 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
         return findings
 
     def _generate_summary_findings(
-        self, comparisons: List[ComparisonResult], deployments: List[DeploymentConfig]
-    ) -> List[Any]:
+        self, comparisons: list[ComparisonResult], deployments: list[DeploymentConfig]
+    ) -> list[Any]:
         """Generate summary findings for the overall comparison."""
         findings = []
 
@@ -550,8 +550,8 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
         total_deployments = len(deployments)
         successful_comparisons = len(comparisons)
         failed_deployments = total_deployments - len(
-            set(comp.deployment_a for comp in comparisons).union(
-                set(comp.deployment_b for comp in comparisons)
+            {comp.deployment_a for comp in comparisons}.union(
+                {comp.deployment_b for comp in comparisons}
             )
         )
 

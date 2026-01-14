@@ -146,7 +146,7 @@ class TestAdvancedSecurityAnalyzer:
 
         # Should detect custom pattern violation
         custom_findings = [
-            f for f in result.findings if getattr(f, "metadata", {}).get("custom_pattern") == True
+            f for f in result.findings if getattr(f, "metadata", {}).get("custom_pattern")
         ]
         assert len(custom_findings) >= 1
         assert custom_findings[0].severity == "high"
@@ -208,7 +208,7 @@ class TestAdvancedSecurityAnalyzer:
         events = [{"data": "Some data"}]  # Won't trigger specific patterns but framework is enabled
         mock_client.capture_events.return_value = events
 
-        result = await analyzer.analyze(mock_client)
+        await analyzer.analyze(mock_client)
 
         # Should have framework metadata
         assert len(analyzer.active_frameworks) >= 2
