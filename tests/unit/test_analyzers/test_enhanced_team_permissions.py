@@ -2,16 +2,17 @@
 Unit tests for EnhancedTeamPermissionsAnalyzer.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.enhanced_team_permissions import (
     EnhancedTeamPermissionsAnalyzer,
-    UserInfo,
+    PermissionUsage,
     RoleDefinition,
     TeamInfo,
-    PermissionUsage,
+    UserInfo,
 )
 from cribl_hc.core.api_client import CriblAPIClient
 

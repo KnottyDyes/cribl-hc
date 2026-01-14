@@ -2,14 +2,13 @@
 Analyzes team structure and permission configurations to identify security risks and optimization opportunities.
 """
 
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set
+from datetime import datetime
+from typing import Dict, List, Optional, Set
 
 from pydantic import BaseModel, Field
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
 from cribl_hc.models.impact import ImpactEstimate
 
 

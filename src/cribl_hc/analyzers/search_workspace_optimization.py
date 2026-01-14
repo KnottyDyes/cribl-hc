@@ -2,14 +2,13 @@
 Analyzes Cribl Search workspace organization, saved search usage patterns, and dashboard efficiency.
 """
 
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
 
 
 class SavedSearchInfo(BaseModel):

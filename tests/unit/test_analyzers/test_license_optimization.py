@@ -2,14 +2,14 @@
 Unit tests for LicenseOptimizationAnalyzer.
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime, timedelta
 
 from cribl_hc.analyzers.license_optimization import (
-    LicenseOptimizationAnalyzer,
-    LicenseMetrics,
     DropRuleAnalysis,
+    LicenseMetrics,
+    LicenseOptimizationAnalyzer,
     PipelineMetrics,
 )
 from cribl_hc.core.api_client import CriblAPIClient

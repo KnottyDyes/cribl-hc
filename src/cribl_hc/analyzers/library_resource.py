@@ -3,7 +3,6 @@ Analyzes library entries, functions, and reusable resources to identify unused d
 optimization opportunities, and maintenance overhead.
 """
 
-import ast
 import re
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Set
@@ -12,7 +11,6 @@ from pydantic import BaseModel, Field
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
 
 
 class LibraryEntry(BaseModel):

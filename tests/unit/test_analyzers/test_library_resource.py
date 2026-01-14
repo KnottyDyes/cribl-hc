@@ -2,14 +2,13 @@
 Unit tests for LibraryAndResourceAnalyzer.
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
-from datetime import datetime
 
 from cribl_hc.analyzers.library_resource import (
     LibraryAndResourceAnalyzer,
     LibraryEntry,
-    UsageReference,
 )
 from cribl_hc.core.api_client import CriblAPIClient
 

@@ -3,13 +3,12 @@ Analyzes license consumption patterns, drop rule effectiveness, and licensing ef
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.finding import Finding
 
 
 class LicenseMetrics(BaseModel):

@@ -2,15 +2,16 @@
 Unit tests for SearchWorkspaceOptimizationAnalyzer.
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock
+
+import pytest
 
 from cribl_hc.analyzers.search_workspace_optimization import (
-    SearchWorkspaceOptimizationAnalyzer,
-    SavedSearchInfo,
     DashboardInfo,
     DatasetInfo,
+    SavedSearchInfo,
+    SearchWorkspaceOptimizationAnalyzer,
 )
 from cribl_hc.core.api_client import CriblAPIClient
 
