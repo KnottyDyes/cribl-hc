@@ -24,10 +24,13 @@ class RateLimiter:
     - Enforces maximum calls per time window
     - Exponential backoff for retries
     - Async-aware with proper lock handling
-    - Tracks API call budget (100 calls max)
+    - Tracks API call budget (500 calls max, continues with warning after limit)
+
+    Note: After hitting the call budget, the limiter warns but allows continuation
+    to prevent tool crashes during analysis.
 
     Example:
-        >>> limiter = RateLimiter(max_calls=100, time_window_seconds=300)
+        >>> limiter = RateLimiter(max_calls=500, time_window_seconds=300)
         >>> async with limiter:
         ...     response = await client.get("/api/endpoint")
     """
@@ -75,21 +78,25 @@ class RateLimiter:
         Acquire permission to make an API call.
 
         This method blocks if rate limit is exceeded, waiting until a call slot is available.
-        Implements exponential backoff if configured.
-
-        Raises:
-            RuntimeError: If maximum calls budget is exhausted
+        After hitting the API call budget, logs a warning but allows continuation to prevent
+        analysis crashes. Implements exponential backoff if configured.
         """
         # Lazy initialization of lock to avoid event loop issues during __init__
         if self._lock is None:
             self._lock = asyncio.Lock()
 
         async with self._lock:
-            # Check if budget exhausted
+            # Check if budget exhausted - warn but allow continuation
             if self.total_calls_made >= self.max_calls:
-                raise RuntimeError(
-                    f"API call budget exhausted ({self.total_calls_made}/{self.max_calls})"
+                log.warning(
+                    "api_budget_exhausted_continue",
+                    total_calls=self.total_calls_made,
+                    max_calls=self.max_calls,
+                    message="API call budget exhausted, continuing with partial analysis",
                 )
+                # Allow continuation but add a small delay to be respectful
+                await asyncio.sleep(0.1)
+                return
 
             cutoff_time = datetime.utcnow() - timedelta(seconds=self.time_window_seconds)
             while self.call_timestamps and self.call_timestamps[0] <= cutoff_time:

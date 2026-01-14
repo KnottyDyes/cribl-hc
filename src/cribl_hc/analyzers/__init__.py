@@ -339,6 +339,9 @@ __all__ = [
     "EndToEndFreshnessAnalyzer",
     "MultiDeploymentComparisonAnalyzer",
     "AdvancedSecurityAnalyzer",
+    "LibraryAndResourceAnalyzer",
+    "SearchWorkspaceOptimizationAnalyzer",
+    "LicenseOptimizationAnalyzer",
 ]
 
 
