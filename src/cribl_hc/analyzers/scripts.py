@@ -1,4 +1,3 @@
-from typing import List
 
 """
 Script Inventory Analyzer for Cribl Health Check.
@@ -23,13 +22,13 @@ class ScriptsAnalyzer(BaseAnalyzer):
         return "scripts"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         return ["stream"]
 
     def get_estimated_api_calls(self) -> int:
         return 1
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:system"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:

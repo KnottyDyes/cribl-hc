@@ -16,7 +16,7 @@ import asyncio
 import json
 import sys
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import httpx
 
@@ -250,7 +250,7 @@ class APIDiscovery:
         method: str,
         path: str,
         description: Optional[str] = None
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[dict[str, Any]]:
         """
         Test a single API endpoint.
 

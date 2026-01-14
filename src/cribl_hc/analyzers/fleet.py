@@ -1,6 +1,6 @@
 import asyncio
 from collections import Counter, defaultdict
-from typing import Any, Dict, List
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -13,20 +13,20 @@ log = get_logger(__name__)
 class FleetAnalyzer(BaseAnalyzer):
     def __init__(self):
         super().__init__()
-        self._deployment_results: Dict[str, Dict[str, Any]] = {}
+        self._deployment_results: dict[str, dict[str, Any]] = {}
 
     @property
     def objective_name(self) -> str:
         return "fleet"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         return ["stream", "edge", "lake", "search"]
 
     def get_estimated_api_calls(self) -> int:
         return 5
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:system", "read:pipelines", "read:workers", "read:master"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
@@ -68,15 +68,15 @@ class FleetAnalyzer(BaseAnalyzer):
     async def _analyze_config_drift(
         self,
         client: CriblAPIClient,
-        worker_groups: List[Dict[str, Any]],
-        workers: List[Dict[str, Any]],
-        master_summary: Dict[str, Any],
+        worker_groups: list[dict[str, Any]],
+        workers: list[dict[str, Any]],
+        master_summary: dict[str, Any],
         result: AnalyzerResult,
     ) -> None:
         if not worker_groups:
             return
-        group_config_versions: Dict[str, str] = {}
-        groups_deploying: List[Dict[str, Any]] = []
+        group_config_versions: dict[str, str] = {}
+        groups_deploying: list[dict[str, Any]] = []
         for group in worker_groups:
             group_id = str(group.get("id", "unknown"))
             config_version = str(group.get("configVersion", "unknown"))
@@ -140,7 +140,7 @@ class FleetAnalyzer(BaseAnalyzer):
                         metadata=deploying,
                     )
                 )
-        workers_with_drift: List[Dict[str, Any]] = []
+        workers_with_drift: list[dict[str, Any]] = []
         for worker in workers:
             worker_id = str(worker.get("id", "unknown"))
             worker_group = str(worker.get("group", "default"))
@@ -156,7 +156,7 @@ class FleetAnalyzer(BaseAnalyzer):
                     }
                 )
         if workers_with_drift:
-            drift_by_group: Dict[str, List[str]] = defaultdict(list)
+            drift_by_group: dict[str, list[str]] = defaultdict(list)
             for drift in workers_with_drift:
                 drift_by_group[str(drift["group"])].append(str(drift["worker_id"]))
             for group_id, drifted_workers in drift_by_group.items():
@@ -192,8 +192,8 @@ class FleetAnalyzer(BaseAnalyzer):
 
     def _analyze_worker_group_health(
         self,
-        worker_groups: List[Dict[str, Any]],
-        master_summary: Dict[str, Any],
+        worker_groups: list[dict[str, Any]],
+        master_summary: dict[str, Any],
         result: AnalyzerResult,
         client: CriblAPIClient,
     ) -> None:
@@ -248,11 +248,11 @@ class FleetAnalyzer(BaseAnalyzer):
                 )
 
     def _analyze_single_deployment_patterns(
-        self, workers: List[Dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+        self, workers: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         if not workers:
             return
-        status_counts: Dict[str, int] = Counter()
+        status_counts: dict[str, int] = Counter()
         for worker in workers:
             status = str(worker.get("status", "unknown"))
             status_counts[status] += 1
@@ -275,8 +275,8 @@ class FleetAnalyzer(BaseAnalyzer):
 
     def _analyze_worker_group_types(
         self,
-        worker_groups_by_type: Dict[str, List[Dict[str, Any]]],
-        workers: List[Dict[str, Any]],
+        worker_groups_by_type: dict[str, list[dict[str, Any]]],
+        workers: list[dict[str, Any]],
         result: AnalyzerResult,
         client: CriblAPIClient,
     ) -> None:
@@ -334,7 +334,7 @@ class FleetAnalyzer(BaseAnalyzer):
                         )
                     )
 
-    async def analyze_fleet(self, deployments: Dict[str, CriblAPIClient]) -> AnalyzerResult:
+    async def analyze_fleet(self, deployments: dict[str, CriblAPIClient]) -> AnalyzerResult:
         result = AnalyzerResult(objective=self.objective_name)
         if not deployments:
             result.success = False
@@ -357,7 +357,7 @@ class FleetAnalyzer(BaseAnalyzer):
         return result
 
     async def _analyze_all_deployments(
-        self, deployments: Dict[str, CriblAPIClient], result: AnalyzerResult
+        self, deployments: dict[str, CriblAPIClient], result: AnalyzerResult
     ) -> None:
         tasks = []
         for name, client in deployments.items():
@@ -372,8 +372,8 @@ class FleetAnalyzer(BaseAnalyzer):
                 result.metadata["failed_deployments"].append(name)
                 log.error("deployment_analysis_failed", deployment=name, error=str(res))
 
-    async def _analyze_single_deployment(self, name: str, client: CriblAPIClient) -> Dict[str, Any]:
-        deployment_data: Dict[str, Any] = {
+    async def _analyze_single_deployment(self, name: str, client: CriblAPIClient) -> dict[str, Any]:
+        deployment_data: dict[str, Any] = {
             "name": name,
             "environment": getattr(client, "environment", "unknown"),
             "base_url": getattr(client, "base_url", ""),

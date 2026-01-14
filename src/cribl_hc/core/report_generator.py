@@ -3,7 +3,7 @@ Report generation for analysis results in multiple formats.
 """
 
 import json
-from typing import Dict, Optional
+from typing import Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.models.analysis import AnalysisRun
@@ -21,7 +21,7 @@ class MarkdownReportGenerator:
     def generate(
         self,
         analysis_run: AnalysisRun,
-        results: Optional[Dict[str, AnalyzerResult]] = None,
+        results: Optional[dict[str, AnalyzerResult]] = None,
     ) -> str:
         sections = []
         sections.append(self._generate_header(analysis_run))
@@ -209,7 +209,7 @@ class HTMLReportGenerator:
         self.colors = self.branding.get_active_theme(theme_mode)
 
     def generate(
-        self, analysis_run: AnalysisRun, results: Optional[Dict[str, AnalyzerResult]] = None
+        self, analysis_run: AnalysisRun, results: Optional[dict[str, AnalyzerResult]] = None
     ) -> str:
         findings_html = ""
         if results:
@@ -292,7 +292,7 @@ class HTMLReportGenerator:
         score = analysis_run.health_score.overall_score if analysis_run.health_score else "N/A"
         return f"<section><h2>Summary</h2><p>Score: {score}/100</p></section>"
 
-    def _generate_findings_html(self, results: Dict[str, AnalyzerResult]) -> str:
+    def _generate_findings_html(self, results: dict[str, AnalyzerResult]) -> str:
         html = ""
         for obj, res in results.items():
             f_html = ""

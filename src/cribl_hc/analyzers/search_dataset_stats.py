@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from typing import List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -22,13 +21,13 @@ class SearchDatasetStatsAnalyzer(BaseAnalyzer):
         return "search_dataset_stats"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         return ["search"]
 
     def get_estimated_api_calls(self) -> int:
         return 5
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:search:datasets"]
 
     async def analyze(

@@ -3,7 +3,7 @@ Analyze command for running health check analysis.
 """
 import asyncio
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import typer
 from rich.console import Console
@@ -70,7 +70,7 @@ def run(
         envvar="CRIBL_TOKEN",
         hide_input=True,
     ),
-    objectives: Optional[List[str]] = typer.Option(
+    objectives: Optional[list[str]] = typer.Option(
         None,
         "--objective",
         "-o",
@@ -236,7 +236,7 @@ def run(
 async def run_analysis_async(
     url: str,
     token: str,
-    objectives: Optional[List[str]],
+    objectives: Optional[list[str]],
     output_file: Optional[Path],
     markdown: bool,
     deployment_id: str,

@@ -1,4 +1,3 @@
-from typing import List
 
 """
 Search Usage Groups Analyzer for Cribl Health Check.
@@ -26,13 +25,13 @@ class SearchUsageGroupsAnalyzer(BaseAnalyzer):
         return "search_usage_groups"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         return ["search"]
 
     def get_estimated_api_calls(self) -> int:
         return 1
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:search:groups"]
 
     async def analyze(
@@ -99,7 +98,7 @@ class SearchUsageGroupsAnalyzer(BaseAnalyzer):
         return result
 
     def _analyze_group_allocations(
-        self, groups: List[SearchGroup], result: AnalyzerResult, client: CriblAPIClient
+        self, groups: list[SearchGroup], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
         empty_groups = [g for g in groups if not g.datasets and not g.dashboards]
         if empty_groups:

@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -17,13 +16,13 @@ class SystemCertificatesAnalyzer(BaseAnalyzer):
         return "system_certificates"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         return ["stream", "edge", "lake", "search"]
 
     def get_estimated_api_calls(self) -> int:
         return 1
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:certificates"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:

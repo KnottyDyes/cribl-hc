@@ -8,7 +8,7 @@ Priority: P1 (Critical for preventing outages)
 """
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -58,7 +58,7 @@ class ResourceAnalyzer(BaseAnalyzer):
         return "resource"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Resource analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -66,7 +66,7 @@ class ResourceAnalyzer(BaseAnalyzer):
         """Estimate API calls: workers(1) + metrics(1) + system(1) = 3."""
         return 3
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return ["read:workers", "read:metrics", "read:system"]
 
@@ -155,7 +155,7 @@ class ResourceAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _fetch_workers(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_workers(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         """Fetch worker node data from API."""
         try:
             workers = await client.get_workers()
@@ -165,7 +165,7 @@ class ResourceAnalyzer(BaseAnalyzer):
             self.log.error("workers_fetch_failed", error=str(e))
             return []
 
-    async def _fetch_metrics(self, client: CriblAPIClient) -> Dict[str, Any]:
+    async def _fetch_metrics(self, client: CriblAPIClient) -> dict[str, Any]:
         """Fetch system metrics from API."""
         try:
             metrics = await client.get_metrics(time_range="1h")
@@ -175,7 +175,7 @@ class ResourceAnalyzer(BaseAnalyzer):
             self.log.error("metrics_fetch_failed", error=str(e))
             return {}
 
-    async def _fetch_system_status(self, client: CriblAPIClient) -> Dict[str, Any]:
+    async def _fetch_system_status(self, client: CriblAPIClient) -> dict[str, Any]:
         """Fetch system status from API."""
         try:
             status = await client.get_system_status()
@@ -187,8 +187,8 @@ class ResourceAnalyzer(BaseAnalyzer):
 
     def _analyze_cpu_utilization(
         self,
-        workers: List[Dict[str, Any]],
-        metrics: Dict[str, Any],
+        workers: list[dict[str, Any]],
+        metrics: dict[str, Any],
         result: AnalyzerResult,
     ) -> None:
         """
@@ -276,8 +276,8 @@ class ResourceAnalyzer(BaseAnalyzer):
 
     def _analyze_memory_utilization(
         self,
-        workers: List[Dict[str, Any]],
-        metrics: Dict[str, Any],
+        workers: list[dict[str, Any]],
+        metrics: dict[str, Any],
         result: AnalyzerResult,
     ) -> None:
         """
@@ -358,8 +358,8 @@ class ResourceAnalyzer(BaseAnalyzer):
 
     def _analyze_disk_utilization(
         self,
-        workers: List[Dict[str, Any]],
-        metrics: Dict[str, Any],
+        workers: list[dict[str, Any]],
+        metrics: dict[str, Any],
         result: AnalyzerResult,
     ) -> None:
         """
@@ -454,7 +454,7 @@ class ResourceAnalyzer(BaseAnalyzer):
                 )
 
     def _detect_resource_imbalances(
-        self, workers: List[Dict[str, Any]], result: AnalyzerResult
+        self, workers: list[dict[str, Any]], result: AnalyzerResult
     ) -> None:
         """
         Detect imbalanced resource distribution across workers.
@@ -544,8 +544,8 @@ class ResourceAnalyzer(BaseAnalyzer):
 
     def _generate_capacity_recommendations(
         self,
-        workers: List[Dict[str, Any]],
-        metrics: Dict[str, Any],
+        workers: list[dict[str, Any]],
+        metrics: dict[str, Any],
         result: AnalyzerResult,
     ) -> None:
         """Generate capacity planning recommendations based on resource findings."""
@@ -664,8 +664,8 @@ class ResourceAnalyzer(BaseAnalyzer):
 
     def _add_resource_summary(
         self,
-        workers: List[Dict[str, Any]],
-        metrics: Dict[str, Any],
+        workers: list[dict[str, Any]],
+        metrics: dict[str, Any],
         result: AnalyzerResult,
     ) -> None:
         """Add summary statistics to metadata."""

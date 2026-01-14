@@ -11,7 +11,7 @@ Handles:
 Priority: P2 (Medium Impact - Metrics Processing Infrastructure)
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from cribl_hc.utils.logger import get_logger
 
@@ -47,7 +47,7 @@ class MetricsCollector:
         """Initialize metrics collector."""
         self.log = get_logger(self.__class__.__name__)
 
-    def normalize_metrics(self, raw_metrics: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def normalize_metrics(self, raw_metrics: Optional[dict[str, Any]]) -> dict[str, Any]:
         """
         Convert raw API metrics to standard format.
 
@@ -133,7 +133,7 @@ class MetricsCollector:
 
         return normalized
 
-    def _normalize_pipelines(self, raw_metrics: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def _normalize_pipelines(self, raw_metrics: dict[str, Any]) -> dict[str, dict[str, Any]]:
         """
         Extract and normalize pipeline metrics.
 
@@ -157,7 +157,7 @@ class MetricsCollector:
 
         return pipelines
 
-    def _normalize_routes(self, raw_metrics: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def _normalize_routes(self, raw_metrics: dict[str, Any]) -> dict[str, dict[str, Any]]:
         """
         Extract and normalize route metrics.
 
@@ -192,7 +192,7 @@ class MetricsCollector:
 
         return routes
 
-    def _normalize_workers(self, raw_metrics: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def _normalize_workers(self, raw_metrics: dict[str, Any]) -> dict[str, dict[str, Any]]:
         """
         Extract and normalize worker metrics.
 
@@ -216,7 +216,7 @@ class MetricsCollector:
 
         return workers
 
-    def _normalize_outputs(self, raw_metrics: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    def _normalize_outputs(self, raw_metrics: dict[str, Any]) -> dict[str, dict[str, Any]]:
         """
         Extract and normalize output/destination metrics.
 
@@ -244,7 +244,7 @@ class MetricsCollector:
 
         return outputs
 
-    def _extract_nested_int(self, data: Dict[str, Any], path: List[str], default: int = 0) -> int:
+    def _extract_nested_int(self, data: dict[str, Any], path: list[str], default: int = 0) -> int:
         """
         Safely extract nested integer value from dict.
 
@@ -275,7 +275,7 @@ class MetricsCollector:
             return default
 
     def _extract_nested_float(
-        self, data: Dict[str, Any], path: List[str], default: float = 0.0
+        self, data: dict[str, Any], path: list[str], default: float = 0.0
     ) -> float:
         """
         Safely extract nested float value from dict.
@@ -306,7 +306,7 @@ class MetricsCollector:
         except (ValueError, TypeError):
             return default
 
-    def _calculate_percentile(self, data: List[float], percentile: float) -> float:
+    def _calculate_percentile(self, data: list[float], percentile: float) -> float:
         """
         Calculate percentile from a list of values.
 
@@ -350,7 +350,7 @@ class MetricsCollector:
         """
         return max(0.0, min(100.0, value))
 
-    def calculate_event_ratios(self, metrics: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, float]]:
+    def calculate_event_ratios(self, metrics: Optional[dict[str, Any]]) -> dict[str, dict[str, float]]:
         """
         Calculate in/out/drop/error ratios per pipeline.
 
@@ -427,10 +427,10 @@ class MetricsCollector:
 
     def detect_trends(
         self,
-        current: Optional[Dict[str, Any]],
-        historical: Optional[List[Dict[str, Any]]],
+        current: Optional[dict[str, Any]],
+        historical: Optional[list[dict[str, Any]]],
         window_hours: int = 24,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Detect trends in metrics over time using linear regression.
 
@@ -502,8 +502,8 @@ class MetricsCollector:
         return trends
 
     def _detect_pipeline_trends(
-        self, current: Dict[str, Any], historical: List[Dict[str, Any]], window_hours: int
-    ) -> Dict[str, Dict[str, Any]]:
+        self, current: dict[str, Any], historical: list[dict[str, Any]], window_hours: int
+    ) -> dict[str, dict[str, Any]]:
         """
         Detect trends for pipelines.
 
@@ -559,8 +559,8 @@ class MetricsCollector:
         return trends
 
     def _detect_output_trends(
-        self, current: Dict[str, Any], historical: List[Dict[str, Any]], window_hours: int
-    ) -> Dict[str, Dict[str, Any]]:
+        self, current: dict[str, Any], historical: list[dict[str, Any]], window_hours: int
+    ) -> dict[str, dict[str, Any]]:
         """
         Detect trends for outputs.
 
@@ -603,7 +603,7 @@ class MetricsCollector:
 
         return trends
 
-    def _calculate_trend(self, values: List[float]) -> Dict[str, float]:
+    def _calculate_trend(self, values: list[float]) -> dict[str, float]:
         """
         Calculate trend using simple linear regression.
 
