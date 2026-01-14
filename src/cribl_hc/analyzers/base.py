@@ -176,13 +176,6 @@ class BaseAnalyzer(ABC):
         pass
 
     @property
-    def category(self) -> str:
-        """
-        Return the category this analyzer belongs to.
-        """
-        return "core"
-
-    @property
     def supported_products(self) -> list[str]:
         """
         Return list of products this analyzer supports.

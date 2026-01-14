@@ -230,7 +230,10 @@ class APIDiscovery:
         print()
 
     async def test_endpoint(
-        self, method: str, path: str, description: Optional[str] = None
+        self,
+        method: str,
+        path: str,
+        description: Optional[str] = None
     ) -> Optional[dict[str, Any]]:
         """
         Test a single API endpoint.

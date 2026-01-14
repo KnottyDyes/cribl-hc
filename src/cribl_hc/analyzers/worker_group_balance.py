@@ -2,7 +2,7 @@
 Analyzes the balance of load and resource utilization across worker groups.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 from pydantic import BaseModel, Field
@@ -18,15 +18,15 @@ class WorkerMetrics(BaseModel):
     cpu_util_pct: Optional[float] = Field(None, alias="cpu.usage")
     mem_util_pct: Optional[float] = Field(None, alias="mem.usage")
     events_in_per_sec: Optional[float] = Field(None, alias="total.in")
-    historical_cpu: List[float] = Field(default_factory=list)
-    historical_mem: List[float] = Field(default_factory=list)
+    historical_cpu: list[float] = Field(default_factory=list)
+    historical_mem: list[float] = Field(default_factory=list)
 
 
 class WorkerGroupMetrics(BaseModel):
     """Represents metrics for an entire worker group."""
 
     group_id: str
-    workers: List[WorkerMetrics] = Field(default_factory=list)
+    workers: list[WorkerMetrics] = Field(default_factory=list)
 
 
 class WorkerGroupBalanceAnalyzer(BaseAnalyzer):
@@ -41,7 +41,7 @@ class WorkerGroupBalanceAnalyzer(BaseAnalyzer):
     def get_description(self) -> str:
         return "Analyzes load balance and resource utilization variance across workers."
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:metrics"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
@@ -82,9 +82,9 @@ class WorkerGroupBalanceAnalyzer(BaseAnalyzer):
 
         return result
 
-    def _parse_worker_groups(self, metrics: Dict[str, Any]) -> List[WorkerGroupMetrics]:
+    def _parse_worker_groups(self, metrics: dict[str, Any]) -> list[WorkerGroupMetrics]:
         """Parses raw API metrics into structured WorkerGroupMetrics."""
-        groups: Dict[str, WorkerGroupMetrics] = {}
+        groups: dict[str, WorkerGroupMetrics] = {}
         # Based on observed metrics structure, worker data is under the 'workers' key
         nodes_metrics = metrics.get("workers", [])
         if not nodes_metrics:

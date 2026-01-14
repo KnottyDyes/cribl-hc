@@ -207,7 +207,9 @@ class CostAnalyzer(BaseAnalyzer):
     # === License Consumption Analysis ===
 
     def _analyze_license_consumption(
-        self, license_info: dict[str, Any], result: AnalyzerResult
+        self,
+        license_info: dict[str, Any],
+        result: AnalyzerResult
     ) -> dict[str, Any]:
         """
         Analyze current license consumption.
@@ -297,7 +299,10 @@ class CostAnalyzer(BaseAnalyzer):
     # === License Exhaustion Prediction ===
 
     def _predict_license_exhaustion(
-        self, license_info: dict[str, Any], license_metrics: dict[str, Any], result: AnalyzerResult
+        self,
+        license_info: dict[str, Any],
+        license_metrics: dict[str, Any],
+        result: AnalyzerResult
     ) -> None:
         """
         Predict license exhaustion timeline using linear regression.
@@ -431,7 +436,7 @@ class CostAnalyzer(BaseAnalyzer):
         self,
         outputs: list[dict[str, Any]],
         pricing: dict[str, dict[str, float]],
-        result: AnalyzerResult,
+        result: AnalyzerResult
     ) -> None:
         """
         Calculate total cost of ownership per destination.
@@ -481,7 +486,10 @@ class CostAnalyzer(BaseAnalyzer):
     # === Recommendations ===
 
     def _generate_cost_recommendations(
-        self, license_metrics: dict[str, Any], outputs: list[dict[str, Any]], result: AnalyzerResult
+        self,
+        license_metrics: dict[str, Any],
+        outputs: list[dict[str, Any]],
+        result: AnalyzerResult
     ) -> None:
         """Generate cost optimization recommendations."""
 

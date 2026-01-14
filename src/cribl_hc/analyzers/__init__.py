@@ -49,6 +49,9 @@ import importlib
 import pkgutil
 from pathlib import Path
 from typing import Optional
+from typing import Dict as DictType
+from typing import List as ListType
+from typing import Type as TypeType
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.utils.logger import get_logger

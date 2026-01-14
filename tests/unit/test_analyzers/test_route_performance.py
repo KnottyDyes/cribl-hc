@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 from unittest.mock import AsyncMock
 
 import pytest
@@ -16,7 +16,7 @@ def create_route_metrics(
     events_in: int = 1000,
     events_out: int = 1000,
     errors: int = 0,
-    latencies: Optional[List[float]] = None,
+    latencies: Optional[list[float]] = None,
     processing_time_ms: float = 100.0,
 ) -> dict:
     if latencies is None:

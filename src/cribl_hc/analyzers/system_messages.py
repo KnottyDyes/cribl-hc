@@ -1,4 +1,3 @@
-from typing import List
 
 """
 System Messages Analyzer for Cribl Health Check.
@@ -25,13 +24,13 @@ class SystemMessagesAnalyzer(BaseAnalyzer):
         return "system_messages"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         return ["stream", "edge", "lake", "search"]
 
     def get_estimated_api_calls(self) -> int:
         return 1
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:system"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:

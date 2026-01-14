@@ -3,7 +3,7 @@ Deployment model representing a Cribl Stream environment.
 """
 
 from datetime import datetime
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field, HttpUrl, SecretStr, field_validator
 
@@ -51,7 +51,7 @@ class Deployment(BaseModel):
     )
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Custom metadata")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Custom metadata")
 
     @field_validator("id")
     @classmethod

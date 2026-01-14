@@ -14,7 +14,7 @@ Priority: P1 (High Impact - Production Operations)
 
 from datetime import datetime
 from statistics import mean, stdev
-from typing import Any, Dict, List, Literal
+from typing import Any, Literal
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -51,7 +51,7 @@ class PipelineBottleneckAnalyzer(BaseAnalyzer):
         return "pipeline_bottleneck"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Pipeline bottleneck analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -63,7 +63,7 @@ class PipelineBottleneckAnalyzer(BaseAnalyzer):
         """Estimate API calls: pipelines(1) + metrics(1) = 2."""
         return 2
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return ["read:pipelines", "read:metrics"]
 
@@ -177,9 +177,9 @@ class PipelineBottleneckAnalyzer(BaseAnalyzer):
     def _analyze_pipeline(
         self,
         pipeline_id: str,
-        config: Dict[str, Any],
-        metrics: Dict[str, Any],
-        ratios: Dict[str, float],
+        config: dict[str, Any],
+        metrics: dict[str, Any],
+        ratios: dict[str, float],
         result: AnalyzerResult,
     ) -> None:
         """Analyze single pipeline for all 4 check types."""
@@ -190,8 +190,8 @@ class PipelineBottleneckAnalyzer(BaseAnalyzer):
     def _check_silent_failure(
         self,
         pipeline_id: str,
-        config: Dict[str, Any],
-        metrics: Dict[str, Any],
+        config: dict[str, Any],
+        metrics: dict[str, Any],
         result: AnalyzerResult,
     ) -> None:
         """Check for silent failures (CRITICAL): in > 0, out = 0, not disabled."""
@@ -274,9 +274,9 @@ class PipelineBottleneckAnalyzer(BaseAnalyzer):
     def _check_drop_rate_variance(
         self,
         pipeline_id: str,
-        config: Dict[str, Any],
-        metrics: Dict[str, Any],
-        ratios: Dict[str, float],
+        config: dict[str, Any],
+        metrics: dict[str, Any],
+        ratios: dict[str, float],
         result: AnalyzerResult,
     ) -> None:
         """Check for unexpected drop rate variance (HIGH/MEDIUM)."""
@@ -378,8 +378,8 @@ class PipelineBottleneckAnalyzer(BaseAnalyzer):
     def _check_processing_time_anomaly(
         self,
         pipeline_id: str,
-        config: Dict[str, Any],
-        metrics: Dict[str, Any],
+        config: dict[str, Any],
+        metrics: dict[str, Any],
         result: AnalyzerResult,
     ) -> None:
         """Check for processing time anomalies (MEDIUM)."""
@@ -464,7 +464,7 @@ class PipelineBottleneckAnalyzer(BaseAnalyzer):
 
     def _check_throughput_cliff(
         self,
-        pipeline_metrics: Dict[str, Dict[str, Any]],
+        pipeline_metrics: dict[str, dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
         """Check for throughput cliffs (MEDIUM)."""
@@ -572,7 +572,7 @@ class PipelineBottleneckAnalyzer(BaseAnalyzer):
                     )
                 )
 
-    def _get_expected_drop_rate(self, config: Dict[str, Any]) -> float:
+    def _get_expected_drop_rate(self, config: dict[str, Any]) -> float:
         """Extract expected drop rate from pipeline configuration."""
         expected_drop = config.get("expectedDropRate", self.DEFAULT_EXPECTED_DROP_RATE)
 
@@ -581,7 +581,7 @@ class PipelineBottleneckAnalyzer(BaseAnalyzer):
         except (ValueError, TypeError):
             return self.DEFAULT_EXPECTED_DROP_RATE
 
-    def _get_baseline_processing_time(self, config: Dict[str, Any]) -> float:
+    def _get_baseline_processing_time(self, config: dict[str, Any]) -> float:
         """Extract baseline processing time from pipeline configuration."""
         baseline = config.get("baselineProcessingTimeMs", self.DEFAULT_BASELINE_PROCESSING_TIME_MS)
 

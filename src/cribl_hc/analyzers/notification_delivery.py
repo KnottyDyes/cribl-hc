@@ -7,7 +7,7 @@ and escalation paths are healthy.
 Priority: P2 (Medium Impact - Quality & Reliability)
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -35,7 +35,7 @@ class NotificationDeliveryAnalyzer(BaseAnalyzer):
         return "notification_delivery"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         """Notification analyzer applies to Stream and Edge."""
         return ["stream", "edge"]
 
@@ -47,7 +47,7 @@ class NotificationDeliveryAnalyzer(BaseAnalyzer):
         """Estimate API calls: notifications(1) + notification_targets(1) = 2."""
         return 2
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
         return [
             "read:notifications",
@@ -171,14 +171,14 @@ class NotificationDeliveryAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _fetch_notifications(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_notifications(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         try:
             return await client.get_notifications() or []
         except Exception as e:
             log.warning("failed_to_fetch_notifications", error=str(e))
             return []
 
-    async def _fetch_targets(self, client: CriblAPIClient) -> List[Dict[str, Any]]:
+    async def _fetch_targets(self, client: CriblAPIClient) -> list[dict[str, Any]]:
         try:
             return await client.get_notification_targets() or []
         except Exception as e:
@@ -187,8 +187,8 @@ class NotificationDeliveryAnalyzer(BaseAnalyzer):
 
     def _check_targets_assigned(
         self,
-        notification: Dict[str, Any],
-        targets: List[Dict[str, Any]],
+        notification: dict[str, Any],
+        targets: list[dict[str, Any]],
         result: AnalyzerResult,
     ) -> bool:
         """Check if notification has assigned delivery targets."""
@@ -222,7 +222,7 @@ class NotificationDeliveryAnalyzer(BaseAnalyzer):
         return True
 
     def _check_notification_enabled(
-        self, notification: Dict[str, Any], result: AnalyzerResult
+        self, notification: dict[str, Any], result: AnalyzerResult
     ) -> bool:
         """Check if notification is enabled."""
         notif_id = notification.get("id", "unknown")
@@ -254,8 +254,8 @@ class NotificationDeliveryAnalyzer(BaseAnalyzer):
 
     def _check_target_health(
         self,
-        notification: Dict[str, Any],
-        targets: List[Dict[str, Any]],
+        notification: dict[str, Any],
+        targets: list[dict[str, Any]],
         result: AnalyzerResult,
     ) -> bool:
         """Check if assigned targets are healthy."""

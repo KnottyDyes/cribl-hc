@@ -1,4 +1,3 @@
-from typing import List
 
 """
 Analyzer metadata API endpoints.
@@ -21,13 +20,13 @@ class AnalyzerInfo(BaseModel):
     name: str
     description: str
     api_calls: int
-    permissions: List[str]
-    categories: List[str]
+    permissions: list[str]
+    categories: list[str]
 
 
 class AnalyzersListResponse(BaseModel):
     """Response for list analyzers endpoint."""
-    analyzers: List[AnalyzerInfo]
+    analyzers: list[AnalyzerInfo]
     total_count: int
     total_api_calls: int
 

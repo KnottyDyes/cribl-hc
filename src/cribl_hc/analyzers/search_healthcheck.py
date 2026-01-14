@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -15,13 +14,13 @@ class SearchHealthcheckAnalyzer(BaseAnalyzer):
         return "search_healthcheck"
 
     @property
-    def supported_products(self) -> List[str]:
+    def supported_products(self) -> list[str]:
         return ["search"]
 
     def get_estimated_api_calls(self) -> int:
         return 1
 
-    def get_required_permissions(self) -> List[str]:
+    def get_required_permissions(self) -> list[str]:
         return ["read:search:healthcheck"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
