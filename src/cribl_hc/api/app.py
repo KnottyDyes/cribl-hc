@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from cribl_hc import __version__
 
 # Import routers
-from cribl_hc.api.routers import analysis, analyzers, branding, credentials, system
+from cribl_hc.api.routers import analysis, analyzers, credentials, system
 from cribl_hc.utils.logger import get_logger
 
 log = get_logger(__name__)
@@ -68,7 +68,6 @@ app.include_router(system.router, prefix="/api/v1", tags=["system"])
 app.include_router(credentials.router, prefix="/api/v1/credentials", tags=["credentials"])
 app.include_router(analyzers.router, prefix="/api/v1/analyzers", tags=["analyzers"])
 app.include_router(analysis.router, prefix="/api/v1/analysis", tags=["analysis"])
-app.include_router(branding.router, prefix="/api/v1/branding", tags=["branding"])
 
 
 @app.get("/", include_in_schema=False)

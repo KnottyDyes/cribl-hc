@@ -45,7 +45,6 @@ web = [
     "uvicorn[standard]>=0.27.0",
     "python-multipart>=0.0.6",
     "websockets>=12.0",
-    "Pillow>=10.0.0",
 ]
 dev = [
     "pytest>=7.4.0",

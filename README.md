@@ -8,11 +8,11 @@
 [![React](https://img.shields.io/badge/React-19.2-blue?logo=react)](https://react.dev/)
 [![Enterprise Features](https://img.shields.io/badge/Enterprise-Ready-blueviolet.svg)](https://github.com/KnottyDyes/cribl-hc)
 
-**🏢 Enterprise-Ready Health Checking Tool for Cribl Stream Deployments**
+**🏢 Health Checking Tool for Cribl Stream Deployments**
 
 Provides actionable insights across health assessment, configuration validation, performance optimization, advanced security auditing with healthcare/financial compliance, multi-deployment comparison, and scheduled monitoring with notifications.
 
-**✨ New in v0.5.0**: Advanced Security & Compliance (HIPAA/SOC2/GDPR), Multi-Deployment Comparison, Scheduled Health Checks with Slack/PagerDuty notifications, and Custom PII Pattern Management.
+**✨ New in v0.5.0**: Advanced Security & Compliance (HIPAA/SOC2/GDPR), Multi-Deployment Comparison, and Scheduled Health Checks with Slack/PagerDuty notifications.
 
 **🔒 Data Privacy**: This tool adheres to strict data governance standards. See [DATA_PRIVACY.md](docs/DATA_PRIVACY.md) for details on how we handle transient event data.
 
@@ -35,9 +35,6 @@ Provides actionable insights across health assessment, configuration validation,
 - **Real-time Updates**: Live progress tracking via WebSocket during analysis
 - **Credential Management**: Add, edit, and test deployment credentials from the browser
 - **Visual Results**: Interactive findings table with filtering and sorting
-- **Branding Settings**: Customize organization name, contact info, logos, and report styling
-- **Theme Customization**: Light/dark theme with configurable color schemes
-- **Report Personalization**: Custom headers, footers, watermarks, and CSS styling
 - **REST API**: Full API backend for programmatic access
 - **Docker Support**: One-command deployment with Docker Compose
 

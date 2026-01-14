@@ -11,7 +11,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from cribl_hc.cli.commands.branding import app as branding_app
+
 from cribl_hc.utils.crypto import CredentialEncryptor, generate_master_key
 from cribl_hc.utils.logger import get_logger
 
@@ -956,4 +956,4 @@ def validate_pii_patterns():
 
 
 app.add_typer(pii_app, name="pii", help="Manage custom sensitive data patterns")
-app.add_typer(branding_app, name="branding", help="Manage branding configuration")
+

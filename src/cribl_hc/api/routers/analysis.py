@@ -27,7 +27,6 @@ from pydantic import BaseModel, Field
 from cribl_hc.analyzers import get_global_registry
 from cribl_hc.cli.commands.config import load_credentials
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.core.branding_manager import get_branding_config
 from cribl_hc.core.orchestrator import AnalyzerOrchestrator
 from cribl_hc.core.report_generator import (
     HTMLReportGenerator,
@@ -422,7 +421,7 @@ async def delete_analysis(analysis_id: str):
 @router.get("/{analysis_id}/export/{format}")
 async def export_analysis(analysis_id: str, format: str):
     """
-    Export analysis results in various formats with branding.
+    Export analysis results in various formats.
     """
     if analysis_id not in analysis_results:
         raise HTTPException(
@@ -437,8 +436,7 @@ async def export_analysis(analysis_id: str, format: str):
             detail=f"Analysis is still {data['status']}. Cannot export incomplete analysis.",
         )
 
-    # Get branding configuration
-    branding = get_branding_config()
+
 
     # Get the AnalysisRun object
     analysis_run = data.get("analysis_run")
@@ -456,12 +454,12 @@ async def export_analysis(analysis_id: str, format: str):
         media_type = "application/json"
 
     elif format == "html":
-        generator = HTMLReportGenerator(branding=branding)
+        generator = HTMLReportGenerator()
         content = generator.generate(analysis_run, results or {})
         media_type = "text/html"
 
     elif format == "md":
-        generator = MarkdownReportGenerator(branding=branding)
+        generator = MarkdownReportGenerator()
         content = generator.generate(analysis_run, results or {})
         media_type = "text/markdown"
 
