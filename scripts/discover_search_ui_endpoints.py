@@ -128,7 +128,7 @@ async def load_and_discover():
                         "status": response.status_code,
                         "data": data if len(str(data)) < 1000 else "... truncated ..."
                     })
-                except:
+                except Exception:
                     print(f"✅ FOUND (non-JSON): {path}")
                     print(f"   Status: {response.status_code}")
                     print()
