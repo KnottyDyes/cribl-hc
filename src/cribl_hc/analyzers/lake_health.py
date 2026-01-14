@@ -44,6 +44,11 @@ class LakeHealthAnalyzer(BaseAnalyzer):
         return "lake"
 
     @property
+    def category(self) -> str:
+        """Return the category this analyzer belongs to."""
+        return "lake"
+
+    @property
     def supported_products(self) -> List[str]:
         """Lake analyzer is specific to Cribl Lake."""
         return ["lake"]

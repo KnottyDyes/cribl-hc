@@ -61,6 +61,11 @@ class SecurityAnalyzer(BaseAnalyzer):
         return "security"
 
     @property
+    def category(self) -> str:
+        """Return the category this analyzer belongs to."""
+        return "security"
+
+    @property
     def supported_products(self) -> List[str]:
         """Security analyzer applies to Stream and Edge."""
         return ["stream", "edge"]

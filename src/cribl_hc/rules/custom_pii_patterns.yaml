@@ -1,0 +1,46 @@
+# Custom Sensitive Data Patterns Configuration
+#
+# This file allows you to define custom patterns for detecting sensitive data
+# in your Cribl Stream configurations and data flows.
+#
+# Format:
+#   - name: Unique identifier for the pattern
+#   - pattern: Regular expression to match (use Python regex syntax)
+#   - description: Human-readable description
+#   - severity: critical | high | medium | low | info
+#   - category: healthcare | financial | personal | corporate | custom
+#   - remediation: Suggested fix or mitigation steps
+#   - enabled: true | false (default: true)
+#
+# Examples:
+#   - Custom employee IDs
+#   - Company-specific data formats
+#   - Industry-specific compliance requirements
+
+custom_patterns:
+  # Example: Custom employee ID pattern
+  - name: "employee_id"
+    pattern: "\\bEMP\\d{6}\\b"
+    description: "Employee ID in EMPXXXXXX format"
+    severity: "medium"
+    category: "corporate"
+    remediation: "Mask or redact employee IDs in production logs and outputs"
+    enabled: true
+
+  # Example: Custom project codes
+  - name: "project_code"
+    pattern: "\\bPRJ-[A-Z]{3}-\\d{4}\\b"
+    description: "Project code in PRJ-XXX-XXXX format"
+    severity: "low"
+    category: "corporate"
+    remediation: "Consider if project codes need masking based on sensitivity"
+    enabled: true
+
+  # Add your custom patterns here...
+  # - name: "your_pattern_name"
+  #   pattern: "your_regex_pattern"
+  #   description: "Description of what this detects"
+  #   severity: "medium"
+  #   category: "custom"
+  #   remediation: "Steps to mitigate this finding"
+  #   enabled: true

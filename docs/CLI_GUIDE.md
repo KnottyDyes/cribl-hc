@@ -4,13 +4,14 @@ Complete guide to using the Cribl Health Check command-line interface.
 
 ## Overview
 
-cribl-hc is designed specifically for **Cribl Stream** deployments and provides comprehensive health checking, configuration validation, and resource monitoring.
+cribl-hc is designed specifically for **Cribl Stream** deployments and provides comprehensive health checking, configuration validation, resource monitoring, and enterprise-grade security analysis.
 
 **Supported Deployments:**
 - ✅ Cribl Stream Self-Hosted (all features)
 - ✅ Cribl Stream Cribl Cloud (all features except disk metrics*)
-- 🔮 Cribl Edge (planned - Phase 5)
-- 🔮 Cribl Lake (planned - Phase 6)
+- ✅ Cribl Edge (health monitoring - Phase 5B complete)
+- ✅ Cribl Lake (dataset health, retention analysis - Phase 7 complete)
+- ✅ Cribl Search (query performance, job monitoring - Phase 8 complete)
 
 _*Cribl Cloud does not expose disk metrics via API. CPU and memory monitoring fully supported._
 
@@ -71,6 +72,16 @@ cribl-hc analyze run --objective health
 
 # Save results to file
 cribl-hc analyze run --output report.json
+
+# Enterprise features: Advanced security analysis
+cribl-hc analyze run --objective advanced_security
+
+# Scheduled monitoring with notifications
+cribl-hc analyze schedule --deployment prod --daemon --slack-webhook https://hooks.slack.com/...
+
+# Custom PII pattern management
+cribl-hc config pii add --name employee_id --pattern "\\bEMP\\d{6}\\b" --severity medium
+cribl-hc config pii list
 ```
 
 ## Commands
@@ -226,6 +237,7 @@ cribl-hc list
 | Option | Short | Description | Example |
 |--------|-------|-------------|---------|
 | `--verbose` | `-v` | Show detailed information including permissions | `cribl-hc list -v` |
+| `--group-by-category` | | Group analyzers by category (default: enabled) | `cribl-hc list --no-group-by-category` |
 
 **Example Output:**
 
@@ -279,9 +291,112 @@ cribl-hc analyze run --url <URL> --token <TOKEN>
 | `--verbose` | `-v` | Verbose output | `-v` |
 | `--debug` | | Debug logging | `--debug` |
 
+### `cribl-hc analyze schedule`
+
+Run scheduled health check monitoring with automated notifications.
+
+**Basic Usage:**
+
+```bash
+# Run scheduled monitoring with 30-minute intervals
+cribl-hc analyze schedule --deployment prod --interval 30 --daemon
+
+# With Slack notifications for high+ severity issues
+cribl-hc analyze schedule --deployment prod --slack-webhook https://hooks.slack.com/... --alert-threshold high
+
+# With PagerDuty integration for critical issues
+cribl-hc analyze schedule --deployment prod --pagerduty-key abc123 --alert-threshold critical
+```
+
+**Options:**
+
+| Option | Short | Description | Example |
+|--------|-------|-------------|---------|
+| `--deployment` | `-p` | Use stored credentials | `--deployment prod` |
+| `--url` | `-u` | Cribl API URL | `https://main-myorg.cribl.cloud` |
+| `--token` | `-t` | Bearer token | `eyJhbGc...` |
+| `--interval` | `-i` | Check interval in minutes (default: 60) | `--interval 30` |
+| `--daemon` | | Run as daemon process (continuous monitoring) | `--daemon` |
+| `--slack-webhook` | | Slack webhook URL for notifications | `--slack-webhook https://hooks.slack.com/...` |
+| `--pagerduty-key` | | PagerDuty integration key | `--pagerduty-key abc123` |
+| `--alert-threshold` | | Alert threshold: info, low, medium, high, critical (default: high) | `--alert-threshold high` |
+| `--output-dir` | `-d` | Directory to save scheduled reports | `--output-dir ./reports` |
+| `--max-runtime` | | Maximum runtime in hours for daemon mode | `--max-runtime 24` |
+| `--verbose` | `-v` | Verbose output | `-v` |
+| `--debug` | | Debug logging | `--debug` |
+
+### `cribl-hc config pii`
+
+Manage custom sensitive data patterns for advanced security analysis.
+
+**Subcommands:**
+
+#### `cribl-hc config pii list`
+
+List all configured custom PII patterns.
+
+```bash
+cribl-hc config pii list
+```
+
+#### `cribl-hc config pii add`
+
+Add a new custom sensitive data pattern.
+
+```bash
+cribl-hc config pii add \
+    --name employee_id \
+    --pattern "\\bEMP\\d{6}\\b" \
+    --description "Employee ID in EMPXXXXXX format" \
+    --severity medium \
+    --category corporate \
+    --remediation "Mask employee IDs in production logs"
+```
+
+**Options:**
+
+| Option | Short | Description | Example |
+|--------|-------|-------------|---------|
+| `--name` | `-n` | Pattern name (unique identifier) | `--name employee_id` |
+| `--pattern` | `-p` | Regular expression pattern | `--pattern "\\bEMP\\d{6}\\b"` |
+| `--description` | `-d` | Human-readable description | `--description "Employee IDs"` |
+| `--severity` | `-s` | Severity level: critical, high, medium, low, info | `--severity medium` |
+| `--category` | `-c` | Pattern category | `--category corporate` |
+| `--remediation` | `-r` | Suggested remediation steps | `--remediation "Mask IDs"` |
+
+#### `cribl-hc config pii edit`
+
+Edit an existing custom sensitive data pattern.
+
+```bash
+# Change severity of existing pattern
+cribl-hc config pii edit employee_id --severity high
+
+# Update regex pattern
+cribl-hc config pii edit employee_id --pattern "\\bEMP-[A-Z]{2}-\\d{4}\\b"
+```
+
+#### `cribl-hc config pii remove`
+
+Remove a custom sensitive data pattern.
+
+```bash
+cribl-hc config pii remove employee_id --yes
+```
+
+#### `cribl-hc config pii validate`
+
+Validate custom PII pattern configurations.
+
+```bash
+cribl-hc config pii validate
+```
+
 ## Available Analyzers
 
-### 1. `health` - Worker Health & System Status
+### Core Analyzers
+
+#### `health` - Worker Health & System Status
 
 **Purpose:** Monitor worker node health, process status, and system stability
 
@@ -306,7 +421,7 @@ cribl-hc analyze run --url <URL> --token <TOKEN>
 cribl-hc analyze run --objective health
 ```
 
-### 2. `config` - Configuration Validation
+#### `config` - Configuration Validation
 
 **Purpose:** Validate pipelines, routes, and configurations for errors and best practices
 
@@ -334,7 +449,7 @@ cribl-hc analyze run --objective health
 cribl-hc analyze run --objective config
 ```
 
-### 3. `resource` - Resource Utilization & Capacity Planning
+#### `resource` - Resource Utilization & Capacity Planning
 
 **Purpose:** Monitor CPU, memory, and disk usage for capacity planning
 
@@ -357,6 +472,69 @@ cribl-hc analyze run --objective config
 **Example:**
 ```bash
 cribl-hc analyze run --objective resource
+```
+
+### Enterprise Analyzers
+
+#### `advanced_security` - Advanced Security & Compliance
+
+**Purpose:** Detect healthcare codes, financial data patterns, and custom sensitive data with compliance frameworks
+
+**API Calls:** 2
+- Event sampling for pattern analysis
+- System configuration checks
+
+**Permissions Required:**
+- `read:system`
+- `execute:capture`
+
+**Detects:**
+- Healthcare data exposure (ICD-10, DEA numbers, CPT codes)
+- Financial data patterns (ABA routing, SWIFT, IBAN codes)
+- Custom PII patterns configured via CLI
+- HIPAA, SOC2, and GDPR compliance violations
+
+**Example:**
+```bash
+cribl-hc analyze run --objective advanced_security
+```
+
+#### `multi_deployment_comparison` - Cross-Deployment Analysis
+
+**Purpose:** Compare health analysis results across multiple deployments for configuration parity
+
+**API Calls:** 10
+- Multiple deployment API calls
+- Comparative analysis
+
+**Permissions Required:**
+- `read:workers`
+- `read:metrics`
+- `read:system`
+
+**Detects:**
+- Configuration drift between deployments
+- Health score variations
+- Resource utilization differences
+- Worker group inconsistencies
+
+**Example:**
+```bash
+cribl-hc analyze run --objective multi_deployment_comparison
+```
+
+### Specialized Analyzers
+
+#### `lake` - Cribl Lake Health
+#### `search` - Cribl Search Health
+#### `pipeline_performance` - Pipeline Efficiency Analysis
+#### And 20+ additional analyzers...
+
+**List all available analyzers:**
+```bash
+cribl-hc list  # Shows all analyzers grouped by category
+cribl-hc list --no-group-by-category  # Flat list
+cribl-hc list --verbose  # With permissions and API call details
 ```
 
 ## Usage Examples
@@ -548,6 +726,65 @@ cribl-hc analyze run \
     --deployment-id prod-datacenter-1
 ```
 
+### Example 11: Advanced Security Analysis
+
+Run enterprise-grade security analysis with healthcare and financial compliance:
+
+```bash
+cribl-hc analyze run \
+    --deployment prod \
+    --objective advanced_security \
+    --verbose
+```
+
+### Example 12: Multi-Deployment Comparison
+
+Compare health analysis across different deployments:
+
+```bash
+cribl-hc analyze run \
+    --deployment prod \
+    --objective multi_deployment_comparison \
+    --output deployment_comparison.json
+```
+
+### Example 13: Scheduled Monitoring
+
+Set up continuous health monitoring with notifications:
+
+```bash
+# Daemon mode with 30-minute intervals
+cribl-hc analyze schedule \
+    --deployment prod \
+    --interval 30 \
+    --daemon \
+    --slack-webhook https://hooks.slack.com/services/... \
+    --alert-threshold high
+```
+
+### Example 14: Custom PII Pattern Management
+
+Configure organization-specific sensitive data patterns:
+
+```bash
+# Add custom employee ID pattern
+cribl-hc config pii add \
+    --name employee_id \
+    --pattern "\\bEMP\\d{6}\\b" \
+    --description "Employee ID in EMPXXXXXX format" \
+    --severity medium \
+    --category corporate
+
+# List all configured patterns
+cribl-hc config pii list
+
+# Validate pattern configurations
+cribl-hc config pii validate
+
+# Edit existing pattern
+cribl-hc config pii edit employee_id --severity high
+```
+
 ## Environment Variables
 
 | Variable | Description | Example |
@@ -682,6 +919,27 @@ cribl-hc analyze run -o resource
 ```bash
 # In CI pipeline
 cribl-hc analyze run --verbose --output ci-report.json || exit 1
+```
+
+### 6. Implement Enterprise Security Monitoring
+
+```bash
+# Weekly advanced security scan
+cribl-hc analyze run -o advanced_security --output security-audit.json
+
+# Set up continuous compliance monitoring
+cribl-hc analyze schedule -p prod -i 60 --daemon --pagerduty-key YOUR_KEY --alert-threshold high
+```
+
+### 7. Configure Custom PII Patterns
+
+```bash
+# Add organization-specific patterns
+cribl-hc config pii add -n customer_ssn -p "\\b\\d{3}-\\d{2}-\\d{4}\\b" -d "Social Security Numbers" -s critical -c personal
+cribl-hc config pii add -n api_key -p "\\bAPI_KEY_[A-Za-z0-9]{32}\\b" -d "API Keys" -s high -c security
+
+# Validate patterns before deployment
+cribl-hc config pii validate
 ```
 
 ## Troubleshooting

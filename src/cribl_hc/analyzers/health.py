@@ -34,6 +34,11 @@ class HealthAnalyzer(BaseAnalyzer):
         return "health"
 
     @property
+    def category(self) -> str:
+        """Return the category this analyzer belongs to."""
+        return "core"
+
+    @property
     def supported_products(self) -> List[str]:
         """Health analyzer applies to Stream and Edge."""
         return ["stream", "edge"]

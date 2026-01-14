@@ -176,6 +176,13 @@ class BaseAnalyzer(ABC):
         pass
 
     @property
+    def category(self) -> str:
+        """
+        Return the category this analyzer belongs to.
+        """
+        return "core"
+
+    @property
     def supported_products(self) -> list[str]:
         """
         Return list of products this analyzer supports.
@@ -219,7 +226,6 @@ class BaseAnalyzer(ABC):
         """
         return True
 
-    @abstractmethod
     async def post_analyze_cleanup(self) -> None:
         """
         Optional cleanup after analysis completes.

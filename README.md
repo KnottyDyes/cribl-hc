@@ -6,8 +6,13 @@
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.2-blue?logo=react)](https://react.dev/)
+[![Enterprise Features](https://img.shields.io/badge/Enterprise-Ready-blueviolet.svg)](https://github.com/KnottyDyes/cribl-hc)
 
-Comprehensive health checking tool for Cribl Stream deployments. Provides actionable insights across health assessment, configuration validation, performance optimization, security auditing, and cost management.
+**🏢 Enterprise-Ready Health Checking Tool for Cribl Stream Deployments**
+
+Provides actionable insights across health assessment, configuration validation, performance optimization, advanced security auditing with healthcare/financial compliance, multi-deployment comparison, and scheduled monitoring with notifications.
+
+**✨ New in v0.5.0**: Advanced Security & Compliance (HIPAA/SOC2/GDPR), Multi-Deployment Comparison, Scheduled Health Checks with Slack/PagerDuty notifications, and Custom PII Pattern Management.
 
 **🔒 Data Privacy**: This tool adheres to strict data governance standards. See [DATA_PRIVACY.md](docs/DATA_PRIVACY.md) for details on how we handle transient event data.
 
@@ -17,8 +22,11 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 - **Quick Health Assessment**: Overall health score (0-100) with prioritized critical issues
 - **Configuration Validation**: Detect syntax errors, deprecated functions, and best practice violations
 - **Performance Optimization**: Identify over/under-provisioned workers and optimization opportunities
-- **Security Auditing**: Validate TLS configs, detect exposed secrets, assess RBAC
+- **Advanced Security Auditing**: Healthcare codes (ICD-10, DEA), financial patterns (SWIFT, IBAN), compliance frameworks (HIPAA, SOC2, GDPR), custom PII detection
 - **Cost Management**: Track license consumption and predict exhaustion timelines
+- **Multi-Deployment Comparison**: Compare health analysis across deployments for configuration parity
+- **Scheduled Monitoring**: Daemon mode with Slack/PagerDuty notifications and automated reporting
+- **Custom PII Management**: Configure organization-specific sensitive data patterns via CLI
 - **Read-Only by Design**: All operations use read-only API access, zero risk to production
 - **Fast Analysis**: Complete analysis in under 5 minutes using fewer than 100 API calls
 
@@ -58,6 +66,12 @@ Comprehensive health checking tool for Cribl Stream deployments. Provides action
 - **Cribl Search** - Query performance, job monitoring, cost analysis ✅
   - SearchHealthAnalyzer: Job monitoring, dataset availability, dashboard validation
   - SearchPerformanceAnalyzer: CPU cost analysis, query efficiency, optimization
+
+**✅ Enterprise Operations (Complete - Phase 13):**
+- **Advanced Security & Compliance** - Healthcare codes, financial data patterns, custom PII detection ✅
+  - MultiDeploymentComparisonAnalyzer: Cross-deployment health comparison and parity validation
+  - AdvancedSecurityAnalyzer: HIPAA/SOC2/GDPR compliance, custom sensitive data patterns
+  - Scheduled Health Checks: Daemon monitoring with Slack/PagerDuty notifications
 
 This tool analyzes **all Cribl products** including:
 - Worker/node health and capacity (Stream, Edge)
@@ -277,6 +291,49 @@ cribl-hc test-connection test --deployment prod
 cribl-hc test-connection test -p prod
 ```
 
+### Advanced Security & Compliance
+
+```bash
+# Run advanced security analysis with healthcare/financial compliance
+cribl-hc analyze run -p prod -o advanced_security
+
+# List available analyzers grouped by category
+cribl-hc list  # Shows analyzers organized by category
+
+# Configure custom sensitive data patterns
+cribl-hc config pii add --name employee_id --pattern "\\bEMP\\d{6}\\b" \\
+    --description "Employee ID numbers" --severity medium --category corporate
+
+# List configured custom PII patterns
+cribl-hc config pii list
+
+# Validate PII pattern configurations
+cribl-hc config pii validate
+```
+
+### Scheduled Monitoring
+
+```bash
+# Run scheduled health checks with daemon mode
+cribl-hc analyze schedule -p prod --interval 30 --daemon
+
+# With Slack notifications for high+ severity issues
+cribl-hc analyze schedule -p prod --slack-webhook https://hooks.slack.com/... --alert-threshold high
+
+# With PagerDuty integration for critical issues
+cribl-hc analyze schedule -p prod --pagerduty-key abc123 --alert-threshold critical
+```
+
+### Multi-Deployment Comparison
+
+```bash
+# Compare health analysis across multiple deployments
+cribl-hc analyze run -p prod -o multi_deployment_comparison
+
+# Run comprehensive analysis including deployment comparison
+cribl-hc analyze run -p prod -o health -o config -o multi_deployment_comparison
+```
+
 ### Report Generation
 
 Reports are generated during analysis using the `--output` and `--markdown` flags:
@@ -435,7 +492,7 @@ mypy src/
 | **Health** | HealthAnalyzer | Stream, Edge |
 | **Config** | ConfigAnalyzer | Stream, Edge |
 | **Resources** | ResourceAnalyzer, StorageAnalyzer | Stream, Edge |
-| **Security** | SecurityAnalyzer | Stream, Edge |
+| **Security** | SecurityAnalyzer, AdvancedSecurityAnalyzer | Stream, Edge |
 | **Cost** | CostAnalyzer | Stream |
 | **Fleet** | FleetAnalyzer | All |
 | **Predictive** | PredictiveAnalyzer | All |
@@ -443,12 +500,21 @@ mypy src/
 | **Search** | SearchHealthAnalyzer, SearchPerformanceAnalyzer | Search |
 | **Runtime** | BackpressureAnalyzer, PipelinePerformanceAnalyzer | Stream, Edge |
 | **Data Quality** | LookupHealthAnalyzer, SchemaQualityAnalyzer, DataFlowTopologyAnalyzer | Stream, Edge |
+| **Enterprise** | MultiDeploymentComparisonAnalyzer | All |
 
 ### ✅ Phase 11: Polish & Integration (Complete)
 - CLI refinement and report generation
 - Integration testing (258+ tests passing)
 - API alignment with Cribl v4.15.1 specs
 - Documentation (ARCHITECTURE.md, API_REFERENCE.md, USER_GUIDE.md)
+
+### ✅ Phase 13: Enterprise Operations (Complete)
+- Advanced Security & Compliance Analysis (HIPAA, SOC2, GDPR frameworks)
+- Multi-Deployment Comparison for environment parity validation
+- Scheduled Health Checks with daemon mode and notifications
+- Custom PII Pattern Management via CLI configuration
+- Analyzer categorization and improved CLI organization
+- Enterprise-grade security analysis with healthcare/financial data detection
 
 ### 🔮 Future Phases
 - Real-time monitoring mode
@@ -503,8 +569,8 @@ These features require additional infrastructure planning and are not yet implem
 
 ---
 
-**Status**: Production Ready - Phase 11 Complete
-**Version**: 0.4.0
+**Status**: Production Ready - Phase 13 Complete
+**Version**: 0.5.0
 **Python**: 3.11+
 **Cribl Stream**: 4.x (N through N-2 tested; older versions supported with best-effort compatibility)
 **Tests**: 258+ passing (unit + integration)
