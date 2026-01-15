@@ -100,7 +100,6 @@ Moving forward, the roadmap shifts focus from basic health assessment to **Enter
 - **Notification Routing**: Push critical findings to Slack, Teams, or PagerDuty.
 
 ### 12. Advanced Report Customization
-- **White-Label Mode**: Remove all `cribl-hc` branding for MSP/Consultant use cases.
 - **Multi-Language Support**: Support for localized reports (i18n).
 - **Custom Templates**: Support for user-provided Jinja2/Mustache templates for report generation.
 
@@ -113,7 +112,6 @@ Moving forward, the roadmap shifts focus from basic health assessment to **Enter
 ## Removed from Backlog (Completed)
 *The following features were previously planned but have been fully implemented in Phases 1-11.*
 
-- **Report Branding Customization**: Fully implemented with provider/client logos, themes, and custom styling.
 - **Certificate Expiration Monitoring**: Integrated into `SecurityAnalyzer`.
 - **RBAC & User Audit**: Comprehensive checks for inactive users, wildcard roles, and empty teams in `SecurityAnalyzer`.
 - **Configuration Drift Detection**: Implemented in `FleetAnalyzer` (Leader-to-Worker and Environment-to-Environment).

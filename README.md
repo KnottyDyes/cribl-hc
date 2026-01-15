@@ -157,7 +157,6 @@ open http://localhost:8080/api/docs
 - Add/edit/test credentials via web interface
 - Start analyses with real-time progress updates
 - View findings in interactive table
-- Configure branding settings (organization info, logos, themes)
 - Customize report styling and appearance
 - WebSocket live updates during analysis
 

@@ -98,6 +98,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     def get_required_permissions(self) -> list[str]:
         return ["read:auth", "read:users", "read:roles", "read:teams", "read:audit"]
 
+    @property
     def supported_products(self) -> list[str]:
         return ["stream", "edge", "lake", "search"]  # Applies to all products
 

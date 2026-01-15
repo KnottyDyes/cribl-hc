@@ -28,7 +28,6 @@
 | ~~🟢 P3~~ | ~~PII/PHI Leakage Detection~~ | ~~HIGH~~ | ~~HIGH~~ | ✅ **COMPLETE** |
 | ~~🟢 P3~~ | ~~Schema Drift Detection~~ | ~~MEDIUM~~ | ~~HIGH~~ | ✅ **COMPLETE** |
 | ~~🟢 P3~~ | ~~End-to-End Freshness Monitor~~ | ~~MEDIUM~~ | ~~HIGH~~ | ✅ **COMPLETE** |
-| 🟢 P3 | Report Branding/Customization | MEDIUM | HIGH | 📋 Planned |
 | 🟢 P3 | Multi-Deployment Comparison | HIGH | HIGH | 📋 Planned |
 
 ---
@@ -425,12 +424,10 @@ Recommendation: Trigger re-deployment or investigate stuck workers.
 
 ## Lower-Priority Opportunities
 
-### 7. Report Branding/Customization (P3)
 
 **Status**: Already documented in FUTURE_FEATURES.md
 
 **Use Cases**:
-- MSPs delivering branded reports to clients
 - Consulting firms with professional deliverables
 - Multi-tenant environments
 
@@ -500,7 +497,6 @@ From Core API spec, these endpoints are available but not used:
 ### From FUTURE_FEATURES.md
 
 **Already Planned**:
-- Report branding/customization (MSP use case)
 - White-label mode
 - Multi-language reports
 - Custom report templates
@@ -525,7 +521,6 @@ From Core API spec, these endpoints are available but not used:
 3. Add dashboard health to SearchHealthAnalyzer
 
 ### Phase D: Enterprise Features (1-2 weeks)
-1. Report branding system
 2. Multi-deployment comparison
 3. Scheduled health checks
 

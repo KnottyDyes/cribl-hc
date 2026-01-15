@@ -10,7 +10,6 @@ The screenshot generation system creates realistic UI screenshots (light + dark 
 2. **credential_test_success.png** - Success message after testing credentials
 3. **analysis_completion.png** - Analysis summary with health scores
 4. **review_analysis_full.png** - Full analysis report with findings table
-5. **branding_manager.png** - Branding and settings page
 
 ## Screenshots Generated
 
@@ -23,13 +22,11 @@ screenshots/
 │   ├── credential_test_success.png (1200x800)
 │   ├── analysis_completion.png (1200x800)
 │   ├── review_analysis_full.png (1200x1000)
-│   └── branding_manager.png (1200x800)
 └── dark/
     ├── credential_input.png (1200x800)
     ├── credential_test_success.png (1200x800)
     ├── analysis_completion.png (1200x800)
     ├── review_analysis_full.png (1200x1000)
-    └── branding_manager.png (1200x800)
 ```
 
 ## How It Works
@@ -96,7 +93,6 @@ select                              // Deployment selector
 .severity-filter       // Severity filter control
 ```
 
-### Branding Page
 ```javascript
 input[placeholder*="company"]  // Company name input
 input[type="file"]            // Logo upload input
@@ -138,7 +134,6 @@ Each mock screenshot includes:
    - Severity filtering indicators
    - Sample findings with different severity levels
 
-5. **branding_manager.png**
    - Company name input field
    - Logo upload area
    - Primary/secondary/accent color pickers
@@ -168,8 +163,6 @@ Launching browser for actual screenshot capture...
 Navigating to credentials page (light)...
 ✓ light/credential_input.png
 ...
-Navigating to branding page (dark)...
-✓ dark/branding_manager.png
 
 ✓ All screenshots saved to /Projects/screenshotter/screenshots
 
@@ -264,7 +257,6 @@ The script falls back to default fonts if the system font is unavailable. This i
     ├── credential_test_success.png
     ├── analysis_completion.png
     ├── review_analysis_full.png
-    └── branding_manager.png
 ```
 
 ## Next Steps

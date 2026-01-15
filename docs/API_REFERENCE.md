@@ -293,11 +293,8 @@ Test credential connectivity.
 }
 ```
 
-#### Branding
 
-**GET /api/v1/branding**
 
-Get current branding configuration.
 
 Response:
 ```json
@@ -339,9 +336,7 @@ Response:
 }
 ```
 
-**PUT /api/v1/branding**
 
-Update branding configuration.
 
 Request:
 ```json
@@ -386,23 +381,17 @@ Request:
 Response:
 ```json
 {
-  "message": "Branding configuration updated successfully",
-  "branding": { ... }
 }
 ```
 
-**DELETE /api/v1/branding**
 
-Reset branding configuration to defaults.
 
 Response:
 ```json
 {
-  "message": "Branding configuration reset to defaults"
 }
 ```
 
-**POST /api/v1/branding/logo/{logo_type}**
 
 Upload and optimize a logo image. Supports PNG, JPG, and SVG.
 `logo_type` can be `provider`, `provider_dark`, `client`, or `client_dark`.
@@ -422,7 +411,6 @@ Response:
 }
 ```
 
-**DELETE /api/v1/branding/logo/{logo_type}**
 
 Remove a logo image.
 

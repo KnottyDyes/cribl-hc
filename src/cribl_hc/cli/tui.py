@@ -322,3 +322,6 @@ class HealthCheckTUI:
         warning_text = Text(message, style="bold yellow")
         panel = Panel(warning_text, border_style="yellow", title="Warning")
         self.console.print(panel)
+
+
+TUI = HealthCheckTUI  # Alias for backward compatibility

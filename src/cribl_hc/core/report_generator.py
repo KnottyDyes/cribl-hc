@@ -223,7 +223,7 @@ class HTMLReportGenerator:
         return (
             ":root{--primary:#0066cc;--bg:#ffffff;--fg:#333333;--border:#e0e0e0;"
             "--radius:8px;}body{font-family:sans-serif;"
-            f"background:var(--bg);color:var(--fg);padding:2rem;max-width:1200px;margin:0 auto;}}"
+            "background:var(--bg);color:var(--fg);padding:2rem;max-width:1200px;margin:0 auto;}}"
             f".header{{margin-bottom:2rem;}}.logo{{max-height:48px;display:block;margin-bottom:0.25rem;}}"
             f".provider-tagline{{font-size:0.875rem;font-style:italic;margin-bottom:2rem;}}"
             f".version-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem;}}"
@@ -234,18 +234,14 @@ class HTMLReportGenerator:
         )
 
     def _generate_header_html(self, analysis_run: AnalysisRun) -> str:
-        provider_branding = ""
-        if self.branding.provider:
-            logo_src = self.branding.provider.logo_base64 or self.branding.provider.logo_url
-            if logo_src:
-                tagline = (
-                    f"<div class='provider-tagline'>{self.branding.provider.tagline}</div>"
-                    if self.branding.provider.tagline
-                    else ""
-                )
-                provider_branding = f"<img src='{logo_src}' class='logo'>{tagline}"
+        # Branding removed - standard header only
         return (
-            f"<div class='header'>{provider_branding}<h1>{self._get_report_title()}</h1>"
+            f"<div class='header'><h1>{self._get_report_title()}</h1>"
+            f"<p>Deployment: {analysis_run.deployment_id} | Generated: {analysis_run.started_at}</p></div>"
+        )|    def _generate_header_html(self, analysis_run: AnalysisRun) -> str:
+        # Branding removed - standard header only
+        return (
+            f"<div class='header'><h1>{self._get_report_title()}</h1>"
             f"<p>Deployment: {analysis_run.deployment_id} | Generated: {analysis_run.started_at}</p></div>"
         )
 
