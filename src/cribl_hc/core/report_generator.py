@@ -66,12 +66,12 @@ class MarkdownReportGenerator:
             provider_info += "\n"
 
         return (
-            f"# {report_title}\n\n"
-            f"**Deployment:** {analysis_run.deployment_id}\n"
-            f"**Generated:** {analysis_run.started_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
-            f"**Status:** {analysis_run.status.upper()}\n"
-            f"**Duration:** {analysis_run.duration_seconds or 0:.2f}s"
-            f"{provider_info}{client_info}"
+            "# {report_title}\n\n"
+            "**Deployment:** {analysis_run.deployment_id}\n"
+            "**Generated:** {analysis_run.started_at.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+            "**Status:** {analysis_run.status.upper()}\n"
+            "**Duration:** {analysis_run.duration_seconds or 0:.2f}s"
+            "{provider_info}{client_info}"
         )
 
     def _generate_version_info_md(self, analysis_run: AnalysisRun) -> str:
@@ -79,20 +79,20 @@ class MarkdownReportGenerator:
         if not v or (not v.leader_version and not v.product_versions and not v.component_versions):
             return ""
         lines = ["## Deployment Inventory\n"]
-        lines.append(f"- **Leader Version:** {v.leader_version or 'Unknown'}")
-        lines.append(f"- **Product Type:** {v.product_type.upper() if v.product_type else 'N/A'}")
-        lines.append(f"- **Total Nodes:** {len(v.component_versions)}")
+        lines.append("- **Leader Version:** {v.leader_version or 'Unknown'}")
+        lines.append("- **Product Type:** {v.product_type.upper() if v.product_type else 'N/A'}")
+        lines.append("- **Total Nodes:** {len(v.component_versions)}")
         if v.product_versions:
             lines.append("\n### Product Variants")
             for name, version in v.product_versions.items():
-                lines.append(f"- **{name.title()}:** {version}")
+                lines.append("- **{name.title()}:** {version}")
         if v.component_versions:
             lines.append("\n### Node Versions (Top 10)")
             lines.append("| Node ID | Version | Status | Group |")
             lines.append("|---------|---------|--------|-------|")
             for comp in v.component_versions[:10]:
                 group = comp.metadata.get("group", "default")
-                lines.append(f"| {comp.name} | {comp.version} | {comp.status} | {group} |")
+                lines.append("| {comp.name} | {comp.version} | {comp.status} | {group} |")
         return "\n".join(lines)
 
     def _generate_summary(self, analysis_run: AnalysisRun) -> str:
@@ -102,39 +102,39 @@ class MarkdownReportGenerator:
         status_emoji = {"completed": "✅", "partial": "⚠️", "failed": "❌"}
         emoji = status_emoji.get(analysis_run.status, "ℹ️")
         return (
-            f"## Executive Summary\n\n"
-            f"{emoji} **Analysis Status:** {analysis_run.status.upper()}\n\n"
-            f"### Key Metrics\n\n"
-            f"| Metric | Value |\n"
-            f"|--------|-------|\n"
-            f"| Objectives Analyzed | {', '.join(analysis_run.objectives_analyzed)} |\n"
-            f"| Total Findings | {len(analysis_run.findings)} |\n"
-            f"| Critical Issues | {critical_count} |\n"
-            f"| High Severity | {high_count} |\n"
-            f"| Medium Severity | {medium_count} |\n"
-            f"| Recommendations | {len(analysis_run.recommendations)} |\n"
-            f"| API Calls Used | {analysis_run.api_calls_used}/100 |"
+            "## Executive Summary\n\n"
+            "{emoji} **Analysis Status:** {analysis_run.status.upper()}\n\n"
+            "### Key Metrics\n\n"
+            "| Metric | Value |\n"
+            "|--------|-------|\n"
+            "| Objectives Analyzed | {', '.join(analysis_run.objectives_analyzed)} |\n"
+            "| Total Findings | {len(analysis_run.findings)} |\n"
+            "| Critical Issues | {critical_count} |\n"
+            "| High Severity | {high_count} |\n"
+            "| Medium Severity | {medium_count} |\n"
+            "| Recommendations | {len(analysis_run.recommendations)} |\n"
+            "| API Calls Used | {analysis_run.api_calls_used}/100 |"
         )
 
     def _generate_findings_section(self, objective: str, result: AnalyzerResult) -> str:
-        lines = [f"## {objective.upper()} Findings\n"]
+        lines = ["## {objective.upper()} Findings\n"]
         severity_order = ["critical", "high", "medium", "low", "info"]
         severity_emoji = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🔵", "info": "ℹ️"}
         for severity in severity_order:
             severity_findings = [f for f in result.findings if f.severity == severity]
             if not severity_findings:
                 continue
-            lines.append(f"### {severity_emoji.get(severity, '•')} {severity.upper()}\n")
+            lines.append("### {severity_emoji.get(severity, '•')} {severity.upper()}\n")
             for finding in severity_findings:
-                wg_context = f" **(Group: {finding.worker_group})**" if finding.worker_group else ""
-                lines.append(f"#### {finding.title}{wg_context}\n")
-                lines.append(f"{finding.description}\n")
+                wg_context = " **(Group: {finding.worker_group})**" if finding.worker_group else ""
+                lines.append("#### {finding.title}{wg_context}\n")
+                lines.append("{finding.description}\n")
                 if finding.affected_components:
                     lines.append(
-                        f"**Components:** {', '.join(f'`{c}`' for c in finding.affected_components)}\n"
+                        "**Components:** {', '.join(f'`{c}`' for c in finding.affected_components)}\n"
                     )
                 if finding.estimated_impact:
-                    lines.append(f"**Impact:** {finding.estimated_impact}\n")
+                    lines.append("**Impact:** {finding.estimated_impact}\n")
                 if finding.metadata:
                     lines.append(
                         "**Details:**\n```json\n"
@@ -151,14 +151,14 @@ class MarkdownReportGenerator:
             priority_recs = [r for r in recommendations if r.priority == priority]
             if not priority_recs:
                 continue
-            lines.append(f"### {priority_emoji.get(priority, '•')} {priority.upper()} Priority\n")
+            lines.append("### {priority_emoji.get(priority, '•')} {priority.upper()} Priority\n")
             for i, rec in enumerate(priority_recs, 1):
-                lines.append(f"#### {i}. {rec.title}\n")
-                lines.append(f"{rec.description}\n")
+                lines.append("#### {i}. {rec.title}\n")
+                lines.append("{rec.description}\n")
                 if rec.implementation_steps:
                     lines.append("**Implementation Steps:**\n")
                     for step_num, step in enumerate(rec.implementation_steps, 1):
-                        lines.append(f"{step_num}. {step}")
+                        lines.append("{step_num}. {step}")
                     lines.append("")
         return "\n".join(lines)
 
@@ -166,14 +166,14 @@ class MarkdownReportGenerator:
         footer_text = "*Generated by cribl-hc*"
         footer_text = None
         return (
-            f"## Appendix\n\n### Analysis Metadata\n\n"
-            f"| Field | Value |\n"
-            f"|-------|-------|\n"
-            f"| Analysis ID | `{analysis_run.id}` |\n"
-            f"| Started At | {analysis_run.started_at.strftime('%Y-%m-%d %H:%M:%S UTC')} |\n"
-            f"| Completed At | {analysis_run.completed_at.strftime('%Y-%m-%d %H:%M:%S UTC') if analysis_run.completed_at else 'N/A'} |\n"
-            f"| Duration | {analysis_run.duration_seconds or 0:.2f}s |\n\n"
-            f"---\n\n{footer_text}"
+            "## Appendix\n\n### Analysis Metadata\n\n"
+            "| Field | Value |\n"
+            "|-------|-------|\n"
+            "| Analysis ID | `{analysis_run.id}` |\n"
+            "| Started At | {analysis_run.started_at.strftime('%Y-%m-%d %H:%M:%S UTC')} |\n"
+            "| Completed At | {analysis_run.completed_at.strftime('%Y-%m-%d %H:%M:%S UTC') if analysis_run.completed_at else 'N/A'} |\n"
+            "| Duration | {analysis_run.duration_seconds or 0:.2f}s |\n\n"
+            "---\n\n{footer_text}"
         )
 
 
@@ -207,13 +207,13 @@ class HTMLReportGenerator:
             findings_html = self._generate_findings_html(reconstructed_results)
 
         return (
-            f"<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
-            f"<title>{self._get_report_title()}</title><style>{self._generate_css()}</style></head>"
-            f"<body>{self._generate_header_html(analysis_run)}"
-            f"{self._generate_summary_html(analysis_run)}"
-            f"{self._generate_version_info_html(analysis_run)}"
-            f"{findings_html}{self._generate_recommendations_html(analysis_run)}"
-            f"{self._generate_footer_html(analysis_run)}</body></html>"
+            "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+            "<title>{self._get_report_title()}</title><style>{self._generate_css()}</style></head>"
+            "<body>{self._generate_header_html(analysis_run)}"
+            "{self._generate_summary_html(analysis_run)}"
+            "{self._generate_version_info_html(analysis_run)}"
+            "{findings_html}{self._generate_recommendations_html(analysis_run)}"
+            "{self._generate_footer_html(analysis_run)}</body></html>"
         )
 
     def _get_report_title(self) -> str:
@@ -224,25 +224,33 @@ class HTMLReportGenerator:
             ":root{--primary:#0066cc;--bg:#ffffff;--fg:#333333;--border:#e0e0e0;"
             "--radius:8px;}body{font-family:sans-serif;"
             "background:var(--bg);color:var(--fg);padding:2rem;max-width:1200px;margin:0 auto;}}"
-            f".header{{margin-bottom:2rem;}}.logo{{max-height:48px;display:block;margin-bottom:0.25rem;}}"
-            f".provider-tagline{{font-size:0.875rem;font-style:italic;margin-bottom:2rem;}}"
-            f".version-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem;}}"
-            f".version-card{{background:rgba(0,0,0,0.05);padding:1rem;border-radius:var(--radius);}}"
-            f".version-item{{display:flex;justify-content:space-between;border-bottom:1px solid var(--border);}}"
-            f".badge{{padding:0.25rem;border-radius:10px;font-size:0.75rem;}}table{{width:100%;"
-            f"border-collapse:collapse;}}th,td{{border-bottom:1px solid var(--border);padding:0.5rem;}}"
+            ".header{{margin-bottom:2rem;}}.logo{{max-height:48px;display:block;margin-bottom:0.25rem;}}"
+            ".provider-tagline{{font-size:0.875rem;font-style:italic;margin-bottom:2rem;}}"
+            ".version-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem;}}"
+            ".version-card{{background:rgba(0,0,0,0.05);padding:1rem;border-radius:var(--radius);}}"
+            ".version-item{{display:flex;justify-content:space-between;border-bottom:1px solid var(--border);}}"
+            ".badge{{padding:0.25rem;border-radius:10px;font-size:0.75rem;}}table{{width:100%;"
+            "border-collapse:collapse;}}th,td{{border-bottom:1px solid var(--border);padding:0.5rem;}}"
         )
 
     def _generate_header_html(self, analysis_run: AnalysisRun) -> str:
         # Branding removed - standard header only
         return (
-            f"<div class='header'><h1>{self._get_report_title()}</h1>"
-            f"<p>Deployment: {analysis_run.deployment_id} | Generated: {analysis_run.started_at}</p></div>"
-        )|    def _generate_header_html(self, analysis_run: AnalysisRun) -> str:
+            "<div class='header'><h1>{self._get_report_title()}</h1>"
+            "<p>Deployment: {analysis_run.deployment_id} |    def _generate_header_html(self, analysis_run: AnalysisRun) -> str:
         # Branding removed - standard header only
         return (
             f"<div class='header'><h1>{self._get_report_title()}</h1>"
-            f"<p>Deployment: {analysis_run.deployment_id} | Generated: {analysis_run.started_at}</p></div>"
+            "<p>Deployment: {analysis_run.deployment_id} | Generated: {analysis_run.started_at}</p></div>"
+        )|    def _generate_header_html(self, analysis_run: AnalysisRun) -> str:
+        # Branding removed - standard header only
+        return (
+            "<div class='header'><h1>{self._get_report_title()}</h1>"
+            "<p>Deployment: {analysis_run.deployment_id} |    def _generate_header_html(self, analysis_run: AnalysisRun) -> str:
+        # Branding removed - standard header only
+        return (
+            f"<div class='header'><h1>{self._get_report_title()}</h1>"
+            "<p>Deployment: {analysis_run.deployment_id} | Generated: {analysis_run.started_at}</p></div>"
         )
 
     def _generate_version_info_html(self, analysis_run: AnalysisRun) -> str:
@@ -251,28 +259,28 @@ class HTMLReportGenerator:
             return ""
         items = "".join(
             [
-                f"<tr><td>{c.name}</td><td>{c.version}</td><td>{c.status}</td><td>{c.metadata.get('group', 'N/A')}</td></tr>"
+                "<tr><td>{c.name}</td><td>{c.version}</td><td>{c.status}</td><td>{c.metadata.get('group', 'N/A')}</td></tr>"
                 for c in v.component_versions[:10]
             ]
         )
         return (
-            f"<section><h2>Inventory</h2><div class='version-grid'><div class='version-card'>"
-            f"<h3>Versions</h3><p>Leader: {v.leader_version}</p></div></div>"
-            f"<table><tr><th>Node</th><th>Version</th><th>Status</th><th>Group</th></tr>{items}</table></section>"
+            "<section><h2>Inventory</h2><div class='version-grid'><div class='version-card'>"
+            "<h3>Versions</h3><p>Leader: {v.leader_version}</p></div></div>"
+            "<table><tr><th>Node</th><th>Version</th><th>Status</th><th>Group</th></tr>{items}</table></section>"
         )
 
     def _generate_summary_html(self, analysis_run: AnalysisRun) -> str:
         score = analysis_run.health_score.overall_score if analysis_run.health_score else "N/A"
-        return f"<section><h2>Summary</h2><p>Score: {score}/100</p></section>"
+        return "<section><h2>Summary</h2><p>Score: {score}/100</p></section>"
 
     def _generate_findings_html(self, results: dict[str, AnalyzerResult]) -> str:
         html = ""
         for obj, res in results.items():
             f_html = ""
             for f in res.findings:
-                wg = f" <small>(Group: {f.worker_group})</small>" if f.worker_group else ""
-                f_html += f"<div><h4>{f.title}{wg}</h4><p>{f.description}</p></div>"
-            html += f"<section><h2>{obj.upper()} Findings</h2>{f_html}</section>"
+                wg = " <small>(Group: {f.worker_group})</small>" if f.worker_group else ""
+                f_html += "<div><h4>{f.title}{wg}</h4><p>{f.description}</p></div>"
+            html += "<section><h2>{obj.upper()} Findings</h2>{f_html}</section>"
         return html
 
     def _generate_recommendations_html(self, analysis_run: AnalysisRun) -> str:
