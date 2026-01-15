@@ -5,7 +5,7 @@ optimization opportunities, and maintenance overhead.
 
 import re
 from collections import defaultdict
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from pydantic import BaseModel, Field
 
@@ -22,7 +22,7 @@ class LibraryEntry(BaseModel):
     size_bytes: int = 0
     function_count: int = 0
     last_modified: Optional[str] = None
-    references: list[str] = Field(default_factory=list)  # IDs of things that reference this library
+    references: List[str] = Field(default_factory=list)  # IDs of things that reference this library
     content_hash: Optional[str] = None
 
     @property
@@ -59,7 +59,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
     def get_description(self) -> str:
         return "Analyzes library usage patterns, identifies unused dependencies, and suggests optimization opportunities."
 
-    def get_required_permissions(self) -> list[str]:
+    def get_required_permissions(self) -> List[str]:
         return ["read:libraries", "read:functions", "read:pipelines", "read:routes", "read:lookups"]
 
     @property
@@ -111,7 +111,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
         return result
 
-    async def _get_libraries(self, client: CriblAPIClient) -> list[LibraryEntry]:
+    async def _get_libraries(self, client: CriblAPIClient) -> List[LibraryEntry]:
         """Fetch all library entries with metadata."""
         libraries = []
 
@@ -172,8 +172,8 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
         return libraries
 
     async def _analyze_usage_patterns(
-        self, client: CriblAPIClient, libraries: list[LibraryEntry]
-    ) -> dict[str, list[UsageReference]]:
+        self, client: CriblAPIClient, libraries: List[LibraryEntry]
+    ) -> Dict[str, List[UsageReference]]:
         """Analyze how libraries are used across pipelines and routes."""
         usage_map = defaultdict(list)
 
@@ -233,10 +233,10 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
     async def _analyze_function_usage(
         self,
-        pipeline_config: dict[str, Any],
+        pipeline_config: Dict[str, Any],
         pipeline_id: str,
-        function_libs: dict[str, LibraryEntry],
-        usage_map: dict[str, list[UsageReference]],
+        function_libs: Dict[str, LibraryEntry],
+        usage_map: Dict[str, List[UsageReference]],
     ) -> None:
         """Analyze function usage within a pipeline."""
         try:
@@ -261,10 +261,10 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
     async def _analyze_lookup_usage(
         self,
-        pipeline_config: dict[str, Any],
+        pipeline_config: Dict[str, Any],
         pipeline_id: str,
-        lookup_libs: dict[str, LibraryEntry],
-        usage_map: dict[str, list[UsageReference]],
+        lookup_libs: Dict[str, LibraryEntry],
+        usage_map: Dict[str, List[UsageReference]],
     ) -> None:
         """Analyze lookup usage within a pipeline."""
         try:
@@ -288,10 +288,10 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
     async def _analyze_pipeline_fragment_usage(
         self,
-        pipeline_config: dict[str, Any],
+        pipeline_config: Dict[str, Any],
         pipeline_id: str,
-        pipeline_libs: dict[str, LibraryEntry],
-        usage_map: dict[str, list[UsageReference]],
+        pipeline_libs: Dict[str, LibraryEntry],
+        usage_map: Dict[str, List[UsageReference]],
     ) -> None:
         """Analyze pipeline fragment usage within a pipeline."""
         try:
@@ -313,7 +313,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
         except Exception as e:
             self.log.debug(f"Error analyzing fragment usage in pipeline {pipeline_id}: {e}")
 
-    def _extract_function_calls(self, pipeline_config: dict[str, Any]) -> set[str]:
+    def _extract_function_calls(self, pipeline_config: Dict[str, Any]) -> Set[str]:
         """Extract function calls from pipeline configuration."""
         functions = set()
 
@@ -348,7 +348,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
         return functions
 
-    def _extract_lookup_references(self, pipeline_config: dict[str, Any]) -> set[str]:
+    def _extract_lookup_references(self, pipeline_config: Dict[str, Any]) -> Set[str]:
         """Extract lookup references from pipeline configuration."""
         lookups = set()
 
@@ -386,8 +386,8 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
     def _check_unused_libraries(
         self,
         result: AnalyzerResult,
-        libraries: list[LibraryEntry],
-        usage_references: dict[str, list[UsageReference]],
+        libraries: List[LibraryEntry],
+        usage_references: Dict[str, List[UsageReference]],
         client: CriblAPIClient,
     ) -> None:
         """Check for libraries that are defined but never used."""
@@ -435,8 +435,8 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
     def _check_performance_impact(
         self,
         result: AnalyzerResult,
-        libraries: list[LibraryEntry],
-        usage_references: dict[str, list[UsageReference]],
+        libraries: List[LibraryEntry],
+        usage_references: Dict[str, List[UsageReference]],
         client: CriblAPIClient,
     ) -> None:
         """Check for libraries that impact performance."""
@@ -468,7 +468,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
                 )
 
     def _check_maintenance_burden(
-        self, result: AnalyzerResult, libraries: list[LibraryEntry], client: CriblAPIClient
+        self, result: AnalyzerResult, libraries: List[LibraryEntry], client: CriblAPIClient
     ) -> None:
         """Check for libraries that create maintenance burden."""
         for lib in libraries:
@@ -494,8 +494,8 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
     def _analyze_dependency_chains(
         self,
         result: AnalyzerResult,
-        libraries: list[LibraryEntry],
-        usage_references: dict[str, list[UsageReference]],
+        libraries: List[LibraryEntry],
+        usage_references: Dict[str, List[UsageReference]],
         client: CriblAPIClient,
     ) -> None:
         """Analyze dependency chains and circular references."""
@@ -552,8 +552,8 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
     def _suggest_optimization_opportunities(
         self,
         result: AnalyzerResult,
-        libraries: list[LibraryEntry],
-        usage_references: dict[str, list[UsageReference]],
+        libraries: List[LibraryEntry],
+        usage_references: Dict[str, List[UsageReference]],
         client: CriblAPIClient,
     ) -> None:
         """Suggest optimization opportunities."""
@@ -606,28 +606,28 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
                 )
             )
 
-    def _estimate_size(self, data: dict[str, Any]) -> int:
+    def _estimate_size(self, data: Dict[str, Any]) -> int:
         """Estimate the size of a library entry in bytes."""
         try:
             # Rough estimation based on JSON string length
             return len(str(data)) * 2  # Rough multiplier for internal representation
-        except Exception:
+        except:
             return 0
 
-    def _count_functions_in_pipeline(self, pipeline_data: dict[str, Any]) -> int:
+    def _count_functions_in_pipeline(self, pipeline_data: Dict[str, Any]) -> int:
         """Count functions in a pipeline fragment."""
         try:
             steps = pipeline_data.get("config", {}).get("steps", [])
             return len([step for step in steps if step.get("type") == "function"])
-        except Exception:
+        except:
             return 0
 
-    def _calculate_content_hash(self, data: dict[str, Any]) -> Optional[str]:
+    def _calculate_content_hash(self, data: Dict[str, Any]) -> Optional[str]:
         """Calculate a simple content hash for change detection."""
         try:
             import hashlib
 
             content_str = str(sorted(data.items()))
             return hashlib.md5(content_str.encode()).hexdigest()[:8]
-        except Exception:
+        except:
             return None
