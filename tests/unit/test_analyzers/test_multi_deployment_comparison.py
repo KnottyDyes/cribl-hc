@@ -1,12 +1,12 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from cribl_hc.analyzers.multi_deployment_comparison import (
-    MultiDeploymentComparisonAnalyzer,
-    DeploymentConfig,
-    ComparisonResult,
-)
+import pytest
+
 from cribl_hc.analyzers.base import AnalyzerResult
+from cribl_hc.analyzers.multi_deployment_comparison import (
+    DeploymentConfig,
+    MultiDeploymentComparisonAnalyzer,
+)
 
 
 @pytest.fixture

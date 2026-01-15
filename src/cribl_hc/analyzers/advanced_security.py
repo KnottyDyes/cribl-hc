@@ -6,8 +6,8 @@ custom compliance frameworks, and advanced threat detection capabilities.
 """
 
 import re
-from typing import Dict, List, Any, Set, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, List, Set
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -175,15 +175,16 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
         """
         Load custom sensitive data patterns from configuration file.
         """
-        import yaml
         from pathlib import Path
+
+        import yaml
 
         patterns = []
         config_file = Path(__file__).parent.parent / "rules" / "custom_pii_patterns.yaml"
 
         try:
             if config_file.exists():
-                with open(config_file, "r") as f:
+                with open(config_file) as f:
                     data = yaml.safe_load(f)
 
                 if data and "custom_patterns" in data:

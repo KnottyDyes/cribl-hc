@@ -471,8 +471,9 @@ def list_pii_patterns():
 
         cribl-hc config pii list
     """
-    import yaml
     from pathlib import Path
+
+    import yaml
 
     patterns_file = Path(__file__).parent.parent.parent / "rules" / "custom_pii_patterns.yaml"
 
@@ -483,7 +484,7 @@ def list_pii_patterns():
             console.print("[dim]Or run 'cribl-hc config pii add' to create one[/dim]")
             return
 
-        with open(patterns_file, "r") as f:
+        with open(patterns_file) as f:
             data = yaml.safe_load(f)
 
         if not data or not data.get("custom_patterns"):
@@ -547,8 +548,9 @@ def add_pii_pattern(
             -d "Social Security Number" -s critical -c personal \\
             -r "Never log SSNs, use tokenization instead"
     """
-    import yaml
     from pathlib import Path
+
+    import yaml
 
     valid_severities = ["critical", "high", "medium", "low", "info"]
     if severity not in valid_severities:
@@ -561,7 +563,7 @@ def add_pii_pattern(
     try:
         data = {"custom_patterns": []}
         if patterns_file.exists():
-            with open(patterns_file, "r") as f:
+            with open(patterns_file) as f:
                 existing_data = yaml.safe_load(f)
                 if existing_data and "custom_patterns" in existing_data:
                     data = existing_data
@@ -603,7 +605,7 @@ def add_pii_pattern(
         # Load existing patterns
         data = {"custom_patterns": []}
         if patterns_file.exists():
-            with open(patterns_file, "r") as f:
+            with open(patterns_file) as f:
                 existing_data = yaml.safe_load(f)
                 if existing_data and "custom_patterns" in existing_data:
                     data = existing_data
@@ -666,8 +668,9 @@ def edit_pii_pattern(
         cribl-hc config pii edit ssn --disable
         cribl-hc config pii edit project_code --pattern "\\bPRJ-[A-Z]{3}-\\d{5}\\b"
     """
-    import yaml
     from pathlib import Path
+
+    import yaml
 
     patterns_file = Path(__file__).parent.parent.parent / "rules" / "custom_pii_patterns.yaml"
 
@@ -676,7 +679,7 @@ def edit_pii_pattern(
             console.print("[red]✗ No PII patterns configuration file found[/red]")
             raise typer.Exit(code=1)
 
-        with open(patterns_file, "r") as f:
+        with open(patterns_file) as f:
             data = yaml.safe_load(f)
 
         if not data or not data.get("custom_patterns"):
@@ -720,7 +723,7 @@ def edit_pii_pattern(
         console.print(f"[red]✗ Failed to edit PII pattern:[/red] {str(e)}")
         raise typer.Exit(code=1)
 
-        with open(patterns_file, "r") as f:
+        with open(patterns_file) as f:
             data = yaml.safe_load(f)
 
         if not data or not data.get("custom_patterns"):
@@ -780,8 +783,9 @@ def remove_pii_pattern(
         cribl-hc config pii remove employee_id
         cribl-hc config pii remove ssn --yes
     """
-    import yaml
     from pathlib import Path
+
+    import yaml
 
     patterns_file = Path(__file__).parent.parent.parent / "rules" / "custom_pii_patterns.yaml"
 
@@ -790,7 +794,7 @@ def remove_pii_pattern(
             console.print("[red]✗ No PII patterns configuration file found[/red]")
             raise typer.Exit(code=1)
 
-        with open(patterns_file, "r") as f:
+        with open(patterns_file) as f:
             data = yaml.safe_load(f)
 
         if not data or not data.get("custom_patterns"):
@@ -819,7 +823,7 @@ def remove_pii_pattern(
         console.print(f"[red]✗ Failed to remove PII pattern:[/red] {str(e)}")
         raise typer.Exit(code=1)
 
-        with open(patterns_file, "r") as f:
+        with open(patterns_file) as f:
             data = yaml.safe_load(f)
 
         if not data or not data.get("custom_patterns"):
@@ -863,8 +867,9 @@ def validate_pii_patterns():
         cribl-hc config pii validate
     """
     import re
-    import yaml
     from pathlib import Path
+
+    import yaml
 
     patterns_file = Path(__file__).parent.parent.parent / "rules" / "custom_pii_patterns.yaml"
 
@@ -873,7 +878,7 @@ def validate_pii_patterns():
             console.print("[yellow]No PII patterns configuration file found[/yellow]")
             return
 
-        with open(patterns_file, "r") as f:
+        with open(patterns_file) as f:
             data = yaml.safe_load(f)
 
         if not data or not data.get("custom_patterns"):

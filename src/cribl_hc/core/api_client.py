@@ -48,7 +48,7 @@ class CriblAPIClient:
         self._product_type: Optional[str] = None
         self._product_version: Optional[str] = None
         self.rate_limiter = rate_limiter or RateLimiter(
-            max_calls=100,
+            max_calls=500,
             time_window_seconds=3600.0,
             enable_backoff=True,
         )

@@ -7,7 +7,7 @@ downstream processing.
 """
 
 import time
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
