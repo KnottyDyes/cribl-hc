@@ -28,7 +28,14 @@ Example:
     ```
 """
 
-__version__ = "1.0.0"
+import importlib.metadata
+
+try:
+    __version__ = importlib.metadata.version("cribl-health-check")
+except importlib.metadata.PackageNotFoundError:
+    # Handle case where package is not installed (e.g., in development)
+    __version__ = "0.0.0-dev"
+
 __author__ = "Cribl Health Check Project"
 __license__ = "MIT"
 
