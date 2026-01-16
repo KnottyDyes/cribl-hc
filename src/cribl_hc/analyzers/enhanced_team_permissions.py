@@ -97,6 +97,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     def get_required_permissions(self) -> List[str]:
         return ["read:auth", "read:users", "read:roles", "read:teams", "read:audit"]
 
+    @property
     def supported_products(self) -> List[str]:
         return ["stream", "edge", "lake", "search"]  # Applies to all products
 
@@ -144,7 +145,8 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     async def _get_users(self, client: CriblAPIClient) -> List[UserInfo]:
         """Fetch all users and their role information."""
         try:
-            users_data = await client.get("auth/users")
+            response = await client.get("auth/users")
+            users_data = response.json()
             users = []
 
             for user_data in users_data.get("items", []):
@@ -184,7 +186,8 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     async def _get_roles(self, client: CriblAPIClient) -> List[RoleDefinition]:
         """Fetch all role definitions and their permissions."""
         try:
-            roles_data = await client.get("auth/roles")
+            response = await client.get("auth/roles")
+            roles_data = response.json()
             roles = []
 
             for role_data in roles_data.get("items", []):
@@ -205,7 +208,8 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     async def _get_teams(self, client: CriblAPIClient) -> List[TeamInfo]:
         """Fetch all teams and their memberships."""
         try:
-            teams_data = await client.get("auth/teams")
+            response = await client.get("auth/teams")
+            teams_data = response.json()
             teams = []
 
             for team_data in teams_data.get("items", []):
@@ -229,9 +233,10 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
 
         try:
             # Try to get recent audit logs for permission usage analysis
-            audit_data = await client.get(
+            response = await client.get(
                 "system/audit", params={"limit": 1000, "action": "permission"}
             )
+            audit_data = response.json()
 
             for entry in audit_data.get("items", []):
                 permission = entry.get("permission", "")

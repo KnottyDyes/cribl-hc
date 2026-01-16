@@ -264,12 +264,28 @@ class BaseAnalyzer(ABC):
         # Auto-generate grouping_id from title pattern if not explicitly provided
         if "grouping_id" not in kwargs and "title" in kwargs:
             title = kwargs["title"]
-            # Extract pattern from titles like "Pattern: value" or "Pattern Name: value"
             if ":" in title:
                 pattern = title.split(":")[0].strip().lower()
-                # Convert to snake_case and prefix with objective for uniqueness
                 pattern_id = pattern.replace(" ", "-")
                 kwargs["grouping_id"] = f"{self.objective_name}-{pattern_id}"
+
+        # --- Compatibility mapping for older analyzer patterns ---
+        # Map 'recommendation' to 'remediation_steps'
+        if "recommendation" in kwargs and "remediation_steps" not in kwargs:
+            rec = kwargs.pop("recommendation")
+            kwargs["remediation_steps"] = [rec] if isinstance(rec, str) else rec
+
+        # Map 'impact' object to 'estimated_impact' string
+        if "impact" in kwargs and "estimated_impact" not in kwargs:
+            impact_obj = kwargs.pop("impact")
+            if hasattr(impact_obj, "performance_improvement"):
+                kwargs["estimated_impact"] = (
+                    impact_obj.performance_improvement or "Performance improvement"
+                )
+            elif hasattr(impact_obj, "cost_savings_annual"):
+                kwargs["estimated_impact"] = (
+                    f"Annual cost savings: ${impact_obj.cost_savings_annual:,.2f}"
+                )
 
         finding = Finding(**kwargs)
 
