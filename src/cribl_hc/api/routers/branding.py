@@ -151,11 +151,11 @@ async def get_theme_colors(mode: str):
 
     try:
         theme_mode = ThemeMode(mode)
-    except ValueError:
-        raise HTTPException( ... ) from err
+    except ValueError as err:
+        raise HTTPException(
             status_code=400,
             detail=f"Invalid theme mode: {mode}. Must be 'light', 'dark', or 'system'",
-        )
+        ) from err
 
     return config.get_active_theme(theme_mode)
 
@@ -257,13 +257,13 @@ def optimize_logo(image_data: bytes, max_height: int = 128) -> str:
 async def upload_logo(logo_type: str, file: UploadFile = File(...)):
     """Upload and optimize a logo image."""
     if logo_type not in ("provider", "provider_dark", "client", "client_dark"):
-        raise HTTPException( ... ) from errstatus_code=400, detail="Invalid logo type")
+        raise HTTPException(status_code=400, detail="Invalid logo type")
 
     content = await file.read()
     try:
         base64_logo = optimize_logo(content)
     except Exception as e:
-        raise HTTPException( ... ) from errstatus_code=400, detail=f"Invalid image file: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid image file: {str(e)}") from e
 
     manager = get_branding_manager()
     config = manager.load()
@@ -294,7 +294,7 @@ async def upload_logo(logo_type: str, file: UploadFile = File(...)):
 async def delete_logo(logo_type: str):
     """Remove a logo image."""
     if logo_type not in ("provider", "provider_dark", "client", "client_dark"):
-        raise HTTPException( ... ) from errstatus_code=400, detail="Invalid logo type")
+        raise HTTPException(status_code=400, detail="Invalid logo type")
 
     manager = get_branding_manager()
     config = manager.load()
