@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from httpx import HTTPStatusError
+
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
 from cribl_hc.models.search import SearchHealthCheckList
@@ -80,6 +82,12 @@ class SearchHealthcheckAnalyzer(BaseAnalyzer):
                     )
 
             result.success = True
+        except HTTPStatusError as e:
+            if e.response.status_code == 404:
+                log.debug("Search healthcheck endpoint not found, skipping analyzer.")
+                result.success = True  # Treat as success if feature isn't present
+            else:
+                raise e  # Re-raise other HTTP errors
         except Exception as exc:
             log.error("search_healthcheck_failed", error=str(exc))
             result.success = False

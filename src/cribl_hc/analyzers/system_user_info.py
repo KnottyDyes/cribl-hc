@@ -47,6 +47,10 @@ class SystemUserInfoAnalyzer(BaseAnalyzer):
                         title="No Users Found",
                         description="No users were retrieved from the system.",
                         affected_components=["iam"],
+                        remediation_steps=[
+                            "Verify that the API token has 'read:iam' or 'read:system' permissions.",
+                            "Check for network issues preventing connection to the user management API endpoints.",
+                        ],
                         confidence_level="medium",
                     )
                 )
