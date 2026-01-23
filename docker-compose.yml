@@ -1,8 +1,6 @@
 # Docker Compose configuration for Cribl Health Check
 # Supports both CLI and Web GUI modes
 
-version: '3.8'
-
 services:
   # Main application service
   cribl-hc:

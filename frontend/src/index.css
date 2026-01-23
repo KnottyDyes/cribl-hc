@@ -3,20 +3,40 @@
 @variant dark (&:where([data-theme=dark], [data-theme=dark] *));
 
 @theme {
-  /* Cribl brand colors */
-  --color-cribl-primary: #00A3E0;
-  --color-cribl-secondary: #0066A1;
-  --color-cribl-accent: #FFB81C;
+  /* TZT brand colors */
+  --color-tzt-orange: #F26522;
+  --color-tzt-dark-orange: #EB4805;
+  --color-tzt-dark: #231F20;
+  --color-tzt-gray-dark: #58595B;
+  --color-tzt-gray-light: #828282;
+  --color-tzt-green: #6CAF3D;
+  --color-tzt-red: #721923;
+  --color-tzt-purple: #7053AA;
+
+  /* Primary brand colors (using TZT) */
+  --color-cribl-primary: #F26522;
+  --color-cribl-secondary: #EB4805;
+  --color-cribl-accent: #6CAF3D;
 
   /* Severity colors */
-  --color-severity-critical: #DC2626;
-  --color-severity-high: #EA580C;
+  --color-severity-critical: #721923;
+  --color-severity-high: #F26522;
   --color-severity-medium: #F59E0B;
   --color-severity-low: #3B82F6;
   --color-severity-info: #6B7280;
 }
 
 :root {
+  /* TZT CSS custom properties */
+  --tzt-orange: #F26522;
+  --tzt-dark-orange: #EB4805;
+  --tzt-dark: #231F20;
+  --tzt-gray-dark: #58595B;
+  --tzt-gray-light: #828282;
+  --tzt-green: #6CAF3D;
+  --tzt-red: #721923;
+  --tzt-purple: #7053AA;
+
   --bg: #FFFFFF;
   --bg-secondary: #F9FAFB;
   --bg-tertiary: #F3F4F6;
@@ -24,7 +44,7 @@
   --fg-secondary: #4B5563;
   --fg-muted: #9CA3AF;
   --border: #E5E7EB;
-  --border-focus: #00A3E0;
+  --border-focus: #F26522;
 }
 
 [data-theme="dark"] {
@@ -35,7 +55,7 @@
   --fg-secondary: #D1D5DB;
   --fg-muted: #6B7280;
   --border: #374151;
-  --border-focus: #00A3E0;
+  --border-focus: #F26522;
 }
 
 * {
@@ -46,4 +66,128 @@ body {
   background-color: var(--bg);
   color: var(--fg);
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+@media print {
+  body {
+    background-color: white !important;
+    color: #231F20 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-hide {
+    display: none !important;
+  }
+
+  nav {
+    border-bottom: 2px solid #F26522 !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+
+  nav .nav-items {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .executive-view {
+    gap: 0.5rem !important;
+  }
+
+  .executive-risk-score {
+    padding: 1rem !important;
+    border-color: #F26522 !important;
+  }
+
+  .executive-risk-score .risk-score-value {
+    font-size: 2.5rem !important;
+  }
+
+  .executive-risk-score .risk-score-label {
+    font-size: 1.25rem !important;
+  }
+
+  .executive-kpi-grid {
+    gap: 0.5rem !important;
+  }
+
+  .executive-kpi-card {
+    padding: 0.5rem !important;
+    border-top: 3px solid #F26522 !important;
+  }
+
+  .executive-kpi-card .kpi-value {
+    font-size: 1.5rem !important;
+  }
+
+  .executive-section {
+    break-inside: avoid;
+  }
+
+  .executive-section-header {
+    padding: 0.5rem 0.75rem !important;
+    background: linear-gradient(135deg, #F26522 0%, #EB4805 100%) !important;
+    color: white !important;
+  }
+
+  .executive-section-header h3 {
+    color: white !important;
+  }
+
+  .executive-section-body {
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  .executive-two-col {
+    gap: 0.5rem !important;
+  }
+
+  .risk-list-item {
+    margin-bottom: 0.25rem !important;
+  }
+
+  .severity-row {
+    padding: 0.125rem 0 !important;
+  }
+
+  table {
+    font-size: 0.75rem !important;
+  }
+
+  table th {
+    padding: 0.25rem 0.5rem !important;
+    background: #F26522 !important;
+    color: white !important;
+  }
+
+  table td {
+    padding: 0.25rem 0.5rem !important;
+  }
+
+  .print-header {
+    display: flex !important;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 2px solid #F26522;
+    margin-bottom: 1rem;
+  }
+
+  .print-header img {
+    max-height: 50px;
+  }
+
+  .print-footer {
+    display: block !important;
+    text-align: center;
+    padding: 1rem;
+    border-top: 1px solid #58595B;
+    margin-top: 2rem;
+    color: #58595B;
+    font-size: 0.75rem;
+  }
 }

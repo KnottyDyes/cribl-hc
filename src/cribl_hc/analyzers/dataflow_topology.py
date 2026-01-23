@@ -250,6 +250,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         catch_all_routes = []
         for route in routes:
             route_id = route.get("id", "unknown")
+            route_name = route.get("name") or route_id
             # API uses 'disabled' field (True means disabled)
             disabled = route.get("disabled", False)
             pipeline_id = route.get("pipeline", "")
@@ -261,8 +262,8 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                 result.add_finding(
                     Finding(
                         id=f"route-missing-pipeline-{route_id}",
-                        title=f"Route References Missing Pipeline: {route_id}",
-                        description=f"Route '{route_id}' references pipeline '{pipeline_id}' which doesn't exist.",
+                        title=f"Route References Missing Pipeline: {route_name}",
+                        description=f"Route '{route_name}' references pipeline '{pipeline_id}' which doesn't exist.",
                         severity="high",
                         category="dataflow_topology",
                         confidence_level="high",
@@ -270,7 +271,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
                         estimated_impact="Data will not be processed as expected",
                         remediation_steps=[
                             f"Create the missing pipeline '{pipeline_id}'",
-                            f"Or update route '{route_id}' to use an existing pipeline",
+                            f"Or update route '{route_name}' to use an existing pipeline",
                         ],
                         metadata={"route_id": route_id, "missing_pipeline": pipeline_id},
                     )
@@ -501,44 +502,46 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         result.metadata["clone_functions"] = clone_count
 
     def _analyze_route_ordering(self, result: AnalyzerResult, routes: list[dict[str, Any]]) -> None:
-        """Analyze route ordering for potential issues."""
         enabled_routes = [r for r in routes if not r.get("disabled", False)]
 
         # Check for routes that might never match due to ordering
         seen_outputs = set()
-        overlapping_routes = []
+        overlapping_routes: list[tuple[str, str]] = []
 
         for route in enabled_routes:
             route_id = route.get("id", "unknown")
+            route_name = route.get("name") or route_id
             output = route.get("output", "")
             filter_expr = route.get("filter", "true")
             is_final = route.get("final", True)
 
             # If a route is final and has no filter, subsequent routes to same output are unreachable
             if is_final and (not filter_expr or filter_expr == "true") and output in seen_outputs:
-                overlapping_routes.append(route_id)
+                overlapping_routes.append((route_id, route_name))
 
             if output:
                 seen_outputs.add(output)
 
         if overlapping_routes:
+            route_names = [name for _, name in overlapping_routes]
+            route_ids = [rid for rid, _ in overlapping_routes]
             result.add_finding(
                 Finding(
                     id="routes-unreachable",
                     title=f"Potentially Unreachable Routes ({len(overlapping_routes)})",
                     description=f"Found {len(overlapping_routes)} route(s) that may be unreachable due to earlier catch-all routes: "
-                    f"{', '.join(overlapping_routes[:3])}{'...' if len(overlapping_routes) > 3 else ''}",
+                    f"{', '.join(route_names[:3])}{'...' if len(route_names) > 3 else ''}",
                     severity="medium",
                     category="dataflow_topology",
                     confidence_level="medium",
-                    affected_components=[f"route:{r}" for r in overlapping_routes[:5]],
+                    affected_components=[f"route:{r}" for r in route_ids[:5]],
                     estimated_impact="Unreachable routes will never receive data",
                     remediation_steps=[
                         "Review route ordering",
                         "Add specific filters to earlier routes",
                         "Remove duplicate or unreachable routes",
                     ],
-                    metadata={"unreachable_routes": overlapping_routes},
+                    metadata={"unreachable_routes": route_ids},
                 )
             )
 

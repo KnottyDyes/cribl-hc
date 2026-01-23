@@ -11,6 +11,7 @@ from cribl_hc.models.finding import Finding
 @dataclass
 class GroupedFinding:
     """Represents a group of similar findings."""
+
     findings: list[Finding]
     group_title: str
     worker_group: str
@@ -39,7 +40,7 @@ def group_findings(findings: list[Finding]) -> list[GroupedFinding]:
 
     for finding in findings:
         # Global findings (no worker_group) are separate from default
-        worker_group = finding.worker_group or '__global__'
+        worker_group = finding.worker_group or "__global__"
 
         if worker_group not in worker_group_map:
             worker_group_map[worker_group] = {}
@@ -64,28 +65,24 @@ def group_findings(findings: list[Finding]) -> list[GroupedFinding]:
 
             # Extract group title (remove " - " prefix if grouped)
             if is_grouped:
-                group_title = first.title.split(':')[0] if ':' in first.title else first.title
+                group_title = first.title.split(":")[0] if ":" in first.title else first.title
             else:
                 group_title = first.title
 
-            result.append(GroupedFinding(
-                findings=group_findings,
-                group_title=group_title,
-                worker_group=worker_group,
-                is_grouped=is_grouped,
-                severity=first.severity,
-                finding_count=len(group_findings)
-            ))
+            result.append(
+                GroupedFinding(
+                    findings=group_findings,
+                    group_title=group_title,
+                    worker_group=worker_group,
+                    is_grouped=is_grouped,
+                    severity=first.severity,
+                    finding_count=len(group_findings),
+                )
+            )
 
     # Sort by worker group, then severity, then title
-    severity_order = {'critical': 5, 'high': 4, 'medium': 3, 'low': 2, 'info': 1}
-    result.sort(
-        key=lambda x: (
-            x.worker_group,
-            -severity_order.get(x.severity, 0),
-            x.group_title
-        )
-    )
+    severity_order = {"critical": 5, "high": 4, "medium": 3, "low": 2, "info": 1}
+    result.sort(key=lambda x: (x.worker_group, -severity_order.get(x.severity, 0), x.group_title))
 
     return result
 
@@ -101,11 +98,11 @@ def get_severity_counts(findings: list[Finding]) -> dict[str, int]:
         Dictionary with severity counts
     """
     counts = {
-        'critical': 0,
-        'high': 0,
-        'medium': 0,
-        'low': 0,
-        'info': 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "info": 0,
     }
 
     for finding in findings:
@@ -125,9 +122,7 @@ def get_worker_group_display_name(worker_group: str) -> str:
     Returns:
         Formatted display name
     """
-    if worker_group == '__global__':
-        return 'Global Findings'
-    elif worker_group == 'default':
-        return 'Default Worker Group'
+    if worker_group == "__global__":
+        return "Global Findings"
     else:
-        return f'Worker Group: {worker_group}'
+        return f"Worker Group: {worker_group}"

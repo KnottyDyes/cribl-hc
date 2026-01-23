@@ -1,4 +1,3 @@
-
 """
 Search Health Analyzer for Cribl Health Check.
 
@@ -170,24 +169,46 @@ class SearchHealthAnalyzer(BaseAnalyzer):
             )
 
         except Exception as e:
-            log.error("search_health_analysis_failed", error=str(e))
-            result.success = False
-            result.metadata["error"] = str(e)
-            result.add_finding(
-                self.create_finding(
-                    client=client,
-                    id="search-analysis-error",
-                    category="search",
-                    severity="critical",
-                    title="Search Health Analysis Failed",
-                    description=f"Failed to analyze Search health: {str(e)}",
-                    affected_components=["Search API"],
-                    remediation_steps=["Check API connectivity", "Verify Search workspace exists"],
-                    estimated_impact="Cannot assess Search health",
-                    confidence_level="high",
-                    metadata={"error": str(e)},
+            error_str = str(e)
+            if "404" in error_str:
+                log.info("search_health_404", workspace=workspace)
+                result.success = True
+                result.metadata["error"] = "Search not enabled or workspace not found"
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id="search-health-not-enabled",
+                        category="search",
+                        severity="info",
+                        title="Search Not Enabled",
+                        description=f"Cribl Search appears to be disabled or workspace '{workspace}' not found.",
+                        affected_components=["Search"],
+                        confidence_level="high",
+                        metadata={"workspace": workspace, "error": error_str},
+                    )
                 )
-            )
+            else:
+                log.error("search_health_analysis_failed", error=error_str)
+                result.success = False
+                result.metadata["error"] = error_str
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id="search-analysis-error",
+                        category="search",
+                        severity="critical",
+                        title="Search Health Analysis Failed",
+                        description=f"Failed to analyze Search health: {error_str}",
+                        affected_components=["Search API"],
+                        remediation_steps=[
+                            "Check API connectivity",
+                            "Verify Search workspace exists",
+                        ],
+                        estimated_impact="Cannot assess Search health",
+                        confidence_level="high",
+                        metadata={"error": error_str},
+                    )
+                )
 
         return result
 

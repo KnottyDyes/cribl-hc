@@ -88,22 +88,41 @@ class SearchJobMetricsAnalyzer(BaseAnalyzer):
 
             result.success = True
         except Exception as exc:
-            log.error("search_job_metrics_failed", error=str(exc))
-            result.success = False
-            result.metadata["error"] = str(exc)
-            result.add_finding(
-                self.create_finding(
-                    client=client,
-                    id="search-job-metrics-error",
-                    category="search",
-                    severity="critical",
-                    title="Search Job Metrics Failed",
-                    description=f"Failed to fetch search job metrics: {str(exc)}",
-                    affected_components=["Search API"],
-                    remediation_steps=["Verify Search API connectivity"],
-                    estimated_impact="Search metrics cannot be assessed",
-                    confidence_level="high",
+            error_str = str(exc)
+            if "404" in error_str:
+                log.info("search_job_metrics_404")
+                result.success = True
+                result.metadata["error"] = "Search not enabled or metrics endpoint not found"
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id="search-metrics-not-enabled",
+                        category="search",
+                        severity="info",
+                        title="Search Job Metrics Not Available",
+                        description="Cribl Search appears to be disabled or job metrics unavailable.",
+                        affected_components=["Search"],
+                        confidence_level="high",
+                        metadata={"error": error_str},
+                    )
                 )
-            )
+            else:
+                log.error("search_job_metrics_failed", error=error_str)
+                result.success = False
+                result.metadata["error"] = error_str
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id="search-job-metrics-error",
+                        category="search",
+                        severity="critical",
+                        title="Search Job Metrics Failed",
+                        description=f"Failed to fetch search job metrics: {error_str}",
+                        affected_components=["Search API"],
+                        remediation_steps=["Verify Search API connectivity"],
+                        estimated_impact="Search metrics cannot be assessed",
+                        confidence_level="high",
+                    )
+                )
 
         return result

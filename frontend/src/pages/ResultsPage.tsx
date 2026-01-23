@@ -1,28 +1,77 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { analysisApi } from '../api/analysis'
 import { ResultsSummary } from '../components/results/ResultsSummary'
 import { FindingCard } from '../components/results/FindingCard'
 import { GroupedFindingCard } from '../components/results/GroupedFindingCard'
+import { ExecutiveView } from '../components/results/ExecutiveView'
 import { Button, Select, SkeletonFindingCard } from '../components/common'
-import { ArrowLeftIcon, ArrowDownTrayIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
-import type { AnalysisResultResponse, CriblProduct, Finding } from '../api/types'
+import {
+  ArrowLeftIcon,
+  ArrowDownTrayIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChartBarIcon,
+  WrenchScrewdriverIcon,
+  DocumentTextIcon,
+  PrinterIcon,
+} from '@heroicons/react/24/outline'
+import { useWebSocket } from '../hooks'
+import type {
+  AnalysisResultResponse,
+  CriblProduct,
+  Finding,
+  WebSocketMessage,
+  WebSocketProgressMessage,
+} from '../api/types'
 
 const SEVERITY_ORDER = { critical: 5, high: 4, medium: 3, low: 2, info: 1 } as const
 
 export function ResultsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [severityFilter, setSeverityFilter] = useState<string>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [productFilter, setProductFilter] = useState<string>('all')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const [viewMode, setViewMode] = useState<'engineer' | 'executive'>('engineer')
 
   const { data: results, isLoading, error } = useQuery({
     queryKey: ['analysis-results', id],
     queryFn: () => analysisApi.getResults(id!),
     enabled: !!id,
+  })
+
+  // WebSocket handler for real-time progress updates
+  const handleWebSocketMessage = useCallback(
+    (message: WebSocketMessage) => {
+      if (message.type === 'progress') {
+        const progressMessage = message as WebSocketProgressMessage
+        queryClient.setQueryData(
+          ['analysis-results', id],
+          (oldData: AnalysisResultResponse | undefined) => {
+            if (!oldData) return oldData
+            return {
+              ...oldData,
+              // HACK: Add progress to results even though it's not in the type definition yet
+              progress_percent: progressMessage.percent,
+              status: 'running',
+            }
+          }
+        )
+      } else if (message.type === 'complete') {
+        queryClient.invalidateQueries({ queryKey: ['analysis-results', id] })
+      }
+    },
+    [id, queryClient]
+  )
+
+  useWebSocket({
+    url: id ? `ws://${window.location.host}/api/v1/analysis/ws/${id}` : '',
+    onMessage: handleWebSocketMessage,
+    enabled: !!id && results?.status !== 'completed',
   })
 
   // Calculate summary from findings if not provided by backend
@@ -46,7 +95,6 @@ export function ResultsPage() {
     })
 
     // Calculate health score if not provided
-    // More balanced scoring: critical/high have big impact, medium/low have smaller impact
     const health_score = results.health_score !== null
       ? results.health_score
       : Math.max(0, 100 - (critical_count * 20 + high_count * 10 + medium_count * 3 + low_count * 0.5))
@@ -72,6 +120,29 @@ export function ResultsPage() {
       },
     }
   }, [results])
+
+  const severityOptions = [
+    { value: 'all', label: 'All Severities' },
+    { value: 'critical', label: 'Critical' },
+    { value: 'high', label: 'High' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'low', label: 'Low' },
+    { value: 'info', label: 'Info' },
+  ]
+
+  const categories = ['all', ...Object.keys(enrichedResults?.summary?.categories || {})]
+  const categoryOptions = categories.map((cat) => ({
+    value: cat,
+    label: cat === 'all' ? 'All Categories' : cat,
+  }))
+
+  const productOptions = [
+    { value: 'all', label: 'All Products' },
+    { value: 'stream', label: 'Stream' },
+    { value: 'edge', label: 'Edge' },
+    { value: 'lake', label: 'Lake' },
+    { value: 'search', label: 'Search' },
+  ]
 
   const filteredFindings = useMemo(() => {
     if (!enrichedResults?.findings) return []
@@ -161,6 +232,81 @@ export function ResultsPage() {
     }
   }
 
+  const handleExportExecutive = (format: 'pdf' | 'md') => {
+    if (!enrichedResults?.executive_summary) return
+
+    if (format === 'pdf') {
+      window.print()
+      return
+    }
+
+    const summary = enrichedResults.executive_summary
+    const lines: string[] = [
+      '# Executive Health Summary',
+      '',
+      `**Deployment:** ${enrichedResults.deployment_name}`,
+      `**Generated:** ${new Date().toLocaleString()}`,
+      '',
+      '## Overall Risk Assessment',
+      '',
+      `**Risk Score:** ${summary.overall_risk.score}/100 (${summary.overall_risk.label})`,
+      '',
+      '## Key Metrics',
+      '',
+      '| Metric | Value |',
+      '|--------|-------|',
+      `| Total Issues | ${summary.total_findings} |`,
+      `| Critical | ${summary.critical_count} |`,
+      `| High | ${summary.high_count} |`,
+      `| Medium | ${summary.medium_count} |`,
+      `| Low | ${summary.low_count} |`,
+      `| Info | ${summary.info_count} |`,
+      `| Recommendations | ${summary.recommendations_count} |`,
+      '',
+    ]
+
+    if (summary.compliance_status.length > 0) {
+      lines.push('## Compliance Status', '')
+      lines.push('| Framework | Status | Critical | Total Violations |')
+      lines.push('|-----------|--------|----------|------------------|')
+      summary.compliance_status.forEach((c) => {
+        lines.push(`| ${c.framework} | ${c.status.replace('_', ' ')} | ${c.critical_violations} | ${c.total_violations} |`)
+      })
+      lines.push('')
+    }
+
+    if (summary.top_risks.length > 0) {
+      lines.push('## Top Risk Areas', '')
+      summary.top_risks.forEach((risk, i) => {
+        lines.push(`${i + 1}. ${risk}`)
+      })
+      lines.push('')
+    }
+
+    if (summary.category_breakdown.length > 0) {
+      lines.push('## Category Breakdown', '')
+      lines.push('| Category | Critical | High | Medium | Total |')
+      lines.push('|----------|----------|------|--------|-------|')
+      summary.category_breakdown.forEach((cat) => {
+        lines.push(`| ${cat.category.replace(/_/g, ' ')} | ${cat.critical_count} | ${cat.high_count} | ${cat.medium_count} | ${cat.total_count} |`)
+      })
+      lines.push('')
+    }
+
+    lines.push('---', '', '*Generated by Cribl Health Check*')
+
+    const content = lines.join('\n')
+    const blob = new Blob([content], { type: 'text/markdown' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `executive-summary-${id}.md`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  }
+
   const toggleWorkerGroupCollapse = (workerGroup: string) => {
     const newCollapsed = new Set(collapsedGroups)
     if (newCollapsed.has(workerGroup)) {
@@ -211,35 +357,12 @@ export function ResultsPage() {
     )
   }
 
-  const severityOptions = [
-    { value: 'all', label: 'All Severities' },
-    { value: 'critical', label: 'Critical' },
-    { value: 'high', label: 'High' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'low', label: 'Low' },
-    { value: 'info', label: 'Info' },
-  ]
-
-  const categories = ['all', ...Object.keys(enrichedResults.summary?.categories || {})]
-  const categoryOptions = categories.map((cat) => ({
-    value: cat,
-    label: cat === 'all' ? 'All Categories' : cat,
-  }))
-
-  const productOptions = [
-    { value: 'all', label: 'All Products' },
-    { value: 'stream', label: 'Stream' },
-    { value: 'edge', label: 'Edge' },
-    { value: 'lake', label: 'Lake' },
-    { value: 'search', label: 'Search' },
-  ]
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/analysis')}>
+            <Button variant="ghost" onClick={() => navigate('/analysis')} className="print-hide">
               <ArrowLeftIcon className="h-4 w-4 mr-2" />
               Back
             </Button>
@@ -253,61 +376,122 @@ export function ResultsPage() {
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleExport('json')}
-            >
-              <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
-              JSON
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleExport('html')}
-            >
-              <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
-              HTML
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleExport('md')}
-            >
-              <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
-              Markdown
-            </Button>
+          <div className="flex items-center gap-4 print-hide">
+            <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+              <button
+                onClick={() => setViewMode('executive')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+                  viewMode === 'executive'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                <ChartBarIcon className="h-4 w-4" />
+                Executive
+              </button>
+              <button
+                onClick={() => setViewMode('engineer')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors ${
+                  viewMode === 'engineer'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                <WrenchScrewdriverIcon className="h-4 w-4" />
+                Engineer
+              </button>
+            </div>
+
+            {viewMode === 'executive' ? (
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleExportExecutive('pdf')}
+                  disabled={!enrichedResults?.executive_summary}
+                >
+                  <PrinterIcon className="h-4 w-4 mr-1" />
+                  Print / PDF
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleExportExecutive('md')}
+                  disabled={!enrichedResults?.executive_summary}
+                >
+                  <DocumentTextIcon className="h-4 w-4 mr-1" />
+                  Markdown
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleExport('json')}
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                  JSON
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleExport('html')}
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                  HTML
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleExport('md')}
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4 mr-1" />
+                  Markdown
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
-        {enrichedResults.summary && <ResultsSummary results={enrichedResults} />}
+        {viewMode === 'executive' && enrichedResults.executive_summary ? (
+          <ExecutiveView summary={enrichedResults.executive_summary} />
+        ) : viewMode === 'executive' && !enrichedResults.executive_summary ? (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 text-center">
+            <p className="text-yellow-800 dark:text-yellow-200">
+              Executive summary is not available for this analysis. 
+              Run a new analysis to generate executive insights.
+            </p>
+          </div>
+        ) : (
+          <>
+            {enrichedResults.summary && <ResultsSummary results={enrichedResults} />}
 
-        <div className="mb-6 flex gap-4">
-          <div className="flex-1">
-            <Select
-              value={severityFilter}
-              onChange={(e) => setSeverityFilter(e.target.value)}
-              options={severityOptions}
-            />
-          </div>
-          <div className="flex-1">
-            <Select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              options={categoryOptions}
-            />
-          </div>
-          <div className="flex-1">
-            <Select
-              value={productFilter}
-              onChange={(e) => setProductFilter(e.target.value)}
-              options={productOptions}
-            />
-          </div>
-        </div>
+            <div className="mb-6 flex gap-4">
+              <div className="flex-1">
+                <Select
+                  value={severityFilter}
+                  onChange={(e) => setSeverityFilter(e.target.value)}
+                  options={severityOptions}
+                />
+              </div>
+              <div className="flex-1">
+                <Select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  options={categoryOptions}
+                />
+              </div>
+              <div className="flex-1">
+                <Select
+                  value={productFilter}
+                  onChange={(e) => setProductFilter(e.target.value)}
+                  options={productOptions}
+                />
+              </div>
+            </div>
 
-        <div className="space-y-6">
+            <div className="space-y-6">
           {groupedFindings.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg">
               <p className="text-gray-500 dark:text-gray-400">No findings match the selected filters.</p>
@@ -344,33 +528,35 @@ export function ResultsPage() {
                        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                          {displayName}
                        </h2>
+                       <span className="text-sm text-gray-500 dark:text-gray-400">
+                         {groups.length} finding{groups.length !== 1 ? 's' : ''}
+                       </span>
                      </div>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {groups.length} finding{groups.length !== 1 ? 's' : ''}
-                    </span>
-                  </button>
+                   </button>
 
-                  {!isCollapsed && (
-                    <div className="px-4 pb-4 pt-0 space-y-4 border-t border-gray-200 dark:border-gray-700">
-                      {groups.map((group, idx) => (
-                        group.isGrouped ? (
-                          <GroupedFindingCard
-                            key={`${group.findings[0].grouping_id}-${group.workerGroup}-${idx}`}
-                            findings={group.findings}
-                            groupTitle={group.groupTitle}
-                            workerGroup={group.workerGroup}
-                          />
-                        ) : (
-                          <FindingCard key={group.findings[0].id} finding={group.findings[0]} />
-                        )
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })
-          )}
-        </div>
+                   {!isCollapsed && (
+                     <div className="px-4 pb-4 pt-0 space-y-4 border-t border-gray-200 dark:border-gray-700">
+                       {groups.map((group, idx) => (
+                         group.isGrouped ? (
+                           <GroupedFindingCard
+                             key={`${group.findings[0].grouping_id}-${group.workerGroup}-${idx}`}
+                             findings={group.findings}
+                             groupTitle={group.groupTitle}
+                             workerGroup={group.workerGroup}
+                           />
+                         ) : (
+                           <FindingCard key={group.findings[0].id} finding={group.findings[0]} />
+                         )
+                       ))}
+                     </div>
+                   )}
+                 </div>
+               )
+             })
+           )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

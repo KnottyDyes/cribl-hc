@@ -8,6 +8,7 @@ from typing import Any, Optional
 from cribl_hc.analyzers import get_analyzer, get_global_registry, list_objectives
 from cribl_hc.analyzers.base import AnalyzerResult
 from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.executive_summary import generate_executive_summary
 from cribl_hc.models.analysis import AnalysisRun, ComponentVersion, VersionInfo
 from cribl_hc.models.finding import Finding
 from cribl_hc.models.health import ComponentScore, HealthScore
@@ -249,6 +250,7 @@ class AnalyzerOrchestrator:
         )
 
         health_score = self._calculate_overall_health_score(results, all_findings)
+        exec_summary = generate_executive_summary(all_findings, all_recommendations)
 
         return AnalysisRun(
             deployment_id=deployment_id,
@@ -262,6 +264,7 @@ class AnalyzerOrchestrator:
             partial_completion=(0 < failed_count < len(results)),
             health_score=health_score,
             version_info=self.version_info,
+            executive_summary=exec_summary,
         )
 
     def _calculate_overall_health_score(

@@ -142,7 +142,7 @@ class BackpressureAnalyzer(BaseAnalyzer):
                         severity="info",
                         title="No Outputs Configured",
                         description="No output destinations found for backpressure analysis.",
-                        affected_components=["Outputs"],
+                        affected_components=[],
                         confidence_level="high",
                         metadata={},
                     )

@@ -18,7 +18,7 @@ export function AnalysisList() {
     queryFn: analysisApi.list,
     refetchInterval: (query) => {
       const hasRunning = query.state.data?.some((a) => a.status === 'running')
-      return hasRunning ? 3000 : false
+      return hasRunning ? 5000 : false
     },
   })
 

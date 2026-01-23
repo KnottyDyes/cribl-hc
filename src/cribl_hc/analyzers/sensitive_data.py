@@ -122,6 +122,9 @@ class SensitiveDataAnalyzer(BaseAnalyzer):
                                     "match_count": len(matches),
                                     "source": source_info,
                                     "input": input_id,
+                                    "data_sensitivity": "data:healthcare"
+                                    if key == "ssn"
+                                    else "data:financial",
                                 },
                             )
                         )

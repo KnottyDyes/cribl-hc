@@ -260,6 +260,7 @@ class ConfigAnalyzer(BaseAnalyzer):
         valid_pipeline_ids = {str(p.get("id")) for p in pipelines if p.get("id")}
         for route in routes:
             route_id = route.get("id", "unknown")
+            route_name = route.get("name") or route_id
             pipeline_ref = route.get("pipeline")
             if pipeline_ref and str(pipeline_ref) not in valid_pipeline_ids:
                 result.add_finding(
@@ -269,14 +270,14 @@ class ConfigAnalyzer(BaseAnalyzer):
                         grouping_id="config-orphaned-route",
                         category="config",
                         severity="high",
-                        title=f"Route References Non-Existent Pipeline: {route_id}",
-                        description=f"Route '{route_id}' references pipeline '{pipeline_ref}' which does not exist.",
+                        title=f"Route References Non-Existent Pipeline: {route_name}",
+                        description=f"Route '{route_name}' references pipeline '{pipeline_ref}' which does not exist.",
                         affected_components=[f"route-{route_id}", f"pipeline-{pipeline_ref}"],
                         confidence_level="high",
                         estimated_impact="Route will not process data and may cause processing errors.",
                         remediation_steps=[
-                            f"Create the missing pipeline '{pipeline_ref}' that route '{route_id}' references.",
-                            f"Or update route '{route_id}' to reference an existing pipeline.",
+                            f"Create the missing pipeline '{pipeline_ref}' that route '{route_name}' references.",
+                            f"Or update route '{route_name}' to reference an existing pipeline.",
                             "Verify data flow after fixing the reference.",
                         ],
                     )
@@ -570,6 +571,7 @@ class ConfigAnalyzer(BaseAnalyzer):
     ) -> None:
         for i, route in enumerate(routes):
             route_id = route.get("id", f"route_{i}")
+            route_name = route.get("name") or route_id
             if self._is_catchall_route(route.get("filter", "")) and i < len(routes) - 1:
                 result.add_finding(
                     self.create_finding(
@@ -578,13 +580,13 @@ class ConfigAnalyzer(BaseAnalyzer):
                         grouping_id="config-route-catchall-not-last",
                         category="config",
                         severity="high",
-                        title=f"Catch-All Route Not Last: {route_id}",
-                        description=f"Route '{route_id}' has no filter, shadowing subsequent routes.",
+                        title=f"Catch-All Route Not Last: {route_name}",
+                        description=f"Route '{route_name}' has no filter, shadowing subsequent routes.",
                         affected_components=[f"route-{route_id}"],
                         confidence_level="high",
                         estimated_impact="Subsequent routes will never be evaluated, leading to misrouted or dropped data.",
                         remediation_steps=[
-                            f"Move route '{route_id}' to the bottom of the routes list.",
+                            f"Move route '{route_name}' to the bottom of the routes list.",
                             "Add appropriate filter conditions to the route.",
                             "Review route ordering to ensure proper data flow.",
                         ],
@@ -601,6 +603,7 @@ class ConfigAnalyzer(BaseAnalyzer):
     ) -> None:
         for route in routes:
             route_id = route.get("id", "unknown")
+            route_name = route.get("name") or route_id
             filter_expr = route.get("filter", "") or ""
             if not isinstance(filter_expr, str) or not filter_expr.strip():
                 continue
@@ -615,9 +618,9 @@ class ConfigAnalyzer(BaseAnalyzer):
                             grouping_id="config-route-filter-regex-length",
                             category="config",
                             severity="medium",
-                            title=f"Long Regex in Route Filter: {route_id}",
+                            title=f"Long Regex in Route Filter: {route_name}",
                             description=(
-                                f"Route '{route_id}' filter contains a regex pattern "
+                                f"Route '{route_name}' filter contains a regex pattern "
                                 f"with {len(pattern)} characters."
                             ),
                             affected_components=[f"route-{route_id}"],
@@ -640,9 +643,9 @@ class ConfigAnalyzer(BaseAnalyzer):
                                 grouping_id="config-route-filter-regex-problematic",
                                 category="config",
                                 severity="medium",
-                                title=f"Potentially Slow Regex in Route Filter: {route_id}",
+                                title=f"Potentially Slow Regex in Route Filter: {route_name}",
                                 description=(
-                                    f"Route '{route_id}' filter contains '{bad_pattern}'. {reason}"
+                                    f"Route '{route_name}' filter contains '{bad_pattern}'. {reason}"
                                 ),
                                 affected_components=[f"route-{route_id}"],
                                 confidence_level="medium",

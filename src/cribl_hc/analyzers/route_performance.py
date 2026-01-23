@@ -123,6 +123,7 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
 
             for route in routes:
                 route_id = route.get("id", "unknown")
+                route.setdefault("_name", route.get("name") or route_id)
                 r_metrics = route_metrics.get(route_id, {})
 
                 throughput = self._analyze_throughput(route, r_metrics, result)
@@ -248,11 +249,8 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
     def _analyze_throughput(
         self, route: dict[str, Any], metrics: dict[str, Any], result: AnalyzerResult
     ) -> float:
-        """
-        Analyze route throughput.
-        Returns events per second.
-        """
         route_id = route.get("id", "unknown")
+        route_name = route.get("name") or route_id
         events_in = metrics.get("events_in", 0)
 
         seconds = 3600
@@ -264,8 +262,8 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
                     id=f"route-perf-zero-throughput-{route_id}",
                     category="route_performance",
                     severity="low",
-                    title=f"Zero Throughput: {route_id}",
-                    description=f"Route '{route_id}' has zero throughput over the last hour.",
+                    title=f"Zero Throughput: {route_name}",
+                    description=f"Route '{route_name}' has zero throughput over the last hour.",
                     affected_components=["Routes", route_id],
                     remediation_steps=[
                         "Verify if data sources are active",
@@ -283,11 +281,8 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
     def _analyze_latency(
         self, route: dict[str, Any], metrics: dict[str, Any], result: AnalyzerResult
     ) -> float:
-        """
-        Analyze latency percentiles.
-        Returns p99 latency.
-        """
         route_id = route.get("id", "unknown")
+        route_name = route.get("name") or route_id
         latencies = metrics.get("latencies", [])
 
         if not latencies:
@@ -301,15 +296,16 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
         p99 = self._calculate_percentile(latencies, 99)
 
         if p99 > self.LATENCY_P99_CRITICAL_MS:
-            self._report_high_latency(route_id, p99, "critical", result)
+            self._report_high_latency(route_id, route_name, p99, "critical", result)
         elif p99 > self.LATENCY_P99_HIGH_MS:
-            self._report_high_latency(route_id, p99, "high", result)
+            self._report_high_latency(route_id, route_name, p99, "high", result)
 
         return p99
 
     def _report_high_latency(
         self,
         route_id: str,
+        route_name: str,
         p99_ms: float,
         severity: Literal["critical", "high", "medium", "low", "info"],
         result: AnalyzerResult,
@@ -319,9 +315,9 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
                 id=f"route-perf-latency-{route_id}",
                 category="route_performance",
                 severity=severity,
-                title=f"High Latency on Route: {route_id}",
+                title=f"High Latency on Route: {route_name}",
                 description=(
-                    f"Route '{route_id}' has a p99 latency of {p99_ms:.2f}ms, "
+                    f"Route '{route_name}' has a p99 latency of {p99_ms:.2f}ms, "
                     f"exceeding the {self.LATENCY_P99_HIGH_MS}ms threshold."
                 ),
                 affected_components=["Routes", route_id],
@@ -339,8 +335,8 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
     def _analyze_error_rates(
         self, route: dict[str, Any], metrics: dict[str, Any], result: AnalyzerResult
     ) -> None:
-        """Analyze error rates."""
         route_id = route.get("id", "unknown")
+        route_name = route.get("name") or route_id
         events_in = metrics.get("events_in", 0)
         errors = metrics.get("errors", 0)
 
@@ -350,13 +346,14 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
         error_rate_percent = (errors / events_in) * 100
 
         if error_rate_percent > self.ERROR_RATE_CRITICAL_PERCENT:
-            self._report_error_rate(route_id, error_rate_percent, "critical", result)
+            self._report_error_rate(route_id, route_name, error_rate_percent, "critical", result)
         elif error_rate_percent > self.ERROR_RATE_HIGH_PERCENT:
-            self._report_error_rate(route_id, error_rate_percent, "high", result)
+            self._report_error_rate(route_id, route_name, error_rate_percent, "high", result)
 
     def _report_error_rate(
         self,
         route_id: str,
+        route_name: str,
         rate: float,
         severity: Literal["critical", "high", "medium", "low", "info"],
         result: AnalyzerResult,
@@ -366,8 +363,8 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
                 id=f"route-perf-errors-{route_id}",
                 category="route_performance",
                 severity=severity,
-                title=f"High Error Rate on Route: {route_id}",
-                description=f"Route '{route_id}' has an error rate of {rate:.2f}%.",
+                title=f"High Error Rate on Route: {route_name}",
+                description=f"Route '{route_name}' has an error rate of {rate:.2f}%.",
                 affected_components=["Routes", route_id],
                 remediation_steps=[
                     "Check system logs for error details",
@@ -387,8 +384,8 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
         pipelines: list[dict[str, Any]],
         result: AnalyzerResult,
     ) -> None:
-        """Check if route is overloading a pipeline."""
         route_id = route.get("id", "unknown")
+        route_name = route.get("name") or route_id
         pipeline_id = route.get("pipeline", "")
 
         if not pipeline_id or throughput < self.PIPELINE_OVERLOAD_EVENTS_SEC:
@@ -401,7 +398,7 @@ class RoutePerformanceAnalyzer(BaseAnalyzer):
                 severity="medium",
                 title=f"High Volume to Single Pipeline: {pipeline_id}",
                 description=(
-                    f"Route '{route_id}' is sending {throughput:.0f} events/sec to "
+                    f"Route '{route_name}' is sending {throughput:.0f} events/sec to "
                     f"pipeline '{pipeline_id}', which may cause contention."
                 ),
                 affected_components=["Routes", route_id, "Pipelines", pipeline_id],

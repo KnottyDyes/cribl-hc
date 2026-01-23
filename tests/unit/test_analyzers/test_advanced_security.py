@@ -28,6 +28,13 @@ class TestAdvancedSecurityAnalyzer:
             {"patient_data": "Patient diagnosed with A123.45 (some condition)"},  # ICD-10 code
             {"medication": "Prescribed drug 12345-6789-01"},  # NDC code
             {"doctor": "Dr. Smith DEA: AB1234567"},  # DEA number
+            {"filler1": "data"},
+            {"filler2": "data"},
+            {"filler3": "data"},
+            {"filler4": "data"},
+            {"filler5": "data"},
+            {"filler6": "data"},
+            {"filler7": "data"},  # 10+ events required by analyzer
         ]
         mock_client.capture_events.return_value = events
 
@@ -38,7 +45,7 @@ class TestAdvancedSecurityAnalyzer:
             f
             for f in result.findings
             if getattr(f, "category", "") == "security"
-            and getattr(f, "metadata", {}).get("compliance_framework") == "HIPAA"
+            and getattr(f, "metadata", {}).get("data_sensitivity") == "data:healthcare"
         ]
         assert len(healthcare_findings) >= 2
 
@@ -49,6 +56,13 @@ class TestAdvancedSecurityAnalyzer:
             {"bank_info": "Routing number: 123456789"},  # ABA routing
             {"international": "SWIFT: ABCDUS33XXX"},  # SWIFT code
             {"payment": "IBAN: GB29 NWBK 6016 1331 9268 19"},  # IBAN
+            {"filler1": "data"},
+            {"filler2": "data"},
+            {"filler3": "data"},
+            {"filler4": "data"},
+            {"filler5": "data"},
+            {"filler6": "data"},
+            {"filler7": "data"},  # 10+ events required by analyzer
         ]
         mock_client.capture_events.return_value = events
 
@@ -59,7 +73,7 @@ class TestAdvancedSecurityAnalyzer:
             f
             for f in result.findings
             if getattr(f, "category", "") == "security"
-            and getattr(f, "metadata", {}).get("compliance_framework") == "PCI DSS"
+            and getattr(f, "metadata", {}).get("data_sensitivity") == "data:financial"
         ]
         assert len(financial_findings) >= 1
 
@@ -68,7 +82,15 @@ class TestAdvancedSecurityAnalyzer:
         """Test HIPAA compliance analysis."""
         events = [
             {"health_record": "Patient A123.45 has DEA number AB1234567"},  # Healthcare + DEA
-            {"normal_data": "Regular business data without PHI"},  # No healthcare data
+            {"normal_data": "Regular business data without PHI"},
+            {"filler1": "data"},
+            {"filler2": "data"},
+            {"filler3": "data"},
+            {"filler4": "data"},
+            {"filler5": "data"},
+            {"filler6": "data"},
+            {"filler7": "data"},
+            {"filler8": "data"},  # 10+ events required by analyzer
         ]
         mock_client.capture_events.return_value = events
 
@@ -87,7 +109,15 @@ class TestAdvancedSecurityAnalyzer:
         """Test SOC 2 compliance analysis."""
         events = [
             {"system_log": "User password changed to: mySecret123!"},  # Sensitive in logs
-            {"app_log": "Application started successfully"},  # Normal log
+            {"app_log": "Application started successfully"},
+            {"filler1": "data"},
+            {"filler2": "data"},
+            {"filler3": "data"},
+            {"filler4": "data"},
+            {"filler5": "data"},
+            {"filler6": "data"},
+            {"filler7": "data"},
+            {"filler8": "data"},  # 10+ events required by analyzer
         ]
         mock_client.capture_events.return_value = events
 
@@ -108,7 +138,15 @@ class TestAdvancedSecurityAnalyzer:
             {
                 "user_data": "Email: user@example.com, Phone: 555-1234"
             },  # Personal data without consent
-            {"anonymous": "Website visited by anonymous user"},  # No personal data
+            {"anonymous": "Website visited by anonymous user"},
+            {"filler1": "data"},
+            {"filler2": "data"},
+            {"filler3": "data"},
+            {"filler4": "data"},
+            {"filler5": "data"},
+            {"filler6": "data"},
+            {"filler7": "data"},
+            {"filler8": "data"},  # 10+ events required by analyzer
         ]
         mock_client.capture_events.return_value = events
 
@@ -125,20 +163,28 @@ class TestAdvancedSecurityAnalyzer:
     @pytest.mark.asyncio
     async def test_custom_pattern_detection(self, analyzer, mock_client):
         """Test custom sensitive data pattern detection."""
-        # Add a custom pattern
+        # Add a custom pattern (in addition to loaded ones)
         custom_pattern = CustomPattern(
-            name="employee_id",
-            pattern=r"\bEMP\d{6}\b",
-            description="Employee ID numbers",
+            name="unique_test_pattern",
+            pattern=r"\bUNIQUE\d{6}\b",
+            description="Unique test pattern numbers",
             severity="high",
-            category="hr_data",
-            remediation="Mask employee IDs in logs and reports",
+            category="test_data",
+            remediation="Mask test IDs in logs and reports",
         )
         analyzer.add_custom_pattern(custom_pattern)
 
         events = [
-            {"hr_record": "Employee EMP123456 was promoted"},  # Matches custom pattern
-            {"business": "Meeting with client ABC Corp"},  # No match
+            {"test_record": "Employee UNIQUE123456 was found"},  # Matches custom pattern
+            {"business": "Meeting with client ABC Corp"},
+            {"filler1": "data"},
+            {"filler2": "data"},
+            {"filler3": "data"},
+            {"filler4": "data"},
+            {"filler5": "data"},
+            {"filler6": "data"},
+            {"filler7": "data"},
+            {"filler8": "data"},  # 10+ events required by analyzer
         ]
         mock_client.capture_events.return_value = events
 
@@ -146,7 +192,10 @@ class TestAdvancedSecurityAnalyzer:
 
         # Should detect custom pattern violation
         custom_findings = [
-            f for f in result.findings if getattr(f, "metadata", {}).get("custom_pattern") == True
+            f
+            for f in result.findings
+            if getattr(f, "metadata", {}).get("custom_pattern") == True
+            and "unique_test_pattern" in f.metadata.get("pattern_name", "")
         ]
         assert len(custom_findings) >= 1
         assert custom_findings[0].severity == "high"
@@ -185,7 +234,14 @@ class TestAdvancedSecurityAnalyzer:
         events = [
             {"health": "ICD code A123.45 detected"},  # Healthcare
             {"finance": "SWIFT code ABCDUS33XXX"},  # Financial
-            {"safe": "Regular business data"},  # Safe
+            {"safe": "Regular business data"},
+            {"filler1": "data"},
+            {"filler2": "data"},
+            {"filler3": "data"},
+            {"filler4": "data"},
+            {"filler5": "data"},
+            {"filler6": "data"},
+            {"filler7": "data"},  # 10+ events required by analyzer
         ]
         mock_client.capture_events.return_value = events
 
@@ -197,7 +253,7 @@ class TestAdvancedSecurityAnalyzer:
 
         summary = summary_findings[0]
         assert "Advanced Security Analysis" in summary.title
-        assert summary.metadata["events_analyzed"] == 3
+        assert summary.metadata["events_analyzed"] == 10
 
     @pytest.mark.asyncio
     async def test_compliance_framework_enabling(self, analyzer, mock_client):
@@ -217,10 +273,11 @@ class TestAdvancedSecurityAnalyzer:
 
     def test_custom_pattern_management(self, analyzer):
         """Test custom pattern management."""
+        initial_count = len(analyzer.custom_patterns)  # May have loaded patterns
         pattern = CustomPattern(
-            name="test_pattern",
-            pattern=r"\bTEST\d{4}\b",
-            description="Test pattern",
+            name="mgmt_test_pattern",
+            pattern=r"\bMGMT\d{4}\b",
+            description="Management test pattern",
             severity="medium",
             category="test",
             remediation="Handle test data appropriately",
@@ -228,8 +285,8 @@ class TestAdvancedSecurityAnalyzer:
 
         analyzer.add_custom_pattern(pattern)
 
-        assert len(analyzer.custom_patterns) == 1
-        assert analyzer.custom_patterns[0].name == "test_pattern"
+        assert len(analyzer.custom_patterns) == initial_count + 1
+        assert analyzer.custom_patterns[-1].name == "mgmt_test_pattern"
 
     def test_objective_name(self, analyzer):
         """Test analyzer objective name."""

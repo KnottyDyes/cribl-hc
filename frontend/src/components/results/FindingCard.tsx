@@ -63,6 +63,32 @@ export function FindingCard({ finding }: FindingCardProps) {
                 </span>
               )}
             </div>
+            
+            {finding.metadata && (
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                {(finding.metadata as Record<string, any>).worker_group && !finding.worker_group && (
+                  <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                    <span className="font-medium">Worker Group:</span> {(finding.metadata as Record<string, any>).worker_group}
+                  </span>
+                )}
+                {(finding.metadata as Record<string, any>).pipeline && (
+                  <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700">
+                    <span className="font-medium">Pipeline:</span> {(finding.metadata as Record<string, any>).pipeline}
+                  </span>
+                )}
+                {(finding.metadata as Record<string, any>).input && (
+                  <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700">
+                    <span className="font-medium">Input:</span> {(finding.metadata as Record<string, any>).input}
+                  </span>
+                )}
+                {(finding.metadata as Record<string, any>).source && (
+                  <span className="inline-flex items-center gap-1 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700">
+                    <span className="font-medium">Source:</span> {(finding.metadata as Record<string, any>).source}
+                  </span>
+                )}
+              </div>
+            )}
+
             <h4 className="mt-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
               {finding.title}
             </h4>

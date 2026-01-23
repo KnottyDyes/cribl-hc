@@ -10,6 +10,68 @@ from .recommendation import Recommendation
 from .worker import WorkerNode
 
 
+class RiskScore(BaseModel):
+    """Risk score with color-coded status."""
+
+    score: int = Field(..., description="Risk score 0-100 (0=healthy, 100=critical)", ge=0, le=100)
+    status: Literal["healthy", "warning", "critical"] = Field(..., description="Risk status")
+    label: str = Field(..., description="Human-readable status label")
+
+    model_config = {"populate_by_name": True}
+
+
+class ComplianceStatus(BaseModel):
+    """Compliance framework status."""
+
+    framework: str = Field(
+        ..., description="Compliance framework name (HIPAA, SOC2, GDPR, PCI DSS)"
+    )
+    status: Literal["compliant", "at_risk", "non_compliant", "unknown"] = Field(
+        ..., description="Compliance status"
+    )
+    critical_violations: int = Field(default=0, description="Count of critical violations", ge=0)
+    total_violations: int = Field(default=0, description="Total violations", ge=0)
+
+    model_config = {"populate_by_name": True}
+
+
+class CategorySummary(BaseModel):
+    """Summary of findings by category."""
+
+    category: str = Field(..., description="Category name")
+    critical_count: int = Field(default=0, ge=0)
+    high_count: int = Field(default=0, ge=0)
+    medium_count: int = Field(default=0, ge=0)
+    low_count: int = Field(default=0, ge=0)
+    info_count: int = Field(default=0, ge=0)
+    total_count: int = Field(default=0, ge=0)
+
+    model_config = {"populate_by_name": True}
+
+
+class ExecutiveSummary(BaseModel):
+    """High-level executive summary for dashboards."""
+
+    overall_risk: RiskScore = Field(..., description="Overall risk score")
+    total_findings: int = Field(default=0, description="Total findings count", ge=0)
+    critical_count: int = Field(default=0, description="Critical findings", ge=0)
+    high_count: int = Field(default=0, description="High severity findings", ge=0)
+    medium_count: int = Field(default=0, description="Medium severity findings", ge=0)
+    low_count: int = Field(default=0, description="Low severity findings", ge=0)
+    info_count: int = Field(default=0, description="Informational findings", ge=0)
+
+    compliance_status: list[ComplianceStatus] = Field(
+        default_factory=list, description="Compliance framework statuses"
+    )
+    category_breakdown: list[CategorySummary] = Field(
+        default_factory=list, description="Findings by category"
+    )
+    top_risks: list[str] = Field(default_factory=list, description="Top 5 risk areas", max_length=5)
+    recommendations_count: int = Field(default=0, description="Total recommendations", ge=0)
+
+    model_config = {"populate_by_name": True}
+
+
 class ComponentVersion(BaseModel):
     name: str = Field(..., description="Component name.")
     version: str = Field(..., description="Version string.")
@@ -48,6 +110,9 @@ class AnalysisRun(BaseModel):
     version_info: VersionInfo = Field(default_factory=lambda: VersionInfo())
     errors: list[str] = Field(default_factory=list, description="Errors encountered")
     partial_completion: bool = False
+    executive_summary: Optional[ExecutiveSummary] = Field(
+        default=None, description="Executive-level summary for dashboards"
+    )
 
     @field_validator("completed_at")
     @classmethod

@@ -128,6 +128,43 @@ export interface VersionInfo {
   component_versions: ComponentVersion[]
 }
 
+export interface RiskScore {
+  score: number
+  status: 'healthy' | 'warning' | 'critical'
+  label: string
+}
+
+export interface ComplianceStatus {
+  framework: string
+  status: 'compliant' | 'at_risk' | 'non_compliant' | 'unknown'
+  critical_violations: number
+  total_violations: number
+}
+
+export interface CategorySummary {
+  category: string
+  critical_count: number
+  high_count: number
+  medium_count: number
+  low_count: number
+  info_count: number
+  total_count: number
+}
+
+export interface ExecutiveSummary {
+  overall_risk: RiskScore
+  total_findings: number
+  critical_count: number
+  high_count: number
+  medium_count: number
+  low_count: number
+  info_count: number
+  compliance_status: ComplianceStatus[]
+  category_breakdown: CategorySummary[]
+  top_risks: string[]
+  recommendations_count: number
+}
+
 export interface AnalysisResultResponse {
   analysis_id: string
   deployment_name: string
@@ -139,6 +176,7 @@ export interface AnalysisResultResponse {
   completed_at: string | null
   duration_seconds: number | null
   version_info: VersionInfo
+  executive_summary?: ExecutiveSummary
   summary?: {
     total_findings: number
     critical_count: number

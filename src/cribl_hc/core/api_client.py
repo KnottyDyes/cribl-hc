@@ -557,6 +557,28 @@ class CriblAPIClient:
     async def get_lookups(self) -> list[dict[str, Any]]:
         return await self._get_data_or_empty(self._build_config_endpoint("lookups"))
 
+    async def get_collectors(self) -> list[dict[str, Any]]:
+        # Corrected endpoint based on spec analysis
+        return await self._get_data_or_empty("/api/v1/collectors")
+
+    async def get_jobs(self) -> list[dict[str, Any]]:
+        # This is the endpoint for Search jobs, which includes scheduled collection jobs.
+        try:
+            response = await self.get("/api/v1/search/jobs")
+            response.raise_for_status()
+            return response.json().get("items", [])
+        except Exception:
+            return []
+
+    # This method is now redundant as we have to filter jobs client-side.
+    # I will leave it for now but the analyzer will be updated to not use it.
+    async def get_collector_jobs(self, collector_id: str) -> list[dict[str, Any]]:
+        try:
+            all_jobs = await self.get_jobs()
+            return [job for job in all_jobs if job.get("collector") == collector_id]
+        except Exception:
+            return []
+
     async def get_notification_targets(self) -> list[dict[str, Any]]:
         try:
             response = await self.get("/api/v1/system/notifications/targets")
@@ -607,6 +629,20 @@ class CriblAPIClient:
         response.raise_for_status()
         return response.json()
 
+    async def get_search_workspaces(self) -> list[str]:
+        """Discovers and returns a list of available search workspace IDs."""
+        try:
+            groups = await self.get_worker_groups()
+            search_workspaces = [group.get("id") for group in groups if group.get("isSearch")]
+            if not search_workspaces:
+                log.info("no_search_workspaces_found")
+            else:
+                log.info("discovered_search_workspaces", workspaces=search_workspaces)
+            return search_workspaces
+        except Exception as e:
+            log.error("failed_to_discover_search_workspaces", error=str(e))
+            return []
+
     async def get_search_datasets(self, workspace: str = "default_search") -> dict:
         response = await self.get(f"/api/v1/m/{workspace}/search/datasets")
         response.raise_for_status()
@@ -623,7 +659,8 @@ class CriblAPIClient:
         return response.json()
 
     async def get_search_groups(self, workspace: str = "default_search") -> dict:
-        response = await self.get("/api/v1/search/usage-groups")
+        """Fetches search usage groups for a specific workspace."""
+        response = await self.get(f"/api/v1/m/{workspace}/search/usage-groups")
         response.raise_for_status()
         return response.json()
 

@@ -70,6 +70,33 @@ export function GroupedFindingCard({ findings, groupTitle, workerGroup }: Groupe
                 {findings.length} instance{findings.length > 1 ? 's' : ''}
               </span>
             </div>
+
+            {(() => {
+              const uniquePipelines = Array.from(new Set(findings.map(f => (f.metadata as Record<string, any>)?.pipeline).filter(Boolean)))
+              const uniqueInputs = Array.from(new Set(findings.map(f => (f.metadata as Record<string, any>)?.input).filter(Boolean)))
+              const uniqueWorkerGroups = Array.from(new Set(findings.map(f => (f.metadata as Record<string, any>)?.worker_group).filter(Boolean)))
+              
+              if (uniquePipelines.length === 0 && uniqueInputs.length === 0 && uniqueWorkerGroups.length === 0) return null
+
+              return (
+                <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  {uniqueWorkerGroups.length > 0 && !workerGroup && (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="font-medium">Worker Groups:</span> {uniqueWorkerGroups.slice(0, 3).join(', ')}
+                      {uniqueWorkerGroups.length > 3 && ` +${uniqueWorkerGroups.length - 3} more`}
+                    </span>
+                  )}
+                  {uniquePipelines.length > 0 && (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="font-medium">Found in {uniquePipelines.length} pipeline{uniquePipelines.length !== 1 ? 's' : ''}:</span> 
+                      {uniquePipelines.slice(0, 3).join(', ')}
+                      {uniquePipelines.length > 3 && ` +${uniquePipelines.length - 3} more`}
+                    </span>
+                  )}
+                </div>
+              )
+            })()}
+
             <h4 className="mt-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
               {groupTitle}
             </h4>

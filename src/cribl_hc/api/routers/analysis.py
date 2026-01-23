@@ -33,7 +33,9 @@ from cribl_hc.core.report_generator import (
     HTMLReportGenerator,
     JSONReportGenerator,
     MarkdownReportGenerator,
+    PDFReportGenerator,
 )
+from cribl_hc.models.analysis import ExecutiveSummary
 from cribl_hc.utils.logger import get_logger
 
 router = APIRouter()
@@ -102,6 +104,7 @@ class AnalysisResponse(BaseModel):
     progress_percent: int = 0
     current_step: Optional[str] = None
     api_calls_used: int = 0
+    api_calls_remaining: int = 100
 
 
 class AnalysisResultResponse(BaseModel):
@@ -116,6 +119,7 @@ class AnalysisResultResponse(BaseModel):
     recommendations_count: int = 0
     completed_at: Optional[datetime] = None
     duration_seconds: Optional[float] = None
+    executive_summary: Optional[ExecutiveSummary] = None
 
 
 async def run_analysis_task(
@@ -149,11 +153,56 @@ async def run_analysis_task(
 
         # Create orchestrator and run analysis
         async with client:
-            orchestrator = AnalyzerOrchestrator(client=client)
+            orchestrator = AnalyzerOrchestrator(client=client, max_api_calls=200)
+
+            def progress_callback(progress):
+                try:
+                    # Get current API call count from client
+                    api_calls_used = client.get_api_calls_used()
+
+                    # Update progress with API call data
+                    progress.update_api_calls(
+                        used=api_calls_used,
+                        remaining=max(0, orchestrator.max_api_calls - api_calls_used),
+                    )
+
+                    # Update in-memory status
+                    if analysis_id in analysis_results:
+                        percent = int(progress.get_percentage())
+                        analysis_results[analysis_id]["progress_percent"] = percent
+                        # Add API call tracking to status
+                        analysis_results[analysis_id]["api_calls_used"] = api_calls_used
+                        analysis_results[analysis_id]["api_calls_remaining"] = (
+                            progress.api_calls_remaining
+                        )
+
+                        if progress.current_objective:
+                            analysis_results[analysis_id]["current_step"] = (
+                                f"Running {progress.current_objective}"
+                            )
+
+                    # Send WebSocket notification with API calls
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(
+                        notify_websocket_clients(
+                            analysis_id,
+                            {
+                                "type": "progress",
+                                "analysis_id": analysis_id,
+                                "percent": int(progress.get_percentage()),
+                                "step": f"Completed {progress.completed_objectives}/{progress.total_objectives}",
+                                "api_calls_used": api_calls_used,
+                                "api_calls_remaining": progress.api_calls_remaining,
+                            },
+                        )
+                    )
+                except Exception as e:
+                    log.warning("progress_callback_failed", error=str(e))
 
             results = await orchestrator.run_analysis(
                 objectives=analyzers_to_run,
                 products=list(products_to_analyze) if products_to_analyze else None,
+                progress_callback=progress_callback,
             )
 
             # Create analysis run from results
@@ -357,6 +406,7 @@ async def get_analysis(analysis_id: str):
         progress_percent=data.get("progress_percent", 0),
         current_step=data.get("current_step"),
         api_calls_used=data.get("api_calls_used", 0),
+        api_calls_remaining=data.get("api_calls_remaining", 200),
     )
 
 
@@ -378,6 +428,9 @@ async def get_analysis_results(analysis_id: str):
             detail=f"Analysis is still {data['status']}. Results not available yet.",
         )
 
+    analysis_run = data.get("analysis_run")
+    exec_summary = analysis_run.executive_summary if analysis_run else None
+
     return AnalysisResultResponse(
         analysis_id=analysis_id,
         deployment_name=data["deployment_name"],
@@ -388,6 +441,7 @@ async def get_analysis_results(analysis_id: str):
         recommendations_count=len(data.get("recommendations", [])),
         completed_at=data.get("completed_at"),
         duration_seconds=data.get("duration_seconds"),
+        executive_summary=exec_summary,
     )
 
 
@@ -454,28 +508,51 @@ async def export_analysis(analysis_id: str, format: str):
         generator = JSONReportGenerator()
         content = json.dumps(generator.generate(analysis_run), indent=2, cls=CustomJSONEncoder)
         media_type = "application/json"
+        filename_ext = "json"
 
     elif format == "html":
         generator = HTMLReportGenerator(branding=branding)
         content = generator.generate(analysis_run, results or {})
         media_type = "text/html"
+        filename_ext = "html"
 
     elif format == "md":
         generator = MarkdownReportGenerator(branding=branding)
         content = generator.generate(analysis_run, results or {})
         media_type = "text/markdown"
+        filename_ext = "md"
+
+    elif format == "pdf":
+        try:
+            pdf_generator = PDFReportGenerator(branding=branding)
+            pdf_content = pdf_generator.generate(analysis_run, results or {})
+            return Response(
+                content=pdf_content,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f'attachment; filename="health-check-{analysis_id}.pdf"',
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET",
+                    "Access-Control-Allow-Headers": "*",
+                },
+            )
+        except ImportError as e:
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail=str(e),
+            ) from e
 
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported format '{format}'. Use json, html, or md.",
+            detail=f"Unsupported format '{format}'. Use json, html, md, or pdf.",
         )
 
     return Response(
         content=content,
         media_type=media_type,
         headers={
-            "Content-Disposition": f'attachment; filename="health-check-{analysis_id}.{format}"',
+            "Content-Disposition": f'attachment; filename="health-check-{analysis_id}.{filename_ext}"',
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET",
             "Access-Control-Allow-Headers": "*",
@@ -498,13 +575,18 @@ async def websocket_analysis_updates(websocket: WebSocket, analysis_id: str):
     log.info("websocket_connected", analysis_id=analysis_id)
 
     try:
-        # Send initial status
+        # Send initial status with API calls
         if analysis_id in analysis_results:
+            result = analysis_results[analysis_id]
             await websocket.send_json(
                 {
                     "type": "status",
                     "analysis_id": analysis_id,
-                    "status": analysis_results[analysis_id]["status"],
+                    "status": result.get("status", "pending"),
+                    "progress_percent": result.get("progress_percent", 0),
+                    "current_step": result.get("current_step"),
+                    "api_calls_used": result.get("api_calls_used", 0),
+                    "api_calls_remaining": result.get("api_calls_remaining", 200),
                 }
             )
 

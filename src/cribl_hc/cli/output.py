@@ -132,7 +132,7 @@ def display_findings(objective: str, result: AnalyzerResult, console: Console):
             if is_grouped:
                 base_title = first_finding.title.split(":")[0]
                 title_parts = [base_title]
-                if worker_group and worker_group != "default":
+                if worker_group:
                     title_parts.append(f"[dim cyan]({worker_group})[/dim cyan]")
 
                 tree = Tree(
@@ -151,7 +151,7 @@ def display_findings(objective: str, result: AnalyzerResult, console: Console):
 
             else:
                 title_parts = [first_finding.title]
-                if first_finding.worker_group and first_finding.worker_group != "default":
+                if first_finding.worker_group:
                     title_parts.append(f"[dim cyan]({first_finding.worker_group})[/dim cyan]")
 
                 tree = Tree("[bold]" + " ".join(title_parts) + "[/bold]")

@@ -7,6 +7,7 @@ Provides an interactive dashboard for viewing analysis results with:
 - Top recommendations
 - Real-time updates
 """
+
 from typing import Optional
 
 from rich.console import Console
@@ -192,6 +193,7 @@ class HealthCheckTUI:
 
             def keyfunc(f):
                 return (f.grouping_id, f.worker_group)
+
             sorted_severity_findings = sorted(severity_findings, key=keyfunc)
 
             for (grouping_id, worker_group), group in groupby(
@@ -204,7 +206,7 @@ class HealthCheckTUI:
                 if is_grouped:
                     base_title = first_finding.title.split(":")[0]
                     title_parts = [base_title]
-                    if worker_group and worker_group != "default":
+                    if worker_group:
                         title_parts.append(f"({worker_group})")
 
                     findings_display.append(
@@ -221,7 +223,7 @@ class HealthCheckTUI:
                         )
                 else:
                     title_parts = [first_finding.title[:50]]
-                    if first_finding.worker_group and first_finding.worker_group != "default":
+                    if first_finding.worker_group:
                         title_parts.append(f"({first_finding.worker_group})")
                     findings_display.append(f"  • {' '.join(title_parts)}\n")
 

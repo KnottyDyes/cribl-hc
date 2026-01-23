@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-
-export interface WebSocketMessage {
-  type: string
-  [key: string]: unknown
-}
+import type { WebSocketMessage } from '../api/types'
 
 interface UseWebSocketOptions {
   url: string

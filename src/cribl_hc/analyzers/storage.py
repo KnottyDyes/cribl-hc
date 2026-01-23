@@ -72,12 +72,7 @@ class StorageAnalyzer(BaseAnalyzer):
 
     def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
-        return [
-            "read:routes",
-            "read:outputs",
-            "read:pipelines",
-            "read:metrics"
-        ]
+        return ["read:routes", "read:outputs", "read:pipelines", "read:metrics"]
 
     async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         """
@@ -96,7 +91,9 @@ class StorageAnalyzer(BaseAnalyzer):
         try:
             # Detect product type
             product_name = "Cribl Edge" if client.is_edge else "Cribl Stream"
-            log.info("storage_analysis_started", product=client.product_type, product_name=product_name)
+            log.info(
+                "storage_analysis_started", product=client.product_type, product_name=product_name
+            )
 
             # Fetch data
             outputs = await self._fetch_outputs(client)
@@ -120,7 +117,9 @@ class StorageAnalyzer(BaseAnalyzer):
             # Identify data reduction opportunities
             self._identify_sampling_opportunities(routes, outputs, storage_by_dest, result)
             self._identify_filtering_opportunities(routes, outputs, storage_by_dest, result)
-            self._identify_aggregation_opportunities(routes, pipelines, outputs, storage_by_dest, result)
+            self._identify_aggregation_opportunities(
+                routes, pipelines, outputs, storage_by_dest, result
+            )
 
             # Generate storage optimization recommendations
             self._generate_storage_recommendations(
@@ -135,7 +134,7 @@ class StorageAnalyzer(BaseAnalyzer):
                 product=client.product_type,
                 total_bytes=result.metadata["total_bytes"],
                 destinations=len(outputs),
-                findings=len(result.findings)
+                findings=len(result.findings),
             )
 
         except Exception as e:
@@ -158,11 +157,11 @@ class StorageAnalyzer(BaseAnalyzer):
                     remediation_steps=[
                         "Check API connectivity",
                         "Verify permissions for metrics and outputs endpoints",
-                        f"Review {product_name} API availability"
+                        f"Review {product_name} API availability",
                     ],
                     estimated_impact="Unable to assess storage optimization opportunities",
                     confidence_level="high",
-                    metadata={"error": str(e), "product_type": client.product_type}
+                    metadata={"error": str(e), "product_type": client.product_type},
                 )
             )
 
@@ -208,9 +207,7 @@ class StorageAnalyzer(BaseAnalyzer):
             log.warning("metrics_fetch_failed", error=str(e))
             return {}
 
-    def _calculate_storage_by_destination(
-        self, outputs: list[dict[str, Any]]
-    ) -> dict[str, int]:
+    def _calculate_storage_by_destination(self, outputs: list[dict[str, Any]]) -> dict[str, int]:
         """Calculate storage consumption by destination."""
         storage_by_dest = {}
 
@@ -225,10 +222,7 @@ class StorageAnalyzer(BaseAnalyzer):
         return storage_by_dest
 
     def _identify_high_volume_destinations(
-        self,
-        outputs: list[dict[str, Any]],
-        storage_by_dest: dict[str, int],
-        result: AnalyzerResult
+        self, outputs: list[dict[str, Any]], storage_by_dest: dict[str, int], result: AnalyzerResult
     ) -> None:
         """Identify destinations consuming significant storage."""
         high_volume_threshold_bytes = self.HIGH_VOLUME_THRESHOLD_GB * 1_000_000_000
@@ -253,15 +247,15 @@ class StorageAnalyzer(BaseAnalyzer):
                             "Evaluate sampling opportunities for non-critical data",
                             "Implement filtering to remove unnecessary events",
                             "Consider aggregation for metrics or repetitive data",
-                            "Review retention policies and lifecycle management"
+                            "Review retention policies and lifecycle management",
                         ],
                         estimated_impact=f"Potential cost savings through optimization of {gb_total:.2f} GB",
                         confidence_level="high",
                         metadata={
                             "bytes_total": bytes_total,
                             "gb_total": gb_total,
-                            "destination": output_id
-                        }
+                            "destination": output_id,
+                        },
                     )
                 )
 
@@ -270,7 +264,7 @@ class StorageAnalyzer(BaseAnalyzer):
         routes: list[dict[str, Any]],
         outputs: list[dict[str, Any]],
         storage_by_dest: dict[str, int],
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Identify routes that could benefit from sampling."""
         sampling_threshold_bytes = self.SAMPLING_CANDIDATE_THRESHOLD_GB * 1_000_000_000
@@ -280,6 +274,7 @@ class StorageAnalyzer(BaseAnalyzer):
 
         for route in routes:
             route_id = route.get("id", "unknown")
+            route_name = route.get("name") or route_id
             output_id = route.get("output")
             filter_expr = route.get("filter", "true")
 
@@ -304,19 +299,19 @@ class StorageAnalyzer(BaseAnalyzer):
                             id=f"storage-sampling-opportunity-{route_id}",
                             category="storage",
                             severity="low",
-                            title=f"Sampling Opportunity: {route_id} → {output_id}",
+                            title=f"Sampling Opportunity: {route_name} → {output_id}",
                             description=(
-                                f"Route '{route_id}' sends all events to '{output_id}' "
+                                f"Route '{route_name}' sends all events to '{output_id}' "
                                 f"({gb_current:.2f} GB). Consider sampling for non-critical use cases "
                                 f"to reduce storage costs."
                             ),
                             affected_components=[route_id, output_id],
                             remediation_steps=[
-                                f"Add sampling to route '{route_id}' or its pipeline",
+                                f"Add sampling to route '{route_name}' or its pipeline",
                                 "Configure sample rate (e.g., 1:4 for 25% of events)",
                                 "Ensure sampled data meets analytical requirements",
                                 "Monitor impact on downstream dashboards/alerts",
-                                "Implement gradual rollout to verify effectiveness"
+                                "Implement gradual rollout to verify effectiveness",
                             ],
                             estimated_impact=(
                                 f"Potential savings: ~{gb_saved:.2f} GB "
@@ -325,15 +320,15 @@ class StorageAnalyzer(BaseAnalyzer):
                             confidence_level="medium",
                             documentation_links=[
                                 "https://docs.cribl.io/stream/sampling-function/",
-                                "https://docs.cribl.io/stream/routes/"
+                                "https://docs.cribl.io/stream/routes/",
                             ],
                             metadata={
                                 "route_id": route_id,
                                 "output_id": output_id,
                                 "current_gb": gb_current,
                                 "potential_savings_gb": gb_saved,
-                                "reduction_pct": self.SAMPLING_REDUCTION_PCT
-                            }
+                                "reduction_pct": self.SAMPLING_REDUCTION_PCT,
+                            },
                         )
                     )
 
@@ -342,13 +337,14 @@ class StorageAnalyzer(BaseAnalyzer):
         routes: list[dict[str, Any]],
         outputs: list[dict[str, Any]],
         storage_by_dest: dict[str, int],
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Identify routes that could benefit from filtering."""
         filtering_threshold_bytes = self.FILTERING_CANDIDATE_THRESHOLD_GB * 1_000_000_000
 
         for route in routes:
             route_id = route.get("id", "unknown")
+            route_name = route.get("name") or route_id
             output_id = route.get("output")
             filter_expr = route.get("filter", "true")
 
@@ -367,9 +363,9 @@ class StorageAnalyzer(BaseAnalyzer):
                         id=f"storage-filtering-opportunity-{route_id}",
                         category="storage",
                         severity="low",
-                        title=f"Filtering Opportunity: {route_id}",
+                        title=f"Filtering Opportunity: {route_name}",
                         description=(
-                            f"Route '{route_id}' forwards all events without filtering "
+                            f"Route '{route_name}' forwards all events without filtering "
                             f"({gb_current:.2f} GB to '{output_id}'). Review if all events are needed."
                         ),
                         affected_components=[route_id, output_id],
@@ -378,7 +374,7 @@ class StorageAnalyzer(BaseAnalyzer):
                             "Identify unnecessary event types, sources, or severities",
                             "Add filter expression to route configuration",
                             "Consider dedicated routes for different event priorities",
-                            "Monitor downstream impact before full deployment"
+                            "Monitor downstream impact before full deployment",
                         ],
                         estimated_impact=(
                             f"Potential savings: ~{gb_saved:.2f} GB "
@@ -387,15 +383,15 @@ class StorageAnalyzer(BaseAnalyzer):
                         confidence_level="medium",
                         documentation_links=[
                             "https://docs.cribl.io/stream/routes/",
-                            "https://docs.cribl.io/stream/cribl-search/"
+                            "https://docs.cribl.io/stream/cribl-search/",
                         ],
                         metadata={
                             "route_id": route_id,
                             "output_id": output_id,
                             "current_gb": gb_current,
                             "potential_savings_gb": gb_saved,
-                            "reduction_pct": self.FILTERING_REDUCTION_PCT
-                        }
+                            "reduction_pct": self.FILTERING_REDUCTION_PCT,
+                        },
                     )
                 )
 
@@ -405,7 +401,7 @@ class StorageAnalyzer(BaseAnalyzer):
         pipelines: list[dict[str, Any]],
         outputs: list[dict[str, Any]],
         storage_by_dest: dict[str, int],
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Identify opportunities for aggregation/rollup (primarily metrics)."""
         # Build pipeline ID to functions mapping
@@ -419,6 +415,7 @@ class StorageAnalyzer(BaseAnalyzer):
         # Look for metrics routes without aggregation
         for route in routes:
             route_id = route.get("id", "unknown")
+            route_name = route.get("name") or route_id
             filter_expr = route.get("filter", "")
             pipeline_id = route.get("pipeline")
             output_id = route.get("output")
@@ -433,8 +430,7 @@ class StorageAnalyzer(BaseAnalyzer):
             # Check if pipeline has aggregation
             functions = pipeline_functions.get(pipeline_id, [])
             has_aggregation = any(
-                f.get("id") in ["aggregation", "rollup", "aggregator"]
-                for f in functions
+                f.get("id") in ["aggregation", "rollup", "aggregator"] for f in functions
             )
 
             if not has_aggregation:
@@ -450,9 +446,9 @@ class StorageAnalyzer(BaseAnalyzer):
                             id=f"storage-aggregation-opportunity-{route_id}",
                             category="storage",
                             severity="low",
-                            title=f"Aggregation Opportunity: {route_id} (Metrics)",
+                            title=f"Aggregation Opportunity: {route_name} (Metrics)",
                             description=(
-                                f"Metrics route '{route_id}' forwards high-resolution data "
+                                f"Metrics route '{route_name}' forwards high-resolution data "
                                 f"({gb_current:.2f} GB) without aggregation. Consider rollup "
                                 f"for long-term storage."
                             ),
@@ -462,7 +458,7 @@ class StorageAnalyzer(BaseAnalyzer):
                                 "Implement aggregation/rollup pipeline for long-term storage",
                                 "Configure rollup intervals (e.g., 1min → 5min → 1hour)",
                                 "Route high-res metrics to hot storage, rollups to cold storage",
-                                "Verify dashboards and alerts work with aggregated data"
+                                "Verify dashboards and alerts work with aggregated data",
                             ],
                             estimated_impact=(
                                 f"Potential savings: ~{gb_saved:.2f} GB "
@@ -471,15 +467,15 @@ class StorageAnalyzer(BaseAnalyzer):
                             confidence_level="medium",
                             documentation_links=[
                                 "https://docs.cribl.io/stream/aggregation-function/",
-                                "https://docs.cribl.io/stream/rollup-function/"
+                                "https://docs.cribl.io/stream/rollup-function/",
                             ],
                             metadata={
                                 "route_id": route_id,
                                 "output_id": output_id,
                                 "current_gb": gb_current,
                                 "potential_savings_gb": gb_saved,
-                                "reduction_pct": self.AGGREGATION_REDUCTION_PCT
-                            }
+                                "reduction_pct": self.AGGREGATION_REDUCTION_PCT,
+                            },
                         )
                     )
 
@@ -489,12 +485,13 @@ class StorageAnalyzer(BaseAnalyzer):
         routes: list[dict[str, Any]],
         pipelines: list[dict[str, Any]],
         storage_by_dest: dict[str, int],
-        result: AnalyzerResult
+        result: AnalyzerResult,
     ) -> None:
         """Generate actionable storage optimization recommendations."""
         # Find all storage-related findings
         storage_findings = [
-            f for f in result.findings
+            f
+            for f in result.findings
             if "sampling" in f.id or "filtering" in f.id or "aggregation" in f.id
         ]
 
@@ -502,10 +499,7 @@ class StorageAnalyzer(BaseAnalyzer):
             return
 
         # Calculate total potential savings
-        total_savings_gb = sum(
-            f.metadata.get("potential_savings_gb", 0)
-            for f in storage_findings
-        )
+        total_savings_gb = sum(f.metadata.get("potential_savings_gb", 0) for f in storage_findings)
 
         # Calculate cost savings (use S3 as default)
         monthly_cost_savings = total_savings_gb * self.S3_STORAGE_COST_PER_GB_MONTH
@@ -529,7 +523,7 @@ class StorageAnalyzer(BaseAnalyzer):
                 description=(
                     f"Optimize storage consumption across {len(storage_findings)} routes "
                     f"to reduce costs and improve performance. Current storage: {total_gb:.2f} GB, "
-                    f"potential savings: {total_savings_gb:.2f} GB ({(total_savings_gb/total_gb*100):.1f}%)."
+                    f"potential savings: {total_savings_gb:.2f} GB ({(total_savings_gb / total_gb * 100):.1f}%)."
                 ),
                 rationale=(
                     "Data reduction techniques (sampling, filtering, aggregation) can "
@@ -543,22 +537,22 @@ class StorageAnalyzer(BaseAnalyzer):
                     "Start with non-production routes to validate effectiveness",
                     "Monitor downstream impact on dashboards and alerts",
                     "Gradually roll out to production with stakeholder approval",
-                    "Document data retention policies and reduction rationale"
+                    "Document data retention policies and reduction rationale",
                 ],
                 before_state=f"{total_gb:.2f} GB current storage consumption",
                 after_state=f"~{(total_gb - total_savings_gb):.2f} GB after optimization ({total_savings_gb:.2f} GB reduction)",
                 impact_estimate=ImpactEstimate(
                     performance_improvement=f"{total_savings_gb:.2f} GB storage reduction",
                     cost_savings=f"${annual_cost_savings:.2f}/year (estimated S3 pricing)",
-                    time_to_implement="1-2 weeks for phased rollout"
+                    time_to_implement="1-2 weeks for phased rollout",
                 ),
                 implementation_effort="medium",
                 related_findings=[f.id for f in storage_findings],
                 documentation_links=[
                     "https://docs.cribl.io/stream/sampling-function/",
                     "https://docs.cribl.io/stream/routes/",
-                    "https://docs.cribl.io/stream/aggregation-function/"
-                ]
+                    "https://docs.cribl.io/stream/aggregation-function/",
+                ],
             )
         )
 
@@ -577,14 +571,17 @@ class StorageAnalyzer(BaseAnalyzer):
 
         result.metadata["potential_savings_gb"] = total_savings_gb
         result.metadata["potential_savings_pct"] = savings_pct
-        result.metadata["savings_opportunities"] = len([
-            f for f in result.findings
-            if "sampling" in f.id or "filtering" in f.id or "aggregation" in f.id
-        ])
+        result.metadata["savings_opportunities"] = len(
+            [
+                f
+                for f in result.findings
+                if "sampling" in f.id or "filtering" in f.id or "aggregation" in f.id
+            ]
+        )
 
         log.debug(
             "potential_savings_calculated",
             savings_gb=total_savings_gb,
             savings_pct=savings_pct,
-            opportunities=result.metadata["savings_opportunities"]
+            opportunities=result.metadata["savings_opportunities"],
         )

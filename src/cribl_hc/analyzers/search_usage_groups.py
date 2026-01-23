@@ -1,4 +1,3 @@
-
 """
 Search Usage Groups Analyzer for Cribl Health Check.
 
@@ -34,85 +33,121 @@ class SearchUsageGroupsAnalyzer(BaseAnalyzer):
     def get_required_permissions(self) -> list[str]:
         return ["read:search:groups"]
 
-    async def analyze(
-        self, client: CriblAPIClient, workspace: str = "default_search"
-    ) -> AnalyzerResult:
+    async def analyze(self, client: CriblAPIClient) -> AnalyzerResult:
         result = self.create_result()
 
         try:
-            groups_response = await client.get_search_groups(workspace)
-            if isinstance(groups_response, dict) and "count" not in groups_response:
-                groups_response = {
-                    **groups_response,
-                    "count": len(groups_response.get("items", [])),
-                }
-            group_list = SearchGroupList(**groups_response)
-            groups = group_list.items
-
-            result.metadata.update(
-                {
-                    "workspace": workspace,
-                    "total_groups": len(groups),
-                    "analysis_timestamp": datetime.utcnow().isoformat(),
-                }
-            )
-
-            if not groups:
+            workspaces = await client.get_search_workspaces()
+            if not workspaces:
+                result.success = True
+                result.metadata["message"] = "No search workspaces found or Search is disabled."
                 result.add_finding(
                     self.create_finding(
                         client=client,
-                        id="search-groups-none",
+                        id="search-not-enabled-or-no-workspaces",
                         category="search",
                         severity="info",
-                        title="No Search Usage Groups Found",
-                        description=f"No usage groups configured in workspace '{workspace}'.",
+                        title="Search Not Enabled or No Workspaces Found",
+                        description="Cribl Search appears to be disabled or no search workspaces are configured.",
                         affected_components=["Search"],
                         confidence_level="high",
-                        metadata={"workspace": workspace},
                     )
                 )
-                result.success = True
                 return result
 
-            self._analyze_group_allocations(groups, result, client)
-            result.success = True
-        except Exception as exc:
-            log.error("search_usage_groups_failed", error=str(exc))
-            result.success = False
-            result.metadata["error"] = str(exc)
-            result.add_finding(
-                self.create_finding(
-                    client=client,
-                    id="search-groups-analysis-error",
-                    category="search",
-                    severity="critical",
-                    title="Search Usage Group Analysis Failed",
-                    description=f"Failed to analyze usage groups: {str(exc)}",
-                    affected_components=["Search API"],
-                    remediation_steps=["Verify Search API connectivity"],
-                    estimated_impact="Search usage group analysis unavailable",
-                    confidence_level="high",
-                )
+            total_groups_found = 0
+            for workspace in workspaces:
+                groups_response = await client.get_search_groups(workspace)
+                groups_list = SearchGroupList(**groups_response)
+                workspace_groups = groups_list.items
+                total_groups_found += len(workspace_groups)
+
+                if not workspace_groups:
+                    result.add_finding(
+                        self.create_finding(
+                            client=client,
+                            id=f"search-groups-none-{workspace}",
+                            category="search",
+                            severity="info",
+                            title=f"No Search Usage Groups Found in '{workspace}'",
+                            description=f"No usage groups configured in workspace '{workspace}'.",
+                            affected_components=["Search"],
+                            confidence_level="high",
+                            metadata={"workspace": workspace},
+                        )
+                    )
+                else:
+                    self._analyze_group_allocations(workspace_groups, result, client, workspace)
+
+            result.metadata.update(
+                {
+                    "workspaces_analyzed": workspaces,
+                    "total_groups": total_groups_found,
+                }
             )
+            result.success = True
+
+        except Exception as exc:
+            error_str = str(exc)
+            if "404" in error_str:
+                log.info("search_usage_groups_404", error=error_str)
+                result.success = True
+                result.metadata["error"] = "Search not enabled or workspace not found"
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id="search-not-enabled",
+                        category="search",
+                        severity="info",
+                        title="Search Not Enabled",
+                        description="Cribl Search appears to be disabled or workspace not found.",
+                        affected_components=["Search"],
+                        confidence_level="high",
+                        metadata={"error": error_str},
+                    )
+                )
+            else:
+                log.error("search_usage_groups_failed", error=error_str)
+                result.success = False
+                result.metadata["error"] = error_str
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id="search-groups-analysis-error",
+                        category="search",
+                        severity="critical",
+                        title="Search Usage Group Analysis Failed",
+                        description=f"Failed to analyze usage groups: {error_str}",
+                        affected_components=["Search API"],
+                        remediation_steps=["Verify Search API connectivity"],
+                        estimated_impact="Search usage group analysis unavailable",
+                        confidence_level="high",
+                    )
+                )
 
         return result
 
     def _analyze_group_allocations(
-        self, groups: list[SearchGroup], result: AnalyzerResult, client: CriblAPIClient
+        self,
+        groups: list[SearchGroup],
+        result: AnalyzerResult,
+        client: CriblAPIClient,
+        workspace: str,
     ) -> None:
         empty_groups = [g for g in groups if not g.datasets and not g.dashboards]
         if empty_groups:
             result.add_finding(
                 self.create_finding(
                     client=client,
-                    id="search-groups-empty",
+                    id=f"search-groups-empty-{workspace}",
                     category="search",
                     severity="info",
-                    title=f"{len(empty_groups)} Empty Usage Group(s)",
-                    description="Found usage group(s) without datasets or dashboards.",
+                    title=f"{len(empty_groups)} Empty Usage Group(s) in '{workspace}'",
+                    description=f"Found usage group(s) in workspace '{workspace}' without datasets or dashboards.",
                     affected_components=["Search"] + [g.id for g in empty_groups[:5]],
                     confidence_level="high",
                     metadata={
+                        "workspace": workspace,
                         "empty_count": len(empty_groups),
                         "empty_ids": [g.id for g in empty_groups],
                     },
@@ -124,14 +159,15 @@ class SearchUsageGroupsAnalyzer(BaseAnalyzer):
             result.add_finding(
                 self.create_finding(
                     client=client,
-                    id="search-groups-large",
+                    id=f"search-groups-large-{workspace}",
                     category="search",
                     severity="low",
-                    title=f"{len(large_groups)} Large Usage Group(s)",
-                    description="Some usage groups reference 25+ datasets/dashboards. Consider splitting for clarity.",
+                    title=f"{len(large_groups)} Large Usage Group(s) in '{workspace}'",
+                    description=f"Some usage groups in workspace '{workspace}' reference 25+ datasets/dashboards. Consider splitting for clarity.",
                     affected_components=["Search"] + [g.id for g in large_groups[:5]],
                     confidence_level="medium",
                     metadata={
+                        "workspace": workspace,
                         "large_count": len(large_groups),
                         "large_ids": [g.id for g in large_groups],
                     },

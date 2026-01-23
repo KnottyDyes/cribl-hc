@@ -18,6 +18,7 @@ class TestSearchUsageGroupsAnalyzer:
     @pytest.fixture
     def mock_client(self) -> CriblAPIClient:
         client = AsyncMock(spec=CriblAPIClient)
+        client.get_search_workspaces = AsyncMock(return_value=["main"])
         client.get_search_groups = AsyncMock(
             return_value={
                 "items": [
@@ -40,4 +41,4 @@ class TestSearchUsageGroupsAnalyzer:
         self, analyzer: SearchUsageGroupsAnalyzer, mock_client: CriblAPIClient
     ) -> None:
         result = await analyzer.analyze(mock_client)
-        assert any(f.id == "search-groups-empty" for f in result.findings)
+        assert any(f.id == "search-groups-empty-main" for f in result.findings)

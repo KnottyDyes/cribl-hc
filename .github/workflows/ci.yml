@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop, GUI-beta, feature/tauri-desktop-app ]
+    branches: [ main, develop, GUI-beta, feature/tauri-desktop-app, fix/docker-build ]
   pull_request:
     branches: [ main ]
 

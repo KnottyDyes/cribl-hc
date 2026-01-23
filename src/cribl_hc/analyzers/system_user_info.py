@@ -52,6 +52,7 @@ class SystemUserInfoAnalyzer(BaseAnalyzer):
                             "Check for network issues preventing connection to the user management API endpoints.",
                         ],
                         confidence_level="medium",
+                        estimated_impact="Unable to audit user access and permissions, potential security visibility gap",
                     )
                 )
 

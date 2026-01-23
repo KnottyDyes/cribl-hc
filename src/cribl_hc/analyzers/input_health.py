@@ -211,7 +211,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
                 severity="critical",
                 category="input_health",
                 confidence_level="high",
-                affected_components=[input_id],
+                affected_components=[f"input:{input_id}"],
                 estimated_impact="Data collection interrupted for this source",
                 remediation_steps=[
                     "Check network connectivity to the source",
@@ -268,7 +268,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
                 severity=severity_level,
                 category="input_health",
                 confidence_level="medium",
-                affected_components=[input_id],
+                affected_components=[f"input:{input_id}"],
                 estimated_impact="Delayed data availability or silent failure",
                 remediation_steps=[
                     "Check if the source system is generating data",
@@ -299,7 +299,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
                 severity=severity_level,
                 category="input_health",
                 confidence_level="high",
-                affected_components=[input_id],
+                affected_components=[f"input:{input_id}"],
                 estimated_impact="Data loss or quality degradation",
                 remediation_steps=[
                     "Review input logs for error details",
@@ -335,7 +335,7 @@ class InputSourceAnalyzer(BaseAnalyzer):
                 severity=severity,
                 category="input_health",
                 confidence_level="medium",
-                affected_components=[input_id],
+                affected_components=[f"input:{input_id}"],
                 estimated_impact="Processing latency",
                 remediation_steps=[
                     "Check worker CPU/Memory usage",
