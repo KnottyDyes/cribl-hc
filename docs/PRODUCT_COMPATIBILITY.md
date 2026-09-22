@@ -28,7 +28,7 @@ cribl-hc is designed to work with the Cribl suite of products. This document out
 - `/api/v1/version` - Version information
 
 **Requirements:**
-- Cribl Stream 4.x (N through N-2 versions supported)
+- Cribl Stream 4.x (4.5 and above; validated against 4.20)
 - API bearer token with read permissions
 - Network access to Cribl API endpoints
 

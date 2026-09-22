@@ -163,66 +163,62 @@ def detect_version(version_data: dict) -> Optional[CriblVersion]:
 
 def is_version_supported(version: CriblVersion, current_version: Optional[CriblVersion] = None) -> bool:
     """
-    Check if a Cribl version is supported (N, N-1, or N-2).
+    Check if a Cribl version is supported.
+
+    Support policy: every 4.x release at or above the
+    ``MINIMUM_SUPPORTED_MAJOR_VERSION.MINIMUM_SUPPORTED_MINOR_VERSION`` floor
+    (4.5) is supported. Releases below the floor, and other major versions,
+    are not.
 
     Args:
         version: Version to check
-        current_version: Current/latest Cribl version (default: 4.7.0 as of 2025)
+        current_version: Latest known Cribl version, used only to note when a
+            deployment is newer than this tool has been validated against
+            (default: ``LATEST_KNOWN_VERSION``)
 
     Returns:
-        True if version is supported (N through N-2), False otherwise
+        True if the version is within the supported 4.x range, False otherwise
 
     Example:
-        >>> current = parse_version("4.7.0")
-        >>> is_version_supported(parse_version("4.7.0"), current)  # N
+        >>> is_version_supported(parse_version("4.20.0"))
         True
-        >>> is_version_supported(parse_version("4.6.0"), current)  # N-1
+        >>> is_version_supported(parse_version("4.5.0"))
         True
-        >>> is_version_supported(parse_version("4.5.0"), current)  # N-2
-        True
-        >>> is_version_supported(parse_version("4.4.0"), current)  # N-3
+        >>> is_version_supported(parse_version("4.4.0"))  # below the 4.5 floor
+        False
+        >>> is_version_supported(parse_version("3.9.0"))  # unsupported major
         False
     """
     if current_version is None:
-        # Default to a recent version if not specified
-        # This should be updated periodically or fetched dynamically
-        current_version = parse_version("4.7.0")
+        current_version = parse_version(LATEST_KNOWN_VERSION)
 
-    # Calculate N-2 version (two minor versions back)
-    # Cribl typically maintains compatibility for 2 minor versions
-    min_supported_minor = max(0, current_version.minor - 2)
-
-    # Check if version is within supported range
-    if version.major != current_version.major:
-        # Different major version - not supported
+    if version.major != MINIMUM_SUPPORTED_MAJOR_VERSION:
         log.warning(
             "version_not_supported_major",
             version=str(version),
-            current=str(current_version),
+            supported_major=MINIMUM_SUPPORTED_MAJOR_VERSION,
         )
         return False
 
-    if version.minor < min_supported_minor:
-        # Too old (before N-2)
+    if version.minor < MINIMUM_SUPPORTED_MINOR_VERSION:
         log.warning(
             "version_not_supported_old",
             version=str(version),
-            current=str(current_version),
-            minimum=f"{current_version.major}.{min_supported_minor}.0",
+            minimum=f"{MINIMUM_SUPPORTED_MAJOR_VERSION}.{MINIMUM_SUPPORTED_MINOR_VERSION}.0",
         )
         return False
 
-    if version.minor > current_version.minor:
-        # Newer than current (might work, but log warning)
+    if version > current_version:
+        # Within the supported major line but newer than this tool has been
+        # validated against; analysis proceeds, results may miss new features.
         log.info(
-            "version_newer_than_current",
+            "version_newer_than_validated",
             version=str(version),
-            current=str(current_version),
+            latest_known=str(current_version),
         )
         return True
 
-    # Version is N, N-1, or N-2
-    log.info("version_supported", version=str(version), current=str(current_version))
+    log.info("version_supported", version=str(version))
     return True
 
 
@@ -232,39 +228,37 @@ def get_version_compatibility_message(version: CriblVersion, current_version: Op
 
     Args:
         version: Version to check
-        current_version: Current/latest version
+        current_version: Latest known Cribl version
 
     Returns:
         Compatibility message
 
     Example:
-        >>> v = parse_version("4.5.0")
-        >>> print(get_version_compatibility_message(v, parse_version("4.7.0")))
-        'Version 4.5.0 is supported (N-2)'
+        >>> print(get_version_compatibility_message(parse_version("4.5.0")))
+        'Version 4.5.0 is supported (N-15)'
     """
     if current_version is None:
-        current_version = parse_version("4.7.0")
+        current_version = parse_version(LATEST_KNOWN_VERSION)
 
+    minimum = f"{MINIMUM_SUPPORTED_MAJOR_VERSION}.{MINIMUM_SUPPORTED_MINOR_VERSION}"
     if not is_version_supported(version, current_version):
         return (
             f"Version {version} is NOT supported. "
-            f"Supported versions: {current_version.major}.{max(0, current_version.minor - 2)}.x "
+            f"Supported versions: {minimum}.x "
             f"through {current_version.major}.{current_version.minor}.x"
         )
 
-    # Calculate version designation (N, N-1, N-2)
-    version_diff = current_version.minor - version.minor
+    if version > current_version:
+        return (
+            f"Version {version} is supported (newer than {current_version}, "
+            f"the latest release this tool has been validated against)"
+        )
 
+    version_diff = current_version.minor - version.minor
     if version_diff == 0:
         designation = "current (N)"
-    elif version_diff == 1:
-        designation = "N-1"
-    elif version_diff == 2:
-        designation = "N-2"
-    elif version.minor > current_version.minor:
-        designation = "newer than current"
     else:
-        designation = "unknown"
+        designation = f"N-{version_diff}"
 
     return f"Version {version} is supported ({designation})"
 
@@ -272,3 +266,7 @@ def get_version_compatibility_message(version: CriblVersion, current_version: Op
 # Version constants for common checks
 MINIMUM_SUPPORTED_MAJOR_VERSION = 4
 MINIMUM_SUPPORTED_MINOR_VERSION = 5  # 4.5.x and up
+
+# Latest Cribl release this tool has been validated against. Deployments newer
+# than this still analyze; update alongside cribl_api_reference/.
+LATEST_KNOWN_VERSION = "4.20.0"

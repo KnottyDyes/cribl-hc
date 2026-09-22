@@ -5,7 +5,6 @@ This module provides a configured structured logger for the Cribl health check t
 All logs include timestamps, context, and are formatted as JSON for easy parsing.
 """
 
-import sys
 from typing import Any, Optional
 
 import structlog
@@ -59,7 +58,9 @@ def configure_logging(
         processors=processors,
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
+        # No explicit file: structlog then resolves sys.stdout at write time, so
+        # logging follows stdout redirection instead of holding a stale handle.
+        logger_factory=structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=True,
     )
 

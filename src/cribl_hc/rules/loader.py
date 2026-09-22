@@ -517,7 +517,7 @@ class RuleEvaluator:
             return obj
 
         parts = path.split(".")
-        current = obj
+        current: Any = obj
 
         for part in parts:
             if isinstance(current, dict):

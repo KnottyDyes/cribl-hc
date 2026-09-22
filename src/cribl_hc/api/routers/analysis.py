@@ -448,19 +448,21 @@ async def export_analysis(analysis_id: str, format: str):
             detail="Analysis run data not found in memory.",
         )
 
+    # Each branch builds its own generator: sharing one `generator` name across
+    # the three unrelated types pinned it to the first branch's type.
+    content: str
     if format == "json":
-        generator = JSONReportGenerator()
-        content = json.dumps(generator.generate(analysis_run), indent=2, cls=CustomJSONEncoder)
+        content = json.dumps(
+            JSONReportGenerator().generate(analysis_run), indent=2, cls=CustomJSONEncoder
+        )
         media_type = "application/json"
 
     elif format == "html":
-        generator = HTMLReportGenerator()
-        content = generator.generate(analysis_run, results or {})
+        content = HTMLReportGenerator().generate(analysis_run, results or {})
         media_type = "text/html"
 
     elif format == "md":
-        generator = MarkdownReportGenerator()
-        content = generator.generate(analysis_run, results or {})
+        content = MarkdownReportGenerator().generate(analysis_run, results or {})
         media_type = "text/markdown"
 
     else:

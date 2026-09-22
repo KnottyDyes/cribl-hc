@@ -59,7 +59,7 @@ class HistoricalTrend(BaseModel):
 
     deployment_id: str = Field(..., description="Deployment ID", min_length=1)
     metric_name: str = Field(..., description="Metric name", min_length=1)
-    data_points: list[DataPoint] = Field(..., description="Time-series data", min_items=1)
+    data_points: list[DataPoint] = Field(..., description="Time-series data", min_length=1)
     trend_direction: Literal["improving", "stable", "declining", "volatile"] = Field(
         ..., description="Trend direction"
     )

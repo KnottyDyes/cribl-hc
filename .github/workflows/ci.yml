@@ -7,8 +7,12 @@ on:
     branches: [ main ]
 
 jobs:
-  lint-and-test-backend:
-    name: Backend Lint & Test
+  # The backend is split into three jobs so that lint and type regressions can
+  # be required independently of the test suite, which still fails on analyzer
+  # rules that were never implemented. They share the same install step; each
+  # runs it because jobs do not share a filesystem.
+  lint-backend:
+    name: Backend Lint
     runs-on: ubuntu-latest
 
     steps:
@@ -19,27 +23,67 @@ jobs:
       with:
         python-version: '3.11'
         cache: 'pip'
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
-        pip install -e .
-    
+        pip install -e ".[web]"
+
+    # ruff comes from requirements-dev.txt, which pins it. Installing it again
+    # here would silently pull the latest release and reintroduce the version
+    # drift that broke this job on unrelated PRs.
     - name: Lint with ruff
+      run: ruff check src/ tests/
+
+  types-backend:
+    name: Backend Types
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
       run: |
-        pip install ruff
-        ruff check src/ tests/
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip install -e ".[web]"
 
     - name: Type check with mypy
+      run: mypy src/ --ignore-missing-imports
+
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
       run: |
-        pip install mypy
-        mypy src/ --ignore-missing-imports
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        # `web` extra: the API tests and the CLI entrypoint import fastapi and
+        # uvicorn, so without it pytest aborts during collection.
+        pip install -e ".[web]"
 
     - name: Run tests with pytest
-      run: |
-        pytest tests/
+      run: pytest tests/
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v5
@@ -129,7 +173,7 @@ jobs:
     - name: Install backend dependencies
       run: |
         pip install -r requirements.txt
-        pip install -e .
+        pip install -e ".[web]"
 
     - name: Install frontend dependencies
       working-directory: frontend

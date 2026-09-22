@@ -14,6 +14,7 @@ from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.models.finding import Finding
 from cribl_hc.utils.logger import get_logger
 
 
@@ -302,7 +303,7 @@ class SchemaDriftAnalyzer(BaseAnalyzer):
         self, events: list[dict[str, Any]], result: AnalyzerResult
     ) -> list[Any]:
         """Detect inconsistencies in schema structure across events."""
-        findings = []
+        findings: list[Finding] = []
 
         # Group events by source/pipeline for comparison
         events_by_source = defaultdict(list)
@@ -320,7 +321,7 @@ class SchemaDriftAnalyzer(BaseAnalyzer):
         # Compare field sets between sources
         source_field_sets = {}
         for source, source_events in sources_with_multiple.items():
-            all_fields = set()
+            all_fields: set[str] = set()
             for event in source_events:
                 all_fields.update(k for k in event if not k.startswith("_"))
             source_field_sets[source] = all_fields

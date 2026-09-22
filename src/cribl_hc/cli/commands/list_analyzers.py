@@ -2,6 +2,8 @@
 List command for showing available analyzers.
 """
 
+from typing import Any
+
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -71,16 +73,16 @@ def list_analyzers(
         console.print("[yellow]No analyzers registered[/yellow]")
         return
 
-        if group_by_category:
-            analyzers_by_category = {}
-            for obj in objectives:
-                analyzer = get_analyzer(obj)
-                if analyzer is None:
-                    continue
-                category = getattr(analyzer, "category", "core")
-                if category not in analyzers_by_category:
-                    analyzers_by_category[category] = []
-                analyzers_by_category[category].append((obj, analyzer))
+    if group_by_category:
+        analyzers_by_category: dict[str, list[tuple[str, Any]]] = {}
+        for obj in objectives:
+            analyzer = get_analyzer(obj)
+            if analyzer is None:
+                continue
+            category = getattr(analyzer, "category", "core")
+            if category not in analyzers_by_category:
+                analyzers_by_category[category] = []
+            analyzers_by_category[category].append((obj, analyzer))
 
         # Display grouped output
         total_analyzers = len(objectives)

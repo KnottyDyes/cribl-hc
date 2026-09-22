@@ -97,11 +97,11 @@ class PredictiveAnalyzer(BaseAnalyzer):
         """
         result = AnalyzerResult(objective=self.objective_name)
 
-        # Track data availability
-        has_historical = historical_data is not None and len(historical_data) > 0
-        result.metadata["historical_data_available"] = has_historical
+        # Track data availability. Narrow historical_data directly rather than
+        # via a bool, so the rest of the method sees it as non-None.
+        result.metadata["historical_data_available"] = bool(historical_data)
 
-        if not has_historical:
+        if not historical_data:
             self.log.info("predictive_analysis_limited_no_historical_data")
             result.metadata["data_points"] = 0
             result.success = True

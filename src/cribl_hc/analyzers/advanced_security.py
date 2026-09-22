@@ -418,7 +418,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
         healthcare_events = []
         for event in events:
             has_healthcare_data = False
-            for field_name, field_value in event.items():
+            for _field_name, field_value in event.items():
                 if isinstance(field_value, str):
                     for pattern_config in self.HEALTHCARE_PATTERNS.values():
                         if re.search(pattern_config["pattern"], field_value, re.IGNORECASE):
@@ -527,7 +527,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
             has_personal_data = False
             has_consent = False
 
-            for field_name, field_value in event.items():
+            for _field_name, field_value in event.items():
                 if isinstance(field_value, str):
                     # Simple personal data indicators
                     if any(
@@ -621,7 +621,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
         findings = []
 
         # Count findings by category
-        category_counts = {}
+        category_counts: dict[str, int] = {}
         severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
 
         for finding in all_findings:

@@ -117,7 +117,8 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
         try:
             # Get functions library
-            functions_data = await client.get("lib/functions")
+            response = await client.get("lib/functions")
+            functions_data = response.json()
             for func_data in functions_data.get("items", []):
                 lib = LibraryEntry(
                     id=f"function:{func_data.get('id', '')}",
@@ -135,7 +136,8 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
         try:
             # Get lookups library
-            lookups_data = await client.get("lib/lookups")
+            response = await client.get("lib/lookups")
+            lookups_data = response.json()
             for lookup_data in lookups_data.get("items", []):
                 lib = LibraryEntry(
                     id=f"lookup:{lookup_data.get('id', '')}",
@@ -153,7 +155,8 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
         try:
             # Get pipeline fragments (reusable pipeline components)
-            fragments_data = await client.get("lib/pipelines")
+            response = await client.get("lib/pipelines")
+            fragments_data = response.json()
             for frag_data in fragments_data.get("items", []):
                 lib = LibraryEntry(
                     id=f"pipeline:{frag_data.get('id', '')}",
@@ -175,7 +178,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
         self, client: CriblAPIClient, libraries: List[LibraryEntry]
     ) -> Dict[str, List[UsageReference]]:
         """Analyze how libraries are used across pipelines and routes."""
-        usage_map = defaultdict(list)
+        usage_map: dict[str, list[UsageReference]] = defaultdict(list)
 
         try:
             # Get all pipelines to analyze their library usage
@@ -611,7 +614,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
         try:
             # Rough estimation based on JSON string length
             return len(str(data)) * 2  # Rough multiplier for internal representation
-        except:
+        except Exception:
             return 0
 
     def _count_functions_in_pipeline(self, pipeline_data: Dict[str, Any]) -> int:
@@ -619,7 +622,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
         try:
             steps = pipeline_data.get("config", {}).get("steps", [])
             return len([step for step in steps if step.get("type") == "function"])
-        except:
+        except Exception:
             return 0
 
     def _calculate_content_hash(self, data: Dict[str, Any]) -> Optional[str]:
@@ -629,5 +632,5 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
             content_str = str(sorted(data.items()))
             return hashlib.md5(content_str.encode()).hexdigest()[:8]
-        except:
+        except Exception:
             return None

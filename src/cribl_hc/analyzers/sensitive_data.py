@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
@@ -6,7 +7,7 @@ from cribl_hc.utils.logger import get_logger
 
 
 class SensitiveDataAnalyzer(BaseAnalyzer):
-    PATTERNS = {
+    PATTERNS: dict[str, dict[str, Any]] = {
         "ssn": {
             "regex": re.compile(
                 r"\b(?!000|666|9\d{2})([0-8]\d{2})[- ]?(?!00)\d{2}[- ]?(?!0000)\d{4}\b"

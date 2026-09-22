@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
-from cribl_hc.models.recommendation import ImpactEstimate
 
 
 class UserInfo(BaseModel):
@@ -33,7 +32,9 @@ class UserInfo(BaseModel):
     def has_write_access(self) -> bool:
         """Check if user has write/modify permissions."""
         write_indicators = {"write", "modify", "admin", "editor", "manager"}
-        return any(indicator in role.lower() for role in self.roles)
+        return any(
+            indicator in role.lower() for role in self.roles for indicator in write_indicators
+        )
 
     @property
     def days_since_last_login(self) -> Optional[int]:
@@ -97,6 +98,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     def get_required_permissions(self) -> List[str]:
         return ["read:auth", "read:users", "read:roles", "read:teams", "read:audit"]
 
+    @property
     def supported_products(self) -> List[str]:
         return ["stream", "edge", "lake", "search"]  # Applies to all products
 
@@ -121,7 +123,9 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                         severity="info",
                         title="No User Data Available",
                         description="Unable to retrieve user information for permission analysis.",
-                        recommendation="Verify API access and authentication for user management endpoints.",
+                        remediation_steps=[
+                            "Verify API access and authentication for user management endpoints.",
+                        ],
                     )
                 )
                 return result
@@ -144,7 +148,8 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     async def _get_users(self, client: CriblAPIClient) -> List[UserInfo]:
         """Fetch all users and their role information."""
         try:
-            users_data = await client.get("auth/users")
+            response = await client.get("auth/users")
+            users_data = response.json()
             users = []
 
             for user_data in users_data.get("items", []):
@@ -184,7 +189,8 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     async def _get_roles(self, client: CriblAPIClient) -> List[RoleDefinition]:
         """Fetch all role definitions and their permissions."""
         try:
-            roles_data = await client.get("auth/roles")
+            response = await client.get("auth/roles")
+            roles_data = response.json()
             roles = []
 
             for role_data in roles_data.get("items", []):
@@ -205,7 +211,8 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     async def _get_teams(self, client: CriblAPIClient) -> List[TeamInfo]:
         """Fetch all teams and their memberships."""
         try:
-            teams_data = await client.get("auth/teams")
+            response = await client.get("auth/teams")
+            teams_data = response.json()
             teams = []
 
             for team_data in teams_data.get("items", []):
@@ -229,9 +236,10 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
 
         try:
             # Try to get recent audit logs for permission usage analysis
-            audit_data = await client.get(
+            response = await client.get(
                 "system/audit", params={"limit": 1000, "action": "permission"}
             )
+            audit_data = response.json()
 
             for entry in audit_data.get("items", []):
                 permission = entry.get("permission", "")
@@ -249,10 +257,8 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                     if timestamp_str:
                         try:
                             timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-                            if (
-                                not usage_map[permission].last_used
-                                or timestamp > usage_map[permission].last_used
-                            ):
+                            last_used = usage_map[permission].last_used
+                            if last_used is None or timestamp > last_used:
                                 usage_map[permission].last_used = timestamp
                         except (ValueError, TypeError):
                             pass
@@ -281,12 +287,12 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                         severity="critical",
                         title="Stale Administrative User",
                         description=f"User '{user.username}' has administrative access but hasn't logged in for {days_since_login} days.",
-                        recommendation="Review administrative access for inactive users. Consider revoking admin privileges or removing the account.",
-                        impact=ImpactEstimate(
-                            severity="critical",
-                            scope="organization",
-                            affected_components=["user_access", "security_posture"],
-                        ),
+                        remediation_steps=[
+                            "Review administrative access for inactive users.",
+                            "Consider revoking admin privileges or removing the account.",
+                        ],
+                        affected_components=["user_access", "security_posture"],
+                        estimated_impact="Organization-level impact on user_access, security_posture",
                     )
                 )
 
@@ -299,12 +305,11 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                         severity="high",
                         title="Orphaned Administrative User",
                         description=f"User '{user.username}' has administrative access but belongs to no teams.",
-                        recommendation="Assign administrative users to appropriate teams for oversight and accountability.",
-                        impact=ImpactEstimate(
-                            severity="high",
-                            scope="organization",
-                            affected_components=["user_access", "accountability"],
-                        ),
+                        remediation_steps=[
+                            "Assign administrative users to appropriate teams for oversight and accountability.",
+                        ],
+                        affected_components=["user_access", "accountability"],
+                        estimated_impact="Organization-level impact on user_access, accountability",
                     )
                 )
 
@@ -344,12 +349,11 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                             severity="high",
                             title="Unused High-Privilege Permission",
                             description=f"Permission '{perm_name}' has not been used for {days_since_used} days but is granted to {len(usage.users_with_access)} user(s): {user_display}.",
-                            recommendation="Review and potentially revoke unused high-privilege permissions to reduce security risk.",
-                            impact=ImpactEstimate(
-                                severity="high",
-                                scope="organization",
-                                affected_components=["permissions", "security_posture"],
-                            ),
+                            remediation_steps=[
+                                "Review and potentially revoke unused high-privilege permissions to reduce security risk.",
+                            ],
+                            affected_components=["permissions", "security_posture"],
+                            estimated_impact="Organization-level impact on permissions, security_posture",
                         )
                     )
 
@@ -358,7 +362,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     ) -> None:
         """Check for permission drift from standard role definitions."""
         # Group users by role patterns
-        role_user_map = {}
+        role_user_map: dict[tuple[str, ...], list[UserInfo]] = {}
         for user in users:
             if user.is_active:
                 role_key = tuple(sorted(user.roles))
@@ -378,12 +382,10 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                         severity="medium",
                         title="Unique Permission Combination",
                         description=f"User '{user.username}' has a unique combination of roles that no other user has: {', '.join(role_combo)}.",
-                        recommendation="Review if this unique permission set is intentional or indicates permission drift from standard roles.",
-                        impact=ImpactEstimate(
-                            severity="medium",
-                            scope="user",
-                            affected_components=["permissions", "role_consistency"],
-                        ),
+                        remediation_steps=[
+                            "Review if this unique permission set is intentional or indicates permission drift from standard roles.",
+                        ],
+                        affected_components=["permissions", "role_consistency"],
                     )
                 )
 
@@ -403,10 +405,10 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                         severity="medium",
                         title="Empty Team",
                         description=f"Team '{team.name}' has no members.",
-                        recommendation="Remove empty teams or assign appropriate members.",
-                        impact=ImpactEstimate(
-                            severity="low", scope="team", affected_components=["team_structure"]
-                        ),
+                        remediation_steps=[
+                            "Remove empty teams or assign appropriate members.",
+                        ],
+                        affected_components=["team_structure"],
                     )
                 )
             elif team.member_count == 1:
@@ -417,12 +419,10 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                         severity="medium",
                         title="Single-Member Team",
                         description=f"Team '{team.name}' has only 1 member, reducing accountability and redundancy.",
-                        recommendation="Consider adding additional team members for better oversight.",
-                        impact=ImpactEstimate(
-                            severity="medium",
-                            scope="team",
-                            affected_components=["accountability", "redundancy"],
-                        ),
+                        remediation_steps=[
+                            "Consider adding additional team members for better oversight.",
+                        ],
+                        affected_components=["accountability", "redundancy"],
                     )
                 )
             elif team.member_count > 50:
@@ -433,12 +433,10 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                         severity="medium",
                         title="Very Large Team",
                         description=f"Team '{team.name}' has {team.member_count} members, which may impact coordination and oversight.",
-                        recommendation="Consider splitting large teams into smaller, more focused groups.",
-                        impact=ImpactEstimate(
-                            severity="medium",
-                            scope="team",
-                            affected_components=["coordination", "oversight"],
-                        ),
+                        remediation_steps=[
+                            "Consider splitting large teams into smaller, more focused groups.",
+                        ],
+                        affected_components=["coordination", "oversight"],
                     )
                 )
 
@@ -457,12 +455,10 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                     severity="medium",
                     title="Users Without Team Membership",
                     description=f"{len(users_without_teams)} active user(s) are not members of any teams: {user_display}.",
-                    recommendation="Assign users to appropriate teams for better organization and access control.",
-                    impact=ImpactEstimate(
-                        severity="medium",
-                        scope="organization",
-                        affected_components=["team_structure", "access_control"],
-                    ),
+                    remediation_steps=[
+                        "Assign users to appropriate teams for better organization and access control.",
+                    ],
+                    affected_components=["team_structure", "access_control"],
                 )
             )
 
@@ -492,12 +488,10 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                         severity="low",
                         title="Underutilized Role",
                         description=f"Role '{role_def.name}' is assigned to only {user_count} user(s).",
-                        recommendation="Consider consolidating underutilized roles or removing unused role definitions.",
-                        impact=ImpactEstimate(
-                            severity="low",
-                            scope="organization",
-                            affected_components=["role_management"],
-                        ),
+                        remediation_steps=[
+                            "Consider consolidating underutilized roles or removing unused role definitions.",
+                        ],
+                        affected_components=["role_management"],
                     )
                 )
 
@@ -514,7 +508,6 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
 
         # Calculate security metrics
         admin_ratio = len(admin_users) / len(active_users) if active_users else 0
-        users_without_teams = len([u for u in active_users if not u.teams])
 
         # Critical: Too many admins
         if admin_ratio > 0.1:  # More than 10% admins
@@ -524,13 +517,14 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                     category="Security",
                     severity="high",
                     title="High Administrative User Ratio",
-                    description=".1f",
-                    recommendation="Review administrative access assignments. Consider implementing role-based access control with more granular permissions.",
-                    impact=ImpactEstimate(
-                        severity="high",
-                        scope="organization",
-                        affected_components=["security_posture", "access_control"],
-                    ),
+                    description=f"{admin_ratio:.1%} of active users hold administrative access "
+                    f"({len(admin_users)} of {len(active_users)}).",
+                    remediation_steps=[
+                        "Review administrative access assignments.",
+                        "Consider implementing role-based access control with more granular permissions.",
+                    ],
+                    affected_components=["security_posture", "access_control"],
+                    estimated_impact="Organization-level impact on security_posture, access_control",
                 )
             )
 
@@ -545,12 +539,10 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
                     severity="medium",
                     title="Poor Security Posture",
                     description=f"Overall permission security score: {security_score}/100. Multiple security issues detected.",
-                    recommendation="Address identified permission and team structure issues to improve security posture.",
-                    impact=ImpactEstimate(
-                        severity="medium",
-                        scope="organization",
-                        affected_components=["security_posture", "permissions", "team_structure"],
-                    ),
+                    remediation_steps=[
+                        "Address identified permission and team structure issues to improve security posture.",
+                    ],
+                    affected_components=["security_posture", "permissions", "team_structure"],
                 )
             )
 

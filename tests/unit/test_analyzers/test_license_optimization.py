@@ -133,8 +133,8 @@ class TestLicenseOptimizationAnalyzer:
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
-        high_findings = [f for f in result.findings if f.severity == "high"]
-        # Should find inefficient processing
+        # TODO: assert the analyzer emits this - Should find inefficient processing
+        #       (findings where f.severity == "high")
 
     @pytest.mark.asyncio
     async def test_analyze_cost_optimization_opportunities(self, analyzer, mock_client):
@@ -206,8 +206,8 @@ class TestLicenseOptimizationAnalyzer:
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
-        medium_findings = [f for f in result.findings if f.severity == "medium"]
-        # Should detect usage spike
+        # TODO: assert the analyzer emits this - Should detect usage spike
+        #       (findings where f.severity == "medium")
 
     def test_license_metrics_properties(self):
         """Test LicenseMetrics property methods."""

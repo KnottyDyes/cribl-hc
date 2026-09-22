@@ -153,3 +153,6 @@ demo_ai_connector.py
 src/cribl_hc/core/ai_connector.py
 tests/unit/test_ai_connector.py
 tests/integration/test_ai_connector.py
+
+# Cribl API reference specs (multi-MB; fetch with scripts/fetch_cribl_api_spec.py)
+cribl_api_reference/*.yml

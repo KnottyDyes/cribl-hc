@@ -4,7 +4,6 @@ from typing import Any, Optional
 from urllib.parse import urljoin
 
 import httpx
-from httpx import AsyncClient
 from pydantic import BaseModel, Field
 
 from cribl_hc.utils.logger import get_logger
@@ -41,7 +40,7 @@ class CriblAPIClient:
         self.auth_token = auth_token
         self.timeout = timeout
         self.max_retries = max_retries
-        self._client: httpx.Optional[AsyncClient] = None
+        self._client: Optional[httpx.AsyncClient] = None
         self._is_cloud = "cribl.cloud" in base_url.lower()
         self._worker_group = worker_group
         self._deployment_detected = False
@@ -347,7 +346,7 @@ class CriblAPIClient:
                 - search_group: Cribl Search groups
         """
         groups = await self.get_worker_groups()
-        by_type = {
+        by_type: dict[str, list[dict[str, Any]]] = {
             "on_prem": [],
             "cloud_managed": [],
             "hybrid": [],
@@ -579,7 +578,7 @@ class CriblAPIClient:
         else:
             endpoint = "/api/v1/system/metrics"
 
-        params = {}
+        params: dict[str, Any] = {}
 
         try:
             response = await self.get(endpoint, params=params)

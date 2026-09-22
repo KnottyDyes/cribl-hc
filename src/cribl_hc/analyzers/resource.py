@@ -672,8 +672,8 @@ class ResourceAnalyzer(BaseAnalyzer):
 
         total_cpus = 0
         total_memory_gb = 0
-        avg_cpu = 0
-        avg_memory = 0
+        avg_cpu = 0.0
+        avg_memory = 0.0
 
         for worker in workers:
             info = worker.get("info", {})

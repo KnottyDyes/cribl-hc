@@ -5,12 +5,11 @@ Config command for managing credentials and settings.
 import json
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
-
 
 from cribl_hc.utils.crypto import CredentialEncryptor, generate_master_key
 from cribl_hc.utils.logger import get_logger
@@ -561,7 +560,7 @@ def add_pii_pattern(
     patterns_file = Path(__file__).parent.parent.parent / "rules" / "custom_pii_patterns.yaml"
 
     try:
-        data = {"custom_patterns": []}
+        data: dict[str, list[dict[str, Any]]] = {"custom_patterns": []}
         if patterns_file.exists():
             with open(patterns_file) as f:
                 existing_data = yaml.safe_load(f)
@@ -723,52 +722,6 @@ def edit_pii_pattern(
         console.print(f"[red]✗ Failed to edit PII pattern:[/red] {str(e)}")
         raise typer.Exit(code=1)
 
-        with open(patterns_file) as f:
-            data = yaml.safe_load(f)
-
-        if not data or not data.get("custom_patterns"):
-            console.print("[red]✗ No PII patterns configured[/red]")
-            raise typer.Exit(code=1)
-
-        # Find and update pattern
-        found = False
-        for pattern_dict in data["custom_patterns"]:
-            if isinstance(pattern_dict, dict) and pattern_dict.get("name") == name:
-                if pattern is not None:
-                    pattern_dict["pattern"] = pattern
-                if description is not None:
-                    pattern_dict["description"] = description
-                if severity is not None:
-                    valid_severities = ["critical", "high", "medium", "low", "info"]
-                    if severity not in valid_severities:
-                        console.print(f"[red]✗ Invalid severity: {severity}[/red]")
-                        console.print(f"[cyan]Valid options: {', '.join(valid_severities)}[/cyan]")
-                        raise typer.Exit(code=1)
-                    pattern_dict["severity"] = severity
-                if category is not None:
-                    pattern_dict["category"] = category
-                if remediation is not None:
-                    pattern_dict["remediation"] = remediation
-                if enable is not None:
-                    pattern_dict["enabled"] = enable
-
-                found = True
-                break
-
-        if not found:
-            console.print(f"[red]✗ Pattern '{name}' not found[/red]")
-            raise typer.Exit(code=1)
-
-        # Save updated file
-        with open(patterns_file, "w") as f:
-            yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
-
-        console.print(f"[green]✓ Updated PII pattern:[/green] {name}")
-
-    except Exception as e:
-        console.print(f"[red]✗ Failed to edit PII pattern:[/red] {str(e)}")
-        raise typer.Exit(code=1)
-
 
 @pii_app.command("remove")
 def remove_pii_pattern(
@@ -814,37 +767,6 @@ def remove_pii_pattern(
                 console.print("[yellow]Cancelled[/yellow]")
                 raise typer.Exit(code=0)
 
-        with open(patterns_file, "w") as f:
-            yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
-
-        console.print(f"[green]✓ Removed PII pattern:[/green] {name}")
-
-    except Exception as e:
-        console.print(f"[red]✗ Failed to remove PII pattern:[/red] {str(e)}")
-        raise typer.Exit(code=1)
-
-        with open(patterns_file) as f:
-            data = yaml.safe_load(f)
-
-        if not data or not data.get("custom_patterns"):
-            console.print("[red]✗ No PII patterns configured[/red]")
-            raise typer.Exit(code=1)
-
-        # Find and remove pattern
-        original_count = len(data["custom_patterns"])
-        data["custom_patterns"] = [p for p in data["custom_patterns"] if p["name"] != name]
-
-        if len(data["custom_patterns"]) == original_count:
-            console.print(f"[red]✗ Pattern '{name}' not found[/red]")
-            raise typer.Exit(code=1)
-
-        if not yes:
-            confirm = typer.confirm(f"Remove PII pattern '{name}'?")
-            if not confirm:
-                console.print("[yellow]Cancelled[/yellow]")
-                raise typer.Exit(code=0)
-
-        # Save updated file
         with open(patterns_file, "w") as f:
             yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
@@ -925,20 +847,6 @@ def validate_pii_patterns():
             for error in errors:
                 console.print(f"  • {error}")
             raise typer.Exit(code=1)
-
-        if warnings:
-            console.print(f"[yellow]⚠️  Validation passed with {len(warnings)} warnings:[/yellow]")
-            for warning in warnings:
-                console.print(f"  • {warning}")
-
-        console.print(f"[green]✅ All {len(patterns)} patterns validated successfully[/green]")
-
-    except yaml.YAMLError as e:
-        console.print(f"[red]❌ YAML syntax error in configuration file:[/red] {e}")
-        raise typer.Exit(code=1)
-    except Exception as e:
-        console.print(f"[red]❌ Validation failed:[/red] {str(e)}")
-        raise typer.Exit(code=1)
 
         if warnings:
             console.print(f"[yellow]⚠️  Validation passed with {len(warnings)} warnings:[/yellow]")
