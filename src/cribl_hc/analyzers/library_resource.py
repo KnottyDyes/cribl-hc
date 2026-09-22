@@ -117,7 +117,8 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
         try:
             # Get functions library
-            functions_data = await client.get("lib/functions")
+            response = await client.get("lib/functions")
+            functions_data = response.json()
             for func_data in functions_data.get("items", []):
                 lib = LibraryEntry(
                     id=f"function:{func_data.get('id', '')}",
@@ -135,7 +136,8 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
         try:
             # Get lookups library
-            lookups_data = await client.get("lib/lookups")
+            response = await client.get("lib/lookups")
+            lookups_data = response.json()
             for lookup_data in lookups_data.get("items", []):
                 lib = LibraryEntry(
                     id=f"lookup:{lookup_data.get('id', '')}",
@@ -153,7 +155,8 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
         try:
             # Get pipeline fragments (reusable pipeline components)
-            fragments_data = await client.get("lib/pipelines")
+            response = await client.get("lib/pipelines")
+            fragments_data = response.json()
             for frag_data in fragments_data.get("items", []):
                 lib = LibraryEntry(
                     id=f"pipeline:{frag_data.get('id', '')}",

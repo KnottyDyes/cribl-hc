@@ -284,10 +284,21 @@ class LookupHealthAnalyzer(BaseAnalyzer):
             result.add_recommendation(
                 Recommendation(
                     id=f"rec-lookup-disk-mode-{lookup_id}",
+                    type="optimization",
                     title=f"Switch {lookup_id} to Disk Mode",
                     description=f"Convert '{lookup_id}' from memory to disk mode to reduce memory usage by {size_mb:.1f} MB",
-                    priority="high",
-                    category="lookup_health",
+                    rationale=(
+                        "Large memory-mode lookups are held in each Worker Process's heap, "
+                        "multiplying their footprint across the deployment. Disk mode trades "
+                        "a small per-lookup read cost for a large reduction in memory use."
+                    ),
+                    implementation_steps=[
+                        f"Open the '{lookup_id}' lookup in Knowledge > Lookups",
+                        "Set the lookup mode to 'disk'",
+                        "Commit and deploy the change to the Worker Group",
+                        "Confirm memory use drops on the Workers after the restart",
+                    ],
+                    priority="p1",
                     impact_estimate=ImpactEstimate(
                         storage_reduction_gb=None,
                         performance_improvement=f"Reduce memory by {size_mb:.1f} MB",

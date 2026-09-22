@@ -4,7 +4,6 @@ from typing import Any, Optional
 from urllib.parse import urljoin
 
 import httpx
-from httpx import AsyncClient
 from pydantic import BaseModel, Field
 
 from cribl_hc.utils.logger import get_logger
@@ -41,7 +40,7 @@ class CriblAPIClient:
         self.auth_token = auth_token
         self.timeout = timeout
         self.max_retries = max_retries
-        self._client: httpx.Optional[AsyncClient] = None
+        self._client: Optional[httpx.AsyncClient] = None
         self._is_cloud = "cribl.cloud" in base_url.lower()
         self._worker_group = worker_group
         self._deployment_detected = False

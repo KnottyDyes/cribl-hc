@@ -5,6 +5,7 @@ Unit tests for SearchWorkspaceOptimizationAnalyzer.
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 
 from cribl_hc.analyzers.search_workspace_optimization import (
@@ -14,6 +15,15 @@ from cribl_hc.analyzers.search_workspace_optimization import (
     SearchWorkspaceOptimizationAnalyzer,
 )
 from cribl_hc.core.api_client import CriblAPIClient
+
+
+def _as_responses(payloads):
+    """Wrap payloads as httpx.Response, which is what CriblAPIClient.get returns.
+
+    Returning bare dicts here hid a real bug: the analyzer called .get() straight
+    on the response object, which raises AttributeError against a live deployment.
+    """
+    return [httpx.Response(200, json=p) for p in payloads]
 
 
 class TestSearchWorkspaceOptimizationAnalyzer:
@@ -53,12 +63,9 @@ class TestSearchWorkspaceOptimizationAnalyzer:
     async def test_analyze_no_assets(self, analyzer, mock_client):
         """Test analysis with no search assets."""
         # Mock empty responses
-        mock_client.get.side_effect = [
-            {"items": []},  # saved-searches
-            {"items": []},  # dashboards
-            {"items": []},  # datasets
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [{"items": []}, {"items": []}, {"items": []}, {"items": []}]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -82,12 +89,9 @@ class TestSearchWorkspaceOptimizationAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
-            searches_data,  # saved-searches
-            {"items": []},  # dashboards
-            {"items": []},  # datasets
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [searches_data, {"items": []}, {"items": []}, {"items": []}]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -114,12 +118,9 @@ class TestSearchWorkspaceOptimizationAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
-            searches_data,  # saved-searches
-            {"items": []},  # dashboards
-            {"items": []},  # datasets
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [searches_data, {"items": []}, {"items": []}, {"items": []}]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -145,12 +146,9 @@ class TestSearchWorkspaceOptimizationAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
-            searches_data,  # saved-searches
-            {"items": []},  # dashboards
-            {"items": []},  # datasets
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [searches_data, {"items": []}, {"items": []}, {"items": []}]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -177,12 +175,9 @@ class TestSearchWorkspaceOptimizationAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
-            {"items": []},  # saved-searches
-            dashboards_data,  # dashboards
-            {"items": []},  # datasets
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [{"items": []}, dashboards_data, {"items": []}, {"items": []}]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -207,12 +202,9 @@ class TestSearchWorkspaceOptimizationAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
-            {"items": []},  # saved-searches
-            dashboards_data,  # dashboards
-            {"items": []},  # datasets
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [{"items": []}, dashboards_data, {"items": []}, {"items": []}]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -237,12 +229,9 @@ class TestSearchWorkspaceOptimizationAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
-            {"items": []},  # saved-searches
-            {"items": []},  # dashboards
-            datasets_data,  # datasets
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [{"items": []}, {"items": []}, datasets_data, {"items": []}]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -275,12 +264,9 @@ class TestSearchWorkspaceOptimizationAnalyzer:
             "items": [{"id": "dash1", "name": "Common Query", "panels": [], "accessCount": 10}]
         }
 
-        mock_client.get.side_effect = [
-            searches_data,  # saved-searches
-            dashboards_data,  # dashboards
-            {"items": []},  # datasets
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [searches_data, dashboards_data, {"items": []}, {"items": []}]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -300,12 +286,9 @@ class TestSearchWorkspaceOptimizationAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
-            searches_data,  # saved-searches
-            {"items": []},  # dashboards
-            {"items": []},  # datasets
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [searches_data, {"items": []}, {"items": []}, {"items": []}]
+        )
 
         result = await analyzer.analyze(mock_client)
 

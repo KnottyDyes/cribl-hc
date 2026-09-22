@@ -157,7 +157,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
         try:
             # Get saved searches from default workspace
             response = await client.get("/api/v1/m/default/search/saved-searches")
-            search_data = response.get("items", [])
+            search_data = response.json().get("items", [])
 
             for search_item in search_data:
                 # Parse timestamps
@@ -200,7 +200,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
 
         try:
             response = await client.get("/api/v1/m/default/search/dashboards")
-            dashboard_data = response.get("items", [])
+            dashboard_data = response.json().get("items", [])
 
             for dash_item in dashboard_data:
                 # Extract queries from dashboard panels
@@ -240,7 +240,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
 
         try:
             response = await client.get("/api/v1/m/default/search/datasets")
-            dataset_data = response.get("items", [])
+            dataset_data = response.json().get("items", [])
 
             for ds_item in dataset_data:
                 # Parse last accessed timestamp
@@ -272,7 +272,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
 
         try:
             response = await client.get("/api/v1/m/default/system/audit", params={"limit": 1000})
-            audit_data = response.get("items", [])
+            audit_data = response.json().get("items", [])
         except Exception as e:
             self.log.debug(f"Could not fetch workspace audit logs: {e}")
 

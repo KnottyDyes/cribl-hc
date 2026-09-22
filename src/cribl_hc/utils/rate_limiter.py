@@ -7,9 +7,9 @@ and implements exponential backoff for retry logic.
 
 import asyncio
 import time
-from asyncio import Lock
 from collections import deque
 from datetime import datetime, timedelta
+from typing import Optional
 
 from cribl_hc.utils.logger import get_logger
 
@@ -71,7 +71,7 @@ class RateLimiter:
         self.consecutive_failures = 0
 
         # Lock for thread-safe operations (lazily initialized to avoid event loop issues)
-        self._lock: asyncio.Optional[Lock] = None
+        self._lock: Optional[asyncio.Lock] = None
 
     async def acquire(self) -> None:
         """
