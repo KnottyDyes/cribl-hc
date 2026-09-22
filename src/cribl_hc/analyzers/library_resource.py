@@ -611,7 +611,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
         try:
             # Rough estimation based on JSON string length
             return len(str(data)) * 2  # Rough multiplier for internal representation
-        except:
+        except Exception:
             return 0
 
     def _count_functions_in_pipeline(self, pipeline_data: Dict[str, Any]) -> int:
@@ -619,7 +619,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
         try:
             steps = pipeline_data.get("config", {}).get("steps", [])
             return len([step for step in steps if step.get("type") == "function"])
-        except:
+        except Exception:
             return 0
 
     def _calculate_content_hash(self, data: Dict[str, Any]) -> Optional[str]:
@@ -629,5 +629,5 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
 
             content_str = str(sorted(data.items()))
             return hashlib.md5(content_str.encode()).hexdigest()[:8]
-        except:
+        except Exception:
             return None

@@ -119,7 +119,6 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
             current_license = await self._get_current_license_status(client)
             license_history = await self._get_license_history(client)
             pipelines = await client.get_pipelines()
-            routes = await client.get_routes()
             system_metrics = await client.get_metrics()
 
             if not current_license:

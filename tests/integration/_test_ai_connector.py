@@ -3,7 +3,6 @@ Integration test for AI Connector Framework with real Harbor/Ollama services.
 """
 
 import pytest
-
 from cribl_hc.core.ai_connector import ParallelTaskManager
 
 

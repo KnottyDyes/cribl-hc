@@ -216,8 +216,6 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
         async def analyze_deployment(deployment: DeploymentConfig) -> tuple[str, AnalyzerResult]:
             """Analyze a single deployment."""
             try:
-                # Create client for this deployment
-                client = self._create_client_for_deployment(deployment)
 
                 # For now, create a mock analysis result
                 # In a real implementation, this would run all analyzers

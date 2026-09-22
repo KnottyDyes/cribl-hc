@@ -517,7 +517,6 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
 
         # Calculate security metrics
         admin_ratio = len(admin_users) / len(active_users) if active_users else 0
-        users_without_teams = len([u for u in active_users if not u.teams])
 
         # Critical: Too many admins
         if admin_ratio > 0.1:  # More than 10% admins

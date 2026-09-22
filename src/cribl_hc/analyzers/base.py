@@ -219,7 +219,7 @@ class BaseAnalyzer(ABC):
         """
         return True
 
-    async def post_analyze_cleanup(self) -> None:
+    async def post_analyze_cleanup(self) -> None:  # noqa: B027 - optional hook, subclasses opt in
         """
         Optional cleanup after analysis completes.
         """

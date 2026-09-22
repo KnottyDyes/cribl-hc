@@ -26,10 +26,12 @@ class TestListAnalyzersCommand:
 
         # Mock analyzer instances
         mock_health_analyzer = MagicMock()
+        mock_health_analyzer.category = "core"
         mock_health_analyzer.get_estimated_api_calls.return_value = 15
         mock_health_analyzer.get_required_permissions.return_value = ["read:workers", "read:system"]
 
         mock_config_analyzer = MagicMock()
+        mock_config_analyzer.category = "core"
         mock_config_analyzer.get_estimated_api_calls.return_value = 25
         mock_config_analyzer.get_required_permissions.return_value = [
             "read:pipelines",
@@ -37,22 +39,26 @@ class TestListAnalyzersCommand:
         ]
 
         mock_resource_analyzer = MagicMock()
+        mock_resource_analyzer.category = "core"
         mock_resource_analyzer.get_estimated_api_calls.return_value = 10
         mock_resource_analyzer.get_required_permissions.return_value = ["read:workers"]
 
-        mock_get_analyzer.side_effect = [
-            mock_health_analyzer,
-            mock_config_analyzer,
-            mock_resource_analyzer,
-            mock_health_analyzer,  # Called again for total calculation
-            mock_config_analyzer,
-            mock_resource_analyzer,
-        ]
+        for mock in (mock_health_analyzer, mock_config_analyzer, mock_resource_analyzer):
+            mock.category = "core"
+
+        # Look up by objective rather than a fixed list: the number of
+        # get_analyzer() calls depends on the display path.
+        analyzers = {
+            "health": mock_health_analyzer,
+            "config": mock_config_analyzer,
+            "resource": mock_resource_analyzer,
+        }
+        mock_get_analyzer.side_effect = lambda objective: analyzers[objective]
 
         result = self.runner.invoke(app, [])
 
         assert result.exit_code == 0
-        assert "Available Analyzers (3 total)" in result.stdout
+        assert "3 analyzers" in result.stdout
         assert "health" in result.stdout
         assert "config" in result.stdout
         assert "resource" in result.stdout
@@ -70,6 +76,7 @@ class TestListAnalyzersCommand:
 
         # Mock analyzer instance
         mock_analyzer = MagicMock()
+        mock_analyzer.category = "core"
         mock_analyzer.get_estimated_api_calls.return_value = 20
         mock_analyzer.get_required_permissions.return_value = ["read:workers", "read:system"]
 
@@ -78,10 +85,12 @@ class TestListAnalyzersCommand:
         result = self.runner.invoke(app, ["--verbose"])
 
         assert result.exit_code == 0
-        assert "Available Analyzers (1 total)" in result.stdout
+        assert "1 analyzers" in result.stdout
         assert "health" in result.stdout
         assert "20" in result.stdout
-        assert "read:workers, read:system" in result.stdout
+        # Assert per permission: the joined string wraps at narrow terminal widths.
+        assert "read:workers" in result.stdout
+        assert "read:system" in result.stdout
         assert "Permissions" in result.stdout  # Verbose table includes permissions column
 
     @patch("cribl_hc.cli.commands.list_analyzers.list_objectives")
@@ -103,6 +112,7 @@ class TestListAnalyzersCommand:
 
         # Mock analyzer instances
         mock_analyzer = MagicMock()
+        mock_analyzer.category = "core"
         mock_analyzer.get_estimated_api_calls.return_value = 5
         mock_analyzer.get_required_permissions.return_value = ["read:test"]
 
@@ -123,6 +133,7 @@ class TestListAnalyzersCommand:
         mock_list_objectives.return_value = ["health"]
 
         mock_analyzer = MagicMock()
+        mock_analyzer.category = "core"
         mock_analyzer.get_estimated_api_calls.return_value = 10
         mock_analyzer.get_required_permissions.return_value = ["read:test"]
 
@@ -143,20 +154,20 @@ class TestListAnalyzersCommand:
 
         # Mock analyzer instances with different API call counts
         mock_health_analyzer = MagicMock()
+        mock_health_analyzer.category = "core"
         mock_health_analyzer.get_estimated_api_calls.return_value = 30
         mock_health_analyzer.get_required_permissions.return_value = ["read:workers"]
 
         mock_config_analyzer = MagicMock()
+        mock_config_analyzer.category = "core"
         mock_config_analyzer.get_estimated_api_calls.return_value = 45
         mock_config_analyzer.get_required_permissions.return_value = ["read:pipelines"]
 
-        # Mock the calls in order: first for table display, then for total calculation
-        mock_get_analyzer.side_effect = [
-            mock_health_analyzer,  # For table row
-            mock_config_analyzer,  # For table row
-            mock_health_analyzer,  # For total calculation
-            mock_config_analyzer,  # For total calculation
-        ]
+        for mock in (mock_health_analyzer, mock_config_analyzer):
+            mock.category = "core"
+
+        analyzers = {"health": mock_health_analyzer, "config": mock_config_analyzer}
+        mock_get_analyzer.side_effect = lambda objective: analyzers[objective]
 
         result = self.runner.invoke(app, [])
 
@@ -170,10 +181,10 @@ class TestListAnalyzersCommand:
         assert result.exit_code == 0
         assert "List available analyzers" in result.stdout
         assert "--verbose" in result.stdout
-        assert (
-            "Show detailed information including" in result.stdout
-            and "permissions" in result.stdout
-        )
+        # Assert on tokens, not the contiguous phrase: Rich wraps the option
+        # help column at narrow terminal widths.
+        assert "detailed" in result.stdout
+        assert "permissions" in result.stdout
 
     @patch("cribl_hc.cli.commands.list_analyzers.list_objectives")
     @patch("cribl_hc.cli.commands.list_analyzers.get_analyzer")
@@ -182,6 +193,7 @@ class TestListAnalyzersCommand:
         mock_list_objectives.return_value = ["health"]
 
         mock_analyzer = MagicMock()
+        mock_analyzer.category = "core"
         mock_analyzer.get_estimated_api_calls.return_value = 15
         mock_analyzer.get_required_permissions.return_value = ["read:workers"]
 
@@ -200,22 +212,31 @@ class TestListAnalyzersCommand:
         mock_list_objectives.return_value = ["health", "config"]
 
         mock_analyzer = MagicMock()
+        mock_analyzer.category = "core"
         mock_analyzer.get_estimated_api_calls.return_value = 20
         mock_analyzer.get_required_permissions.return_value = ["read:workers", "read:system"]
 
         mock_get_analyzer.return_value = mock_analyzer
 
-        # Test basic table
+        # Basic grouped table renders rows without column headers by design.
         result = self.runner.invoke(app, [])
         assert result.exit_code == 0
-        assert "Analyzer" in result.stdout
-        assert "API Calls" in result.stdout
-        assert "Description" in result.stdout
+        assert "health" in result.stdout
+        assert "config" in result.stdout
+        assert "20" in result.stdout
 
-        # Test verbose table
+        # Verbose table adds the header row, including the permissions column.
         result_verbose = self.runner.invoke(app, ["--verbose"])
         assert result_verbose.exit_code == 0
+        assert "Analyzer" in result_verbose.stdout
+        assert "API Calls" in result_verbose.stdout
+        assert "Description" in result_verbose.stdout
         assert "Permissions" in result_verbose.stdout
+
+        # The flat view keeps its own titled table.
+        result_flat = self.runner.invoke(app, ["--no-group-by-category"])
+        assert result_flat.exit_code == 0
+        assert "Available Analyzers (2 total)" in result_flat.stdout
 
     @patch("cribl_hc.cli.commands.list_analyzers.list_objectives")
     @patch("cribl_hc.cli.commands.list_analyzers.get_analyzer")
@@ -224,6 +245,7 @@ class TestListAnalyzersCommand:
         mock_list_objectives.return_value = ["health"]
 
         mock_analyzer = MagicMock()
+        mock_analyzer.category = "core"
         mock_analyzer.get_estimated_api_calls.return_value = 10
         mock_analyzer.get_required_permissions.return_value = []  # No permissions
 
@@ -243,12 +265,13 @@ class TestListAnalyzersCommand:
 
         # Mock analyzer that raises an exception
         mock_analyzer = MagicMock()
+        mock_analyzer.category = "core"
         mock_analyzer.get_estimated_api_calls.side_effect = Exception("Test error")
 
         mock_get_analyzer.return_value = mock_analyzer
 
         # The command should handle exceptions gracefully
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="Test error"):
             self.runner.invoke(app, [], catch_exceptions=False)
 
 
@@ -265,6 +288,7 @@ class TestListAnalyzersFunction:
         mock_list_objectives.return_value = ["health"]
 
         mock_analyzer = MagicMock()
+        mock_analyzer.category = "core"
         mock_analyzer.get_estimated_api_calls.return_value = 15
         mock_analyzer.get_required_permissions.return_value = ["read:workers"]
 
@@ -296,6 +320,7 @@ class TestListAnalyzersFunction:
         mock_list_objectives.return_value = ["health"]
 
         mock_analyzer = MagicMock()
+        mock_analyzer.category = "core"
         mock_analyzer.get_estimated_api_calls.return_value = 20
         mock_analyzer.get_required_permissions.return_value = ["read:workers", "read:system"]
 

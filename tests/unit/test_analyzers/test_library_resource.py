@@ -76,8 +76,6 @@ class TestLibraryAndResourceAnalyzer:
             ]
         }
 
-        pipelines_data = {"items": []}  # No pipelines using the function
-        routes_data = {"items": []}
 
         mock_client.get.side_effect = [
             functions_data,  # functions
@@ -188,8 +186,8 @@ class TestLibraryAndResourceAnalyzer:
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
-        medium_findings = [f for f in result.findings if f.severity == "medium"]
-        # Should find maintenance burden issue
+        # TODO: assert the analyzer emits this - Should find maintenance burden issue
+        #       (findings where f.severity == "medium")
 
     @pytest.mark.asyncio
     async def test_analyze_dependency_chains(self, analyzer, mock_client):
@@ -223,8 +221,8 @@ class TestLibraryAndResourceAnalyzer:
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
-        high_findings = [f for f in result.findings if f.severity == "high"]
-        # Should detect circular dependency
+        # TODO: assert the analyzer emits this - Should detect circular dependency
+        #       (findings where f.severity == "high")
 
     @pytest.mark.asyncio
     async def test_analyze_optimization_opportunities(self, analyzer, mock_client):
@@ -258,8 +256,8 @@ class TestLibraryAndResourceAnalyzer:
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
-        medium_findings = [f for f in result.findings if f.severity == "medium"]
-        # Should find duplicate functionality
+        # TODO: assert the analyzer emits this - Should find duplicate functionality
+        #       (findings where f.severity == "medium")
 
     def test_library_entry_properties(self):
         """Test LibraryEntry property methods."""

@@ -418,7 +418,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
         healthcare_events = []
         for event in events:
             has_healthcare_data = False
-            for field_name, field_value in event.items():
+            for _field_name, field_value in event.items():
                 if isinstance(field_value, str):
                     for pattern_config in self.HEALTHCARE_PATTERNS.values():
                         if re.search(pattern_config["pattern"], field_value, re.IGNORECASE):
@@ -527,7 +527,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
             has_personal_data = False
             has_consent = False
 
-            for field_name, field_value in event.items():
+            for _field_name, field_value in event.items():
                 if isinstance(field_value, str):
                     # Simple personal data indicators
                     if any(
