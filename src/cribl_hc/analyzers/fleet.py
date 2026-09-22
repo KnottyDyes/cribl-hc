@@ -215,6 +215,13 @@ class FleetAnalyzer(BaseAnalyzer):
             if unhealthy_pct >= 25:
                 result.add_finding(
                     self.create_finding(
+                        remediation_steps=[
+                            "Identify the unhealthy Worker Nodes in Monitoring > Workers",
+                            "Check each Node's system logs for the failure cause",
+                            "Restart or replace the affected Nodes",
+                            "Confirm the Group reports healthy once Nodes rejoin",
+                        ],
+                        estimated_impact="Fleet-wide data delivery is degraded while Workers stay unhealthy",
                         client=client,
                         id="fleet-health-critical",
                         category="fleet",

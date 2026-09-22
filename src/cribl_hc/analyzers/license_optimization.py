@@ -327,6 +327,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
         for analysis in ineffective_rules:
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="Ineffective drop rules pass billable volume downstream",
                     client=client,
                     id=f"ineffective-drop-rule-{analysis.pipeline_id}",
                     category="License",
@@ -443,6 +444,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
         for metrics in inefficient_pipelines:
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="Inefficient processing raises CPU use and licensed throughput",
                     client=client,
                     id=f"inefficient-processing-{metrics.id}",
                     category="Performance",

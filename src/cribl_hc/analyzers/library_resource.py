@@ -403,6 +403,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
                 if lib.size_bytes > 10_000_000:  # >10MB
                     result.add_finding(
                         self.create_finding(
+                            estimated_impact="A large unused library consumes memory and storage for no benefit",
                             client=client,
                             id=f"massive-unused-library-{lib.id.replace(':', '-')}",
                             category="Performance",
@@ -454,6 +455,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
             if lib.is_large and usage_frequency < 5:
                 result.add_finding(
                     self.create_finding(
+                        estimated_impact="Oversized in-memory lookups raise Worker Process memory use",
                         client=client,
                         id=f"memory-inefficient-library-{lib.id.replace(':', '-')}",
                         category="Performance",
@@ -535,6 +537,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
                 if has_cycle(lib_id):
                     result.add_finding(
                         self.create_finding(
+                            estimated_impact="Circular references can make pipeline behaviour unpredictable",
                             client=client,
                             id=f"circular-dependency-{lib_id.replace(':', '-')}",
                             category="Architecture",
@@ -593,6 +596,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
         if total_unused_size > 50_000_000:  # >50MB
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="Unused library entries add maintenance burden and review overhead",
                     client=client,
                     id="significant-unused-libraries",
                     category="Optimization",

@@ -26,9 +26,15 @@ def mock_client():
     async def _mock_get_lake_storage_locations(*args, **kwargs):
         return {"items": [], "count": 0}
 
+    async def _mock_get_lake_groups(*args, **kwargs):
+        # The analyzer enumerates lakes before fetching datasets; without this
+        # it short-circuits on "no lakes configured" and never reaches them.
+        return {"items": [{"id": "default"}], "count": 1}
+
     client.get_lake_datasets = _mock_get_lake_datasets
     client.get_lake_lakehouses = _mock_get_lake_lakehouses
     client.get_lake_storage_locations = _mock_get_lake_storage_locations
+    client.get_lake_groups = _mock_get_lake_groups
 
     return client
 

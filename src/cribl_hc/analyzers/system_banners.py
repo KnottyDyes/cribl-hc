@@ -75,6 +75,7 @@ class SystemBannersAnalyzer(BaseAnalyzer):
             result.metadata["error"] = str(exc)
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="Banner configuration could not be read, so it was not assessed",
                     client=client,
                     id="system-banners-error",
                     category="system",

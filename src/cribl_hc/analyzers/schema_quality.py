@@ -300,6 +300,12 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
         except re.error:
             result.add_finding(
                 self.create_finding(
+                    remediation_steps=[
+                        "Open the pipeline function holding this pattern",
+                        "Correct the regex syntax reported in the description",
+                        "Commit and deploy, then confirm the function matches as expected",
+                    ],
+                    estimated_impact="An invalid regex prevents the rule from matching any events",
                     id=f"regex-invalid-{context.replace('/', '-')}",
                     title="Invalid Regex Pattern",
                     description=f"Regex pattern in '{context}' is invalid.",

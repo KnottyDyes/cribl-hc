@@ -287,6 +287,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
             if search.is_wildcard_dataset:
                 result.add_finding(
                     self.create_finding(
+                        estimated_impact="Wildcard dataset scans read far more data than the query needs",
                         client=client,
                         id=f"wildcard-dataset-search-{search.id}",
                         category="Performance",
@@ -332,6 +333,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
             if search.cost_estimate and search.cost_estimate > 100 and search.run_count < 10:
                 result.add_finding(
                     self.create_finding(
+                        estimated_impact="Ongoing search cost with little corresponding usage",
                         client=client,
                         id=f"high-cost-low-usage-search-{search.id}",
                         category="Cost",
@@ -511,6 +513,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
         if total_cost > 1000:  # High cost threshold
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="Search spend in this workspace is materially above expectation",
                     client=client,
                     id="high-search-cost-workspace",
                     category="Cost",
