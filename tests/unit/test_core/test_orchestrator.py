@@ -106,8 +106,10 @@ class TestAnalyzerOrchestrator:
     def mock_client(self):
         """Create mock API client."""
         client = AsyncMock(spec=CriblAPIClient)
+        # The client exposes get_api_calls_used(); the orchestrator derives the
+        # remaining budget itself. There is no get_api_calls_remaining(), so
+        # setting it on a spec'd mock raised AttributeError.
         client.get_api_calls_used.return_value = 0
-        client.get_api_calls_remaining.return_value = 100
         return client
 
     @pytest.fixture

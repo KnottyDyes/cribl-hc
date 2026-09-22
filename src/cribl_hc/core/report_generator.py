@@ -147,11 +147,14 @@ class MarkdownReportGenerator:
         lines = ["## Recommendations\n"]
         priority_order = ["p0", "p1", "p2", "p3"]
         priority_emoji = {"p0": "🔴", "p1": "🟠", "p2": "🟡", "p3": "🔵"}
+        # p0-p3 are the stored codes; report the documented severity words.
+        priority_label = {"p0": "CRITICAL", "p1": "HIGH", "p2": "MEDIUM", "p3": "LOW"}
         for priority in priority_order:
             priority_recs = [r for r in recommendations if r.priority == priority]
             if not priority_recs:
                 continue
-            lines.append(f"### {priority_emoji.get(priority, '•')} {priority.upper()} Priority\n")
+            label = priority_label.get(priority, priority.upper())
+            lines.append(f"### {priority_emoji.get(priority, '•')} {label} Priority\n")
             for i, rec in enumerate(priority_recs, 1):
                 lines.append(f"#### {i}. {rec.title}\n")
                 lines.append(f"{rec.description}\n")
@@ -159,6 +162,15 @@ class MarkdownReportGenerator:
                     lines.append("**Implementation Steps:**\n")
                     for step_num, step in enumerate(rec.implementation_steps, 1):
                         lines.append(f"{step_num}. {step}")
+                    lines.append("")
+                if rec.impact_estimate and rec.impact_estimate.time_to_implement:
+                    lines.append(
+                        f"**Estimated Time:** {rec.impact_estimate.time_to_implement}\n"
+                    )
+                if rec.documentation_links:
+                    lines.append("**References:**\n")
+                    for link in rec.documentation_links:
+                        lines.append(f"- {link}")
                     lines.append("")
         return "\n".join(lines)
 
@@ -171,7 +183,8 @@ class MarkdownReportGenerator:
             f"| Analysis ID | `{analysis_run.id}` |\n"
             f"| Started At | {analysis_run.started_at.strftime('%Y-%m-%d %H:%M:%S UTC')} |\n"
             f"| Completed At | {analysis_run.completed_at.strftime('%Y-%m-%d %H:%M:%S UTC') if analysis_run.completed_at else 'N/A'} |\n"
-            f"| Duration | {analysis_run.duration_seconds or 0:.2f}s |\n\n"
+            f"| Duration | {analysis_run.duration_seconds or 0:.2f} seconds |\n"
+            f"| API Calls | {analysis_run.api_calls_used}/100 |\n\n"
             f"---\n\n{footer_text}"
         )
 

@@ -232,6 +232,9 @@ class EndToEndFreshnessAnalyzer(BaseAnalyzer):
                 "max_latency_seconds": round(max_latency, 2),
                 "high_latency_events": high_latency_count,
                 "critical_latency_events": critical_latency_count,
+                # Computed in _analyze_latencies but never surfaced, so callers
+                # could not tell how many sampled events carried usable times.
+                "events_with_timestamps": latency_analysis["events_with_timestamps"],
             }
         )
 

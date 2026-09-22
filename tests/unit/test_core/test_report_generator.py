@@ -84,7 +84,7 @@ class TestMarkdownReportGenerator:
         generator = MarkdownReportGenerator()
         markdown = generator.generate(sample_analysis_run, sample_results)
 
-        assert "# Cribl Stream Health Check Report" in markdown
+        assert "# Cribl Health Check Report" in markdown
         assert "test-deployment" in markdown
         assert "COMPLETED" in markdown
 
@@ -212,7 +212,7 @@ class TestMarkdownReportGenerator:
         markdown = generator.generate(sample_analysis_run, results)
 
         # Should still have header and summary
-        assert "# Cribl Stream Health Check Report" in markdown
+        assert "# Cribl Health Check Report" in markdown
         assert "## Executive Summary" in markdown
 
     def test_empty_recommendations(self, sample_analysis_run):

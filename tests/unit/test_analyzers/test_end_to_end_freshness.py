@@ -9,7 +9,17 @@ from cribl_hc.core.api_client import CriblAPIClient
 
 @pytest.fixture
 def analyzer():
-    return EndToEndFreshnessAnalyzer()
+    """Analyzer with the sample-count gate lowered.
+
+    These tests exercise latency detection with small, hand-written event
+    lists. The production MIN_SAMPLES_FOR_ANALYSIS of 10 made every one of
+    them short-circuit to the "insufficient data" finding, so they asserted
+    against an analyzer that never ran. The gate itself is covered by
+    test_handles_insufficient_data, which uses the real threshold.
+    """
+    analyzer = EndToEndFreshnessAnalyzer()
+    analyzer.MIN_SAMPLES_FOR_ANALYSIS = 1
+    return analyzer
 
 
 @pytest.fixture
@@ -141,9 +151,10 @@ class TestEndToEndFreshnessAnalyzer:
         assert "Excellent" in summary.title or "Good" in summary.title
 
     @pytest.mark.asyncio
-    async def test_handles_insufficient_data(self, analyzer, mock_client):
+    async def test_handles_insufficient_data(self, mock_client):
         """Test handling of insufficient data for analysis."""
-        # Less than MIN_SAMPLES_FOR_ANALYSIS events
+        # Uses the production threshold, unlike the shared `analyzer` fixture.
+        analyzer = EndToEndFreshnessAnalyzer()
         events = [{"_time": time.time(), "input_time": time.time() - 5}]  # Only 1 event
         mock_client.capture_events.return_value = events
 
