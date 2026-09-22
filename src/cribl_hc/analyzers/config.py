@@ -20,6 +20,15 @@ log = structlog.get_logger(__name__)
 
 
 class ConfigAnalyzer(BaseAnalyzer):
+    # Functions whose cost scales with event volume, so they are cheapest to
+    # run after the event set has been narrowed.
+    EXPENSIVE_FUNCTIONS = frozenset(
+        {"regex_extract", "regex", "grok", "lookup", "eval", "mask", "code"}
+    )
+    # Functions that reduce the event set.
+    FILTERING_FUNCTIONS = frozenset({"drop", "filter", "sampling", "suppress"})
+    MAX_EFFICIENT_EXPENSIVE_OPS = 3
+
     DEPRECATED_FUNCTIONS = {
         "regex": {
             "replacement": "regex_extract",
@@ -484,11 +493,21 @@ class ConfigAnalyzer(BaseAnalyzer):
     def _analyze_pipeline_efficiency(
         self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
+        findings_before = len(result.findings)
+        scores: list[float] = []
         for pipeline in pipelines:
             pipeline_id = pipeline.get("id", "unknown")
             functions = pipeline.get("conf", {}).get("functions", [])
+            scores.append(self._calculate_pipeline_efficiency_score(functions))
             self._check_function_ordering(pipeline_id, functions, result, client)
             self._check_performance_antipatterns(pipeline_id, functions, result, client)
+
+        result.metadata["pipeline_efficiency_score"] = (
+            round(sum(scores) / len(scores), 2) if scores else 100.0
+        )
+        result.metadata["max_pipeline_efficiency"] = max(scores) if scores else 100.0
+        result.metadata["min_pipeline_efficiency"] = min(scores) if scores else 100.0
+        result.metadata["performance_opportunities"] = len(result.findings) - findings_before
 
     def _check_function_ordering(
         self,
@@ -670,13 +689,68 @@ class ConfigAnalyzer(BaseAnalyzer):
 
         return patterns
 
+    def _calculate_pipeline_complexity(self, functions: list[dict[str, Any]]) -> int:
+        """
+        Score how hard a pipeline is to reason about.
+
+        Counts each function, then adds for the things that make one hard to
+        follow: nested filter expressions, long inline expressions, and
+        functions carrying a large amount of configuration.
+        """
+        if not functions:
+            return 0
+
+        complexity = 0
+        for function in functions:
+            complexity += 2
+            conf = function.get("conf") or {}
+            complexity += str(conf.get("filter") or "").count("(") * 3
+            if len(str(conf.get("expression") or "")) > 50:
+                complexity += 5
+            if len(conf) > 5:
+                complexity += 3
+        return complexity
+
+    def _calculate_pipeline_efficiency_score(self, functions: list[dict[str, Any]]) -> float:
+        """
+        Score function ordering from 0-100.
+
+        Penalises expensive functions placed ahead of the first filtering
+        function, since those run against the full event set, and penalises
+        pipelines carrying more expensive functions than
+        MAX_EFFICIENT_EXPENSIVE_OPS.
+        """
+        if not functions:
+            return 100.0
+
+        score = 100.0
+        first_filter = next(
+            (i for i, f in enumerate(functions) if f.get("id") in self.FILTERING_FUNCTIONS),
+            None,
+        )
+        expensive_positions = [
+            i for i, f in enumerate(functions) if f.get("id") in self.EXPENSIVE_FUNCTIONS
+        ]
+
+        # Only meaningful when the pipeline filters at all.
+        if first_filter is not None:
+            score -= sum(1 for i in expensive_positions if i < first_filter) * 15
+
+        excess = len(expensive_positions) - self.MAX_EFFICIENT_EXPENSIVE_OPS
+        if excess > 0:
+            score -= excess * 5
+
+        return max(0.0, min(100.0, score))
+
     def _analyze_complexity_metrics(
         self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
+        complexities: list[int] = []
         for pipeline in pipelines:
             pipeline_id = pipeline.get("id", "unknown")
             functions = pipeline.get("conf", {}).get("functions", [])
-            complexity = len(functions) * 2
+            complexity = self._calculate_pipeline_complexity(functions)
+            complexities.append(complexity)
             if complexity > 50:
                 result.add_finding(
                     self.create_finding(
@@ -696,6 +770,13 @@ class ConfigAnalyzer(BaseAnalyzer):
                         ],
                     )
                 )
+
+        result.metadata["avg_pipeline_complexity"] = (
+            round(sum(complexities) / len(complexities), 2) if complexities else 0.0
+        )
+        result.metadata["max_pipeline_complexity"] = max(complexities) if complexities else 0
+        result.metadata["min_pipeline_complexity"] = min(complexities) if complexities else 0
+        result.metadata.setdefault("duplicate_patterns_found", 0)
 
     async def _check_advanced_security(
         self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient

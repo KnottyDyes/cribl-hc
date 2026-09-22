@@ -99,10 +99,9 @@ class VersionControlAnalyzer(BaseAnalyzer):
             # Fetch version control status
             version_info = await client.get_version_info()
 
-            # These methods are not yet implemented in CriblAPIClient
-            version_status: dict[str, Any] = {}
-            uncommitted_files: list[dict[str, Any]] = []
-            deployment_status: dict[str, Any] = {}
+            version_status = await client.get_version_status()
+            uncommitted_files = await client.get_uncommitted_files()
+            deployment_status = await client.get_deployment_status()
 
             # Store metadata
             result.metadata["git_enabled"] = version_info.get("enabled", False)
