@@ -25,17 +25,18 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
-        pip install -e .
+        # `web` extra: the API tests and the CLI entrypoint import fastapi and
+        # uvicorn, so without it pytest aborts during collection.
+        pip install -e ".[web]"
     
+    # ruff and mypy come from requirements-dev.txt, which pins them. Installing
+    # them again here would silently pull the latest release and reintroduce the
+    # version drift that broke this job on unrelated PRs.
     - name: Lint with ruff
-      run: |
-        pip install ruff
-        ruff check src/ tests/
+      run: ruff check src/ tests/
 
     - name: Type check with mypy
-      run: |
-        pip install mypy
-        mypy src/ --ignore-missing-imports
+      run: mypy src/ --ignore-missing-imports
 
     - name: Run tests with pytest
       run: |
@@ -129,7 +130,7 @@ jobs:
     - name: Install backend dependencies
       run: |
         pip install -r requirements.txt
-        pip install -e .
+        pip install -e ".[web]"
 
     - name: Install frontend dependencies
       working-directory: frontend
