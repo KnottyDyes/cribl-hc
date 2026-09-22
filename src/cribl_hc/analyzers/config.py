@@ -27,6 +27,23 @@ class ConfigAnalyzer(BaseAnalyzer):
     )
     # Functions that reduce the event set.
     FILTERING_FUNCTIONS = frozenset({"drop", "filter", "sampling", "suppress"})
+
+    # Field/expression tokens that indicate personal or secret data. Matched
+    # case-insensitively as substrings, so "user_email_address" matches "email".
+    PII_PATTERNS: dict[str, tuple[str, ...]] = {
+        "ssn": ("ssn", "social_security", "socialsecurity"),
+        "credit_card": ("credit_card", "creditcard", "card_number", "cardnumber", "ccn"),
+        "email": ("email", "e_mail"),
+        "phone": ("phone", "telephone", "mobile_number"),
+        "password": ("password", "passwd", "secret"),
+        "api_credential": ("api_key", "apikey", "api_token", "access_token", "auth_token"),
+        "date_of_birth": ("date_of_birth", "birthdate", "dob"),
+        "address": ("home_address", "street_address", "address"),
+        "name": ("full_name", "first_name", "last_name", "name"),
+        "ip_address": ("ip_address", "client_ip", "src_ip", "dest_ip"),
+    }
+    # Functions that already protect a field, so its presence is not a finding.
+    MASKING_FUNCTIONS = frozenset({"mask", "redact", "obfuscate", "hash", "encrypt"})
     MAX_EFFICIENT_EXPENSIVE_OPS = 3
 
     DEPRECATED_FUNCTIONS = {
@@ -185,14 +202,18 @@ class ConfigAnalyzer(BaseAnalyzer):
             nested_routes = routes_obj.get("routes", [])
             if "routes" in routes_obj and isinstance(nested_routes, list):
                 flattened.extend(nested_routes)
-            # If routes_obj IS a route (backward compatibility), add it directly
-            elif routes_obj.get("filter") or routes_obj.get("pipeline"):
+            # If routes_obj IS a route (backward compatibility), add it directly.
+            # Test for key presence, not truthiness: a catch-all route carries
+            # filter="", and dropping it here hid exactly the routes that
+            # shadow everything after them.
+            elif "filter" in routes_obj or "pipeline" in routes_obj:
                 flattened.append(routes_obj)
         return flattened
 
     def _validate_pipeline_syntax(
         self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
+        findings_before = len(result.findings)
         for pipeline in pipelines:
             pipeline_id = pipeline.get("id", "unknown")
             if not pipeline.get("id"):
@@ -235,9 +256,52 @@ class ConfigAnalyzer(BaseAnalyzer):
                 )
                 continue
             if not isinstance(functions, list):
+                # Silently skipped before, so a malformed pipeline looked clean.
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id=f"config-syntax-{pipeline_id}-invalid-functions-type",
+                        grouping_id="config-syntax-invalid-functions-type",
+                        category="config",
+                        severity="critical",
+                        title=f"Pipeline 'functions' Is Not a List: {pipeline_id}",
+                        description=(
+                            f"Pipeline '{pipeline_id}' declares 'functions' as "
+                            f"{type(functions).__name__}; it must be a list."
+                        ),
+                        affected_components=[f"pipeline-{pipeline_id}"],
+                        confidence_level="high",
+                        estimated_impact="The pipeline cannot be loaded, so its routes process nothing.",
+                        remediation_steps=[
+                            f"Edit pipeline '{pipeline_id}' so 'functions' is a list of function objects.",
+                            "Re-import the pipeline if it came from a pack or an export.",
+                        ],
+                        metadata={"pipeline": pipeline_id},
+                    )
+                )
                 continue
             for func_idx, function in enumerate(functions):
                 if not isinstance(function, dict):
+                    result.add_finding(
+                        self.create_finding(
+                            client=client,
+                            id=f"config-syntax-{pipeline_id}-func-{func_idx}-invalid-type",
+                            grouping_id="config-syntax-invalid-function-type",
+                            category="config",
+                            severity="high",
+                            title=f"Function Is Not an Object: {pipeline_id}",
+                            description=(
+                                f"Function at position {func_idx} in pipeline '{pipeline_id}' is "
+                                f"{type(function).__name__}, not a function object."
+                            ),
+                            affected_components=[f"pipeline-{pipeline_id}"],
+                            confidence_level="high",
+                            remediation_steps=[
+                                f"Remove or correct entry {func_idx} in pipeline '{pipeline_id}'.",
+                            ],
+                            metadata={"pipeline": pipeline_id, "position": func_idx},
+                        )
+                    )
                     continue
                 if not function.get("id"):
                     result.add_finding(
@@ -258,6 +322,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                             ],
                         )
                     )
+
+        result.metadata["syntax_errors"] = len(result.findings) - findings_before
 
     def _validate_route_configuration(
         self,
@@ -288,6 +354,30 @@ class ConfigAnalyzer(BaseAnalyzer):
                             f"Or update route '{route_id}' to reference an existing pipeline.",
                             "Verify data flow after fixing the reference.",
                         ],
+                    )
+                )
+
+            # A route with no Destination processes events and then drops them.
+            if not route.get("output"):
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id=f"config-route-missing-output-{route_id}",
+                        grouping_id="config-route-missing-output",
+                        category="config",
+                        severity="medium",
+                        title=f"Route Missing Output: {route_id}",
+                        description=(
+                            f"Route '{route_id}' does not name an output, so events matching it "
+                            f"are processed and then discarded."
+                        ),
+                        affected_components=[f"route-{route_id}"],
+                        confidence_level="high",
+                        remediation_steps=[
+                            f"Set a Destination on route '{route_id}'.",
+                            "If the route is meant to drop events, say so in its description.",
+                        ],
+                        metadata={"route": route_id},
                     )
                 )
 
@@ -405,9 +495,40 @@ class ConfigAnalyzer(BaseAnalyzer):
     def _check_security_misconfigurations(
         self, outputs: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
+        encryption_issues = 0
         for output in outputs:
             output_id = output.get("id", "unknown")
             output.get("type", "unknown")
+
+            # Plaintext transport: anything addressed over http:// leaves the
+            # deployment unencrypted.
+            for url_key in ("url", "endpoint", "host"):
+                url = output.get(url_key)
+                if isinstance(url, str) and url.lower().startswith("http://"):
+                    encryption_issues += 1
+                    result.add_finding(
+                        self.create_finding(
+                            client=client,
+                            id=f"config-security-no-tls-{output_id}",
+                            grouping_id="config-security-no-tls",
+                            category="config",
+                            severity="medium",
+                            title=f"Unencrypted Connection: {output_id}",
+                            description=(
+                                f"Destination '{output_id}' sends data to {url} over plain HTTP, "
+                                f"so events travel unencrypted."
+                            ),
+                            affected_components=[f"output-{output_id}"],
+                            confidence_level="high",
+                            remediation_steps=[
+                                f"Change the '{output_id}' Destination URL to use https://.",
+                                "Confirm the receiving endpoint presents a valid certificate.",
+                            ],
+                            metadata={"output": output_id, "url": url},
+                        )
+                    )
+                    break
+
             output_json = json.dumps(output)
             for pattern in self.CREDENTIAL_PATTERNS:
                 matches = re.finditer(pattern, output_json, re.IGNORECASE)
@@ -431,6 +552,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                             ],
                         )
                     )
+
+        result.metadata["encryption_issues"] = encryption_issues
 
     def _evaluate_best_practice_rules(
         self,
@@ -580,6 +703,22 @@ class ConfigAnalyzer(BaseAnalyzer):
             )
         return issues_found
 
+    def _filter_fields(self, route_filter: str) -> set[str]:
+        """Field names a route filter compares against."""
+        return set(re.findall(r"([A-Za-z_][\w.]*)\s*(?:==|!=|>=|<=|>|<|=~)", route_filter or ""))
+
+    def _filter_syntax_error(self, route_filter: str) -> Optional[str]:
+        """Describe a structural problem in a filter, or None if it parses."""
+        if not route_filter:
+            return None
+        if route_filter.count("(") != route_filter.count(")"):
+            return "unbalanced parentheses"
+        # Quote counting ignores escaped quotes, which a filter rarely uses.
+        for quote, name in (("'", "single"), ('"', "double")):
+            if route_filter.replace(f"\\{quote}", "").count(quote) % 2:
+                return f"unbalanced {name} quotes"
+        return None
+
     def _analyze_route_conflicts(
         self,
         routes: list[dict[str, Any]],
@@ -587,9 +726,19 @@ class ConfigAnalyzer(BaseAnalyzer):
         result: AnalyzerResult,
         client: CriblAPIClient,
     ) -> None:
+        conflicts = 0
+        unreachable_total = 0
+
         for i, route in enumerate(routes):
             route_id = route.get("id", f"route_{i}")
-            if self._is_catchall_route(route.get("filter", "")) and i < len(routes) - 1:
+            route_filter = route.get("filter", "")
+
+            # A catch-all anywhere but last shadows everything after it.
+            if self._is_catchall_route(route_filter) and i < len(routes) - 1:
+                shadowed = routes[i + 1 :]
+                shadowed_ids = [r.get("id", f"route_{j}") for j, r in enumerate(shadowed, i + 1)]
+                unreachable_total += len(shadowed_ids)
+                conflicts += 1
                 result.add_finding(
                     self.create_finding(
                         client=client,
@@ -607,8 +756,82 @@ class ConfigAnalyzer(BaseAnalyzer):
                             "Add appropriate filter conditions to the route.",
                             "Review route ordering to ensure proper data flow.",
                         ],
+                        metadata={
+                            "route": route_id,
+                            "unreachable_routes": len(shadowed_ids),
+                            "unreachable_route_ids": shadowed_ids,
+                        },
                     )
                 )
+
+            syntax_error = self._filter_syntax_error(route_filter)
+            if syntax_error:
+                conflicts += 1
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id=f"config-route-invalid-filter-{route_id}",
+                        grouping_id="config-route-invalid-filter",
+                        category="config",
+                        severity="high",
+                        title=f"Invalid Route Filter: {route_id}",
+                        description=(
+                            f"Route '{route_id}' has a filter with {syntax_error}, "
+                            f"so it cannot be evaluated: {route_filter}"
+                        ),
+                        affected_components=[f"route-{route_id}"],
+                        confidence_level="high",
+                        estimated_impact="The route never matches, so data intended for it is not processed.",
+                        remediation_steps=[
+                            f"Correct the {syntax_error} in the filter for route '{route_id}'.",
+                            "Use the route preview in the UI to confirm the filter evaluates.",
+                        ],
+                        metadata={"route": route_id, "filter": route_filter},
+                    )
+                )
+
+        # Routes that test the same fields can shadow one another, since the
+        # first match wins.
+        for i, route in enumerate(routes):
+            fields_a = self._filter_fields(route.get("filter", ""))
+            if not fields_a:
+                continue
+            for other in routes[i + 1 :]:
+                fields_b = self._filter_fields(other.get("filter", ""))
+                shared = fields_a & fields_b
+                if not shared:
+                    continue
+                route_a = route.get("id", f"route_{i}")
+                route_b = other.get("id", "unknown")
+                conflicts += 1
+                result.add_finding(
+                    self.create_finding(
+                        client=client,
+                        id=f"config-route-overlap-{route_a}-{route_b}",
+                        grouping_id="config-route-overlap",
+                        category="config",
+                        severity="medium",
+                        title=f"Overlapping Routes: {route_a} and {route_b}",
+                        description=(
+                            f"Routes '{route_a}' and '{route_b}' both filter on "
+                            f"{', '.join(sorted(shared))}, so the earlier one may shadow the later."
+                        ),
+                        affected_components=[f"route-{route_a}", f"route-{route_b}"],
+                        confidence_level="low",
+                        remediation_steps=[
+                            f"Confirm '{route_a}' and '{route_b}' are meant to match different events.",
+                            "Narrow the earlier filter, or enable Final on it deliberately.",
+                        ],
+                        metadata={
+                            "route_1": route_a,
+                            "route_2": route_b,
+                            "shared_fields": sorted(shared),
+                        },
+                    )
+                )
+
+        result.metadata["route_conflicts_found"] = conflicts
+        result.metadata["unreachable_routes"] = unreachable_total
 
     def _is_catchall_route(self, route_filter: str) -> bool:
         if not route_filter or route_filter.strip() == "":
@@ -778,10 +1001,122 @@ class ConfigAnalyzer(BaseAnalyzer):
         result.metadata["min_pipeline_complexity"] = min(complexities) if complexities else 0
         result.metadata.setdefault("duplicate_patterns_found", 0)
 
+    def _match_pii_types(self, text: str) -> list[str]:
+        """Return the PII categories whose tokens appear in text."""
+        lowered = text.lower()
+        return [
+            pii_type
+            for pii_type, tokens in self.PII_PATTERNS.items()
+            if any(token in lowered for token in tokens)
+        ]
+
+    def _masked_fields(self, functions: list[dict[str, Any]]) -> set[str]:
+        """Collect field names already covered by a masking function."""
+        masked: set[str] = set()
+        for function in functions:
+            if function.get("id") not in self.MASKING_FUNCTIONS:
+                continue
+            conf = function.get("conf") or {}
+            if isinstance(conf.get("field"), str):
+                masked.add(conf["field"].lower())
+            for field in conf.get("fields") or []:
+                if isinstance(field, str):
+                    masked.add(field.lower())
+        return masked
+
     async def _check_advanced_security(
         self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
-        pass
+        """
+        Flag personal or secret data handled in the clear.
+
+        Two separate concerns: PII named in an expression, which usually means
+        it is being copied or logged, and sensitive fields referenced by a
+        pipeline that never masks them.
+        """
+        pii_risks = 0
+        unmasked = 0
+
+        for pipeline in pipelines:
+            pipeline_id = pipeline.get("id", "unknown")
+            functions = pipeline.get("conf", {}).get("functions", []) or []
+            masked = self._masked_fields(functions)
+
+            for index, function in enumerate(functions):
+                if function.get("id") in self.MASKING_FUNCTIONS:
+                    continue
+                conf = function.get("conf") or {}
+
+                expression = str(conf.get("expression") or "")
+                for pii_type in self._match_pii_types(expression):
+                    pii_risks += 1
+                    result.add_finding(
+                        self.create_finding(
+                            client=client,
+                            id=f"config-sec-pii-{pipeline_id}-{index}-{pii_type}",
+                            grouping_id="config-sec-pii",
+                            category="config",
+                            severity="high",
+                            title=f"PII in Expression: {pii_type}",
+                            description=(
+                                f"Pipeline '{pipeline_id}' references {pii_type} in an expression, "
+                                f"which copies the value into the event in the clear."
+                            ),
+                            affected_components=[f"pipeline-{pipeline_id}"],
+                            confidence_level="medium",
+                            estimated_impact=(
+                                f"{pii_type} values are written unprotected into downstream data"
+                            ),
+                            remediation_steps=[
+                                f"Mask or hash {pii_type} before it is referenced in this expression.",
+                                f"Add a mask function to pipeline '{pipeline_id}' ahead of this step.",
+                            ],
+                            metadata={"pipeline": pipeline_id, "pii_type": pii_type},
+                        )
+                    )
+
+                candidate_fields = []
+                if isinstance(conf.get("field"), str):
+                    candidate_fields.append(conf["field"])
+                for field in conf.get("fields") or []:
+                    if isinstance(field, str):
+                        candidate_fields.append(field)
+
+                for field in candidate_fields:
+                    if field.lower() in masked:
+                        continue
+                    pii_types = self._match_pii_types(field)
+                    if not pii_types:
+                        continue
+                    unmasked += 1
+                    result.add_finding(
+                        self.create_finding(
+                            client=client,
+                            id=f"config-sec-unmasked-{pipeline_id}-{index}-{field}",
+                            grouping_id="config-sec-unmasked",
+                            category="config",
+                            severity="medium",
+                            title=f"Unmasked Sensitive Field: {field}",
+                            description=(
+                                f"Pipeline '{pipeline_id}' handles field '{field}' "
+                                f"({', '.join(pii_types)}) without masking it."
+                            ),
+                            affected_components=[f"pipeline-{pipeline_id}"],
+                            confidence_level="medium",
+                            remediation_steps=[
+                                f"Add a mask function covering '{field}' to pipeline '{pipeline_id}'.",
+                                "Place it before the field reaches any Destination.",
+                            ],
+                            metadata={
+                                "pipeline": pipeline_id,
+                                "field": field,
+                                "pii_types": pii_types,
+                            },
+                        )
+                    )
+
+        result.metadata["pii_exposure_risks"] = pii_risks
+        result.metadata["unmasked_sensitive_fields"] = unmasked
 
     def _calculate_compliance_score(self, result: AnalyzerResult) -> float:
         score = 100.0
