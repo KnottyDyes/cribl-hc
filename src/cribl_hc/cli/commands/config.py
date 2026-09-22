@@ -5,7 +5,7 @@ Config command for managing credentials and settings.
 import json
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import typer
 from rich.console import Console
@@ -560,7 +560,7 @@ def add_pii_pattern(
     patterns_file = Path(__file__).parent.parent.parent / "rules" / "custom_pii_patterns.yaml"
 
     try:
-        data = {"custom_patterns": []}
+        data: dict[str, list[dict[str, Any]]] = {"custom_patterns": []}
         if patterns_file.exists():
             with open(patterns_file) as f:
                 existing_data = yaml.safe_load(f)

@@ -362,7 +362,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     ) -> None:
         """Check for permission drift from standard role definitions."""
         # Group users by role patterns
-        role_user_map = {}
+        role_user_map: dict[tuple[str, ...], list[UserInfo]] = {}
         for user in users:
             if user.is_active:
                 role_key = tuple(sorted(user.roles))

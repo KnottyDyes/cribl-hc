@@ -26,6 +26,7 @@ class AnalyzerResult:
         metadata: Additional metadata about the analysis
         success: Whether analysis completed successfully
         error: Error message if analysis failed
+        summary: Human-readable one-line summary of the result
     """
 
     PRODUCTS = ["stream", "edge", "lake", "search"]
@@ -40,6 +41,7 @@ class AnalyzerResult:
         error: Optional[str] = None,
         source_analyzer: Optional[str] = None,
         default_product_tags: Optional[list[str]] = None,
+        summary: Optional[str] = None,
     ):
         self.objective = objective
         self.findings = findings or []
@@ -47,6 +49,7 @@ class AnalyzerResult:
         self.metadata = metadata or {}
         self.success = success
         self.error = error
+        self.summary = summary
 
         self._source_analyzer = source_analyzer or objective
         self._default_product_tags = default_product_tags or self.PRODUCTS.copy()

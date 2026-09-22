@@ -346,7 +346,7 @@ class CriblAPIClient:
                 - search_group: Cribl Search groups
         """
         groups = await self.get_worker_groups()
-        by_type = {
+        by_type: dict[str, list[dict[str, Any]]] = {
             "on_prem": [],
             "cloud_managed": [],
             "hybrid": [],
@@ -578,7 +578,7 @@ class CriblAPIClient:
         else:
             endpoint = "/api/v1/system/metrics"
 
-        params = {}
+        params: dict[str, Any] = {}
 
         try:
             response = await self.get(endpoint, params=params)

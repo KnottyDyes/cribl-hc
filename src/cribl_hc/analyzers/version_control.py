@@ -101,7 +101,7 @@ class VersionControlAnalyzer(BaseAnalyzer):
 
             # These methods are not yet implemented in CriblAPIClient
             version_status: dict[str, Any] = {}
-            uncommitted_files: list[str] = []
+            uncommitted_files: list[dict[str, Any]] = []
             deployment_status: dict[str, Any] = {}
 
             # Store metadata

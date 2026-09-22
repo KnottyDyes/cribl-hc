@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.models.finding import Finding
 from cribl_hc.utils.logger import get_logger
 
 
@@ -539,7 +540,7 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
         self, comparisons: List[ComparisonResult], deployments: List[DeploymentConfig]
     ) -> List[Any]:
         """Generate summary findings for the overall comparison."""
-        findings = []
+        findings: List[Finding] = []
 
         if not comparisons:
             return findings

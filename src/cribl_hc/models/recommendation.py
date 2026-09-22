@@ -3,7 +3,7 @@ Recommendation model for actionable improvement suggestions.
 """
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal, Optional, cast
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -97,7 +97,10 @@ class Recommendation(BaseModel):
     )
     related_findings: list[str] = Field(default_factory=list, description="Related finding IDs")
     product_tags: list[Literal["stream", "edge", "lake", "search"]] = Field(
-        default_factory=lambda: ["stream", "edge", "lake", "search"],
+        default_factory=lambda: cast(
+            list[Literal["stream", "edge", "lake", "search"]],
+            ["stream", "edge", "lake", "search"],
+        ),
         description="Products this recommendation applies to",
     )
     documentation_links: list[str] = Field(default_factory=list, description="Documentation URLs")

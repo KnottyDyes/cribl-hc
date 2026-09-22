@@ -432,7 +432,7 @@ class DataFlowTopologyAnalyzer(BaseAnalyzer):
         edges = topology["edges"]
 
         # Count connections per output
-        output_connections = defaultdict(int)
+        output_connections: dict[str, int] = defaultdict(int)
         for edge in edges:
             if edge["to"].startswith("output:"):
                 output_connections[edge["to"]] += 1

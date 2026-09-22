@@ -397,7 +397,7 @@ class SearchPerformanceAnalyzer(BaseAnalyzer):
         # Find top CPU consumers
         sorted_jobs = sorted(
             [j for j in jobs if j.cpu_metrics],
-            key=lambda j: j.cpu_metrics.billable_cpu_seconds or 0,
+            key=lambda j: (j.cpu_metrics.billable_cpu_seconds or 0) if j.cpu_metrics else 0,
             reverse=True
         )
 

@@ -2,6 +2,8 @@
 List command for showing available analyzers.
 """
 
+from typing import Any
+
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -72,7 +74,7 @@ def list_analyzers(
         return
 
     if group_by_category:
-        analyzers_by_category = {}
+        analyzers_by_category: dict[str, list[tuple[str, Any]]] = {}
         for obj in objectives:
             analyzer = get_analyzer(obj)
             if analyzer is None:

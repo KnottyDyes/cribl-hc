@@ -366,7 +366,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                     )
                 )
 
-        location_usage = {}
+        location_usage: dict[str, int] = {}
         for d in datasets:
             if d.storage_location:
                 loc_id = d.storage_location

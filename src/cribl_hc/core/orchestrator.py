@@ -131,16 +131,19 @@ class AnalyzerOrchestrator:
             return results
 
         # Run all analyzers in parallel
+        progress = self.progress
+        assert progress is not None  # set above, before any objective runs
+
         async def run_objective_with_tracking(objective: str) -> tuple[str, AnalyzerResult]:
-            self.progress.start_objective(objective)
+            progress.start_objective(objective)
             try:
                 result = await self._run_single_analyzer(objective)
             except Exception as e:
                 self.log.error("analyzer_failed", objective=objective, error=str(e))
                 result = AnalyzerResult(objective=objective, success=False, error=str(e))
-            self.progress.complete_objective()
+            progress.complete_objective()
             if progress_callback:
-                progress_callback(self.progress)
+                progress_callback(progress)
             return objective, result
 
         # Execute all objectives in parallel
@@ -149,7 +152,7 @@ class AnalyzerOrchestrator:
 
         # Process results, handling any exceptions
         for item in objective_results:
-            if isinstance(item, Exception):
+            if isinstance(item, BaseException):
                 self.log.error("parallel_execution_error", error=str(item))
                 continue
             objective, result = item
@@ -312,7 +315,7 @@ class AnalyzerOrchestrator:
                 category = "other"
 
             # Calculate score for this analyzer
-            score = 100
+            score: float = 100
             objective_findings = [f for f in findings if f.source_analyzer == objective]
             penalty = sum(severity_penalties.get(f.severity, 0) for f in objective_findings)
             score = max(0, 100 - penalty)

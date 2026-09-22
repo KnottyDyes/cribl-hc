@@ -178,7 +178,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
         self, client: CriblAPIClient, libraries: List[LibraryEntry]
     ) -> Dict[str, List[UsageReference]]:
         """Analyze how libraries are used across pipelines and routes."""
-        usage_map = defaultdict(list)
+        usage_map: dict[str, list[UsageReference]] = defaultdict(list)
 
         try:
             # Get all pipelines to analyze their library usage

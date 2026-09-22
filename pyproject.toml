@@ -157,4 +157,6 @@ plugins = ["pydantic.mypy"]
 # errors. Re-tighten incrementally (disallow_untyped_defs first) if desired.
 check_untyped_defs = true
 warn_redundant_casts = true
-warn_unreachable = true
+# warn_unreachable stays off: this codebase guards untrusted API payloads with
+# isinstance checks that mypy proves unreachable from the declared types, but
+# that a live deployment can still hit.

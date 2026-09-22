@@ -438,7 +438,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
         all_names = [s.name for s in searches] + [d.name for d in dashboards]
 
         # Look for inconsistent naming patterns
-        prefixes = {}
+        prefixes: dict[str, int] = {}
         for name in all_names:
             if "_" in name:
                 prefix = name.split("_")[0].lower()
@@ -468,7 +468,7 @@ class SearchWorkspaceOptimizationAnalyzer(BaseAnalyzer):
             )
 
         # Check for duplicate names
-        name_counts = {}
+        name_counts: dict[str, int] = {}
         for name in all_names:
             name_counts[name] = name_counts.get(name, 0) + 1
 

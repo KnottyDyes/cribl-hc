@@ -13,6 +13,7 @@ from typing import Any, Optional
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.models.finding import Finding
 from cribl_hc.utils.logger import get_logger
 
 
@@ -207,7 +208,7 @@ class EndToEndFreshnessAnalyzer(BaseAnalyzer):
         self, latency_analysis: dict[str, Any], result: AnalyzerResult
     ) -> list[Any]:
         """Detect events with high end-to-end latency."""
-        findings = []
+        findings: list[Finding] = []
 
         all_latencies = latency_analysis["all_latencies"]
         if not all_latencies:
@@ -302,7 +303,7 @@ class EndToEndFreshnessAnalyzer(BaseAnalyzer):
         self, latency_analysis: dict[str, Any], result: AnalyzerResult
     ) -> list[Any]:
         """Detect pipelines with consistently high latency."""
-        findings = []
+        findings: list[Finding] = []
 
         pipeline_latencies = latency_analysis["pipeline_latencies"]
 

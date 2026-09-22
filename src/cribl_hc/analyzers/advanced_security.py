@@ -621,7 +621,7 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
         findings = []
 
         # Count findings by category
-        category_counts = {}
+        category_counts: dict[str, int] = {}
         severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
 
         for finding in all_findings:

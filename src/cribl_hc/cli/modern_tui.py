@@ -13,7 +13,7 @@ import asyncio
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -325,8 +325,8 @@ class ExportResultsDialog(ModalScreen):
 class DeploymentList(Static):
     """Widget displaying configured deployments with health indicators."""
 
-    deployments = reactive({})
-    selected_deployment = reactive(None)
+    deployments: reactive[dict[str, Any]] = reactive({})
+    selected_deployment: reactive[Optional[str]] = reactive(None)
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
@@ -378,7 +378,7 @@ class DeploymentList(Static):
 class AnalysisStatus(Static):
     """Widget showing current analysis status and progress."""
 
-    current_deployment = reactive(None)
+    current_deployment: reactive[Optional[str]] = reactive(None)
     status = reactive("Idle")
     progress = reactive(0)
     api_calls = reactive(0)
@@ -429,7 +429,7 @@ class AnalysisStatus(Static):
 class FindingsPanel(Static):
     """Widget displaying recent findings from analysis."""
 
-    findings = reactive([])
+    findings: reactive[list[Any]] = reactive([])
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
@@ -714,7 +714,7 @@ class CriblHealthCheckApp(App):
 
     def action_add_deployment(self) -> None:
         """Add new deployment via modal dialog."""
-        def check_result(added: bool) -> None:
+        def check_result(added: Optional[bool]) -> None:
             if added:
                 self.action_refresh()
 
@@ -741,7 +741,7 @@ class CriblHealthCheckApp(App):
             token = current.get("token", "")
 
             # Show edit dialog
-            def check_result(updated: bool) -> None:
+            def check_result(updated: Optional[bool]) -> None:
                 if updated:
                     self.action_refresh()
 
@@ -827,7 +827,7 @@ class CriblHealthCheckApp(App):
                 def update_progress(analysis_progress):
                     percentage = analysis_progress.get_percentage()
                     status_widget.progress = int(percentage)
-                    status_widget.api_calls = orchestrator.api_calls_used
+                    status_widget.api_calls = analysis_progress.api_calls_used
 
                 # Run analysis
                 start_time = datetime.now(timezone.utc)

@@ -160,7 +160,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
         """Get current license consumption status."""
         try:
             response = await client.get("system/license")
-            data = response.json() if hasattr(response, "json") else response
+            data = response.json()
 
             # Parse license data - this is a simplified structure
             license_data = data.get("license", {})
@@ -197,7 +197,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
 
         try:
             response = await client.get("system/license/history", params={"days": 30})
-            data = response.json() if hasattr(response, "json") else response
+            data = response.json()
 
             for entry in data.get("items", []):
                 metrics = LicenseMetrics(
@@ -372,7 +372,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
         steps = config.get("steps", [])
 
         drop_conditions = []
-        estimated_dropped = 0
+        estimated_dropped = 0.0
 
         for step in steps:
             if step.get("type") == "filter" and step.get("action") == "drop":
