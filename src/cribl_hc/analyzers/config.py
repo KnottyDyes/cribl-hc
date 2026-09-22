@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import json
 import re
+from collections import Counter
 from typing import Any, Optional
 
 import structlog
 
 from cribl_hc.analyzers.base import AnalyzerResult, BaseAnalyzer
 from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.models.recommendation import ImpactEstimate, Recommendation
 from cribl_hc.rules.loader import RuleEvaluator, RuleLoader
 
 log = structlog.get_logger(__name__)
@@ -45,6 +47,7 @@ class ConfigAnalyzer(BaseAnalyzer):
     # Functions that already protect a field, so its presence is not a finding.
     MASKING_FUNCTIONS = frozenset({"mask", "redact", "obfuscate", "hash", "encrypt"})
     MAX_EFFICIENT_EXPENSIVE_OPS = 3
+    MAX_FUNCTIONS_PER_PIPELINE = 10
 
     DEPRECATED_FUNCTIONS = {
         "regex": {
@@ -125,6 +128,8 @@ class ConfigAnalyzer(BaseAnalyzer):
             compliance_score = self._calculate_compliance_score(result)
             self._generate_recommendations(result)
 
+            severities = Counter(f.severity for f in result.findings)
+            groups = [f.grouping_id or f.id for f in result.findings]
             result.metadata.update(
                 {
                     "pipelines_analyzed": len(pipelines),
@@ -132,6 +137,17 @@ class ConfigAnalyzer(BaseAnalyzer):
                     "inputs_analyzed": len(inputs),
                     "outputs_analyzed": len(outputs),
                     "compliance_score": compliance_score,
+                    "deprecated_functions": sum(
+                        1 for g in groups if g.startswith("config-deprecated-function")
+                    ),
+                    "unused_components": sum(1 for g in groups if g.startswith("config-unused-")),
+                    "security_issues": sum(
+                        1 for g in groups if g.startswith(("config-security", "config-sec-"))
+                    ),
+                    "critical_findings": severities["critical"],
+                    "high_findings": severities["high"],
+                    "medium_findings": severities["medium"],
+                    "low_findings": severities["low"],
                 }
             )
         except Exception as e:
@@ -264,7 +280,7 @@ class ConfigAnalyzer(BaseAnalyzer):
                         grouping_id="config-syntax-invalid-functions-type",
                         category="config",
                         severity="critical",
-                        title=f"Pipeline 'functions' Is Not a List: {pipeline_id}",
+                        title=f"Pipeline 'functions' Must Be Array: {pipeline_id}",
                         description=(
                             f"Pipeline '{pipeline_id}' declares 'functions' as "
                             f"{type(functions).__name__}; it must be a list."
@@ -289,13 +305,14 @@ class ConfigAnalyzer(BaseAnalyzer):
                             grouping_id="config-syntax-invalid-function-type",
                             category="config",
                             severity="high",
-                            title=f"Function Is Not an Object: {pipeline_id}",
+                            title=f"Invalid Function Type in Pipeline: {pipeline_id}",
                             description=(
                                 f"Function at position {func_idx} in pipeline '{pipeline_id}' is "
                                 f"{type(function).__name__}, not a function object."
                             ),
                             affected_components=[f"pipeline-{pipeline_id}"],
                             confidence_level="high",
+                            estimated_impact="The pipeline fails to load, so its routes process nothing.",
                             remediation_steps=[
                                 f"Remove or correct entry {func_idx} in pipeline '{pipeline_id}'.",
                             ],
@@ -410,6 +427,13 @@ class ConfigAnalyzer(BaseAnalyzer):
                                 "Test pipeline functionality after replacement.",
                                 f"Review documentation: {deprecated_info['docs']}",
                             ],
+                            metadata={
+                                "pipeline": pipeline_id,
+                                "function": func_id,
+                                "replacement_function": deprecated_info["replacement"],
+                                "migration_reason": deprecated_info["reason"],
+                                "documentation": deprecated_info["docs"],
+                            },
                         )
                     )
 
@@ -459,11 +483,11 @@ class ConfigAnalyzer(BaseAnalyzer):
                 result.add_finding(
                     self.create_finding(
                         client=client,
-                        id=f"config-unreferenced-pipeline-{pipeline_id}",
-                        grouping_id="config-unreferenced-pipeline",
+                        id=f"config-unused-pipeline-{pipeline_id}",
+                        grouping_id="config-unused-pipeline",
                         category="config",
                         severity="low",
-                        title=f"Unreferenced Pipeline Configuration: {pipeline_id}",
+                        title=f"Unused Pipeline Configuration: {pipeline_id}",
                         description=f"Pipeline configuration '{pipeline_id}' exists but is not referenced by any route. This pipeline configuration is defined but not in use.",
                         affected_components=[f"pipeline-{pipeline_id}"],
                         confidence_level="high",
@@ -613,6 +637,117 @@ class ConfigAnalyzer(BaseAnalyzer):
             )
         )
 
+    def _check_lookup_caching(
+        self,
+        pipeline_id: str,
+        functions: list[dict[str, Any]],
+        result: AnalyzerResult,
+        client: CriblAPIClient,
+    ) -> None:
+        """Lookups without caching re-read the file for every event."""
+        for index, function in enumerate(functions):
+            if function.get("id") != "lookup":
+                continue
+            conf = function.get("conf") or {}
+            cache = conf.get("cache") or {}
+            enabled = bool(cache.get("enabled", False)) if isinstance(cache, dict) else bool(cache)
+            if enabled:
+                continue
+            result.add_finding(
+                self.create_finding(
+                    client=client,
+                    id=f"config-perf-lookup-no-cache-{pipeline_id}-{index}",
+                    grouping_id="config-perf-lookup-no-cache",
+                    category="config",
+                    severity="low",
+                    title=f"Lookup Without Caching: {pipeline_id}",
+                    description=(
+                        f"Pipeline '{pipeline_id}' uses a lookup with caching disabled, so the "
+                        f"lookup file is consulted for every event."
+                    ),
+                    affected_components=[f"pipeline-{pipeline_id}"],
+                    confidence_level="medium",
+                    remediation_steps=[
+                        f"Enable caching on the lookup function in pipeline '{pipeline_id}'.",
+                        "Size the cache to the lookup file, and set a TTL if the file changes.",
+                    ],
+                    metadata={
+                        "pipeline": pipeline_id,
+                        "cache_enabled": enabled,
+                        "position": index,
+                    },
+                )
+            )
+
+    def _check_function_count(
+        self,
+        pipeline_id: str,
+        functions: list[dict[str, Any]],
+        result: AnalyzerResult,
+        client: CriblAPIClient,
+    ) -> None:
+        """Long function chains are hard to reason about and to change safely."""
+        if len(functions) <= self.MAX_FUNCTIONS_PER_PIPELINE:
+            return
+        result.add_finding(
+            self.create_finding(
+                client=client,
+                id=f"config-complexity-function-count-{pipeline_id}",
+                grouping_id="config-complexity-function-count",
+                category="config",
+                severity="low",
+                title=f"Many Functions in Pipeline: {pipeline_id}",
+                description=(
+                    f"Pipeline '{pipeline_id}' chains {len(functions)} functions, above the "
+                    f"{self.MAX_FUNCTIONS_PER_PIPELINE} that stay readable."
+                ),
+                affected_components=[f"pipeline-{pipeline_id}"],
+                confidence_level="medium",
+                remediation_steps=[
+                    f"Split pipeline '{pipeline_id}' into focused pipelines chained by routes.",
+                    "Move reusable sequences into a pack.",
+                ],
+                metadata={"pipeline": pipeline_id, "function_count": len(functions)},
+            )
+        )
+
+    def _check_duplicate_pipelines(
+        self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
+    ) -> None:
+        """Pipelines with an identical function chain are maintained twice."""
+        by_signature: dict[str, list[str]] = {}
+        for pipeline in pipelines:
+            functions = pipeline.get("conf", {}).get("functions", []) or []
+            if not functions:
+                continue
+            signature = json.dumps(functions, sort_keys=True, default=str)
+            by_signature.setdefault(signature, []).append(pipeline.get("id", "unknown"))
+
+        for ids in by_signature.values():
+            if len(ids) < 2:
+                continue
+            result.add_finding(
+                self.create_finding(
+                    client=client,
+                    id=f"config-complexity-duplicate-pattern-{'-'.join(ids)}",
+                    grouping_id="config-complexity-duplicate-pattern",
+                    category="config",
+                    severity="low",
+                    title=f"Duplicate Pipeline Pattern: {', '.join(ids)}",
+                    description=(
+                        f"Pipelines {', '.join(ids)} have an identical function chain, so any "
+                        f"change has to be made in each of them."
+                    ),
+                    affected_components=[f"pipeline-{pid}" for pid in ids],
+                    confidence_level="high",
+                    remediation_steps=[
+                        "Keep one pipeline and point the other routes at it.",
+                        "Or move the shared chain into a pack both can use.",
+                    ],
+                    metadata={"duplicate_pipeline_ids": ids, "pipeline_count": len(ids)},
+                )
+            )
+
     def _analyze_pipeline_efficiency(
         self, pipelines: list[dict[str, Any]], result: AnalyzerResult, client: CriblAPIClient
     ) -> None:
@@ -624,6 +759,7 @@ class ConfigAnalyzer(BaseAnalyzer):
             scores.append(self._calculate_pipeline_efficiency_score(functions))
             self._check_function_ordering(pipeline_id, functions, result, client)
             self._check_performance_antipatterns(pipeline_id, functions, result, client)
+            self._check_lookup_caching(pipeline_id, functions, result, client)
 
         result.metadata["pipeline_efficiency_score"] = (
             round(sum(scores) / len(scores), 2) if scores else 100.0
@@ -974,6 +1110,7 @@ class ConfigAnalyzer(BaseAnalyzer):
             functions = pipeline.get("conf", {}).get("functions", [])
             complexity = self._calculate_pipeline_complexity(functions)
             complexities.append(complexity)
+            self._check_function_count(pipeline_id, functions, result, client)
             if complexity > 50:
                 result.add_finding(
                     self.create_finding(
@@ -993,6 +1130,8 @@ class ConfigAnalyzer(BaseAnalyzer):
                         ],
                     )
                 )
+
+        self._check_duplicate_pipelines(pipelines, result, client)
 
         result.metadata["avg_pipeline_complexity"] = (
             round(sum(complexities) / len(complexities), 2) if complexities else 0.0
@@ -1126,7 +1265,139 @@ class ConfigAnalyzer(BaseAnalyzer):
         return max(0.0, min(100.0, round(score, 2)))
 
     def _generate_recommendations(self, result: AnalyzerResult) -> None:
-        pass
+        """Roll the findings up into a handful of actionable recommendations."""
+        by_group: dict[str, list[Any]] = {}
+        for finding in result.findings:
+            by_group.setdefault(finding.grouping_id or finding.id, []).append(finding)
+
+        def count(*prefixes: str) -> int:
+            return sum(
+                len(v) for k, v in by_group.items() if any(k.startswith(p) for p in prefixes)
+            )
+
+        critical = [f for f in result.findings if f.severity == "critical"]
+        if critical:
+            result.add_recommendation(
+                Recommendation(
+                    id="config-fix-critical-errors",
+                    type="bug_fix",
+                    priority="p0",
+                    title=f"Fix {len(critical)} Critical Configuration Errors",
+                    description=(
+                        f"{len(critical)} configuration problems prevent pipelines from loading "
+                        f"or routes from evaluating."
+                    ),
+                    rationale=(
+                        "A pipeline that cannot be parsed processes no events, so the data it "
+                        "was meant to handle is silently lost."
+                    ),
+                    implementation_steps=[
+                        "Work through the critical findings in this report in order.",
+                        "Correct each pipeline or route the finding names.",
+                        "Commit and deploy, then re-run the health check to confirm.",
+                    ],
+                    impact_estimate=ImpactEstimate(
+                        performance_improvement="Restores processing for the affected pipelines",
+                        time_to_implement="1-2 hours",
+                    ),
+                    implementation_effort="medium",
+                    related_findings=[f.id for f in critical],
+                )
+            )
+
+        security_findings = [
+            f
+            for f in result.findings
+            if (f.grouping_id or "").startswith(("config-security", "config-sec-"))
+        ]
+        if security_findings:
+            result.add_recommendation(
+                Recommendation(
+                    id="config-fix-security-issues",
+                    type="security",
+                    priority="p1",
+                    title=f"Resolve {len(security_findings)} Configuration Security Issues",
+                    description=(
+                        f"{len(security_findings)} findings cover hardcoded credentials, "
+                        f"unencrypted Destinations, or personal data handled in the clear."
+                    ),
+                    rationale=(
+                        "Credentials in configuration and unmasked personal data are exposed to "
+                        "anyone who can read the config or the downstream data."
+                    ),
+                    implementation_steps=[
+                        "Move hardcoded credentials into a secrets manager or environment variables.",
+                        "Switch plaintext Destination URLs to https://.",
+                        "Add masking for the sensitive fields the findings name.",
+                    ],
+                    impact_estimate=ImpactEstimate(
+                        performance_improvement="Removes credential and personal-data exposure",
+                        time_to_implement="2-4 hours",
+                    ),
+                    implementation_effort="medium",
+                    related_findings=[f.id for f in security_findings],
+                )
+            )
+
+        deprecated = count("config-deprecated-function")
+        if deprecated:
+            result.add_recommendation(
+                Recommendation(
+                    id="config-migrate-deprecated-functions",
+                    type="best_practice",
+                    priority="p2",
+                    title=f"Migrate Deprecated Functions in {deprecated} Places",
+                    description=(
+                        f"{deprecated} pipeline functions are deprecated and have documented "
+                        f"modern replacements."
+                    ),
+                    rationale=(
+                        "Deprecated functions are removed in later releases, so migrating now "
+                        "avoids an upgrade blocking on it."
+                    ),
+                    implementation_steps=[
+                        "Replace each deprecated function with the replacement its finding names.",
+                        "Compare pipeline output before and after on sample data.",
+                        "Commit and deploy once output matches.",
+                    ],
+                    impact_estimate=ImpactEstimate(
+                        performance_improvement="Modern functions are faster and upgrade-safe",
+                        time_to_implement="1-3 hours",
+                    ),
+                    implementation_effort="medium",
+                )
+            )
+
+        unused = count("config-unused-pipeline", "config-unused-output", "config-unused-pack-pipeline")
+        if unused:
+            result.add_recommendation(
+                Recommendation(
+                    id="config-cleanup-unused-components",
+                    type="optimization",
+                    priority="p3",
+                    title=f"Remove Unused Configuration: {unused} Components",
+                    description=(
+                        f"{unused} pipelines or Destinations are configured but not referenced "
+                        f"by any route."
+                    ),
+                    rationale=(
+                        "Unused components still appear in searches, exports and reviews, which "
+                        "makes the live configuration harder to read."
+                    ),
+                    implementation_steps=[
+                        "Confirm each component named in the findings is genuinely unused.",
+                        "Document any kept deliberately for future use.",
+                        "Delete the rest and deploy.",
+                    ],
+                    before_state=f"{unused} unreferenced components in the configuration",
+                    after_state="Only components reachable from a route remain",
+                    impact_estimate=ImpactEstimate(
+                        performance_improvement="Smaller, clearer configuration to maintain",
+                        time_to_implement="30-60 minutes",
+                    ),
+                    implementation_effort="low",
+                )
+            )
 
     def _add_clean_config_finding(
         self, result: AnalyzerResult, client, pipelines, routes, inputs, outputs
