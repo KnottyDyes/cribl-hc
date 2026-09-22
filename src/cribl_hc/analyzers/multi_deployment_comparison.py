@@ -561,6 +561,11 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
         # Summary finding
         findings.append(
             self.create_finding(
+                remediation_steps=[
+                    "Review the per-deployment differences in this report",
+                    "Reconcile any difference that is not a deliberate environment variance",
+                ],
+                estimated_impact="Configuration parity across deployments affects release confidence",
                 id="multi-deployment-comparison-summary",
                 title=f"Multi-Deployment Comparison Summary: {successful_comparisons} Comparisons Completed",
                 description=f"Successfully compared {total_deployments} deployments with {successful_comparisons} pairwise comparisons. "

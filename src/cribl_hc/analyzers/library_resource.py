@@ -421,6 +421,7 @@ class LibraryAndResourceAnalyzer(BaseAnalyzer):
                 else:
                     result.add_finding(
                         self.create_finding(
+                            estimated_impact="Unused entries add review overhead without contributing to processing",
                             client=client,
                             id=f"unused-library-{lib.id.replace(':', '-')}",
                             category="Maintenance",

@@ -517,6 +517,11 @@ class SchemaQualityAnalyzer(BaseAnalyzer):
 
         result.add_finding(
             self.create_finding(
+                remediation_steps=[
+                    "Review the field-level quality issues in this report",
+                    "Correct the parsing or extraction producing them",
+                ],
+                estimated_impact="Schema quality problems degrade search and dashboard reliability",
                 id="schema-quality-summary",
                 title=f"Schema Quality: {status}",
                 description=description,

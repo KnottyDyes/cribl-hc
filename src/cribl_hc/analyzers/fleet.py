@@ -107,6 +107,12 @@ class FleetAnalyzer(BaseAnalyzer):
                 severity = "critical" if version_diff >= 3 else "high"
                 result.add_finding(
                     self.create_finding(
+                        remediation_steps=[
+                            "Open the Worker Group in the Leader UI",
+                            "Commit and deploy the pending configuration",
+                            "Confirm the Group's config version matches the Leader",
+                        ],
+                        estimated_impact="The Group runs an older config than the Leader, so recent changes are not live",
                         client=client,
                         id=f"fleet-leader-drift-{group_id}",
                         category="fleet",

@@ -240,6 +240,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
 
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="Licensed volume is trending toward the contracted limit",
                     client=client,
                     id="license-exhaustion-risk",
                     category="License",
@@ -578,6 +579,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
 
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="License headroom and efficiency are below the healthy range",
                     client=client,
                     id="poor-license-health",
                     category="License",
