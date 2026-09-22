@@ -425,6 +425,12 @@ class EndToEndFreshnessAnalyzer(BaseAnalyzer):
 
         result.add_finding(
             self.create_finding(
+                remediation_steps=[
+                    "Review the per-stage latency figures in this report",
+                    "Investigate the slowest pipeline or Destination identified",
+                    "Re-measure after tuning to confirm the improvement",
+                ],
+                estimated_impact="End-to-end delivery latency affects how current downstream data is",
                 id="e2e-freshness-summary",
                 title=f"End-to-End Freshness: {status}",
                 description=f"{description} Average latency: {avg_latency:.1f}s, Max: {max_latency:.1f}s.",

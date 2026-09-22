@@ -107,6 +107,12 @@ class FleetAnalyzer(BaseAnalyzer):
                 severity = "critical" if version_diff >= 3 else "high"
                 result.add_finding(
                     self.create_finding(
+                        remediation_steps=[
+                            "Open the Worker Group in the Leader UI",
+                            "Commit and deploy the pending configuration",
+                            "Confirm the Group's config version matches the Leader",
+                        ],
+                        estimated_impact="The Group runs an older config than the Leader, so recent changes are not live",
                         client=client,
                         id=f"fleet-leader-drift-{group_id}",
                         category="fleet",
@@ -215,6 +221,13 @@ class FleetAnalyzer(BaseAnalyzer):
             if unhealthy_pct >= 25:
                 result.add_finding(
                     self.create_finding(
+                        remediation_steps=[
+                            "Identify the unhealthy Worker Nodes in Monitoring > Workers",
+                            "Check each Node's system logs for the failure cause",
+                            "Restart or replace the affected Nodes",
+                            "Confirm the Group reports healthy once Nodes rejoin",
+                        ],
+                        estimated_impact="Fleet-wide data delivery is degraded while Workers stay unhealthy",
                         client=client,
                         id="fleet-health-critical",
                         category="fleet",

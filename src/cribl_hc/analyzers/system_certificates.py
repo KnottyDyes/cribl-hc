@@ -73,6 +73,7 @@ class SystemCertificatesAnalyzer(BaseAnalyzer):
                 if days_until < 0:
                     result.add_finding(
                         self.create_finding(
+                            estimated_impact="An expired certificate breaks TLS for every connection using it",
                             client=client,
                             id=f"system-cert-expired-{cert_id}",
                             category="system",
@@ -89,6 +90,7 @@ class SystemCertificatesAnalyzer(BaseAnalyzer):
                     severity = "high" if days_until <= self.EXPIRING_URGENT_DAYS else "medium"
                     result.add_finding(
                         self.create_finding(
+                            estimated_impact="TLS connections using this certificate fail once it expires",
                             client=client,
                             id=f"system-cert-expiring-{cert_id}",
                             category="system",
@@ -109,6 +111,7 @@ class SystemCertificatesAnalyzer(BaseAnalyzer):
             result.metadata["error"] = str(exc)
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="Certificate inventory could not be read, so expiry was not assessed",
                     client=client,
                     id="system-certificates-error",
                     category="system",

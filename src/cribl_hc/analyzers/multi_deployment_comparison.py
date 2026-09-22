@@ -296,6 +296,10 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
             # Development has more config issues
             result.add_finding(
                 self.create_finding(
+                    remediation_steps=[
+                        "Review the configuration differences listed in this finding",
+                        "Align the lower environment with production where the difference is unintended",
+                    ],
                     id=f"mock-config-{deployment_name}",
                     title="Configuration Validation",
                     description="Pipeline configuration needs review",
@@ -557,6 +561,11 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
         # Summary finding
         findings.append(
             self.create_finding(
+                remediation_steps=[
+                    "Review the per-deployment differences in this report",
+                    "Reconcile any difference that is not a deliberate environment variance",
+                ],
+                estimated_impact="Configuration parity across deployments affects release confidence",
                 id="multi-deployment-comparison-summary",
                 title=f"Multi-Deployment Comparison Summary: {successful_comparisons} Comparisons Completed",
                 description=f"Successfully compared {total_deployments} deployments with {successful_comparisons} pairwise comparisons. "

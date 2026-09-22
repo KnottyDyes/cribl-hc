@@ -92,6 +92,7 @@ class LakeStorageLocationsAnalyzer(BaseAnalyzer):
             if not all_locations:
                 result.add_finding(
                     self.create_finding(
+                        estimated_impact="Lake datasets cannot be stored until a location is configured",
                         client=client,
                         id="lake-storage-none",
                         category="lake",
@@ -122,6 +123,7 @@ class LakeStorageLocationsAnalyzer(BaseAnalyzer):
                 if status in {"failed", "blocked"}:
                     result.add_finding(
                         self.create_finding(
+                            estimated_impact="Datasets bound to this location are unavailable while it reports an error",
                             client=client,
                             id=f"lake-storage-status-{location_id}",
                             category="lake",
@@ -140,6 +142,11 @@ class LakeStorageLocationsAnalyzer(BaseAnalyzer):
                 elif status in {"delayed", "provisioning"}:
                     result.add_finding(
                         self.create_finding(
+                            remediation_steps=[
+                                "Wait for the storage location to finish provisioning",
+                                "Re-run this check once it reports ready",
+                                "Contact Cribl support if it stays in this state",
+                            ],
                             client=client,
                             id=f"lake-storage-status-{location_id}",
                             category="lake",

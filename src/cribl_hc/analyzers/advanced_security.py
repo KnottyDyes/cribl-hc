@@ -657,6 +657,12 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
 
         findings.append(
             self.create_finding(
+                remediation_steps=[
+                    "Review the individual security findings in this report",
+                    "Mask or drop the sensitive fields identified, nearest the Source",
+                    "Re-run the analysis to confirm the patterns no longer appear",
+                ],
+                estimated_impact="Sensitive data exposure risk across the sampled event stream",
                 id="advanced-security-summary",
                 title=f"Advanced Security Analysis: {status}",
                 description=f"{description}. Analyzed {len(events)} events across healthcare, financial, and compliance patterns.",

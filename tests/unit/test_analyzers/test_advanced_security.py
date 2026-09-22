@@ -24,11 +24,7 @@ class TestAdvancedSecurityAnalyzer:
     @pytest.mark.asyncio
     async def test_detects_healthcare_patterns(self, analyzer, mock_client):
         """Test detection of healthcare data patterns."""
-        events = [
-            {"patient_data": "Patient diagnosed with A123.45 (some condition)"},  # ICD-10 code
-            {"medication": "Prescribed drug 12345-6789-01"},  # NDC code
-            {"doctor": "Dr. Smith DEA: AB1234567"},  # DEA number
-        ]
+        events = ([{'patient_data': 'Patient diagnosed with A123.45 (some condition)'}, {'medication': 'Prescribed drug 12345-6789-01'}, {'doctor': 'Dr. Smith DEA: AB1234567'}] * 5)
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)
@@ -45,11 +41,7 @@ class TestAdvancedSecurityAnalyzer:
     @pytest.mark.asyncio
     async def test_detects_financial_patterns(self, analyzer, mock_client):
         """Test detection of financial data patterns."""
-        events = [
-            {"bank_info": "Routing number: 123456789"},  # ABA routing
-            {"international": "SWIFT: ABCDUS33XXX"},  # SWIFT code
-            {"payment": "IBAN: GB29 NWBK 6016 1331 9268 19"},  # IBAN
-        ]
+        events = ([{'bank_info': 'Routing number: 123456789'}, {'international': 'SWIFT: ABCDUS33XXX'}, {'payment': 'IBAN: GB29 NWBK 6016 1331 9268 19'}] * 5)
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)
@@ -66,10 +58,7 @@ class TestAdvancedSecurityAnalyzer:
     @pytest.mark.asyncio
     async def test_hipaa_compliance_check(self, analyzer, mock_client):
         """Test HIPAA compliance analysis."""
-        events = [
-            {"health_record": "Patient A123.45 has DEA number AB1234567"},  # Healthcare + DEA
-            {"normal_data": "Regular business data without PHI"},  # No healthcare data
-        ]
+        events = ([{'health_record': 'Patient A123.45 has DEA number AB1234567'}, {'normal_data': 'Regular business data without PHI'}] * 5)
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)
@@ -85,10 +74,7 @@ class TestAdvancedSecurityAnalyzer:
     @pytest.mark.asyncio
     async def test_soc2_compliance_check(self, analyzer, mock_client):
         """Test SOC 2 compliance analysis."""
-        events = [
-            {"system_log": "User password changed to: mySecret123!"},  # Sensitive in logs
-            {"app_log": "Application started successfully"},  # Normal log
-        ]
+        events = ([{'system_log': 'User password changed to: mySecret123!'}, {'app_log': 'Application started successfully'}] * 5)
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)
@@ -104,12 +90,7 @@ class TestAdvancedSecurityAnalyzer:
     @pytest.mark.asyncio
     async def test_gdpr_compliance_check(self, analyzer, mock_client):
         """Test GDPR compliance analysis."""
-        events = [
-            {
-                "user_data": "Email: user@example.com, Phone: 555-1234"
-            },  # Personal data without consent
-            {"anonymous": "Website visited by anonymous user"},  # No personal data
-        ]
+        events = ([{'user_data': 'Email: user@example.com, Phone: 555-1234'}, {'anonymous': 'Website visited by anonymous user'}] * 5)
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)
@@ -136,10 +117,7 @@ class TestAdvancedSecurityAnalyzer:
         )
         analyzer.add_custom_pattern(custom_pattern)
 
-        events = [
-            {"hr_record": "Employee EMP123456 was promoted"},  # Matches custom pattern
-            {"business": "Meeting with client ABC Corp"},  # No match
-        ]
+        events = ([{'hr_record': 'Employee EMP123456 was promoted'}, {'business': 'Meeting with client ABC Corp'}] * 5)
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)
@@ -154,7 +132,7 @@ class TestAdvancedSecurityAnalyzer:
     @pytest.mark.asyncio
     async def test_insufficient_data_handling(self, analyzer, mock_client):
         """Test handling of insufficient data for analysis."""
-        events = [{"minimal": "data"}]  # Less than 10 events
+        events = ([{'minimal': 'data'}] * 5)  # Less than 10 events
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)
@@ -167,10 +145,7 @@ class TestAdvancedSecurityAnalyzer:
     @pytest.mark.asyncio
     async def test_ignores_internal_fields(self, analyzer, mock_client):
         """Test that internal Cribl fields are ignored."""
-        events = [
-            {"_time": 1234567890, "_raw": "contains DEA AB1234567", "user_data": "safe data"},
-            {"business": "Regular business data"},
-        ]
+        events = ([{'_time': 1234567890, '_raw': 'contains DEA AB1234567', 'user_data': 'safe data'}, {'business': 'Regular business data'}] * 5)
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)
@@ -182,11 +157,7 @@ class TestAdvancedSecurityAnalyzer:
     @pytest.mark.asyncio
     async def test_generates_security_summary(self, analyzer, mock_client):
         """Test generation of security analysis summary."""
-        events = [
-            {"health": "ICD code A123.45 detected"},  # Healthcare
-            {"finance": "SWIFT code ABCDUS33XXX"},  # Financial
-            {"safe": "Regular business data"},  # Safe
-        ]
+        events = ([{'health': 'ICD code A123.45 detected'}, {'finance': 'SWIFT code ABCDUS33XXX'}, {'safe': 'Regular business data'}] * 5)
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)
@@ -205,7 +176,7 @@ class TestAdvancedSecurityAnalyzer:
         analyzer.enable_compliance_framework("hipaa")
         analyzer.enable_compliance_framework("gdpr")
 
-        events = [{"data": "Some data"}]  # Won't trigger specific patterns but framework is enabled
+        events = ([{'data': 'Some data'}] * 5)  # Won't trigger specific patterns but framework is enabled
         mock_client.capture_events.return_value = events
 
         await analyzer.analyze(mock_client)

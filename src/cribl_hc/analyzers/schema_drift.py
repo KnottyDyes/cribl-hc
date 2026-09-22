@@ -436,6 +436,11 @@ class SchemaDriftAnalyzer(BaseAnalyzer):
 
         result.add_finding(
             self.create_finding(
+                remediation_steps=[
+                    "Review the drifting fields listed in this report",
+                    "Pin or normalise them in the pipeline so downstream consumers see a stable schema",
+                ],
+                estimated_impact="Schema drift breaks downstream parsing and dashboards that assume stable fields",
                 id="schema-drift-summary",
                 title=f"Schema Drift Analysis: {status}",
                 description=description,

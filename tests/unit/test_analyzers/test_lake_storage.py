@@ -20,6 +20,7 @@ def mock_client():
     client.product_type = "lake"
     client.is_edge = False
     client.base_url = "https://test.cribl.cloud"
+    client.get_lake_groups.return_value = {"items": [{"id": "default"}]}
     return client
 
 

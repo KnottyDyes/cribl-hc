@@ -688,6 +688,7 @@ class HealthAnalyzer(BaseAnalyzer):
 
         result.add_finding(
             self.create_finding(
+                estimated_impact="Active Insights alerts indicate conditions Cribl has already flagged",
                 client=client,
                 id="health-insights-alerts",
                 grouping_id="health-insights-alerts",
@@ -766,6 +767,7 @@ class HealthAnalyzer(BaseAnalyzer):
 
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="System messages report conditions the Leader wants an operator to see",
                     client=client,
                     id=f"health-system-message-{msg_id}",
                     category="health",
@@ -813,6 +815,7 @@ class HealthAnalyzer(BaseAnalyzer):
 
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="An active banner signals a deployment-wide condition",
                     client=client,
                     id=f"health-banner-{banner_id}",
                     category="health",

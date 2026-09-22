@@ -84,6 +84,7 @@ class ScriptsAnalyzer(BaseAnalyzer):
                     error_scripts.append(script_id)
                     result.add_finding(
                         self.create_finding(
+                            estimated_impact="A failing script does not run, so any task depending on it is skipped",
                             client=client,
                             id=f"scripts-error-{script_id}",
                             category="scripts",

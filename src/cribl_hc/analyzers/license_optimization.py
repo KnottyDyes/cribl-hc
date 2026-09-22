@@ -240,6 +240,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
 
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="Licensed volume is trending toward the contracted limit",
                     client=client,
                     id="license-exhaustion-risk",
                     category="License",
@@ -327,6 +328,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
         for analysis in ineffective_rules:
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="Ineffective drop rules pass billable volume downstream",
                     client=client,
                     id=f"ineffective-drop-rule-{analysis.pipeline_id}",
                     category="License",
@@ -443,6 +445,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
         for metrics in inefficient_pipelines:
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="Inefficient processing raises CPU use and licensed throughput",
                     client=client,
                     id=f"inefficient-processing-{metrics.id}",
                     category="Performance",
@@ -576,6 +579,7 @@ class LicenseOptimizationAnalyzer(BaseAnalyzer):
 
             result.add_finding(
                 self.create_finding(
+                    estimated_impact="License headroom and efficiency are below the healthy range",
                     client=client,
                     id="poor-license-health",
                     category="License",

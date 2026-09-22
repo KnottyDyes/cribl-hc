@@ -40,6 +40,11 @@ class SystemUserInfoAnalyzer(BaseAnalyzer):
             if not users:
                 result.add_finding(
                     self.create_finding(
+                        remediation_steps=[
+                            "Verify the API credential has read:users permission",
+                            "Confirm the deployment exposes the user management endpoints",
+                        ],
+                        estimated_impact="User inventory is unavailable, so access cannot be reviewed",
                         client=client,
                         id="system-users-none",
                         category="system",

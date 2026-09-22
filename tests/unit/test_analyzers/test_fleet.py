@@ -28,6 +28,7 @@ class TestFleetAnalyzer:
     def mock_client_dev(self):
         """Create mock client for dev environment."""
         client = AsyncMock(spec=CriblAPIClient)
+        client.get_worker_groups_by_type.return_value = {}
         client.deployment_name = "dev"
         client.environment = "development"
         client.base_url = "https://dev.cribl.example.com"
@@ -40,6 +41,7 @@ class TestFleetAnalyzer:
     def mock_client_staging(self):
         """Create mock client for staging environment."""
         client = AsyncMock(spec=CriblAPIClient)
+        client.get_worker_groups_by_type.return_value = {}
         client.deployment_name = "staging"
         client.environment = "staging"
         client.base_url = "https://staging.cribl.example.com"
@@ -52,6 +54,7 @@ class TestFleetAnalyzer:
     def mock_client_prod(self):
         """Create mock client for production environment."""
         client = AsyncMock(spec=CriblAPIClient)
+        client.get_worker_groups_by_type.return_value = {}
         client.deployment_name = "prod"
         client.environment = "production"
         client.base_url = "https://prod.cribl.example.com"
@@ -169,6 +172,7 @@ class TestFleetAnalyzer:
         clients = {}
         for env in ["dev", "staging", "prod"]:
             client = AsyncMock(spec=CriblAPIClient)
+            client.get_worker_groups_by_type.return_value = {}
             client.deployment_name = env
             client.environment = env
             # All have high memory usage
@@ -235,6 +239,7 @@ class TestFleetAnalyzer:
         """Test graceful handling when one deployment fails."""
         # Mock failing client
         failing_client = AsyncMock(spec=CriblAPIClient)
+        failing_client.get_worker_groups_by_type.return_value = {}
         failing_client.deployment_name = "failing"
         failing_client.get_system_status = AsyncMock(side_effect=Exception("API Error"))
 
@@ -254,6 +259,7 @@ class TestFleetAnalyzer:
     async def test_all_deployments_fail(self, fleet_analyzer):
         """Test handling when all deployments fail."""
         failing_client = AsyncMock(spec=CriblAPIClient)
+        failing_client.get_worker_groups_by_type.return_value = {}
         failing_client.deployment_name = "failing"
         failing_client.get_system_status = AsyncMock(side_effect=Exception("API Error"))
 
@@ -289,6 +295,7 @@ class TestFleetAnalyzer:
         clients = {}
         for env in ["env1", "env2"]:
             client = AsyncMock(spec=CriblAPIClient)
+            client.get_worker_groups_by_type.return_value = {}
             client.deployment_name = env
             client.get_system_status = AsyncMock(return_value={"health": "green"})
             clients[env] = client
@@ -324,6 +331,7 @@ class TestLeaderVersionDrift:
     @pytest.fixture
     def mock_client(self):
         client = AsyncMock(spec=CriblAPIClient)
+        client.get_worker_groups_by_type.return_value = {}
         client.deployment_name = "prod"
         client.is_cloud = False
         client.is_edge = False
