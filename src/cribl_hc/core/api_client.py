@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, cast
 from urllib.parse import urljoin
 
 import httpx
@@ -557,20 +557,110 @@ class CriblAPIClient:
         return await self._get_data_or_empty(self._build_config_endpoint("lookups"))
 
     async def get_notification_targets(self) -> list[dict[str, Any]]:
-        try:
-            response = await self.get("/api/v1/system/notifications/targets")
-            response.raise_for_status()
-            return response.json().get("items", [])
-        except Exception:
-            return []
+        # Top level, not under /system: /system/notifications/targets is not in
+        # the Cribl API Reference for 4.15 or 4.20 and returns 404.
+        return await self._get_data_or_empty("/api/v1/notification-targets")
 
     async def get_notifications(self) -> list[dict[str, Any]]:
-        try:
-            response = await self.get("/api/v1/system/notifications")
-            response.raise_for_status()
-            return response.json().get("items", [])
-        except Exception:
-            return []
+        return await self._get_data_or_empty("/api/v1/notifications")
+
+    async def get_worker_group_summary(self, group: str) -> dict[str, Any]:
+        """
+        Get the health summary for one Worker Group.
+
+        Prefers the product-scoped endpoint and falls back to the legacy
+        Leader endpoint, which is what older on-prem deployments expose.
+        """
+        summary = await self._get_data_or_empty(
+            f"/api/v1/products/stream/groups/{group}/summary",
+            default={},
+            extract_items=False,
+        )
+        if summary:
+            return cast(dict[str, Any], summary)
+        return cast(
+            dict[str, Any],
+            await self._get_data_or_empty(
+                f"/api/v1/master/groups/{group}", default={}, extract_items=False
+            ),
+        )
+
+    async def get_system_instance(self) -> dict[str, Any]:
+        """Get metadata about this Cribl instance."""
+        return cast(
+            dict[str, Any],
+            await self._get_data_or_empty(
+                "/api/v1/system/instance", default={}, extract_items=False
+            ),
+        )
+
+    async def get_policies(self) -> list[dict[str, Any]]:
+        """List configured authorization policies."""
+        return cast(list[dict[str, Any]], await self._get_data_or_empty("/api/v1/system/policies"))
+
+    async def get_version_status(self) -> dict[str, Any]:
+        """
+        Get the Git working-tree status for the deployment.
+
+        Reports uncommitted changes and undeployed commits, which
+        get_version_info() does not cover.
+        """
+        return cast(
+            dict[str, Any],
+            await self._get_data_or_empty(
+                "/api/v1/version/status", default={}, extract_items=False
+            ),
+        )
+
+    async def get_uncommitted_files(self) -> list[dict[str, Any]]:
+        """List files with uncommitted changes in the config repo."""
+        return cast(list[dict[str, Any]], await self._get_data_or_empty("/api/v1/version/files"))
+
+    async def get_deployment_status(self) -> dict[str, Any]:
+        """
+        Summarise how far Worker Groups have drifted from the Leader.
+
+        Cribl exposes no single endpoint for this, so it is derived from the
+        Worker Group list and the Leader summary.
+        """
+        groups = await self.get_worker_groups()
+        summary = await self.get_master_summary()
+        leader_version = summary.get("currentVersion")
+
+        pending = 0
+        deploying = 0
+        for group in groups:
+            deploying += int(group.get("deployingWorkerCount", 0) or 0)
+            group_version = group.get("configVersion")
+            if leader_version and group_version and group_version != leader_version:
+                pending += 1
+
+        return {
+            "groups": groups,
+            "pendingDeployments": pending,
+            "deployingWorkers": deploying,
+            "configDrift": pending > 0,
+        }
+
+    async def get_grok_patterns(self) -> list[dict[str, Any]]:
+        """List Grok patterns from the knowledge library."""
+        return cast(list[dict[str, Any]], await self._get_data_or_empty("/api/v1/lib/grok"))
+
+    async def get_regex_library(self) -> list[dict[str, Any]]:
+        """List saved regular expressions from the knowledge library."""
+        return cast(list[dict[str, Any]], await self._get_data_or_empty("/api/v1/lib/regex"))
+
+    async def get_functions(self) -> list[dict[str, Any]]:
+        """List pipeline functions available to this deployment."""
+        return cast(list[dict[str, Any]], await self._get_data_or_empty("/api/v1/functions"))
+
+    async def get_collectors(self) -> list[dict[str, Any]]:
+        """List configured collectors."""
+        return cast(list[dict[str, Any]], await self._get_data_or_empty("/api/v1/collectors"))
+
+    async def get_executors(self) -> list[dict[str, Any]]:
+        """List collection executors."""
+        return cast(list[dict[str, Any]], await self._get_data_or_empty("/api/v1/executors"))
 
     async def get_metrics(self, time_range: str = "1h") -> dict[str, Any]:
         if self._is_cloud:
