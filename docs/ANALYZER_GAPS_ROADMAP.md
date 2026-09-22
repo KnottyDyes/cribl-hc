@@ -422,7 +422,7 @@ For each new analyzer, ensure:
 
 ## References
 
-- API Reference: `/Projects/cribl-hc/cribl_api_reference/`
+- API Reference: `cribl_api_reference/` (fetch with `scripts/fetch_cribl_api_spec.py`)
 - Existing Analyzers: `src/cribl_hc/analyzers/`
 - Test Examples: `tests/unit/test_analyzers/test_health.py`
 - Base Classes: `src/cribl_hc/analyzers/base.py`

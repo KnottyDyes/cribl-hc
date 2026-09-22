@@ -69,20 +69,21 @@ Extract:
 
 #### 1.3 Analyze Cribl API Specs
 
-Parse OpenAPI specifications:
+Parse the OpenAPI specification. Cribl publishes one combined spec per release
+covering Stream, Edge, Lake, Search and Core. Fetch it first (the specs are
+multi-megabyte and gitignored):
 
+```bash
+scripts/fetch_cribl_api_spec.py            # newest release
+scripts/fetch_cribl_api_spec.py --list     # every published release
 ```
-cribl_api_reference/cribl-apidocs-4.15.1-1b453caa_stream.yml
-cribl_api_reference/cribl-apidocs-4.15.1-1b453caa_edge.yml
-cribl_api_reference/cribl-apidocs-4.15.1-1b453caa_lake.yml
-cribl_api_reference/cribl-apidocs-4.15.1-1b453caa_search.yml
-cribl_api_reference/cribl-apidocs-4.15.1-1b453caa_core.yml
-```
+
+That writes `cribl_api_reference/cribl-apidocs-<version>.yml`.
 
 Identify:
 - Total endpoints available vs currently used
 - Endpoint categories with no analyzer coverage
-- New endpoints in v4.15.x not yet leveraged
+- New endpoints not yet leveraged
 - Deprecated endpoints we should stop using
 
 ### Phase 2: External Research

@@ -406,7 +406,7 @@ This project follows 12 core principles:
 8. **Pluggable Architecture**: Module-based extensible design
 9. **Test-Driven Development**: 80%+ code coverage
 10. **Security by Design**: Encrypted credentials, no sensitive data in logs
-11. **Version Compatibility**: Support Cribl Stream N through N-2
+11. **Version Compatibility**: Support Cribl Stream 4.5 and above
 12. **Transparent Methodology**: Documented scoring and recommendations
 
 See [.specify/memory/constitution.md](.specify/memory/constitution.md) for complete details.
@@ -501,7 +501,7 @@ mypy src/
 ### ✅ Phase 11: Polish & Integration (Complete)
 - CLI refinement and report generation
 - Integration testing (258+ tests passing)
-- API alignment with Cribl v4.15.1 specs
+- API alignment with Cribl v4.20.0 specs
 - Documentation (ARCHITECTURE.md, API_REFERENCE.md, USER_GUIDE.md)
 
 ### ✅ Phase 13: Enterprise Operations (Complete)
@@ -568,5 +568,5 @@ These features require additional infrastructure planning and are not yet implem
 **Status**: Production Ready - Phase 13 Complete
 **Version**: 0.5.0
 **Python**: 3.11+
-**Cribl Stream**: 4.x (N through N-2 tested; older versions supported with best-effort compatibility)
+**Cribl Stream**: 4.x from 4.5 up; validated against 4.20. Newer 4.x releases analyze with a warning.
 **Tests**: 258+ passing (unit + integration)

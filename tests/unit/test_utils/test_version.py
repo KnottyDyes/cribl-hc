@@ -423,9 +423,17 @@ class TestVersionEdgeCases:
         assert is_version_supported(version_n3, current) is False
 
     def test_compatibility_message_major_mismatch(self):
-        """Test compatibility message for different major versions."""
-        current = parse_version("5.0.0")
-        old_major = parse_version("4.9.0")
+        """Every 4.x at or above the floor is supported; other majors are not.
 
-        message = get_version_compatibility_message(old_major, current)
+        Support is pinned to the 4.x line rather than tracked relative to the
+        newest release, so 4.9.0 stays supported even once a 5.x exists, while
+        5.x itself is reported unsupported until validated.
+        """
+        current = parse_version("5.0.0")
+
+        message = get_version_compatibility_message(parse_version("4.9.0"), current)
+        assert "not supported" not in message.lower()
+        assert "supported" in message.lower()
+
+        message = get_version_compatibility_message(parse_version("5.0.0"), current)
         assert "not supported" in message.lower()

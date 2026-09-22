@@ -33,7 +33,9 @@ class UserInfo(BaseModel):
     def has_write_access(self) -> bool:
         """Check if user has write/modify permissions."""
         write_indicators = {"write", "modify", "admin", "editor", "manager"}
-        return any(indicator in role.lower() for role in self.roles)
+        return any(
+            indicator in role.lower() for role in self.roles for indicator in write_indicators
+        )
 
     @property
     def days_since_last_login(self) -> Optional[int]:
@@ -97,6 +99,7 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     def get_required_permissions(self) -> List[str]:
         return ["read:auth", "read:users", "read:roles", "read:teams", "read:audit"]
 
+    @property
     def supported_products(self) -> List[str]:
         return ["stream", "edge", "lake", "search"]  # Applies to all products
 
