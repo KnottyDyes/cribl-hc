@@ -398,18 +398,51 @@ class CriblAPIClient:
 
     async def get_nodes(self) -> list[dict[str, Any]]:
         endpoint = "/api/v1/edge/nodes" if self.is_edge else "/api/v1/master/workers"
-        return await self._get_data_or_empty(endpoint)
+        nodes = await self._get_data_or_empty(endpoint)
+        if self.is_edge:
+            return [self._normalize_node_data(node) for node in nodes]
+        return cast(list[dict[str, Any]], nodes)
+
+    # Edge reports a Node's state as connected/disconnected and its grouping as
+    # a fleet; Stream reports healthy/unhealthy and a worker group. Analyzers
+    # should not have to know which product answered, so Edge is mapped onto
+    # the Stream vocabulary here.
+    EDGE_STATUS_MAP = {
+        "connected": "healthy",
+        "disconnected": "unhealthy",
+        "unhealthy": "unhealthy",
+        "healthy": "healthy",
+    }
 
     def _normalize_node_data(self, node: dict[str, Any]) -> dict[str, Any]:
-        return node
+        """Present an Edge Node in the same shape as a Stream Worker."""
+        normalized = dict(node)
+
+        status = normalized.get("status")
+        if isinstance(status, str):
+            normalized["status"] = self.EDGE_STATUS_MAP.get(status.lower(), status)
+
+        # Keep "fleet" as well: it is the name an Edge operator recognises.
+        if "fleet" in normalized and "group" not in normalized:
+            normalized["group"] = normalized["fleet"]
+
+        return normalized
 
     async def get_system_status(self) -> dict[str, Any]:
         try:
             response = await self.get("/api/v1/system/status")
             response.raise_for_status()
-            return response.json()
-        except Exception:
-            return {}
+            return cast(dict[str, Any], response.json())
+        except httpx.HTTPStatusError as e:
+            # Returning a bare {} made "permission denied" indistinguishable
+            # from "nothing to report", so an analyzer that had been refused
+            # access reported healthy. Say which it was.
+            return {
+                "error": f"HTTP {e.response.status_code} from /system/status",
+                "status_code": e.response.status_code,
+            }
+        except Exception as e:
+            return {"error": str(e)}
 
     async def get_auth_config(self) -> dict[str, Any]:
         try:

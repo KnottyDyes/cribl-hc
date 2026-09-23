@@ -302,7 +302,7 @@ class TestMetricsEndpoint:
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/metrics").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/metrics").mock(
             return_value=Response(
                 200,
                 json={
@@ -328,7 +328,7 @@ class TestMetricsEndpoint:
             return_value=Response(200, json={"version": "5.0.0"})
         )
 
-        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/metrics").mock(
+        mock_cribl_api.get("https://cribl.example.com:9000/api/v1/system/metrics").mock(
             return_value=Response(200, json={"cpu_usage": 30.0, "memory_usage": 40.0})
         )
 
