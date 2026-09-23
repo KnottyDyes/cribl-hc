@@ -352,19 +352,16 @@ async def test_connection(name: str):
         # which raised TypeError for every OAuth credential. Fail explicitly
         # until the token exchange exists.
         if auth_type == "oauth":
-            raise HTTPException(
-                status_code=status.HTTP_501_NOT_IMPLEMENTED,
-                detail=(
-                    "Testing OAuth credentials is not supported yet; "
-                    "the client does not implement the OAuth token exchange. "
-                    "Use a bearer token credential instead."
-                ),
+            client = CriblAPIClient(
+                base_url=cred["url"],
+                client_id=cred.get("client_id"),
+                client_secret=cred.get("client_secret"),
             )
-
-        client = CriblAPIClient(
-            base_url=cred["url"],
-            auth_token=cred["token"],
-        )
+        else:
+            client = CriblAPIClient(
+                base_url=cred["url"],
+                auth_token=cred["token"],
+            )
 
         # Test connection
         async with client:

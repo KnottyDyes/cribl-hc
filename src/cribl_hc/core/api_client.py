@@ -1,11 +1,12 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional, cast
 from urllib.parse import urljoin
 
 import httpx
 from pydantic import BaseModel, Field
 
+from cribl_hc.core.exceptions import APIAuthenticationError
 from cribl_hc.utils.logger import get_logger
 from cribl_hc.utils.rate_limiter import RateLimiter
 from cribl_hc.utils.version import (
@@ -33,17 +34,48 @@ class ConnectionTestResult(BaseModel):
 
 
 class CriblAPIClient:
+    """
+    Read-only client for the Cribl API.
+
+    Authenticates either with a bearer token directly, or - for Cribl.Cloud -
+    with an API credential's client_id and client_secret, which are exchanged
+    for a short-lived bearer token via OAuth client credentials.
+    """
+
+    # Cribl.Cloud's OAuth endpoint and audience. Cribl.Cloud Government uses a
+    # different login host, so both are overridable per client.
+    DEFAULT_OAUTH_TOKEN_URL = "https://login.cribl.cloud/oauth/token"
+    DEFAULT_OAUTH_AUDIENCE = "https://api.cribl.cloud"
+    # Refresh this far before expiry so a long analysis cannot be cut off
+    # mid-request by a token ageing out.
+    TOKEN_REFRESH_MARGIN_SECONDS = 300
+
     def __init__(
         self,
         base_url: str,
-        auth_token: str,
+        auth_token: Optional[str] = None,
         timeout: float = 30.0,
         max_retries: int = 3,
         rate_limiter: Optional[RateLimiter] = None,
         worker_group: Optional[str] = None,
+        client_id: Optional[str] = None,
+        client_secret: Optional[str] = None,
+        oauth_token_url: Optional[str] = None,
+        oauth_audience: Optional[str] = None,
     ):
+        if not auth_token and not (client_id and client_secret):
+            raise ValueError(
+                "Provide either auth_token, or client_id and client_secret for "
+                "OAuth client-credentials authentication."
+            )
+
         self.base_url = base_url.rstrip("/")
         self.auth_token = auth_token
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.oauth_token_url = oauth_token_url or self.DEFAULT_OAUTH_TOKEN_URL
+        self.oauth_audience = oauth_audience or self.DEFAULT_OAUTH_AUDIENCE
+        self._token_expires_at: Optional[datetime] = None
         self.timeout = timeout
         self.max_retries = max_retries
         self._client: Optional[httpx.AsyncClient] = None
@@ -60,7 +92,68 @@ class CriblAPIClient:
             enable_backoff=True,
         )
 
+    @property
+    def uses_oauth(self) -> bool:
+        """Whether this client exchanges client credentials for a token."""
+        return bool(self.client_id and self.client_secret)
+
+    async def _fetch_oauth_token(self) -> str:
+        """Exchange client credentials for a bearer token."""
+        payload = {
+            "grant_type": "client_credentials",
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "audience": self.oauth_audience,
+        }
+        async with httpx.AsyncClient(timeout=self.timeout) as token_client:
+            response = await token_client.post(self.oauth_token_url, json=payload)
+
+        if response.status_code != 200:
+            # Deliberately does not echo the response body: a failed token
+            # exchange can reflect the submitted credentials back.
+            raise APIAuthenticationError(
+                f"OAuth token request failed with HTTP {response.status_code}. "
+                f"Check the client ID and secret for {self.base_url}."
+            )
+
+        data = response.json()
+        token = data.get("access_token")
+        if not token:
+            raise APIAuthenticationError("OAuth token response contained no access_token.")
+
+        expires_in = data.get("expires_in")
+        if isinstance(expires_in, (int, float)) and expires_in > 0:
+            self._token_expires_at = datetime.utcnow() + timedelta(seconds=float(expires_in))
+        else:
+            self._token_expires_at = None
+
+        log.info(
+            "oauth_token_acquired",
+            base_url=self.base_url,
+            expires_in=expires_in,
+        )
+        return str(token)
+
+    def _token_is_fresh(self) -> bool:
+        if not self.auth_token:
+            return False
+        if self._token_expires_at is None:
+            return True
+        margin = timedelta(seconds=self.TOKEN_REFRESH_MARGIN_SECONDS)
+        return datetime.utcnow() + margin < self._token_expires_at
+
+    async def _ensure_access_token(self) -> str:
+        """Return a usable bearer token, exchanging credentials if needed."""
+        if self.uses_oauth and not self._token_is_fresh():
+            self.auth_token = await self._fetch_oauth_token()
+            if self._client is not None:
+                self._client.headers["Authorization"] = f"Bearer {self.auth_token}"
+        return str(self.auth_token)
+
     async def __aenter__(self):
+        if self.uses_oauth:
+            await self._ensure_access_token()
+
         headers = {
             "Authorization": f"Bearer {self.auth_token}",
             "Accept": "application/json",
