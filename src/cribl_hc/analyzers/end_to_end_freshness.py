@@ -235,6 +235,7 @@ class EndToEndFreshnessAnalyzer(BaseAnalyzer):
                 # Computed in _analyze_latencies but never surfaced, so callers
                 # could not tell how many sampled events carried usable times.
                 "events_with_timestamps": latency_analysis["events_with_timestamps"],
+                "source_latencies": latency_analysis["source_latencies"],
             }
         )
 
@@ -279,7 +280,7 @@ class EndToEndFreshnessAnalyzer(BaseAnalyzer):
                     title="High End-to-End Latency Detected",
                     description=f"{high_latency_count} events ({high_latency_count / len(all_latencies):.1%}) "
                     f"took longer than {self.HIGH_LATENCY_THRESHOLD}s to process. "
-                    f"Average latency: {avg_latency:.1f}s.",
+                    f"Average latency: {avg_latency:.1f}s, worst {max(all_latencies):.1f}s.",
                     severity="high",
                     category="performance",
                     confidence_level="high",
@@ -320,21 +321,32 @@ class EndToEndFreshnessAnalyzer(BaseAnalyzer):
         # Find pipelines with significantly higher latency
         bottleneck_pipelines = []
         for pipeline, latencies in pipeline_latencies.items():
-            if len(latencies) < 3:  # Need minimum samples
+            if len(latencies) < 2:  # Need at least a pair to average
                 continue
 
             pipeline_avg = mean(latencies)
             pipeline_max = max(latencies)
 
-            # Pipeline is bottleneck if it's 3x slower than average
-            if pipeline_avg > overall_avg * 3:
+            # Compare against the other pipelines, not against an average this
+            # pipeline is part of: a slow pipeline drags the overall average up
+            # towards itself, so the worse it got the higher the bar it had to
+            # clear, and a single dominant bottleneck could never be flagged.
+            other_latencies = [
+                value
+                for other, values in pipeline_latencies.items()
+                if other != pipeline
+                for value in values
+            ]
+            baseline = mean(other_latencies) if other_latencies else overall_avg
+
+            if baseline > 0 and pipeline_avg > baseline * 3:
                 bottleneck_pipelines.append(
                     {
                         "pipeline": pipeline,
                         "avg_latency": pipeline_avg,
                         "max_latency": pipeline_max,
                         "event_count": len(latencies),
-                        "slowdown_factor": pipeline_avg / overall_avg,
+                        "slowdown_factor": pipeline_avg / baseline,
                     }
                 )
 
