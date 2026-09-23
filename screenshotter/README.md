@@ -31,13 +31,16 @@ screenshots/
 
 ## How It Works
 
-### Current Implementation: Playwright + Mock Fallback
+### Current Implementation: Playwright, with mocks on request
 
-The current implementation attempts to capture real browser screenshots via Playwright and falls back to mock screenshots if Playwright fails:
+The script captures the real UI with Playwright. A capture failure is fatal -
+it exits non-zero rather than quietly substituting drawings, because a green
+CI run should mean the UI was actually rendered. Pass `--mock` when you
+deliberately want PIL placeholders.
 
 - **Location**: `generate_screenshots.py`
-- **Approach**: Playwright captures both light/dark with mocked API responses; mock images are used if Playwright fails
-- **Advantage**: Real UI when possible, deterministic fallback when not
+- **Approach**: Playwright captures both light and dark against mocked API responses
+- **On failure**: exits 1 with the reason; `--mock` draws placeholders instead
 - **Use Case**: Documentation screenshots for both themes
 
 ```bash
@@ -149,7 +152,7 @@ python3 generate_screenshots.py
 ```
 
 This will:
-1. Generate all 5 mock screenshots using PIL
+1. Generate the mock screenshots using PIL
 2. Display the component selector reference (for future Playwright use)
 3. Output guidance on how to switch to real browser automation
 
@@ -204,15 +207,19 @@ These screenshots are used for:
 
 ### Why Keep Mock Screenshots?
 
-1. **Fallback safety**: If Playwright fails, screenshots still generate
+They are useful for offline documentation work, but they are opt-in via
+`--mock`. They were previously an automatic fallback, which meant a failed
+capture still produced files and still reported success.
+
+1. **Illustration**: usable when no servers are available
 2. **Deterministic output**: Same code always produces identical images
 3. **Fast**: Generation takes < 5 seconds
 4. **Version control friendly**: Small PNG files, no bloat
 5. **Offline use**: No need to run servers or services
 
-### Playwright + Mock Flow
+### Flow
 
-The script always attempts Playwright first, then falls back to mocks:
+The script captures with Playwright; `--mock` selects placeholders instead:
 
 ```python
 try:
@@ -267,7 +274,7 @@ The script falls back to default fonts if the system font is unavailable. This i
 
 ## Related Documentation
 
-- **CriblVision Pack Documentation**: See `/Projects/cribl-hc/CRIBLVISION_SEARCH_SUMMARY.md`
+- **CriblVision Pack Documentation**: See `docs/history/CRIBLVISION_SEARCH_SUMMARY.md`
 - **Frontend Code**: `/Projects/cribl-hc/frontend/src/components/`
 - **Component Selectors**: See SELECTORS in `generate_screenshots.py`
 
