@@ -86,17 +86,21 @@ class RateLimiter:
             self._lock = asyncio.Lock()
 
         async with self._lock:
-            # Check if budget exhausted - warn but allow continuation
+            # The budget is a guarantee to the operator, not a hint: this tool
+            # promises a bounded number of calls against a production
+            # deployment. Continuing past it silently broke that promise, so
+            # exhaustion is an error. Callers that can degrade gracefully
+            # (the orchestrator) check the remaining budget before starting.
             if self.total_calls_made >= self.max_calls:
-                log.warning(
-                    "api_budget_exhausted_continue",
+                log.error(
+                    "api_budget_exhausted",
                     total_calls=self.total_calls_made,
                     max_calls=self.max_calls,
-                    message="API call budget exhausted, continuing with partial analysis",
                 )
-                # Allow continuation but add a small delay to be respectful
-                await asyncio.sleep(0.1)
-                return
+                raise RuntimeError(
+                    f"API call budget exhausted "
+                    f"({self.total_calls_made}/{self.max_calls})"
+                )
 
             cutoff_time = datetime.utcnow() - timedelta(seconds=self.time_window_seconds)
             while self.call_timestamps and self.call_timestamps[0] <= cutoff_time:

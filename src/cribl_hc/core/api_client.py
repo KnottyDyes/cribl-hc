@@ -46,8 +46,10 @@ class CriblAPIClient:
         self._deployment_detected = False
         self._product_type: Optional[str] = None
         self._product_version: Optional[str] = None
+        # 100 calls is the budget the tool documents and the orchestrator
+        # enforces; defaulting the client to 500 meant it never enforced one.
         self.rate_limiter = rate_limiter or RateLimiter(
-            max_calls=500,
+            max_calls=100,
             time_window_seconds=3600.0,
             enable_backoff=True,
         )
