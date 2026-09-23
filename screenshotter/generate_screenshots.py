@@ -11,7 +11,6 @@ The generated screenshots show:
 2. credential_test_success.png - Success message after testing connection
 3. analysis_completion.png - Analysis summary screen
 4. review_analysis_full.png - Full report with findings
-5. branding_manager.png - Branding/settings page
 
 To use real Playwright automation instead of mock screenshots:
 1. Install Playwright browser: npx playwright install chromium
@@ -19,6 +18,7 @@ To use real Playwright automation instead of mock screenshots:
 3. Ensure localhost:5173 is running with: npm run dev (from frontend directory)
 """
 
+import argparse
 import asyncio
 import json
 from pathlib import Path
@@ -53,13 +53,6 @@ SELECTORS = {
         "findings_table": ".findings-table",
         "finding_cards": ".finding-card",
         "severity_filter": ".severity-filter",
-    },
-    # Branding Page
-    "branding_page": {
-        "company_name_input": 'input[placeholder*="company"]',
-        "logo_upload": 'input[type="file"]',
-        "color_picker": 'input[type="color"]',
-        "save_button": 'button:has-text("Save Settings")',
     },
 }
 
@@ -359,58 +352,6 @@ def screenshot_4_review_analysis_full() -> Image.Image:
     return img
 
 
-def screenshot_5_branding_manager() -> Image.Image:
-    """
-    Screenshot 5: Branding/settings page
-    Shows: Branding form with company name, logo upload, color picker, save button
-    """
-    img = Image.new("RGB", (1200, 800), color="white")
-    draw = ImageDraw.Draw(img)
-
-    try:
-        header_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
-    except OSError:
-        header_font = ImageFont.load_default()
-
-    # Title
-    draw.text((50, 30), "Branding Settings", fill="black", font=header_font)
-
-    # Form sections
-    y_pos = 120
-
-    # Company Name
-    draw_input_field(draw, 50, y_pos, 500, 40, "Company Name", "Mock Corp")
-
-    # Logo Upload
-    y_pos += 80
-    draw.rectangle([50, y_pos, 250, y_pos + 100], outline="gray", fill="#f9f9f9")
-    try:
-        upload_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-    except OSError:
-        upload_font = ImageFont.load_default()
-    draw.text((80, y_pos + 35), "📁 Upload Logo", fill="gray", font=upload_font)
-    draw.text((50, y_pos - 20), "Logo", fill="black", font=upload_font)
-
-    # Primary Color
-    y_pos += 150
-    draw.rectangle([50, y_pos, 150, y_pos + 50], fill="#2196F3", outline="gray", width=2)
-    draw.text((50, y_pos - 20), "Primary Color", fill="black", font=upload_font)
-
-    # Secondary Color
-    draw.rectangle([200, y_pos, 300, y_pos + 50], fill="#4CAF50", outline="gray", width=2)
-    draw.text((200, y_pos - 20), "Secondary Color", fill="black", font=upload_font)
-
-    # Accent Color
-    draw.rectangle([350, y_pos, 450, y_pos + 50], fill="#FF9800", outline="gray", width=2)
-    draw.text((350, y_pos - 20), "Accent Color", fill="black", font=upload_font)
-
-    # Save button
-    y_pos += 120
-    draw_button(draw, 50, y_pos, 150, 40, "Save Settings", "green")
-
-    return img
-
-
 def generate_mock_screenshots(theme_label: str):
     """Generate all 5 mock screenshots and save them."""
     screenshots_dir = Path(__file__).parent / "screenshots" / theme_label
@@ -428,7 +369,6 @@ def generate_mock_screenshots(theme_label: str):
         ),
         ("analysis_completion.png", screenshot_3_analysis_completion, "Analysis summary"),
         ("review_analysis_full.png", screenshot_4_review_analysis_full, "Full analysis report"),
-        ("branding_manager.png", screenshot_5_branding_manager, "Branding settings"),
     ]
 
     for filename, generator_func, description in screenshots:
@@ -559,82 +499,6 @@ async def async_capture_screenshots():
         },
     }
 
-    branding_config = {
-        "provider": {
-            "name": "Cribl Partner",
-            "tagline": "Observability for Everyone",
-            "contact_email": "support@cribl.io",
-        },
-        "client": {
-            "name": "Mock Corp",
-            "report_title": "Mock Corp Health Analysis",
-        },
-        "theme": {
-            "default_mode": "system",
-            "light": {
-                "primary": "#00A3E0",
-                "primary_hover": "#0082B3",
-                "primary_foreground": "#FFFFFF",
-                "secondary": "#0066A1",
-                "secondary_hover": "#005080",
-                "secondary_foreground": "#FFFFFF",
-                "accent": "#FFB81C",
-                "accent_hover": "#E6A619",
-                "accent_foreground": "#1F2937",
-                "background": "#FFFFFF",
-                "background_secondary": "#F9FAFB",
-                "background_tertiary": "#F3F4F6",
-                "foreground": "#111827",
-                "foreground_secondary": "#4B5563",
-                "foreground_muted": "#9CA3AF",
-                "border": "#E5E7EB",
-                "border_focus": "#00A3E0",
-                "severity_critical": "#DC2626",
-                "severity_high": "#EA580C",
-                "severity_medium": "#F59E0B",
-                "severity_low": "#3B82F6",
-                "severity_info": "#6B7280",
-                "success": "#10B981",
-                "warning": "#F59E0B",
-                "error": "#EF4444",
-            },
-            "dark": {
-                "primary": "#00A3E0",
-                "primary_hover": "#33B5E7",
-                "primary_foreground": "#FFFFFF",
-                "secondary": "#0066A1",
-                "secondary_hover": "#3385B5",
-                "secondary_foreground": "#FFFFFF",
-                "accent": "#FFB81C",
-                "accent_hover": "#FFC94D",
-                "accent_foreground": "#1F2937",
-                "background": "#111827",
-                "background_secondary": "#1F2937",
-                "background_tertiary": "#374151",
-                "foreground": "#F9FAFB",
-                "foreground_secondary": "#D1D5DB",
-                "foreground_muted": "#6B7280",
-                "border": "#374151",
-                "border_focus": "#00A3E0",
-                "severity_critical": "#F87171",
-                "severity_high": "#FB923C",
-                "severity_medium": "#FBBF24",
-                "severity_low": "#60A5FA",
-                "severity_info": "#9CA3AF",
-                "success": "#34D399",
-                "warning": "#FBBF24",
-                "error": "#F87171",
-            },
-            "border_radius": "0.5rem",
-            "border_radius_lg": "0.75rem",
-        },
-        "report": {
-            "show_provider_logo": True,
-            "show_client_logo": True,
-            "show_footer": True,
-            "show_watermark": False,
-        },
-    }
 
     async def setup_mock_routes(page):
         async def handle_route(route, request):
@@ -660,9 +524,6 @@ async def async_capture_screenshots():
                 return
             if "/api/v1/analysis/" in url and url.endswith("/results") and method == "GET":
                 await route.fulfill(json=analysis_results)
-                return
-            if url.endswith("/api/v1/branding") and method == "GET":
-                await route.fulfill(json=branding_config)
                 return
 
             await route.fulfill(status=404, json={"detail": "Not mocked"})
@@ -726,13 +587,6 @@ async def async_capture_screenshots():
                 )
                 print(f"✓ {theme_label}/review_analysis_full.png")
 
-                # Screenshot 5: Branding Page
-                print(f"Navigating to branding page ({theme_label})...")
-                await page.goto("http://localhost:5173/branding")
-                await page.wait_for_selector("text=Branding Settings")
-                await page.screenshot(path=str(theme_dir / "branding_manager.png"), full_page=False)
-                print(f"✓ {theme_label}/branding_manager.png")
-
             finally:
                 await context.close()
 
@@ -746,20 +600,40 @@ async def async_capture_screenshots():
 # MAIN EXECUTION
 # ============================================================================
 
-if __name__ == "__main__":
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Draw placeholder images with PIL instead of capturing the real UI.",
+    )
+    args = parser.parse_args(argv)
+
     print("=" * 70)
     print("Cribl Health Check - Screenshot Generation")
     print("=" * 70)
 
-    # Generate real screenshots with Playwright (fallback to mock on failure)
-    try:
-        screenshot_dir = asyncio.run(async_capture_screenshots())
-    except Exception as exc:
-        print("Playwright capture failed; falling back to mock screenshots.")
-        print(f"Reason: {exc}")
+    if args.mock:
+        print("Drawing mock screenshots; these are illustrations, not captures.")
         for theme_label in ["light", "dark"]:
             generate_mock_screenshots(theme_label)
         screenshot_dir = Path(__file__).parent / "screenshots"
+    else:
+        # Failing the capture used to fall back to drawing mock images, which
+        # meant a green CI run proved nothing about the real UI. Capture
+        # failures are now fatal; pass --mock to ask for illustrations.
+        try:
+            screenshot_dir = asyncio.run(async_capture_screenshots())
+        except Exception as exc:
+            print(f"\nERROR: Playwright capture failed: {exc}")
+            print("The frontend must be running on http://localhost:5173.")
+            print("Pass --mock to draw placeholder images instead.")
+            return 1
+
+        if screenshot_dir is None:
+            print("\nERROR: Playwright is not installed.")
+            print("  pip install playwright && playwright install chromium")
+            return 1
 
     print("\n" + "=" * 70)
     print("SELECTOR REFERENCE (For Playwright Automation)")
@@ -781,3 +655,8 @@ Prerequisites:
 """)
 
     print(f"\n✓ Screenshots ready at: {screenshot_dir}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

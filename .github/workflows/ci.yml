@@ -179,16 +179,29 @@ jobs:
       working-directory: frontend
       run: npm ci
 
+    # Wait for readiness rather than sleeping a guessed interval: a capture
+    # failure is now fatal, so a server that is merely slow to start would
+    # fail the job rather than silently produce placeholder images.
     - name: Start backend server
       run: |
         python -m uvicorn cribl_hc.api.app:app --host 0.0.0.0 --port 8000 &
-        sleep 5
+        for _ in $(seq 1 30); do
+          curl -sf http://localhost:8000/health >/dev/null && exit 0
+          sleep 1
+        done
+        echo "Backend did not become ready on :8000" >&2
+        exit 1
 
     - name: Start frontend dev server
       working-directory: frontend
       run: |
         npm run dev &
-        sleep 10
+        for _ in $(seq 1 60); do
+          curl -sf http://localhost:5173 >/dev/null && exit 0
+          sleep 1
+        done
+        echo "Frontend did not become ready on :5173" >&2
+        exit 1
 
     - name: Generate screenshots
       working-directory: screenshotter

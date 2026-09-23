@@ -3,9 +3,23 @@ set -euo pipefail
 
 THEME="${1:-dark}"
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE_DIR="${ROOT_DIR}/screenshots"
-TARGET_DIR="${ROOT_DIR}/../cribl-hc/docs/screenshots"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Captures land next to this script. The destination is the cribl-hc repo,
+# which may be this script's parent (screenshotter/ inside the repo) or a
+# sibling checkout; CRIBL_HC_ROOT overrides either.
+SOURCE_DIR="${SCRIPT_DIR}/screenshots"
+if [[ -n "${CRIBL_HC_ROOT:-}" ]]; then
+  REPO_ROOT="${CRIBL_HC_ROOT}"
+elif [[ -d "${SCRIPT_DIR}/../docs/screenshots" ]]; then
+  REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+elif [[ -d "${SCRIPT_DIR}/../cribl-hc/docs/screenshots" ]]; then
+  REPO_ROOT="$(cd "${SCRIPT_DIR}/../cribl-hc" && pwd)"
+else
+  printf 'Cannot locate the cribl-hc repo. Set CRIBL_HC_ROOT.\n' >&2
+  exit 1
+fi
+TARGET_DIR="${REPO_ROOT}/docs/screenshots"
 
 copy_theme() {
   local theme="$1"
