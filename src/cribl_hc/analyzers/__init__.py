@@ -116,6 +116,15 @@ class AnalyzerRegistry:
                 f"Failed to get objective_name from {analyzer_class.__name__}: {e}"
             ) from e
 
+        # Several distinct analyzers legitimately share one objective - both
+        # Lake analyzers report under "lake" - so a duplicate objective is
+        # fine, but registering the same class twice is a mistake.
+        if analyzer_class in self._analyzer_classes:
+            raise ValueError(
+                f"{analyzer_class.__name__} is already registered for objective "
+                f"'{objective}'"
+            )
+
         # Register primary analyzer (first one loaded per objective) and track all
         if objective not in self._analyzers:
             self._analyzers[objective] = analyzer_class
@@ -136,6 +145,11 @@ class AnalyzerRegistry:
         """
         if objective in self._analyzers:
             self._analyzers.pop(objective)
+            # _analyzer_classes has to follow, or the objective looks gone
+            # while its classes are still registered.
+            self._analyzer_classes = [
+                cls for cls in self._analyzer_classes if cls().objective_name != objective
+            ]
             # Note: Logging removed to avoid logger initialization issues
             # log.info("analyzer_unregistered", objective=objective, analyzer_class=analyzer_class.__name__)
             return True
@@ -210,6 +224,7 @@ class AnalyzerRegistry:
     def clear(self) -> None:
         """Clear all registered analyzers."""
         self._analyzers.clear()
+        self._analyzer_classes.clear()
         # Note: Logging removed to avoid logger initialization issues
         # log.info("analyzer_registry_cleared")
 

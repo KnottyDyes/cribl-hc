@@ -140,7 +140,8 @@ class TestConnectionTesting:
             result = await client.test_connection()
 
             assert result.success is False
-            assert "Connection test failed" in result.message
+            # The message names the failure so an operator can act on it.
+            assert "Cannot connect to Cribl API" in result.message
             assert result.error is not None
             assert "Connection refused" in result.error
 
@@ -158,7 +159,7 @@ class TestConnectionTesting:
             result = await client.test_connection()
 
             assert result.success is False
-            assert "Connection test failed" in result.message
+            assert "timeout" in result.message.lower()
             assert result.error is not None
             assert "Request timeout" in result.error
 
