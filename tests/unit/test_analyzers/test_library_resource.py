@@ -4,6 +4,7 @@ Unit tests for LibraryAndResourceAnalyzer.
 
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 
 from cribl_hc.analyzers.library_resource import (
@@ -11,6 +12,15 @@ from cribl_hc.analyzers.library_resource import (
     LibraryEntry,
 )
 from cribl_hc.core.api_client import CriblAPIClient
+
+
+def _as_responses(payloads):
+    """Wrap payloads as httpx.Response, matching what CriblAPIClient.get returns.
+
+    Entries that are Exceptions stay as-is so side_effect still raises them.
+    """
+    return [p if isinstance(p, BaseException) else httpx.Response(200, json=p) for p in payloads]
+
 
 
 class TestLibraryAndResourceAnalyzer:
@@ -50,11 +60,13 @@ class TestLibraryAndResourceAnalyzer:
     async def test_analyze_no_libraries(self, analyzer, mock_client):
         """Test analysis with no library data."""
         # Mock empty responses
-        mock_client.get.side_effect = [
+        mock_client.get.side_effect = _as_responses(
+[
             {"items": []},  # functions
             Exception("Not found"),  # lookups (simulating missing endpoint)
             {"items": []},  # pipelines
         ]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -77,11 +89,13 @@ class TestLibraryAndResourceAnalyzer:
         }
 
 
-        mock_client.get.side_effect = [
+        mock_client.get.side_effect = _as_responses(
+[
             functions_data,  # functions
             Exception("Not found"),  # lookups
             Exception("Not found"),  # pipelines (fragment endpoint)
         ]
+        )
         mock_client.get_pipelines.return_value = []
         mock_client.get_routes.return_value = []
 
@@ -104,11 +118,13 @@ class TestLibraryAndResourceAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
+        mock_client.get.side_effect = _as_responses(
+[
             large_function_data,  # functions
             Exception("Not found"),  # lookups
             Exception("Not found"),  # pipelines
         ]
+        )
         mock_client.get_pipelines.return_value = []
         mock_client.get_routes.return_value = []
 
@@ -146,11 +162,13 @@ class TestLibraryAndResourceAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
+        mock_client.get.side_effect = _as_responses(
+[
             large_function_data,  # functions
             Exception("Not found"),  # lookups
             Exception("Not found"),  # pipelines
         ]
+        )
         mock_client.get_pipelines.return_value = pipelines_data["items"]
         mock_client.get_routes.return_value = []
 
@@ -175,11 +193,13 @@ class TestLibraryAndResourceAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
+        mock_client.get.side_effect = _as_responses(
+[
             complex_function_data,  # functions
             Exception("Not found"),  # lookups
             Exception("Not found"),  # pipelines
         ]
+        )
         mock_client.get_pipelines.return_value = []
         mock_client.get_routes.return_value = []
 
@@ -210,11 +230,13 @@ class TestLibraryAndResourceAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
+        mock_client.get.side_effect = _as_responses(
+[
             {"items": []},  # functions
             Exception("Not found"),  # lookups
             fragment_data,  # pipelines (fragments)
         ]
+        )
         mock_client.get_pipelines.return_value = []
         mock_client.get_routes.return_value = []
 
@@ -245,11 +267,13 @@ class TestLibraryAndResourceAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
+        mock_client.get.side_effect = _as_responses(
+[
             duplicate_functions,  # functions
             Exception("Not found"),  # lookups
             Exception("Not found"),  # pipelines
         ]
+        )
         mock_client.get_pipelines.return_value = []
         mock_client.get_routes.return_value = []
 

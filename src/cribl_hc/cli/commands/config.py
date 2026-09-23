@@ -371,7 +371,7 @@ def delete_credential(
     try:
         credentials = load_credentials()
 
-        if not credentials:
+        if not credentials and name in (None, "*"):
             console.print("[yellow]No credentials stored[/yellow]")
             raise typer.Exit(code=1)
 
@@ -414,9 +414,11 @@ def delete_credential(
 
             console.print(f"[green]✓ Deleted credentials for:[/green] {name}")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]✗ Failed to delete credentials:[/red] {str(e)}")
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
 
 @app.command("export-key")

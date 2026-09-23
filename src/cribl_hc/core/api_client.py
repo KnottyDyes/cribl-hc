@@ -8,6 +8,12 @@ from pydantic import BaseModel, Field
 
 from cribl_hc.utils.logger import get_logger
 from cribl_hc.utils.rate_limiter import RateLimiter
+from cribl_hc.utils.version import (
+    MINIMUM_SUPPORTED_MAJOR_VERSION,
+    MINIMUM_SUPPORTED_MINOR_VERSION,
+    is_version_supported,
+    parse_version,
+)
 
 log = get_logger(__name__)
 
@@ -237,9 +243,25 @@ class CriblAPIClient:
                     "edge": "Cribl Edge",
                     "lake": "Cribl Lake",
                 }.get(self._product_type or "stream", "Cribl")
+                # Say so at connect time if the deployment predates the
+                # supported range: every later finding carries that caveat.
+                message = f"Successfully connected to {product_name} {version}"
+                if version != "unknown":
+                    try:
+                        parsed = parse_version(version)
+                        if not is_version_supported(parsed):
+                            message += (
+                                f" ⚠️  Version {version} is older than officially "
+                                f"supported ({MINIMUM_SUPPORTED_MAJOR_VERSION}."
+                                f"{MINIMUM_SUPPORTED_MINOR_VERSION}+); analysis "
+                                f"continues on a best-effort compatibility basis."
+                            )
+                    except ValueError:
+                        pass
+
                 return ConnectionTestResult(
                     success=True,
-                    message=f"Successfully connected to {product_name} {version}",
+                    message=message,
                     response_time_ms=round(elapsed_ms, 2),
                     cribl_version=version,
                     api_url=test_url,

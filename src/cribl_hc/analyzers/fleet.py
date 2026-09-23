@@ -310,6 +310,13 @@ class FleetAnalyzer(BaseAnalyzer):
                 for worker in workers
                 if isinstance(worker.get("group"), str) and worker["group"] in hybrid_group_ids
             )
+            # Customer-managed Workers often do not appear in the Leader's
+            # worker list, so fall back to the count each Group declares rather
+            # than reporting zero Workers for a Group that plainly has some.
+            if not total_hybrid_workers:
+                total_hybrid_workers = sum(
+                    int(group.get("workerCount", 0) or 0) for group in hybrid_groups
+                )
             result.add_finding(
                 self.create_finding(
                     client=client,

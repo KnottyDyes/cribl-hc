@@ -1311,11 +1311,17 @@ class ConfigAnalyzer(BaseAnalyzer):
             if (f.grouping_id or "").startswith(("config-security", "config-sec-"))
         ]
         if security_findings:
+            # Hardcoded credentials are live exposure, not a hardening task:
+            # they warrant immediate action rather than next-sprint planning.
+            has_credentials = any(
+                (f.grouping_id or "").startswith("config-security-hardcoded")
+                for f in security_findings
+            )
             result.add_recommendation(
                 Recommendation(
                     id="config-fix-security-issues",
                     type="security",
-                    priority="p1",
+                    priority="p0" if has_credentials else "p1",
                     title=f"Resolve {len(security_findings)} Configuration Security Issues",
                     description=(
                         f"{len(security_findings)} findings cover hardcoded credentials, "
