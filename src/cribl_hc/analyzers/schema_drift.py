@@ -45,7 +45,18 @@ class SchemaDriftAnalyzer(BaseAnalyzer):
     # Configuration
     CRITICAL_FIELD_DISAPPEARANCE_THRESHOLD = 0.8  # 80% drop in presence
     FIELD_TYPE_CHANGE_THRESHOLD = 0.1  # 10% of samples show different type
+    # Events are JSON, so findings name JSON types rather than Python's.
+    JSON_TYPE_NAMES = {
+        "str": "string",
+        "int": "integer",
+        "float": "number",
+        "bool": "boolean",
+        "dict": "object",
+        "list": "array",
+        "NoneType": "null",
+    }
     MIN_SAMPLES_FOR_ANALYSIS = 20
+    SOURCE_FIELD_GAP_THRESHOLD = 0.3
     MAX_SAMPLES_PER_SOURCE = 100
 
     def __init__(self) -> None:
@@ -180,11 +191,13 @@ class SchemaDriftAnalyzer(BaseAnalyzer):
                 )
 
                 # Track field types
-                field_type = type(field_value).__name__
-                if field_type == "str" and field_value.isdigit():
+                field_type = self.JSON_TYPE_NAMES.get(
+                    type(field_value).__name__, type(field_value).__name__
+                )
+                if field_type == "string" and field_value.isdigit():
                     field_type = "numeric_string"  # Distinguish "123" from actual numbers
-                elif field_type == "int" and isinstance(field_value, bool):
-                    field_type = "bool"  # Python bools are ints too
+                elif isinstance(field_value, bool):
+                    field_type = "boolean"  # Python bools are ints too
 
                 field_stats[field_name]["types"][field_type] += 1
                 field_stats[field_name]["samples"].append(field_value)
@@ -326,23 +339,28 @@ class SchemaDriftAnalyzer(BaseAnalyzer):
                 all_fields.update(k for k in event if not k.startswith("_"))
             source_field_sets[source] = all_fields
 
-        # Find sources with significantly different field counts
-        avg_field_count = sum(len(fields) for fields in source_field_sets.values()) / len(
-            source_field_sets
-        )
+        # Compare each source against every field seen across all sources: a
+        # source missing a large share of them is the inconsistency worth
+        # reporting. Comparing to the mean hid it, because with two sources the
+        # mean sits between them and neither clears a 50% gap.
+        all_known_fields: set[str] = set()
+        for fields in source_field_sets.values():
+            all_known_fields |= fields
 
         for source, fields in source_field_sets.items():
-            field_count_diff = abs(len(fields) - avg_field_count)
-            if field_count_diff > avg_field_count * 0.5:  # 50% difference
-                severity = "high" if field_count_diff > avg_field_count else "medium"
+            missing = all_known_fields - fields
+            missing_rate = len(missing) / len(all_known_fields) if all_known_fields else 0.0
+            if missing_rate > self.SOURCE_FIELD_GAP_THRESHOLD:
+                severity = "high" if missing_rate > 0.5 else "medium"
 
                 findings.append(
                     self.create_finding(
                         id=f"schema-drift-source-inconsistency-{source}",
                         title=f"Schema Inconsistency in Source: {source}",
-                        description=f"Source '{source}' has {len(fields)} fields compared to average of "
-                        f"{avg_field_count:.1f} across all sources. This indicates potential "
-                        f"parsing or routing inconsistencies.",
+                        description=f"Source '{source}' carries {len(fields)} of the "
+                        f"{len(all_known_fields)} fields seen across all sources, missing "
+                        f"{', '.join(sorted(missing))}. This indicates potential parsing "
+                        f"or routing inconsistencies.",
                         severity=severity,
                         category="data_quality",
                         confidence_level="medium",
@@ -357,8 +375,9 @@ class SchemaDriftAnalyzer(BaseAnalyzer):
                         metadata={
                             "source": source,
                             "field_count": len(fields),
-                            "avg_field_count": round(avg_field_count, 1),
-                            "difference": round(field_count_diff, 1),
+                            "known_field_count": len(all_known_fields),
+                            "missing_fields": sorted(missing),
+                            "missing_rate": round(missing_rate, 2),
                         },
                     )
                 )

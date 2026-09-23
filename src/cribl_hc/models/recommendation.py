@@ -88,7 +88,9 @@ class Recommendation(BaseModel):
     title: str = Field(..., description="Brief title", min_length=1, max_length=255)
     description: str = Field(..., description="Detailed description", min_length=1)
     rationale: str = Field(..., description="Rationale for recommendation", min_length=1)
-    implementation_steps: list[str] = Field(..., description="Implementation steps")
+    implementation_steps: list[str] = Field(
+        ..., description="Implementation steps", min_length=1
+    )
     before_state: str = Field(default="", description="Current state")
     after_state: str = Field(default="", description="Expected state after")
     impact_estimate: ImpactEstimate = Field(..., description="Impact estimates")

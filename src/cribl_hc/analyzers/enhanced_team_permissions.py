@@ -88,6 +88,9 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
     unused permissions, and potential security risks in team access patterns.
     """
 
+    # Below this many active users an admin ratio is not meaningful.
+    MIN_USERS_FOR_ADMIN_RATIO = 3
+
     @property
     def objective_name(self) -> str:
         return "enhanced-team-permissions"
@@ -509,8 +512,9 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
         # Calculate security metrics
         admin_ratio = len(admin_users) / len(active_users) if active_users else 0
 
-        # Critical: Too many admins
-        if admin_ratio > 0.1:  # More than 10% admins
+        # Too many admins. Below MIN_USERS_FOR_ADMIN_RATIO the ratio says
+        # nothing useful - a two-person deployment is always ~100% admin.
+        if len(active_users) >= self.MIN_USERS_FOR_ADMIN_RATIO and admin_ratio > 0.1:
             result.add_finding(
                 self.create_finding(
                     id="high-admin-ratio",
@@ -560,8 +564,8 @@ class EnhancedTeamPermissionsAnalyzer(BaseAnalyzer):
         admin_users = [u for u in active_users if u.has_admin_access]
         admin_ratio = len(admin_users) / len(active_users)
 
-        # High admin ratio
-        if admin_ratio > 0.1:
+        # High admin ratio, same minimum as above.
+        if len(active_users) >= self.MIN_USERS_FOR_ADMIN_RATIO and admin_ratio > 0.1:
             score -= 20
         elif admin_ratio > 0.05:
             score -= 10

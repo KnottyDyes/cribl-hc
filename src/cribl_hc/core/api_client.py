@@ -8,6 +8,12 @@ from pydantic import BaseModel, Field
 
 from cribl_hc.utils.logger import get_logger
 from cribl_hc.utils.rate_limiter import RateLimiter
+from cribl_hc.utils.version import (
+    MINIMUM_SUPPORTED_MAJOR_VERSION,
+    MINIMUM_SUPPORTED_MINOR_VERSION,
+    is_version_supported,
+    parse_version,
+)
 
 log = get_logger(__name__)
 
@@ -46,8 +52,10 @@ class CriblAPIClient:
         self._deployment_detected = False
         self._product_type: Optional[str] = None
         self._product_version: Optional[str] = None
+        # 100 calls is the budget the tool documents and the orchestrator
+        # enforces; defaulting the client to 500 meant it never enforced one.
         self.rate_limiter = rate_limiter or RateLimiter(
-            max_calls=500,
+            max_calls=100,
             time_window_seconds=3600.0,
             enable_backoff=True,
         )
@@ -235,20 +243,65 @@ class CriblAPIClient:
                     "edge": "Cribl Edge",
                     "lake": "Cribl Lake",
                 }.get(self._product_type or "stream", "Cribl")
+                # Say so at connect time if the deployment predates the
+                # supported range: every later finding carries that caveat.
+                message = f"Successfully connected to {product_name} {version}"
+                if version != "unknown":
+                    try:
+                        parsed = parse_version(version)
+                        if not is_version_supported(parsed):
+                            message += (
+                                f" ⚠️  Version {version} is older than officially "
+                                f"supported ({MINIMUM_SUPPORTED_MAJOR_VERSION}."
+                                f"{MINIMUM_SUPPORTED_MINOR_VERSION}+); analysis "
+                                f"continues on a best-effort compatibility basis."
+                            )
+                    except ValueError:
+                        pass
+
                 return ConnectionTestResult(
                     success=True,
-                    message=f"Successfully connected to {product_name} {version}",
+                    message=message,
                     response_time_ms=round(elapsed_ms, 2),
                     cribl_version=version,
                     api_url=test_url,
                 )
+            # Name the actual problem: this message is what an operator sees
+            # when a deployment will not connect.
+            status_messages = {
+                401: "Authentication failed - check the API token",
+                403: "Authentication failed - the token lacks permission for this endpoint",
+                404: "API endpoint not found - check the base URL and that this is a Cribl Leader",
+                429: "Rate limited by the Cribl API - retry shortly",
+            }
+            message = status_messages.get(
+                response.status_code, f"Unexpected response code: {response.status_code}"
+            )
             return ConnectionTestResult(
                 success=False,
-                message=f"Unexpected response code: {response.status_code}",
+                message=message,
                 response_time_ms=round(elapsed_ms, 2),
                 cribl_version=None,
                 api_url=test_url,
                 error=f"HTTP {response.status_code}: {response.text}",
+            )
+        except httpx.TimeoutException as e:
+            return ConnectionTestResult(
+                success=False,
+                message=f"Connection timeout talking to the Cribl API at {self.base_url}",
+                response_time_ms=(datetime.utcnow() - start_time).total_seconds() * 1000,
+                cribl_version=None,
+                api_url=test_url,
+                error=str(e),
+            )
+        except httpx.RequestError as e:
+            return ConnectionTestResult(
+                success=False,
+                message=f"Cannot connect to Cribl API at {self.base_url}",
+                response_time_ms=(datetime.utcnow() - start_time).total_seconds() * 1000,
+                cribl_version=None,
+                api_url=test_url,
+                error=str(e),
             )
         except Exception as e:
             return ConnectionTestResult(
@@ -367,18 +420,51 @@ class CriblAPIClient:
 
     async def get_nodes(self) -> list[dict[str, Any]]:
         endpoint = "/api/v1/edge/nodes" if self.is_edge else "/api/v1/master/workers"
-        return await self._get_data_or_empty(endpoint)
+        nodes = await self._get_data_or_empty(endpoint)
+        if self.is_edge:
+            return [self._normalize_node_data(node) for node in nodes]
+        return cast(list[dict[str, Any]], nodes)
+
+    # Edge reports a Node's state as connected/disconnected and its grouping as
+    # a fleet; Stream reports healthy/unhealthy and a worker group. Analyzers
+    # should not have to know which product answered, so Edge is mapped onto
+    # the Stream vocabulary here.
+    EDGE_STATUS_MAP = {
+        "connected": "healthy",
+        "disconnected": "unhealthy",
+        "unhealthy": "unhealthy",
+        "healthy": "healthy",
+    }
 
     def _normalize_node_data(self, node: dict[str, Any]) -> dict[str, Any]:
-        return node
+        """Present an Edge Node in the same shape as a Stream Worker."""
+        normalized = dict(node)
+
+        status = normalized.get("status")
+        if isinstance(status, str):
+            normalized["status"] = self.EDGE_STATUS_MAP.get(status.lower(), status)
+
+        # Keep "fleet" as well: it is the name an Edge operator recognises.
+        if "fleet" in normalized and "group" not in normalized:
+            normalized["group"] = normalized["fleet"]
+
+        return normalized
 
     async def get_system_status(self) -> dict[str, Any]:
         try:
             response = await self.get("/api/v1/system/status")
             response.raise_for_status()
-            return response.json()
-        except Exception:
-            return {}
+            return cast(dict[str, Any], response.json())
+        except httpx.HTTPStatusError as e:
+            # Returning a bare {} made "permission denied" indistinguishable
+            # from "nothing to report", so an analyzer that had been refused
+            # access reported healthy. Say which it was.
+            return {
+                "error": f"HTTP {e.response.status_code} from /system/status",
+                "status_code": e.response.status_code,
+            }
+        except Exception as e:
+            return {"error": str(e)}
 
     async def get_auth_config(self) -> dict[str, Any]:
         try:

@@ -93,6 +93,25 @@ class BackpressureAnalyzer(BaseAnalyzer):
             log.info("backpressure_analysis_started")
 
             outputs = await client.get_outputs()
+            # How many Destinations were examined, so a reader can tell "none
+            # backpressured" from "nothing to examine".
+            result.metadata["total_outputs"] = len(outputs)
+
+            if not outputs:
+                result.add_finding(
+                    Finding(
+                        id="backpressure-no-outputs",
+                        category="backpressure",
+                        severity="info",
+                        title="No Outputs Configured",
+                        description="No output destinations found for backpressure analysis.",
+                        affected_components=["Outputs"],
+                        confidence_level="high",
+                        metadata={},
+                    )
+                )
+                result.success = True
+                return result
 
             metrics = await client.get_metrics(time_range="1h")
 
@@ -133,22 +152,6 @@ class BackpressureAnalyzer(BaseAnalyzer):
                     "analysis_timestamp": datetime.utcnow().isoformat(),
                 }
             )
-
-            if not outputs:
-                result.add_finding(
-                    Finding(
-                        id="backpressure-no-outputs",
-                        category="backpressure",
-                        severity="info",
-                        title="No Outputs Configured",
-                        description="No output destinations found for backpressure analysis.",
-                        affected_components=["Outputs"],
-                        confidence_level="high",
-                        metadata={},
-                    )
-                )
-                result.success = True
-                return result
 
             # Analyze backpressure on outputs
             self._analyze_output_backpressure(outputs, output_metrics, result)

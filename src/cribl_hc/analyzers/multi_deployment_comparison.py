@@ -59,6 +59,8 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
 
     # Comparison thresholds
     FINDING_COUNT_DIFFERENCE_THRESHOLD = 0.5  # 50% difference in total findings
+    # Absolute gap in config findings worth reporting as a parity problem.
+    CONFIG_PARITY_MIN_GAP = 2
     CRITICAL_FINDING_RATIO_THRESHOLD = 0.2  # 20% of findings are critical
 
     def __init__(self) -> None:
@@ -158,6 +160,11 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
                     "comparisons_performed": len(comparisons),
                     "total_findings_analyzed": sum(
                         len(results.findings) for results in analysis_results.values()
+                    ),
+                    "failed_deployments": sum(
+                        1
+                        for results in analysis_results.values()
+                        if not getattr(results, "success", True)
                     ),
                 }
             )
@@ -507,7 +514,11 @@ class MultiDeploymentComparisonAnalyzer(BaseAnalyzer):
             [f for f in result_b.findings if getattr(f, "category", "") == "config"]
         )
 
-        if config_findings_a > config_findings_b * 2 and config_findings_a > 5:
+        # Either direction matters - staging lagging prod is as much a parity
+        # problem as the reverse - and the old `> 5` floor meant a small
+        # deployment could never trip it however lopsided the split was.
+        higher, lower = sorted((config_findings_a, config_findings_b), reverse=True)
+        if higher > lower * 2 and (higher - lower) >= self.CONFIG_PARITY_MIN_GAP:
             findings.append(
                 self.create_finding(
                     id=f"comparison-config-parity-issue-{comparison.deployment_a}-{comparison.deployment_b}",

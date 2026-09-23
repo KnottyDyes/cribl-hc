@@ -49,10 +49,12 @@ class LakeStorageAnalyzer(BaseAnalyzer):
 
     def get_estimated_api_calls(self) -> int:
         """
-        Estimate API calls: lakes(1) + datasets per lake(N) = 1+N.
-        Assuming average 2 lakes: ~3 calls.
+        Estimate API calls: lakes(1) + datasets per lake(N).
+
+        Dataset metrics arrive inline with includeMetrics=true, so there is no
+        extra call for them. Most deployments have a single lake.
         """
-        return 3
+        return 2
 
     def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
@@ -109,6 +111,7 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                 return result
 
             datasets_list_all = []
+            fetch_errors: list[str] = []
 
             for lake in lakes:
                 lake_id = lake.get("id")
@@ -123,6 +126,35 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                     datasets_list_all.extend(dataset_list.items)
                 except Exception as e:
                     log.warning("lake_datasets_fetch_failed", lake_id=lake_id, error=str(e))
+                    fetch_errors.append(f"{lake_id}: {e}")
+
+            # One lake failing among several still leaves usable analysis; every
+            # lake failing means this reported nothing and should say so.
+            if fetch_errors and len(fetch_errors) == len(lakes):
+                error_text = "; ".join(fetch_errors)
+                result.metadata["error"] = error_text
+                result.add_finding(
+                    self.create_finding(
+                        id="lake-storage-datasets-unavailable",
+                        category="lake",
+                        severity="critical",
+                        title="Lake Dataset Inventory Unavailable",
+                        description=(
+                            f"Dataset listings could not be retrieved for any lake, so storage "
+                            f"was not analysed: {error_text}"
+                        ),
+                        affected_components=["Lake"],
+                        confidence_level="high",
+                        estimated_impact="Lake storage growth and cost go unmonitored.",
+                        remediation_steps=[
+                            "Confirm the API credential carries read access to Lake datasets.",
+                            "Check that the Lake service is reachable from this host.",
+                        ],
+                        metadata={"lakes": len(lakes), "errors": fetch_errors},
+                    )
+                )
+                result.success = False
+                return result
 
             datasets = datasets_list_all
 
@@ -152,9 +184,21 @@ class LakeStorageAnalyzer(BaseAnalyzer):
                 result.success = True
                 return result
 
+            stats_by_dataset: dict[str, DatasetStats] = {}
+            for dataset in datasets:
+                dataset_stats = self._stats_from_dataset(dataset)
+                if dataset_stats is not None:
+                    stats_by_dataset[dataset.id] = dataset_stats
+
+            total_bytes = sum(stats.size_bytes or 0 for stats in stats_by_dataset.values())
+            result.metadata["datasets_with_stats"] = len(stats_by_dataset)
+            result.metadata["total_storage_gb"] = round(total_bytes / (1024**3), 2)
+
             potential_savings_gb = 0.0
             for dataset in datasets:
-                savings = self._analyze_dataset_storage(dataset, None, result)
+                savings = self._analyze_dataset_storage(
+                    dataset, stats_by_dataset.get(dataset.id), result
+                )
                 if savings:
                     potential_savings_gb += savings
 
@@ -189,6 +233,31 @@ class LakeStorageAnalyzer(BaseAnalyzer):
             )
 
         return result
+
+    def _stats_from_dataset(self, dataset: LakeDataset) -> Optional[DatasetStats]:
+        """
+        Build stats from the metrics the datasets endpoint returns inline.
+
+        Cribl has no separate Lake dataset-stats endpoint; requesting
+        includeMetrics=true attaches them to each dataset instead.
+        """
+        metrics = dataset.metrics
+        if not metrics:
+            return None
+        size_bytes = metrics.get("sizeBytes", metrics.get("size_bytes"))
+        record_count = metrics.get("recordCount", metrics.get("record_count"))
+        last_updated = metrics.get("lastUpdated", metrics.get("last_updated"))
+        if size_bytes is None and record_count is None and last_updated is None:
+            return None
+        # model_validate so the API's camelCase aliases are honoured.
+        return DatasetStats.model_validate(
+            {
+                "datasetId": dataset.id,
+                "sizeBytes": size_bytes,
+                "recordCount": record_count,
+                "lastUpdated": last_updated,
+            }
+        )
 
     def _analyze_dataset_storage(
         self, dataset: LakeDataset, stats: Optional[DatasetStats], result: AnalyzerResult

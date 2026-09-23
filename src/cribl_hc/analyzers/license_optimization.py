@@ -3,7 +3,7 @@ Analyzes license consumption patterns, drop rule effectiveness, and licensing ef
 """
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -50,10 +50,18 @@ class DropRuleAnalysis(BaseModel):
     effectiveness_score: float = 0.0  # 0-100, higher is better
     complexity_score: int = 0  # Rough complexity metric
 
+    INEFFECTIVE_THRESHOLD: ClassVar[float] = 50.0
+
     @property
     def is_ineffective(self) -> bool:
-        """Check if drop rule is ineffective."""
-        return self.effectiveness_score < 5.0  # Less than 5% effectiveness
+        """
+        Whether the drop rule is failing to do its job.
+
+        A rule that removes less than half the volume it targets is passing
+        most of it downstream and still being billed for it. The previous 5%
+        bar meant a rule had to be almost entirely inert to be flagged.
+        """
+        return self.effectiveness_score < self.INEFFECTIVE_THRESHOLD
 
 
 class PipelineMetrics(BaseModel):

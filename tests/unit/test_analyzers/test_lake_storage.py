@@ -54,22 +54,12 @@ class TestLakeStorageAnalyzer:
                     "retentionPeriodInDays": 30,
                     "format": "parquet",
                     "viewName": "efficient_logs-view",
+                    # includeMetrics=true returns these inline
+                    "metrics": {"sizeBytes": 10737418240, "recordCount": 1000000, "lastUpdated": int(datetime.utcnow().timestamp() * 1000)},
                 }
             ],
             "count": 1,
         }
-        mock_client.get_lake_dataset_stats.return_value = {
-            "items": [
-                {
-                    "datasetId": "efficient_logs",
-                    "sizeBytes": 10737418240,  # 10GB
-                    "recordCount": 1000000,
-                    "lastUpdated": int(datetime.utcnow().timestamp() * 1000),
-                }
-            ],
-            "count": 1,
-        }
-
         result = await analyzer.analyze(mock_client)
 
         assert result.objective == "lake"
@@ -90,22 +80,12 @@ class TestLakeStorageAnalyzer:
                     "retentionPeriodInDays": 30,
                     "format": "json",
                     "viewName": "large_json_logs-view",
+                    # includeMetrics=true returns these inline
+                    "metrics": {"sizeBytes": 53687091200, "recordCount": 5000000, "lastUpdated": int(datetime.utcnow().timestamp() * 1000)},
                 }
             ],
             "count": 1,
         }
-        mock_client.get_lake_dataset_stats.return_value = {
-            "items": [
-                {
-                    "datasetId": "large_json_logs",
-                    "sizeBytes": 53687091200,  # 50GB
-                    "recordCount": 5000000,
-                    "lastUpdated": int(datetime.utcnow().timestamp() * 1000),
-                }
-            ],
-            "count": 1,
-        }
-
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
@@ -129,22 +109,12 @@ class TestLakeStorageAnalyzer:
                     "retentionPeriodInDays": 30,
                     "format": "json",
                     "viewName": "small_json_logs-view",
+                    # includeMetrics=true returns these inline
+                    "metrics": {"sizeBytes": 5368709120, "recordCount": 500000, "lastUpdated": int(datetime.utcnow().timestamp() * 1000)},
                 }
             ],
             "count": 1,
         }
-        mock_client.get_lake_dataset_stats.return_value = {
-            "items": [
-                {
-                    "datasetId": "small_json_logs",
-                    "sizeBytes": 5368709120,  # 5GB
-                    "recordCount": 500000,
-                    "lastUpdated": int(datetime.utcnow().timestamp() * 1000),
-                }
-            ],
-            "count": 1,
-        }
-
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
@@ -166,22 +136,12 @@ class TestLakeStorageAnalyzer:
                     "retentionPeriodInDays": 30,
                     "format": "parquet",
                     "viewName": "old_dataset-view",
+                    # includeMetrics=true returns these inline
+                    "metrics": {"sizeBytes": 1073741824, "recordCount": 100000, "lastUpdated": int(last_update.timestamp() * 1000)},
                 }
             ],
             "count": 1,
         }
-        mock_client.get_lake_dataset_stats.return_value = {
-            "items": [
-                {
-                    "datasetId": "old_dataset",
-                    "sizeBytes": 1073741824,  # 1GB
-                    "recordCount": 100000,
-                    "lastUpdated": int(last_update.timestamp() * 1000),
-                }
-            ],
-            "count": 1,
-        }
-
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
@@ -206,8 +166,6 @@ class TestLakeStorageAnalyzer:
             "count": 1,
         }
         # No stats available for this dataset
-        mock_client.get_lake_dataset_stats.return_value = {"items": [], "count": 0}
-
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
@@ -220,8 +178,6 @@ class TestLakeStorageAnalyzer:
     async def test_analyze_handles_empty_datasets(self, analyzer, mock_client):
         """Test analyzer handles no datasets gracefully."""
         mock_client.get_lake_datasets.return_value = {"items": [], "count": 0}
-        mock_client.get_lake_dataset_stats.return_value = {"items": [], "count": 0}
-
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
@@ -255,6 +211,8 @@ class TestLakeStorageAnalyzer:
                     "retentionPeriodInDays": 30,
                     "format": "parquet",
                     "viewName": "dataset1-view",
+                    # includeMetrics=true returns these inline
+                    "metrics": {"sizeBytes": 10737418240, "recordCount": 1000000},
                 },
                 {
                     "id": "dataset2",
@@ -262,26 +220,12 @@ class TestLakeStorageAnalyzer:
                     "retentionPeriodInDays": 30,
                     "format": "json",
                     "viewName": "dataset2-view",
+                    # includeMetrics=true returns these inline
+                    "metrics": {"sizeBytes": 21474836480, "recordCount": 2000000},
                 },
             ],
             "count": 2,
         }
-        mock_client.get_lake_dataset_stats.return_value = {
-            "items": [
-                {
-                    "datasetId": "dataset1",
-                    "sizeBytes": 10737418240,  # 10GB
-                    "recordCount": 1000000,
-                },
-                {
-                    "datasetId": "dataset2",
-                    "sizeBytes": 21474836480,  # 20GB
-                    "recordCount": 2000000,
-                },
-            ],
-            "count": 2,
-        }
-
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
@@ -299,22 +243,12 @@ class TestLakeStorageAnalyzer:
                     "retentionPeriodInDays": 30,
                     "format": "json",
                     "viewName": "big_json_dataset-view",
+                    # includeMetrics=true returns these inline
+                    "metrics": {"sizeBytes": 107374182400, "recordCount": 10000000, "lastUpdated": int(datetime.utcnow().timestamp() * 1000)},
                 }
             ],
             "count": 1,
         }
-        mock_client.get_lake_dataset_stats.return_value = {
-            "items": [
-                {
-                    "datasetId": "big_json_dataset",
-                    "sizeBytes": 107374182400,  # 100GB
-                    "recordCount": 10000000,
-                    "lastUpdated": int(datetime.utcnow().timestamp() * 1000),
-                }
-            ],
-            "count": 1,
-        }
-
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True
@@ -338,6 +272,8 @@ class TestLakeStorageAnalyzer:
                     "retentionPeriodInDays": 30,
                     "format": "csv",
                     "viewName": "csv_dataset-view",
+                    # includeMetrics=true returns these inline
+                    "metrics": {"sizeBytes": 53687091200, "recordCount": 5000000, "lastUpdated": int(datetime.utcnow().timestamp() * 1000)},
                 },
                 {
                     "id": "raw_dataset",
@@ -345,28 +281,12 @@ class TestLakeStorageAnalyzer:
                     "retentionPeriodInDays": 30,
                     "format": "raw",
                     "viewName": "raw_dataset-view",
+                    # includeMetrics=true returns these inline
+                    "metrics": {"sizeBytes": 53687091200, "recordCount": 5000000, "lastUpdated": int(datetime.utcnow().timestamp() * 1000)},
                 },
             ],
             "count": 2,
         }
-        mock_client.get_lake_dataset_stats.return_value = {
-            "items": [
-                {
-                    "datasetId": "csv_dataset",
-                    "sizeBytes": 53687091200,  # 50GB
-                    "recordCount": 5000000,
-                    "lastUpdated": int(datetime.utcnow().timestamp() * 1000),
-                },
-                {
-                    "datasetId": "raw_dataset",
-                    "sizeBytes": 53687091200,  # 50GB
-                    "recordCount": 5000000,
-                    "lastUpdated": int(datetime.utcnow().timestamp() * 1000),
-                },
-            ],
-            "count": 2,
-        }
-
         result = await analyzer.analyze(mock_client)
 
         assert result.success is True

@@ -50,10 +50,11 @@ class LakeHealthAnalyzer(BaseAnalyzer):
 
     def get_estimated_api_calls(self) -> int:
         """
-        Estimate API calls: lakes(1) + datasets per lake(N) + storage_locations per lake(N) = 1+2N.
-        Assuming average 2 lakes: ~5 calls.
+        Estimate API calls: lakes(1) + datasets per lake(N) + storage locations
+        per lake(N). Most deployments have a single lake, so 1 + 2 = 3, with
+        one spare for the lakehouse check.
         """
-        return 5
+        return 4
 
     def get_required_permissions(self) -> list[str]:
         """Return required API permissions."""
@@ -115,6 +116,7 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                 return result
 
             datasets_list_all = []
+            dataset_errors: list[str] = []
             storage_locations_all = []
 
             for lake in lakes:
@@ -130,12 +132,41 @@ class LakeHealthAnalyzer(BaseAnalyzer):
                     datasets_list_all.extend(dataset_list.items)
                 except Exception as e:
                     log.warning("lake_datasets_fetch_failed", lake_id=lake_id, error=str(e))
+                    dataset_errors.append(f"{lake_id}: {e}")
 
                 try:
                     storage_locations_response = await client.get_lake_storage_locations(lake_id)
                     storage_locations_all.extend(storage_locations_response.get("items", []))
                 except Exception as e:
                     log.warning("lake_storage_fetch_failed", lake_id=lake_id, error=str(e))
+
+            # A listing that failed for every lake means this reported nothing;
+            # saying "healthy" would be wrong.
+            if dataset_errors and len(dataset_errors) == len(lakes):
+                error_text = "; ".join(dataset_errors)
+                result.metadata["error"] = error_text
+                result.add_finding(
+                    self.create_finding(
+                        id="lake-health-datasets-unavailable",
+                        category="lake",
+                        severity="critical",
+                        title="Lake Dataset Inventory Unavailable",
+                        description=(
+                            f"Dataset listings could not be retrieved for any lake, so Lake "
+                            f"health was not assessed: {error_text}"
+                        ),
+                        affected_components=["Lake"],
+                        confidence_level="high",
+                        estimated_impact="Lake dataset health and retention go unmonitored.",
+                        remediation_steps=[
+                            "Confirm the API credential carries read access to Lake datasets.",
+                            "Check that the Lake service is reachable from this host.",
+                        ],
+                        metadata={"lakes": len(lakes), "errors": dataset_errors},
+                    )
+                )
+                result.success = False
+                return result
 
             dataset_list = LakeDatasetList(items=datasets_list_all, count=len(datasets_list_all))
             storage_locations = storage_locations_all

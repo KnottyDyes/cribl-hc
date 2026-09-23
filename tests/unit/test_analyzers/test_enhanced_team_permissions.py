@@ -5,6 +5,7 @@ Unit tests for EnhancedTeamPermissionsAnalyzer.
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 
 from cribl_hc.analyzers.enhanced_team_permissions import (
@@ -15,6 +16,15 @@ from cribl_hc.analyzers.enhanced_team_permissions import (
     UserInfo,
 )
 from cribl_hc.core.api_client import CriblAPIClient
+
+
+def _as_responses(payloads):
+    """Wrap payloads as httpx.Response, which is what CriblAPIClient.get returns.
+
+    Returning bare dicts hid a real defect: the analyzer called .get() on the
+    response object, which raises AttributeError against a live deployment.
+    """
+    return [httpx.Response(200, json=p) for p in payloads]
 
 
 class TestEnhancedTeamPermissionsAnalyzer:
@@ -48,12 +58,14 @@ class TestEnhancedTeamPermissionsAnalyzer:
     async def test_analyze_no_users(self, analyzer, mock_client):
         """Test analysis with no user data."""
         # Mock empty responses
-        mock_client.get.side_effect = [
-            {"items": []},  # users
-            {"items": []},  # roles
-            {"items": []},  # teams
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [
+                {"items": []},  # users
+                {"items": []},  # roles
+                {"items": []},  # teams
+                {"items": []},  # audit
+            ]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -79,12 +91,14 @@ class TestEnhancedTeamPermissionsAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
-            users_data,  # users
-            {"items": []},  # roles
-            {"items": []},  # teams
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [
+                users_data,  # users
+                {"items": []},  # roles
+                {"items": []},  # teams
+                {"items": []},  # audit
+            ]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -108,12 +122,14 @@ class TestEnhancedTeamPermissionsAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
-            users_data,  # users
-            {"items": []},  # roles
-            {"items": []},  # teams
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [
+                users_data,  # users
+                {"items": []},  # roles
+                {"items": []},  # teams
+                {"items": []},  # audit
+            ]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -148,12 +164,14 @@ class TestEnhancedTeamPermissionsAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
-            users_data,  # users
-            {"items": []},  # roles
-            {"items": []},  # teams
-            audit_data,  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [
+                users_data,  # users
+                {"items": []},  # roles
+                {"items": []},  # teams
+                audit_data,  # audit
+            ]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -191,12 +209,14 @@ class TestEnhancedTeamPermissionsAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
-            users_data,  # users
-            {"items": []},  # roles
-            teams_data,  # teams
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [
+                users_data,  # users
+                {"items": []},  # roles
+                teams_data,  # teams
+                {"items": []},  # audit
+            ]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -226,12 +246,14 @@ class TestEnhancedTeamPermissionsAnalyzer:
             ]
         }
 
-        mock_client.get.side_effect = [
-            users_data,  # users
-            roles_data,  # roles
-            {"items": []},  # teams
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [
+                users_data,  # users
+                roles_data,  # roles
+                {"items": []},  # teams
+                {"items": []},  # audit
+            ]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -274,12 +296,14 @@ class TestEnhancedTeamPermissionsAnalyzer:
             ]  # 75% admin ratio
         }
 
-        mock_client.get.side_effect = [
-            users_data,  # users
-            {"items": []},  # roles
-            {"items": []},  # teams
-            {"items": []},  # audit
-        ]
+        mock_client.get.side_effect = _as_responses(
+            [
+                users_data,  # users
+                {"items": []},  # roles
+                {"items": []},  # teams
+                {"items": []},  # audit
+            ]
+        )
 
         result = await analyzer.analyze(mock_client)
 
@@ -299,7 +323,8 @@ class TestEnhancedTeamPermissionsAnalyzer:
         )
 
         assert user.has_admin_access is True
-        assert user.has_write_access is False  # No write permissions
+        # "admin" is one of the write indicators: an admin can write.
+        assert user.has_write_access is True
         assert user.days_since_last_login == 5
 
     def test_role_definition_properties(self):

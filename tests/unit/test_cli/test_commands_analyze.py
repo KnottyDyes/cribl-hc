@@ -447,7 +447,7 @@ class TestRunAnalysisAsync:
 
                     # Verify it contains expected content
                     content = md_file.read_text()
-                    assert "# Cribl Stream Health Check Report" in content
+                    assert "# Cribl Health Check Report" in content
                     assert "test-deployment" in content
                 finally:
                     os.chdir(original_cwd)

@@ -45,7 +45,10 @@ class AnalysisProgress:
         return (self.completed_objectives / self.total_objectives) * 100
 
     def __repr__(self) -> str:
-        return f"AnalysisProgress({self.completed_objectives}/{self.total_objectives})"
+        return (
+            f"AnalysisProgress({self.completed_objectives}/{self.total_objectives}, "
+            f"{self.api_calls_used} API calls)"
+        )
 
 
 class AnalyzerOrchestrator:
@@ -95,6 +98,12 @@ class AnalyzerOrchestrator:
         self.start_time = datetime.utcnow()
         if objectives is None:
             objectives = list_objectives()
+        else:
+            # Fail fast on a typo rather than silently analysing nothing.
+            known = set(list_objectives())
+            unknown = [o for o in objectives if o not in known]
+            if unknown:
+                raise ValueError(f"Unknown objective(s): {', '.join(sorted(unknown))}")
 
         if products:
             requested_products = set(products)
@@ -130,7 +139,6 @@ class AnalyzerOrchestrator:
             self.end_time = datetime.utcnow()
             return results
 
-        # Run all analyzers in parallel
         progress = self.progress
         assert progress is not None  # set above, before any objective runs
 
@@ -142,21 +150,33 @@ class AnalyzerOrchestrator:
                 self.log.error("analyzer_failed", objective=objective, error=str(e))
                 result = AnalyzerResult(objective=objective, success=False, error=str(e))
             progress.complete_objective()
+            # Keep the caller's progress reporting from aborting the analysis.
             if progress_callback:
-                progress_callback(progress)
+                try:
+                    progress_callback(progress)
+                except Exception as e:
+                    self.log.warning("progress_callback_failed", error=str(e))
             return objective, result
 
-        # Execute all objectives in parallel
-        objective_tasks = [run_objective_with_tracking(obj) for obj in objectives]
-        objective_results = await asyncio.gather(*objective_tasks, return_exceptions=True)
+        if self.continue_on_error:
+            objective_tasks = [run_objective_with_tracking(obj) for obj in objectives]
+            objective_results = await asyncio.gather(*objective_tasks, return_exceptions=True)
 
-        # Process results, handling any exceptions
-        for item in objective_results:
-            if isinstance(item, BaseException):
-                self.log.error("parallel_execution_error", error=str(item))
-                continue
-            objective, result = item
-            results[objective] = result
+            for item in objective_results:
+                if isinstance(item, BaseException):
+                    self.log.error("parallel_execution_error", error=str(item))
+                    continue
+                objective, result = item
+                results[objective] = result
+        else:
+            # Stopping on the first failure only means anything in order, so
+            # these run one at a time.
+            for objective in objectives:
+                objective, result = await run_objective_with_tracking(objective)
+                results[objective] = result
+                if not result.success:
+                    self.log.warning("analysis_halted", objective=objective)
+                    break
 
         self.end_time = datetime.utcnow()
         return results
@@ -217,6 +237,25 @@ class AnalyzerOrchestrator:
         analyzer = get_analyzer(objective)
         if not analyzer:
             raise ValueError(f"No analyzer found for: {objective}")
+
+        # Re-read the budget per objective: earlier analyzers have spent some
+        # of it, and an analyzer that cannot complete is worse than one skipped.
+        api_calls_used = self.client.get_api_calls_used()
+        if self.max_api_calls - api_calls_used <= 0:
+            self.log.error("api_budget_exhausted", objective=objective)
+            return AnalyzerResult(
+                objective=objective, success=False, error="API budget exceeded"
+            )
+
+        # An analyzer can declare it has nothing to work with on this
+        # deployment - Lake checks on a Stream-only Leader, say.
+        if not await analyzer.pre_analyze_check(self.client):
+            self.log.info("preflight_check_failed", objective=objective)
+            return AnalyzerResult(
+                objective=objective,
+                success=False,
+                error=f"Pre-flight check failed for '{objective}'; analyzer was not run",
+            )
 
         return await analyzer.analyze(self.client)
 

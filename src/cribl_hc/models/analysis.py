@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Any, ClassVar, Literal, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
@@ -33,12 +33,27 @@ class AnalysisRun(BaseModel):
     deployment_id: str = Field(..., description="Deployment ID", min_length=1)
     started_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[datetime] = None
-    duration_seconds: Optional[float] = Field(default=None, ge=0)
+    # The tool targets a five-minute analysis; a longer run means something
+    # is wrong rather than merely slow.
+    duration_seconds: Optional[float] = Field(default=None, ge=0, le=300.0)
     status: Literal["running", "completed", "partial", "failed"] = Field(
         ..., description="Analysis status"
     )
-    objectives_analyzed: list[str] = Field(..., description="Analyzed objectives")
+    objectives_analyzed: list[str] = Field(
+        ..., description="Analyzed objectives", min_length=1
+    )
     api_calls_used: int = Field(default=0, description="API calls made", ge=0)
+    API_CALL_BUDGET: ClassVar[int] = 100
+
+    @field_validator("api_calls_used")
+    @classmethod
+    def validate_api_call_budget(cls, v: int) -> int:
+        """Reject a run that claims to have spent more than the budget allows."""
+        if v > cls.API_CALL_BUDGET:
+            raise ValueError(
+                f"api_calls_used {v} exceeds budget of {cls.API_CALL_BUDGET}"
+            )
+        return v
     health_score: Optional[HealthScore] = None
     findings: list[Finding] = Field(default_factory=list, description="Identified issues")
     recommendations: list[Recommendation] = Field(

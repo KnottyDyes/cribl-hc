@@ -118,12 +118,18 @@ class FleetAnalyzer(BaseAnalyzer):
                         category="fleet",
                         severity=severity,
                         title=f"Worker Group Behind Leader: {group_id}",
-                        description=f"Worker group '{group_id}' is running config v{group_version}, but leader is at v{leader_version}.",
+                        description=(
+                            f"Worker group '{group_id}' is running config "
+                            f"v{group_version}, but leader is at v{leader_version} "
+                            f"({version_diff} version{'s' if version_diff != 1 else ''} behind)."
+                        ),
                         confidence_level="high",
                         affected_components=[group_id],
                         worker_group=group_id,
                         metadata={
                             "group_id": group_id,
+                            "group_version": group_version,
+                            "leader_version": leader_version,
                             "versions_behind": version_diff,
                             "worker_count": worker_count,
                         },
@@ -304,6 +310,13 @@ class FleetAnalyzer(BaseAnalyzer):
                 for worker in workers
                 if isinstance(worker.get("group"), str) and worker["group"] in hybrid_group_ids
             )
+            # Customer-managed Workers often do not appear in the Leader's
+            # worker list, so fall back to the count each Group declares rather
+            # than reporting zero Workers for a Group that plainly has some.
+            if not total_hybrid_workers:
+                total_hybrid_workers = sum(
+                    int(group.get("workerCount", 0) or 0) for group in hybrid_groups
+                )
             result.add_finding(
                 self.create_finding(
                     client=client,
@@ -439,9 +452,60 @@ class FleetAnalyzer(BaseAnalyzer):
                     )
                 )
 
+    # Worker utilisation at or above this in several deployments is treated
+    # as a fleet-wide pattern rather than a local problem.
+    FLEET_PRESSURE_THRESHOLD = 85
+
     def _detect_fleet_patterns(self, result: AnalyzerResult) -> None:
         if not self._deployment_results:
             return
+
+        # Resource pressure appearing in several deployments at once points at
+        # something shared - sizing, a rollout, upstream volume - rather than
+        # one deployment having a bad day. Worker metrics were collected but
+        # only ever used per-deployment.
+        for metric, label in (
+            ("memory_utilization", "memory"),
+            ("cpu_utilization", "CPU"),
+        ):
+            affected = []
+            for name, data in self._deployment_results.items():
+                for worker in data.get("workers") or []:
+                    value = (worker.get("metrics") or {}).get(metric)
+                    if isinstance(value, (int, float)) and value >= self.FLEET_PRESSURE_THRESHOLD:
+                        affected.append(name)
+                        break
+            if len(affected) >= 2:
+                result.metadata.setdefault("fleet_patterns", []).append(
+                    {"metric": metric, "deployments": affected}
+                )
+                result.add_finding(
+                    self.create_finding(
+                        id=f"fleet-pattern-{metric.replace('_', '-')}",
+                        category="fleet",
+                        severity="high",
+                        title=f"Fleet-Wide {label.title()} Pressure",
+                        description=(
+                            f"{len(affected)} deployments report Workers at or above "
+                            f"{self.FLEET_PRESSURE_THRESHOLD}% {label}: "
+                            f"{', '.join(affected)}. A shared cause is more likely than "
+                            f"coincidence across separate deployments."
+                        ),
+                        confidence_level="medium",
+                        affected_components=affected,
+                        estimated_impact=(
+                            f"Sustained {label} pressure across the fleet risks "
+                            f"backpressure and dropped events"
+                        ),
+                        remediation_steps=[
+                            f"Compare {label} sizing across the affected deployments.",
+                            "Check whether a recent pipeline or pack change raised the cost per event.",
+                            "Look for an upstream volume increase common to all of them.",
+                        ],
+                        metadata={"metric": metric, "deployments": affected},
+                    )
+                )
+
         health_statuses = defaultdict(list)
         for name, data in self._deployment_results.items():
             status = str(data.get("system_status", {}).get("health", "unknown"))

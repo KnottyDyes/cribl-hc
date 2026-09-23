@@ -20,7 +20,11 @@ class CredentialEncryptor:
     """
     Encrypts and decrypts credentials using Fernet symmetric encryption.
 
-    Uses PBKDF2 key derivation from a master password/key for enhanced security.
+    This class takes a key; it does not derive one. derive_key_from_password()
+    is available for callers that want PBKDF2 over a passphrase, and
+    cribl_hc.core.credential_store uses it when CRIBL_HC_MASTER_PASSPHRASE is
+    set. The previous wording here claimed derivation happened as a matter of
+    course, which overstated what the default path does.
     """
 
     def __init__(self, master_key: Optional[bytes] = None):

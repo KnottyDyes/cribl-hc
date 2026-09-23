@@ -15,12 +15,11 @@ def analyzer():
 @pytest.fixture
 def mock_client():
     client = MagicMock(spec=CriblAPIClient)
-    client.capture_events = AsyncMock()
-    # Configure to return empty list for older events (simulating they're not available)
-    client.capture_events.side_effect = (
-        lambda *args, **kwargs: []
-        if "_time <" in str(kwargs.get("filter_expr", ""))
-        else [
+    # return_value, not side_effect: a side_effect set here takes precedence
+    # over any return_value a test assigns later, so every test that set its
+    # own events was silently running against this default instead.
+    client.capture_events = AsyncMock(
+        return_value=[
             {"field_a": "value1", "field_b": "value2", "field_c": "value3"},
             {"field_a": "value4", "field_b": "value5"},
             {"field_a": "value7"},
@@ -74,16 +73,17 @@ class TestSchemaDriftAnalyzer:
     @pytest.mark.asyncio
     async def test_detects_completely_missing_field(self, analyzer, mock_client):
         """Test detection of fields that are completely absent."""
-        events = [
-            {"field_a": "value1", "field_b": "value2"},
-            {"field_a": "value3", "field_b": "value4"},
-            {"field_a": "value5", "field_b": "value6"},
-        ]
+        # field_c appears in 1 of 21 events (~5%). A field that appears in no
+        # event at all cannot be detected without a declared expected schema,
+        # which this analyzer does not have; near-total disappearance is the
+        # condition it exists to catch.
+        events = [{"field_a": "value1", "field_b": "value2"}] * 20
+        events.append({"field_a": "value3", "field_b": "value4", "field_c": "rare"})
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)
 
-        # field_c not present at all (0% presence)
+        # field_c is nearly absent
         disappearance_findings = [
             f for f in result.findings if "schema-drift-field-disappearance-field_c" in f.id
         ]
@@ -93,10 +93,12 @@ class TestSchemaDriftAnalyzer:
     @pytest.mark.asyncio
     async def test_detects_type_inconsistencies(self, analyzer, mock_client):
         """Test detection of fields with multiple types."""
+        # Repeated to clear MIN_SAMPLES_FOR_ANALYSIS (20); the per-field type
+        # sets are what the assertions care about.
         events = [
             {"field_a": "string_value", "field_b": 123},
             {"field_a": 456, "field_b": "string_value"},  # type mismatch
-        ]
+        ] * 10
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)
@@ -119,7 +121,7 @@ class TestSchemaDriftAnalyzer:
             {"source": "input1", "field_a": "value4", "field_b": "value5", "field_c": "value6"},
             {"source": "input2", "field_a": "value7"},  # Different schema
             {"source": "input2", "field_a": "value8"},
-        ]
+        ] * 5  # clear MIN_SAMPLES_FOR_ANALYSIS (20)
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)
@@ -157,7 +159,7 @@ class TestSchemaDriftAnalyzer:
             {"field_a": "value1", "field_b": "value2", "field_c": "value3"},
             {"field_a": "value4", "field_b": "value5", "field_c": "value6"},
             {"field_a": "value7", "field_b": "value8", "field_c": "value9"},
-        ]
+        ] * 7  # clear MIN_SAMPLES_FOR_ANALYSIS (20)
         mock_client.capture_events.return_value = events
 
         result = await analyzer.analyze(mock_client)

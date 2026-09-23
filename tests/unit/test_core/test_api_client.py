@@ -140,7 +140,8 @@ class TestConnectionTesting:
             result = await client.test_connection()
 
             assert result.success is False
-            assert "Connection test failed" in result.message
+            # The message names the failure so an operator can act on it.
+            assert "Cannot connect to Cribl API" in result.message
             assert result.error is not None
             assert "Connection refused" in result.error
 
@@ -158,7 +159,7 @@ class TestConnectionTesting:
             result = await client.test_connection()
 
             assert result.success is False
-            assert "Connection test failed" in result.message
+            assert "timeout" in result.message.lower()
             assert result.error is not None
             assert "Request timeout" in result.error
 
@@ -333,7 +334,17 @@ class TestEdgeAPIMethods:
         }
 
         normalized = client._normalize_node_data(edge_node)
-        assert normalized == edge_node
+
+        # Edge vocabulary is mapped onto Stream's so analyzers need not know
+        # which product answered. This previously asserted the method was a
+        # no-op, which matched the stub rather than the intent - and
+        # contradicted test_edge_integration.
+        assert normalized["status"] == "healthy"
+        assert normalized["group"] == "production"
+        assert normalized["fleet"] == "production"
+        assert normalized["id"] == edge_node["id"]
+        assert normalized["lastSeen"] == edge_node["lastSeen"]
+        assert edge_node["status"] == "connected"  # input not mutated
 
     @pytest.mark.asyncio
     async def test_normalize_stream_node_is_noop(self):

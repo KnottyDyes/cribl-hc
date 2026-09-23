@@ -10,14 +10,21 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from cribl_hc.cli.commands.config import (
-    load_credentials,
-    save_credentials,
-)
 from cribl_hc.core.api_client import CriblAPIClient
+from cribl_hc.core.credential_store import CredentialStore
 from cribl_hc.utils.logger import get_logger
 
 router = APIRouter()
+
+
+def load_credentials() -> dict:
+    """Read the credential store (the API and CLI share one)."""
+    return CredentialStore().load()
+
+
+def save_credentials(credentials: dict) -> None:
+    """Write the credential store."""
+    CredentialStore().save(credentials)
 log = get_logger(__name__)
 
 

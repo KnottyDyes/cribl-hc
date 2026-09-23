@@ -1350,14 +1350,21 @@ class TestConfigAnalyzer:
 
     @pytest.mark.asyncio
     async def test_invalid_filter_expression_detected(self):
-        """Test detection of invalid filter expressions."""
+        """Test detection of invalid filter expressions.
+
+        This previously treated `&&` as a "wrong operator". Cribl route
+        filters are JavaScript expressions, so `&&` and `||` are valid and
+        idiomatic - Cribl's own API reference uses them inside filter: - and
+        flagging them would fire on most real routing configurations. The
+        case is replaced with a genuine structural error.
+        """
         routes = [
             {
                 "id": "bad_route_1",
                 "filter": "status == 200 and (host == 'server1'",
             },  # Unbalanced parens
-            {"id": "bad_route_2", "filter": "path == '/api' && method == 'GET'"},  # Wrong operator
-            {"id": "bad_route_3", "filter": "message == 'test"},  # Unbalanced quotes
+            {"id": "bad_route_2", "filter": 'path == "/api'},  # Unbalanced double quotes
+            {"id": "bad_route_3", "filter": "message == 'test"},  # Unbalanced single quotes
         ]
 
         mock_client = AsyncMock(spec=CriblAPIClient)

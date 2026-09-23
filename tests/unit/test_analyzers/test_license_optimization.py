@@ -4,6 +4,7 @@ Unit tests for LicenseOptimizationAnalyzer.
 
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 
 from cribl_hc.analyzers.license_optimization import (
@@ -13,6 +14,12 @@ from cribl_hc.analyzers.license_optimization import (
     PipelineMetrics,
 )
 from cribl_hc.core.api_client import CriblAPIClient
+
+
+def _as_responses(payloads):
+    """Wrap payloads as httpx.Response, which is what CriblAPIClient.get returns."""
+    return [httpx.Response(200, json=p) for p in payloads]
+
 
 
 class TestLicenseOptimizationAnalyzer:
@@ -67,10 +74,12 @@ class TestLicenseOptimizationAnalyzer:
             }
         }
 
-        mock_client.get.side_effect = [
+        mock_client.get.side_effect = _as_responses(
+[
             license_data,  # license status
             {"items": []},  # license history
         ]
+        )
         mock_client.get_pipelines.return_value = []
         mock_client.get_routes.return_value = []
 
@@ -94,10 +103,12 @@ class TestLicenseOptimizationAnalyzer:
             }
         ]
 
-        mock_client.get.side_effect = [
+        mock_client.get.side_effect = _as_responses(
+[
             {"license": {"usedPercent": 50.0}},  # license
             {"items": []},  # history
         ]
+        )
         mock_client.get_pipelines.return_value = pipelines_data
         mock_client.get_routes.return_value = []
 
@@ -123,10 +134,12 @@ class TestLicenseOptimizationAnalyzer:
             }
         ]
 
-        mock_client.get.side_effect = [
+        mock_client.get.side_effect = _as_responses(
+[
             {"license": {"usedPercent": 50.0}},  # license
             {"items": []},  # history
         ]
+        )
         mock_client.get_pipelines.return_value = pipelines_data
         mock_client.get_routes.return_value = []
 
@@ -159,10 +172,12 @@ class TestLicenseOptimizationAnalyzer:
             {"id": "p8", "name": "Pipeline 8"},
         ]  # 8 pipelines - high complexity
 
-        mock_client.get.side_effect = [
+        mock_client.get.side_effect = _as_responses(
+[
             license_data,  # license
             {"items": []},  # history
         ]
+        )
         mock_client.get_pipelines.return_value = pipelines_data
         mock_client.get_routes.return_value = []
 
@@ -196,10 +211,12 @@ class TestLicenseOptimizationAnalyzer:
             }
         }
 
-        mock_client.get.side_effect = [
+        mock_client.get.side_effect = _as_responses(
+[
             current_license,  # license
             history_data,  # history
         ]
+        )
         mock_client.get_pipelines.return_value = []
         mock_client.get_routes.return_value = []
 
