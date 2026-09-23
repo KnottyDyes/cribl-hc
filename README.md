@@ -44,6 +44,11 @@ Provides actionable insights across health assessment, configuration validation,
 
 ![Full Report](docs/screenshots/review_analysis_full.png)
 
+<sub>Captured with the `cribl-hc-screenshotter` tool, which drives this app over
+HTTP and lives in its own project beside this checkout. Regenerate by starting
+the app, then running `python generate_screenshots.py && ./sync_screenshots.sh dark`
+from that directory.</sub>
+
 ## Supported Products
 
 **✅ Currently Supported:**
