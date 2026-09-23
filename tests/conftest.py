@@ -3,9 +3,20 @@ Pytest configuration and shared fixtures for Cribl Health Check tests.
 """
 
 import asyncio
+import os
 from pathlib import Path
 
 import pytest
+
+# Set before importing anything that builds a rich Console. Rich colourises
+# when it thinks a terminal is attached, which differs between a local run and
+# CI, so assertions on help text passed locally and failed in CI with
+# "--verbose" split by escape sequences. Consoles read this at construction,
+# so a fixture would run too late.
+os.environ.setdefault("NO_COLOR", "1")
+os.environ.setdefault("TERM", "dumb")
+# Typer renders help through rich and forces a terminal unless told otherwise.
+os.environ.setdefault("_TYPER_FORCE_DISABLE_TERMINAL", "1")
 
 
 @pytest.fixture(autouse=True, scope="session")
