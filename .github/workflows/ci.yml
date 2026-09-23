@@ -141,8 +141,8 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  screenshots:
-    name: Generate UI Screenshots
+  web-ui-smoke:
+    name: Web UI Smoke
     runs-on: ubuntu-latest
 
     steps:
@@ -161,15 +161,6 @@ jobs:
         cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
 
-    - name: Install Python dependencies for screenshotter
-      working-directory: screenshotter
-      run: |
-        python -m pip install --upgrade pip
-        pip install playwright pillow
-
-    - name: Install Playwright browsers
-      run: playwright install chromium --with-deps
-
     - name: Install backend dependencies
       run: |
         pip install -r requirements.txt
@@ -179,12 +170,12 @@ jobs:
       working-directory: frontend
       run: npm ci
 
-    # Wait for readiness rather than sleeping a guessed interval: a capture
-    # failure is now fatal, so a server that is merely slow to start would
-    # fail the job rather than silently produce placeholder images.
-    - name: Start backend server
+    # Screenshot capture moved to the cribl-hc-screenshotter project. What that
+    # job proved beyond the images - that both servers actually start and
+    # serve - is kept here; the captures themselves are run from the tool.
+    - name: Start backend and check it serves
       run: |
-        python -m uvicorn cribl_hc.api.app:app --host 0.0.0.0 --port 8000 &
+        python -m uvicorn cribl_hc.api.app:app --host 127.0.0.1 --port 8000 &
         for _ in $(seq 1 30); do
           curl -sf http://localhost:8000/health >/dev/null && exit 0
           sleep 1
@@ -192,7 +183,7 @@ jobs:
         echo "Backend did not become ready on :8000" >&2
         exit 1
 
-    - name: Start frontend dev server
+    - name: Start frontend and check it serves
       working-directory: frontend
       run: |
         npm run dev &
@@ -203,14 +194,7 @@ jobs:
         echo "Frontend did not become ready on :5173" >&2
         exit 1
 
-    - name: Generate screenshots
-      working-directory: screenshotter
-      run: python generate_screenshots.py
-
-    - name: Upload screenshots
-      uses: actions/upload-artifact@v7
-      with:
-        name: ui-screenshots
-        path: screenshotter/screenshots/
-        retention-days: 30
-
+    - name: Check the API answers
+      run: |
+        curl -sf http://localhost:8000/api/v1/health | tee /dev/stderr | grep -q '"status"'
+        curl -sf http://localhost:8000/api/v1/analyzers >/dev/null

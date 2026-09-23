@@ -144,9 +144,7 @@ integration_test_report.json
 *.temp
 .cache/
 
-# Screenshotter artifacts
-screenshotter/screenshots/
-screenshotter/.venv/
+# Screenshot captures (the tool now lives in ../cribl-hc-screenshotter)
 
 # AI Connector Framework (development-only, not for production)
 demo_ai_connector.py
