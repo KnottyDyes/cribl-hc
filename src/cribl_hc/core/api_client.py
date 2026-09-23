@@ -244,13 +244,42 @@ class CriblAPIClient:
                     cribl_version=version,
                     api_url=test_url,
                 )
+            # Name the actual problem: this message is what an operator sees
+            # when a deployment will not connect.
+            status_messages = {
+                401: "Authentication failed - check the API token",
+                403: "Authentication failed - the token lacks permission for this endpoint",
+                404: "API endpoint not found - check the base URL and that this is a Cribl Leader",
+                429: "Rate limited by the Cribl API - retry shortly",
+            }
+            message = status_messages.get(
+                response.status_code, f"Unexpected response code: {response.status_code}"
+            )
             return ConnectionTestResult(
                 success=False,
-                message=f"Unexpected response code: {response.status_code}",
+                message=message,
                 response_time_ms=round(elapsed_ms, 2),
                 cribl_version=None,
                 api_url=test_url,
                 error=f"HTTP {response.status_code}: {response.text}",
+            )
+        except httpx.TimeoutException as e:
+            return ConnectionTestResult(
+                success=False,
+                message=f"Connection timeout talking to the Cribl API at {self.base_url}",
+                response_time_ms=(datetime.utcnow() - start_time).total_seconds() * 1000,
+                cribl_version=None,
+                api_url=test_url,
+                error=str(e),
+            )
+        except httpx.RequestError as e:
+            return ConnectionTestResult(
+                success=False,
+                message=f"Cannot connect to Cribl API at {self.base_url}",
+                response_time_ms=(datetime.utcnow() - start_time).total_seconds() * 1000,
+                cribl_version=None,
+                api_url=test_url,
+                error=str(e),
             )
         except Exception as e:
             return ConnectionTestResult(
