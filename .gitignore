@@ -156,3 +156,13 @@ tests/integration/test_ai_connector.py
 
 # Cribl API reference specs (multi-MB; fetch with scripts/fetch_cribl_api_spec.py)
 cribl_api_reference/*.yml
+
+# One-off API discovery output, written by scripts/discover_*.py
+scripts/*_inspection.json
+scripts/api_discovery_*.json
+scripts/discovery_output.txt
+scripts/search_discovery_detailed.*
+
+# Reports written by a local CLI run
+/default_report.md
+/prod_report.md

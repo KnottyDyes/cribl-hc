@@ -94,7 +94,7 @@ The system is built on a modular "Analyzer" pattern.
 3.  **API Key Usage Audit**: Identify stale/unused keys beyond just expiration.
 
 ### 5.2 Active Development: CriblVision Pack Replication
-*Source: `IMPLEMENTATION_READY.md` & `docs/ANALYZER_GAPS_ROADMAP.md`*
+*Source: `docs/history/IMPLEMENTATION_READY.md` & `docs/ANALYZER_GAPS_ROADMAP.md`*
 Replicate functionality from the CriblVision pack into standalone analyzers.
 - **Phase 1**: Pipeline Bottleneck Detection (`MetricsCollector`, `PipelineBottleneckAnalyzer`).
 - **Phase 2**: Worker & Endpoint Health (`WorkerGroupBalanceAnalyzer`, `EndpointHealthAnalyzer`).

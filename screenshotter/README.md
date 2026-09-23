@@ -267,7 +267,7 @@ The script falls back to default fonts if the system font is unavailable. This i
 
 ## Related Documentation
 
-- **CriblVision Pack Documentation**: See `/Projects/cribl-hc/CRIBLVISION_SEARCH_SUMMARY.md`
+- **CriblVision Pack Documentation**: See `docs/history/CRIBLVISION_SEARCH_SUMMARY.md`
 - **Frontend Code**: `/Projects/cribl-hc/frontend/src/components/`
 - **Component Selectors**: See SELECTORS in `generate_screenshots.py`
 
