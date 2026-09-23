@@ -25,7 +25,8 @@ custom_patterns:
     severity: "medium"
     category: "corporate"
     remediation: "Mask or redact employee IDs in production logs and outputs"
-    enabled: true
+    # Examples ship disabled: enable after adapting the pattern to your data.
+    enabled: false
 
   # Example: Custom project codes
   - name: "project_code"
@@ -34,7 +35,7 @@ custom_patterns:
     severity: "low"
     category: "corporate"
     remediation: "Consider if project codes need masking based on sensitivity"
-    enabled: true
+    enabled: false
 
   # Add your custom patterns here...
   # - name: "your_pattern_name"

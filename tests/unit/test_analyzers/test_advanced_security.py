@@ -168,7 +168,8 @@ class TestAdvancedSecurityAnalyzer:
 
         summary = summary_findings[0]
         assert "Advanced Security Analysis" in summary.title
-        assert summary.metadata["events_analyzed"] == 3
+        # 3 distinct events repeated 5x to clear the 10-sample analysis gate.
+        assert summary.metadata["events_analyzed"] == 15
 
     @pytest.mark.asyncio
     async def test_compliance_framework_enabling(self, analyzer, mock_client):

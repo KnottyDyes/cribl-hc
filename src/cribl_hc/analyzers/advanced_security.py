@@ -695,7 +695,13 @@ class AdvancedSecurityAnalyzer(BaseAnalyzer):
         return findings
 
     def add_custom_pattern(self, pattern: CustomPattern) -> None:
-        """Add a custom sensitive data pattern."""
+        """
+        Add a custom sensitive data pattern.
+
+        A pattern name identifies it, so adding one that is already present
+        replaces it rather than leaving both to match the same data twice.
+        """
+        self.custom_patterns = [p for p in self.custom_patterns if p.name != pattern.name]
         self.custom_patterns.append(pattern)
 
     def enable_compliance_framework(self, framework_name: str) -> None:
