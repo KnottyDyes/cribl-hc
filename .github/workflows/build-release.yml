@@ -83,7 +83,7 @@ jobs:
 
       - name: Upload artifacts (macOS)
         if: matrix.platform.os == 'macos-latest'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cribl-hc-${{ matrix.platform.name }}
           path: |
@@ -92,7 +92,7 @@ jobs:
 
       - name: Upload artifacts (Linux)
         if: matrix.platform.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cribl-hc-${{ matrix.platform.name }}
           path: |
@@ -101,7 +101,7 @@ jobs:
 
       - name: Upload artifacts (Windows)
         if: matrix.platform.os == 'windows-latest'
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cribl-hc-${{ matrix.platform.name }}
           path: |
