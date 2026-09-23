@@ -2,7 +2,6 @@
 Config command for managing credentials and settings.
 """
 
-import json
 import re
 from pathlib import Path
 from typing import Any, Optional
@@ -11,7 +10,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from cribl_hc.utils.crypto import CredentialEncryptor, generate_master_key
+from cribl_hc.core.credential_store import CredentialStore, default_config_dir
 from cribl_hc.utils.logger import get_logger
 
 console = Console()
@@ -19,10 +18,21 @@ log = get_logger(__name__)
 
 app = typer.Typer(help="Manage credentials and configuration")
 
-# Default config directory
-CONFIG_DIR = Path.home() / ".cribl-hc"
+# Storage lives in cribl_hc.core.credential_store, which the REST API uses too.
+# These names stay so the paths remain overridable per process (and patchable
+# in tests); _store() reads them on every call rather than binding once.
+CONFIG_DIR = default_config_dir()
 CREDENTIALS_FILE = CONFIG_DIR / "credentials.enc"
 KEY_FILE = CONFIG_DIR / ".key"
+
+
+def _store() -> CredentialStore:
+    """Build a store from the module paths as they currently stand."""
+    return CredentialStore(
+        config_dir=CONFIG_DIR,
+        credentials_file=CREDENTIALS_FILE,
+        key_file=KEY_FILE,
+    )
 
 
 def ensure_config_dir():
@@ -34,45 +44,17 @@ def ensure_config_dir():
 
 def get_or_create_key() -> bytes:
     """Get existing encryption key or create new one."""
-    ensure_config_dir()
-
-    if KEY_FILE.exists():
-        return KEY_FILE.read_bytes()
-
-    # Generate new key
-    key = generate_master_key()
-    KEY_FILE.write_bytes(key)
-    KEY_FILE.chmod(0o600)  # Restrictive permissions
-    console.print("[green]✓ Created new encryption key[/green]")
-    return key
+    return _store().resolve_key()
 
 
 def load_credentials() -> dict:
     """Load encrypted credentials."""
-    if not CREDENTIALS_FILE.exists():
-        return {}
-
-    key = get_or_create_key()
-    encryptor = CredentialEncryptor(master_key=key)
-
-    encrypted_data = CREDENTIALS_FILE.read_bytes()
-    decrypted_json = encryptor.decrypt(encrypted_data)
-
-    return json.loads(decrypted_json)
+    return _store().load()
 
 
 def save_credentials(credentials: dict):
     """Save encrypted credentials."""
-    ensure_config_dir()
-
-    key = get_or_create_key()
-    encryptor = CredentialEncryptor(master_key=key)
-
-    json_data = json.dumps(credentials, indent=2)
-    encrypted_data = encryptor.encrypt(json_data)
-
-    CREDENTIALS_FILE.write_bytes(encrypted_data)
-    CREDENTIALS_FILE.chmod(0o600)  # Restrictive permissions
+    _store().save(credentials)
 
 
 @app.command("set")
@@ -112,6 +94,8 @@ def set_credential(
         console.print(f"[dim]URL:[/dim] {url}")
         console.print(f"[dim]Storage:[/dim] {CREDENTIALS_FILE}")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]✗ Failed to save credentials:[/red] {str(e)}")
         raise typer.Exit(code=1)
@@ -274,6 +258,8 @@ def add_credential_from_curl(
         console.print(f"[dim]URL:[/dim] {url}")
         console.print(f"[dim]Use with:[/dim] cribl-hc analyze run --deployment {name}")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]✗ Failed to add credentials:[/red] {str(e)}")
         raise typer.Exit(code=1)
@@ -303,6 +289,8 @@ def get_credential(
         console.print(f"[dim]URL:[/dim] {cred['url']}")
         console.print(f"[dim]Token:[/dim] {'*' * 40}")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]✗ Failed to retrieve credentials:[/red] {str(e)}")
         raise typer.Exit(code=1)
@@ -340,6 +328,8 @@ def list_credentials():
         console.print(table)
         console.print(f"\n[dim]Storage location:[/dim] {CREDENTIALS_FILE}")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]✗ Failed to list credentials:[/red] {str(e)}")
         raise typer.Exit(code=1)
@@ -421,6 +411,52 @@ def delete_credential(
         raise typer.Exit(code=1) from e
 
 
+@app.command("prune")
+def prune_credentials(
+    prefix: str = typer.Argument(..., help="Delete every credential whose name starts with this"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
+):
+    """
+    Delete stored credentials by name prefix.
+
+    Useful for clearing batches left behind by automation or test runs.
+
+    Examples:
+
+        cribl-hc config prune analysis-test- --yes
+        cribl-hc config prune staging-
+    """
+    try:
+        store = _store()
+        matches = sorted(n for n in store.load() if n.startswith(prefix))
+
+        if not matches:
+            console.print(f"[yellow]No credentials start with:[/yellow] {prefix}")
+            raise typer.Exit(code=1)
+
+        if not yes:
+            console.print(
+                f"[yellow]⚠ This will delete {len(matches)} credential(s) "
+                f"starting with '{prefix}':[/yellow]"
+            )
+            for name in matches[:10]:
+                console.print(f"  • {name}")
+            if len(matches) > 10:
+                console.print(f"  … and {len(matches) - 10} more")
+            if not typer.confirm("\nDelete them?", default=False):
+                console.print("[yellow]Cancelled[/yellow]")
+                raise typer.Exit(code=0)
+
+        removed = store.prune(prefix)
+        console.print(f"[green]✓ Deleted {len(removed)} credential(s)[/green]")
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"[red]✗ Failed to prune credentials:[/red] {str(e)}")
+        raise typer.Exit(code=1) from e
+
+
 @app.command("export-key")
 def export_key(
     output: Optional[Path] = typer.Option(
@@ -453,6 +489,8 @@ def export_key(
             console.print("[yellow]WARNING: Keep this key secure![/yellow]")
             console.print(f"\n{key_str}\n")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]✗ Failed to export key:[/red] {str(e)}")
         raise typer.Exit(code=1)
@@ -516,6 +554,8 @@ def list_pii_patterns():
         console.print(table)
         console.print(f"\n[dim]Configuration file: {patterns_file}[/dim]")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]✗ Failed to list PII patterns:[/red] {str(e)}")
         raise typer.Exit(code=1)
@@ -596,6 +636,8 @@ def add_pii_pattern(
         console.print(f"[green]✓ Added custom PII pattern:[/green] {name}")
         console.print(f"[dim]Configuration saved to: {patterns_file}[/dim]")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]✗ Failed to add PII pattern:[/red] {str(e)}")
         raise typer.Exit(code=1)
@@ -641,6 +683,8 @@ def add_pii_pattern(
         console.print(f"[green]✓ Added custom PII pattern:[/green] {name}")
         console.print(f"[dim]Configuration saved to: {patterns_file}[/dim]")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]✗ Failed to add PII pattern:[/red] {str(e)}")
         raise typer.Exit(code=1)
@@ -720,6 +764,8 @@ def edit_pii_pattern(
 
         console.print(f"[green]✓ Updated PII pattern:[/green] {name}")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]✗ Failed to edit PII pattern:[/red] {str(e)}")
         raise typer.Exit(code=1)
@@ -774,6 +820,8 @@ def remove_pii_pattern(
 
         console.print(f"[green]✓ Removed PII pattern:[/green] {name}")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]✗ Failed to remove PII pattern:[/red] {str(e)}")
         raise typer.Exit(code=1)
@@ -857,6 +905,8 @@ def validate_pii_patterns():
 
         console.print(f"[green]✅ All {len(patterns)} patterns validated successfully[/green]")
 
+    except typer.Exit:
+        raise
     except yaml.YAMLError as e:
         console.print(f"[red]❌ YAML syntax error in configuration file:[/red] {e}")
         raise typer.Exit(code=1)

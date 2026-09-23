@@ -8,6 +8,50 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(autouse=True, scope="session")
+def isolate_credential_store(tmp_path_factory):
+    """Keep every test out of the real credential store.
+
+    The API tests create credentials through the live router, which writes to
+    the configured store. Without this the suite appended to
+    ~/.cribl-hc/credentials.enc on every run and never cleaned up - a real
+    machine accumulated 1,617 stray entries that way. Redirecting the whole
+    session means no test can reach the developer's own credentials, whether
+    or not it remembers to patch anything.
+    """
+    import os
+
+    from cribl_hc.core.credential_store import ENV_CONFIG_DIR
+
+    store_dir = tmp_path_factory.mktemp("cribl-hc-config")
+    previous = os.environ.get(ENV_CONFIG_DIR)
+    os.environ[ENV_CONFIG_DIR] = str(store_dir)
+
+    # config.py resolved its paths at import time, so repoint those too.
+    from cribl_hc.cli.commands import config as config_module
+
+    saved = (
+        config_module.CONFIG_DIR,
+        config_module.CREDENTIALS_FILE,
+        config_module.KEY_FILE,
+    )
+    config_module.CONFIG_DIR = store_dir
+    config_module.CREDENTIALS_FILE = store_dir / "credentials.enc"
+    config_module.KEY_FILE = store_dir / ".key"
+
+    yield store_dir
+
+    (
+        config_module.CONFIG_DIR,
+        config_module.CREDENTIALS_FILE,
+        config_module.KEY_FILE,
+    ) = saved
+    if previous is None:
+        os.environ.pop(ENV_CONFIG_DIR, None)
+    else:
+        os.environ[ENV_CONFIG_DIR] = previous
+
+
 @pytest.fixture
 def test_data_dir() -> Path:
     """Return path to test data directory."""
