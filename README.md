@@ -587,23 +587,24 @@ Sisyphus
 
 ---
 
-## 🤖 AI Development Assistance
+## Possible future work
 
-**Note**: This project includes AI-powered development tools for enhanced productivity during development, but AI features are **not yet integrated** into the main application for production use. The AI connector framework is available for development assistance only and leverages local Harbor/Ollama infrastructure for parallel task execution.
+None of the following is implemented. It is recorded as direction, not as a
+promise:
 
-Future roadmap includes AI-powered features such as:
 - Intelligent finding analysis and prioritization
 - Natural language health check queries
 - Automated remediation script generation
 - ML-based predictive analytics
 - Smart recommendations based on deployment patterns
 
-These features require additional infrastructure planning and are not yet implemented in the production application.
+Each of these needs an LLM to run somewhere, and deciding where — local,
+hosted, or the user's own key — is the part that has not been worked out.
 
 ---
 
 **Status**: Production Ready - Phase 13 Complete
-**Version**: 0.5.0
+**Version**: 0.6.0
 **Python**: 3.11+
 **Cribl Stream**: 4.x from 4.5 up; validated against 4.20. Newer 4.x releases analyze with a warning.
-**Tests**: 258+ passing (unit + integration)
+**Tests**: 1,681 passing (unit + integration)
