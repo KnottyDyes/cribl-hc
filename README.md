@@ -109,7 +109,23 @@ The backend is bundled in, so there is nothing else to install.
 | Windows | `.msi` or `.exe` |
 | macOS (Apple Silicon) | `.dmg` |
 | macOS (Intel) | `.dmg` |
-| Linux | `.AppImage` or `.deb` |
+| Linux | `.AppImage`, `.deb` or `.rpm` |
+
+These builds are not code-signed, so the OS will warn you the first time you
+open one. This is expected for an unsigned open-source build, not a sign that
+anything is wrong with the download:
+
+- **macOS** — right-click the app and choose *Open*, then *Open* again in the
+  dialog. Double-clicking will only offer to move it to the Bin. You need do
+  this once.
+- **Windows** — SmartScreen shows "Windows protected your PC". Choose *More
+  info*, then *Run anyway*.
+- **Linux** — no warning; mark the `.AppImage` executable with
+  `chmod +x` if your file manager has not.
+
+Signing them properly needs a paid Apple Developer account and a Windows
+code-signing certificate. If you would rather not click through the warnings,
+use Docker or the CLI instead.
 
 ### Option 2: Docker (Recommended for Web GUI)
 
