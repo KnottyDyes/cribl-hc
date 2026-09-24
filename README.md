@@ -37,7 +37,7 @@ Provides actionable insights across health assessment, configuration validation,
 - **Visual Results**: Interactive findings table with filtering and sorting
 - **REST API**: Full API backend for programmatic access
 - **Docker Support**: One-command deployment with Docker Compose
-- **Desktop App**: Windows, macOS and Linux builds with the backend bundled in
+- **Desktop App**: Windows, macOS (Apple Silicon) and Linux builds with the backend bundled in
 
 ### Web GUI Screenshots (Dark Mode)
 
@@ -108,8 +108,10 @@ The backend is bundled in, so there is nothing else to install.
 |---|---|
 | Windows | `.msi` or `.exe` |
 | macOS (Apple Silicon) | `.dmg` |
-| macOS (Intel) | `.dmg` |
 | Linux | `.AppImage`, `.deb` or `.rpm` |
+
+There is no Intel Mac build. Apple Silicon binaries cannot run on Intel
+hardware, so use the Docker image or the CLI on those machines.
 
 These builds are not code-signed, so the OS will warn you the first time you
 open one. This is expected for an unsigned open-source build, not a sign that

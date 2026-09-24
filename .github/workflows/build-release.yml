@@ -23,12 +23,12 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             name: linux
-          # Intel Macs build on macos-13. macos-latest is Apple Silicon, and
-          # PyInstaller cannot cross-compile the backend, so building the Intel
-          # target there would bundle an arm64 binary into an x86_64 app.
-          - os: macos-13
-            target: x86_64-apple-darwin
-            name: macos-intel
+          # No Intel macOS target. PyInstaller cannot cross-compile, so it
+          # needs a genuine x86_64 macOS runner: macos-13 has been retired
+          # (jobs sent there queue forever rather than fail), and the
+          # replacement macos-15-intel is a larger runner, which is billed
+          # even on public repos and needs a Team/Enterprise org plan.
+          # Intel Mac users should use the Docker image or the CLI.
           - os: macos-latest
             target: aarch64-apple-darwin
             name: macos-apple-silicon
