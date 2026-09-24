@@ -96,6 +96,7 @@ jobs:
             BACKEND="dist/cribl-hc-backend"
           fi
           "$BACKEND" &
+          BACKEND_PID=$!
           for _ in $(seq 1 45); do
             curl -sf http://localhost:8080/api/v1/health >/dev/null && break
             sleep 1
@@ -106,6 +107,8 @@ jobs:
           # A frozen build that loses analyzer discovery still starts and still
           # answers /health, so assert on the count rather than on liveness.
           [ "$COUNT" -ge 40 ] || { echo "only $COUNT analyzers in the bundle" >&2; exit 1; }
+          # Leave nothing holding 8080 for the rest of the job.
+          kill "$BACKEND_PID" 2>/dev/null || true
 
       # Tauri v2 resolves a sidecar as <name>-<target triple>[.exe]. The copy
       # step used to leave the file unsuffixed, which fails the build outright.
@@ -114,7 +117,9 @@ jobs:
         run: |
           mkdir -p src-tauri/binaries
           TRIPLE="${{ matrix.platform.target }}"
-          HOST="$(rustc --print host-triple)"
+          # Rust renamed this print request; host-triple is a hard error on
+          # current toolchains and host-tuple is absent on older ones.
+          HOST="$(rustc --print host-tuple 2>/dev/null || rustc --print host-triple)"
           if [ "$TRIPLE" != "$HOST" ]; then
             echo "Target $TRIPLE does not match host $HOST; PyInstaller cannot cross-compile." >&2
             exit 1
