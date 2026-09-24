@@ -2,3 +2,8 @@
 # will have compiled files and executables
 /target/
 /gen/schemas
+
+# PyInstaller output, produced by `npm run tauri:build:backend` and by the
+# release workflow. Two 19.7MB macOS-arm64 builds used to be committed here,
+# which no other platform could use and CI rebuilds anyway.
+/binaries/

@@ -1,5 +1,12 @@
-# Cribl Health Check - Runtime Dependencies
-# Install with: pip install -r requirements.txt
+# Runtime dependencies for cribl-hc.
+#
+# pyproject.toml is the source of truth; this file exists for `pip install -r`
+# workflows and must mirror [project.dependencies] there. Keeping two hand-
+# maintained lists had already let them drift: this file carried Pillow, which
+# belonged to the screenshotter, and omitted pyyaml, textual, packaging and
+# numpy, which the package genuinely needs.
+#
+# Prefer `pip install -e .` (or `pip install -e ".[web]"`) where you can.
 
 # HTTP client with async support
 httpx>=0.25.0
@@ -13,15 +20,20 @@ typer>=0.9.0
 # Terminal formatting and output
 rich>=13.7.0
 
+# Terminal UI
+textual>=0.47.0
+
 # Structured logging for audit trails
 structlog>=23.2.0
 
 # Credential encryption
 cryptography>=41.0.0
 
-# Date/time utilities
-python-dateutil>=2.8.0
+# Rule definitions and custom pattern config
+pyyaml>=6.0.0
 
-# Image processing
-Pillow>=10.0.0
+# Version comparison
+packaging>=23.0
 
+# Statistics for worker group balance analysis
+numpy>=1.26.0
