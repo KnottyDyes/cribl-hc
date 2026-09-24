@@ -12,7 +12,7 @@
 
 Provides actionable insights across health assessment, configuration validation, performance optimization, advanced security auditing with healthcare/financial compliance, multi-deployment comparison, and scheduled monitoring with notifications.
 
-**✨ New in v0.5.0**: Advanced Security & Compliance (HIPAA/SOC2/GDPR), Multi-Deployment Comparison, and Scheduled Health Checks with Slack/PagerDuty notifications.
+**✨ New in v0.6.0**: Advanced Security & Compliance (HIPAA/SOC2/GDPR), Multi-Deployment Comparison, and Scheduled Health Checks with Slack/PagerDuty notifications.
 
 **🔒 Data Privacy**: This tool adheres to strict data governance standards. See [DATA_PRIVACY.md](docs/DATA_PRIVACY.md) for details on how we handle transient event data.
 
