@@ -1,37 +1,4 @@
-<!--
-Sync Impact Report - Constitution Update
-
-Version Change: INITIAL → 1.0.0
-Change Type: MAJOR (Initial ratification)
-
-Principles Added:
-  1. Read-Only by Default
-  2. Actionability First
-  3. API-First Design
-  4. Minimal Data Collection
-  5. Stateless Analysis
-  6. Graceful Degradation
-  7. Performance Efficiency
-  8. Pluggable Architecture
-  9. Test-Driven Development
-  10. Security by Design
-  11. Version Compatibility
-  12. Transparent Methodology
-  13. Safe Branch Management
-
-Template Updates Required:
-  ✅ plan-template.md - Constitution Check section references this file
-  ✅ spec-template.md - Requirements alignment verified
-  ✅ tasks-template.md - Task categorization aligned with principles
-  ⚠️  Command files - May reference agent-specific guidance (to be reviewed)
-
-Follow-up TODOs:
-  - Review all .claude/commands/*.md files for outdated agent-specific references
-  - Ensure runtime guidance documents reference these principles
-  - Add constitution compliance checks to CI/CD pipeline (future enhancement)
--->
-
-# Cribl Health Check (cribl-hc) Constitution
+# Development Principles
 
 ## Core Principles
 

@@ -1,49 +1,46 @@
 # -*- mode: python ; coding: utf-8 -*-
+"""
+PyInstaller spec for the backend bundled into the Tauri desktop app.
 
+Analyzers are discovered at runtime with pkgutil.iter_modules (see
+cribl_hc/analyzers/__init__.py), which PyInstaller's static analysis cannot
+see. Listing them by hand does not work either: the previous version of this
+file named three of the fifty-six analyzer modules, and a bundle built that way
+registered zero analyzers, because nothing under cribl_hc.analyzers had been
+collected for iter_modules to find.
+
+collect_submodules pulls in every module in the package, so discovery finds the
+same set frozen as it does from source, and new analyzers are picked up without
+touching this file. collect_data_files brings the rule and pattern YAML with
+them.
+"""
+
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
+hiddenimports = collect_submodules("cribl_hc")
+
+# uvicorn resolves these by string at runtime, so they need naming explicitly.
+hiddenimports += [
+    "uvicorn.logging",
+    "uvicorn.loops",
+    "uvicorn.loops.auto",
+    "uvicorn.protocols",
+    "uvicorn.protocols.http",
+    "uvicorn.protocols.http.auto",
+    "uvicorn.protocols.websockets",
+    "uvicorn.protocols.websockets.auto",
+    "uvicorn.lifespan",
+    "uvicorn.lifespan.on",
+]
+
+datas = collect_data_files("cribl_hc")
 
 a = Analysis(
-    ['run_api.py'],
+    ["run_api.py"],
     pathex=[],
     binaries=[],
-    datas=[('src/cribl_hc', 'cribl_hc')],
-    hiddenimports=[
-        'cribl_hc',
-        'cribl_hc.api',
-        'cribl_hc.api.app',
-        'cribl_hc.api.routers',
-        'cribl_hc.api.routers.analysis',
-        'cribl_hc.api.routers.analyzers',
-        'cribl_hc.api.routers.credentials',
-        'cribl_hc.analyzers',
-        'cribl_hc.analyzers.health',
-        'cribl_hc.analyzers.config',
-        'cribl_hc.analyzers.resource',
-        'cribl_hc.core',
-        'cribl_hc.core.api_client',
-        'cribl_hc.core.orchestrator',
-        'cribl_hc.core.health_scorer',
-        'cribl_hc.core.report_generator',
-        'cribl_hc.models',
-        'cribl_hc.utils',
-        'fastapi',
-        'uvicorn',
-        'uvicorn.logging',
-        'uvicorn.loops',
-        'uvicorn.loops.auto',
-        'uvicorn.protocols',
-        'uvicorn.protocols.http',
-        'uvicorn.protocols.http.auto',
-        'uvicorn.protocols.websockets',
-        'uvicorn.protocols.websockets.auto',
-        'uvicorn.lifespan',
-        'uvicorn.lifespan.on',
-        'pydantic',
-        'httpx',
-        'typer',
-        'rich',
-        'structlog',
-        'cryptography',
-    ],
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -59,7 +56,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='cribl-hc-backend',
+    name="cribl-hc-backend",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

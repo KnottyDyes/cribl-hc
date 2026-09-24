@@ -147,12 +147,6 @@ integration_test_report.json
 # Screenshot captures (the tool now lives in ../cribl-hc-screenshotter)
 screenshotter/
 
-# AI Connector Framework (development-only, not for production)
-demo_ai_connector.py
-src/cribl_hc/core/ai_connector.py
-tests/unit/test_ai_connector.py
-tests/integration/test_ai_connector.py
-
 # Cribl API reference specs (multi-MB; fetch with scripts/fetch_cribl_api_spec.py)
 cribl_api_reference/*.yml
 
@@ -165,3 +159,17 @@ scripts/search_discovery_detailed.*
 # Reports written by a local CLI run
 /default_report.md
 /prod_report.md
+
+# Local tooling and assistant scaffolding. This is per-developer setup, not
+# part of the project; keeping it out means a clone carries only what is
+# needed to build and run cribl-hc.
+.specify/
+.claude/
+.agentignore
+.agent_spec_context.md
+.ai_env
+CLAUDE.md
+.cursor/
+.aider*
+.vscode/
+.idea/

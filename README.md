@@ -37,6 +37,7 @@ Provides actionable insights across health assessment, configuration validation,
 - **Visual Results**: Interactive findings table with filtering and sorting
 - **REST API**: Full API backend for programmatic access
 - **Docker Support**: One-command deployment with Docker Compose
+- **Desktop App**: Windows, macOS and Linux builds with the backend bundled in
 
 ### Web GUI Screenshots (Dark Mode)
 
@@ -97,7 +98,20 @@ _*Disk metrics available on self-hosted deployments only. Cribl Cloud does not e
 - (Optional) Docker for containerized deployment
 - (Optional) Node.js 18+ for frontend development
 
-### Option 1: Docker (Recommended for Web GUI)
+### Option 1: Desktop App
+
+Download the build for your platform from the
+[latest release](https://github.com/KnottyDyes/cribl-hc/releases) and run it.
+The backend is bundled in, so there is nothing else to install.
+
+| Platform | Download |
+|---|---|
+| Windows | `.msi` or `.exe` |
+| macOS (Apple Silicon) | `.dmg` |
+| macOS (Intel) | `.dmg` |
+| Linux | `.AppImage` or `.deb` |
+
+### Option 2: Docker (Recommended for Web GUI)
 
 ```bash
 # Clone repository
@@ -111,7 +125,7 @@ docker-compose up -d
 open http://localhost:8080/api/docs
 ```
 
-### Option 2: Install from Source
+### Option 3: Install from Source
 
 ```bash
 # Clone repository
@@ -414,7 +428,7 @@ This project follows 12 core principles:
 11. **Version Compatibility**: Support Cribl Stream 4.5 and above
 12. **Transparent Methodology**: Documented scoring and recommendations
 
-See [.specify/memory/constitution.md](.specify/memory/constitution.md) for complete details.
+See [docs/PRINCIPLES.md](docs/PRINCIPLES.md) for complete details.
 
 ## Development
 
