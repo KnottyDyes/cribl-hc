@@ -37,6 +37,7 @@ Provides actionable insights across health assessment, configuration validation,
 - **Visual Results**: Interactive findings table with filtering and sorting
 - **REST API**: Full API backend for programmatic access
 - **Docker Support**: One-command deployment with Docker Compose
+- **Desktop App**: Windows, macOS (Apple Silicon) and Linux builds with the backend bundled in
 
 ### Web GUI Screenshots (Dark Mode)
 
@@ -97,7 +98,38 @@ _*Disk metrics available on self-hosted deployments only. Cribl Cloud does not e
 - (Optional) Docker for containerized deployment
 - (Optional) Node.js 18+ for frontend development
 
-### Option 1: Docker (Recommended for Web GUI)
+### Option 1: Desktop App
+
+Download the build for your platform from the
+[latest release](https://github.com/KnottyDyes/cribl-hc/releases) and run it.
+The backend is bundled in, so there is nothing else to install.
+
+| Platform | Download |
+|---|---|
+| Windows | `.msi` or `.exe` |
+| macOS (Apple Silicon) | `.dmg` |
+| Linux | `.AppImage`, `.deb` or `.rpm` |
+
+There is no Intel Mac build. Apple Silicon binaries cannot run on Intel
+hardware, so use the Docker image or the CLI on those machines.
+
+These builds are not code-signed, so the OS will warn you the first time you
+open one. This is expected for an unsigned open-source build, not a sign that
+anything is wrong with the download:
+
+- **macOS** — right-click the app and choose *Open*, then *Open* again in the
+  dialog. Double-clicking will only offer to move it to the Bin. You need do
+  this once.
+- **Windows** — SmartScreen shows "Windows protected your PC". Choose *More
+  info*, then *Run anyway*.
+- **Linux** — no warning; mark the `.AppImage` executable with
+  `chmod +x` if your file manager has not.
+
+Signing them properly needs a paid Apple Developer account and a Windows
+code-signing certificate. If you would rather not click through the warnings,
+use Docker or the CLI instead.
+
+### Option 2: Docker (Recommended for Web GUI)
 
 ```bash
 # Clone repository
@@ -111,7 +143,7 @@ docker-compose up -d
 open http://localhost:8080/api/docs
 ```
 
-### Option 2: Install from Source
+### Option 3: Install from Source
 
 ```bash
 # Clone repository
@@ -414,7 +446,7 @@ This project follows 12 core principles:
 11. **Version Compatibility**: Support Cribl Stream 4.5 and above
 12. **Transparent Methodology**: Documented scoring and recommendations
 
-See [.specify/memory/constitution.md](.specify/memory/constitution.md) for complete details.
+See [docs/PRINCIPLES.md](docs/PRINCIPLES.md) for complete details.
 
 ## Development
 
@@ -555,23 +587,24 @@ Sisyphus
 
 ---
 
-## 🤖 AI Development Assistance
+## Possible future work
 
-**Note**: This project includes AI-powered development tools for enhanced productivity during development, but AI features are **not yet integrated** into the main application for production use. The AI connector framework is available for development assistance only and leverages local Harbor/Ollama infrastructure for parallel task execution.
+None of the following is implemented. It is recorded as direction, not as a
+promise:
 
-Future roadmap includes AI-powered features such as:
 - Intelligent finding analysis and prioritization
 - Natural language health check queries
 - Automated remediation script generation
 - ML-based predictive analytics
 - Smart recommendations based on deployment patterns
 
-These features require additional infrastructure planning and are not yet implemented in the production application.
+Each of these needs an LLM to run somewhere, and deciding where — local,
+hosted, or the user's own key — is the part that has not been worked out.
 
 ---
 
 **Status**: Production Ready - Phase 13 Complete
-**Version**: 0.5.0
+**Version**: 0.6.0
 **Python**: 3.11+
 **Cribl Stream**: 4.x from 4.5 up; validated against 4.20. Newer 4.x releases analyze with a warning.
-**Tests**: 258+ passing (unit + integration)
+**Tests**: 1,681 passing (unit + integration)

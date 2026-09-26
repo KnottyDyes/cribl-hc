@@ -16,7 +16,7 @@
 ---
 
 ## 2. Constitution & Core Principles
-All development **MUST** adhere to the **13 Constitution Principles** (Source: `.specify/memory/constitution.md`):
+All development **MUST** adhere to the **13 development principles** (Source: `docs/PRINCIPLES.md`):
 
 1.  **Read-Only by Default**: GET requests only. Zero state modification.
 2.  **Actionability First**: Findings must have clear remediation.

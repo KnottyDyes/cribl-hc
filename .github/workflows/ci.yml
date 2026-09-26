@@ -175,12 +175,12 @@ jobs:
     # serve - is kept here; the captures themselves are run from the tool.
     - name: Start backend and check it serves
       run: |
-        python -m uvicorn cribl_hc.api.app:app --host 127.0.0.1 --port 8000 &
+        python -m uvicorn cribl_hc.api.app:app --host 127.0.0.1 --port 8080 &
         for _ in $(seq 1 30); do
-          curl -sf http://localhost:8000/health >/dev/null && exit 0
+          curl -sf http://localhost:8080/health >/dev/null && exit 0
           sleep 1
         done
-        echo "Backend did not become ready on :8000" >&2
+        echo "Backend did not become ready on :8080" >&2
         exit 1
 
     - name: Start frontend and check it serves
@@ -196,5 +196,5 @@ jobs:
 
     - name: Check the API answers
       run: |
-        curl -sf http://localhost:8000/api/v1/health | tee /dev/stderr | grep -q '"status"'
-        curl -sf http://localhost:8000/api/v1/analyzers >/dev/null
+        curl -sf http://localhost:8080/api/v1/health | tee /dev/stderr | grep -q '"status"'
+        curl -sf http://localhost:8080/api/v1/analyzers >/dev/null

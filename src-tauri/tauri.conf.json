@@ -35,9 +35,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "binaries/*"
-    ],
     "externalBin": [
       "binaries/cribl-hc-backend"
     ]
