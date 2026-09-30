@@ -22,5 +22,5 @@ ruff==0.16.8
 mypy==2.3.1
 
 # Build tools
-build>=1.0.0
+build>=1.6.1
 twine>=4.0.0
