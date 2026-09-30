@@ -23,4 +23,4 @@ mypy==2.3.1
 
 # Build tools
 build>=1.0.0
-twine>=4.0.0
+twine>=7.0.0
